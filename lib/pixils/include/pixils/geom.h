@@ -48,6 +48,12 @@ namespace Pixils
      */
     float euclidean_distance_to(const Point& other) const;
 
+    /*!
+     * @brief Calculates the squared Euclidean distance between this point and
+     * other.
+     */
+    float distance_squared_to(const Point& other) const;
+
     Point floor() const;
     Point round() const;
 

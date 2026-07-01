@@ -27,6 +27,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__MULTIPLY = "*";
   inline constexpr std::string_view FN__ROTATE = "rotate";
   inline constexpr std::string_view FN__DISTANCE = "distance";
+  inline constexpr std::string_view FN__DISTANCE_SQUARED = "distance-squared";
   inline constexpr std::string_view FN__CLAMP = "clamp";
   inline constexpr std::string_view FN__TRANSLATE = "translate";
   inline constexpr std::string_view FN__TRANSLATE_X = "translate-x";
@@ -65,6 +66,8 @@ namespace Pixils::Script
     FUNC(PointMinus, minus);
     /*! @brief Distance between */
     FUNC(DistanceBetween, distance);
+    /*! @brief Squared Euclidean distance between two points */
+    FUNC(DistanceSquared, distance_squared);
     /*! @brief Clamp point to rect bounds */
     FUNC(ClampPoint, clamp);
     /*! @brief Translate point by x/y delta */

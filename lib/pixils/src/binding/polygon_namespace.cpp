@@ -39,6 +39,17 @@ namespace Pixils::Script
              point.y <= std::max(a.y, b.y) + EPSILON;
     }
 
+    bool rect_contains_point(const Rect& rect, const Point& point, bool include_boundary)
+    {
+      if (include_boundary)
+      {
+        return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y &&
+               point.y <= rect.y + rect.h;
+      }
+
+      return rect.contains(point);
+    }
+
     bool segment_intersects_segment(const Point& a,
                                     const Point& b,
                                     const Point& c,
@@ -144,6 +155,73 @@ namespace Pixils::Script
       return Rect{x, y, right - x, bottom - y};
     }
 
+    Point segment_closest_point(const Point& a, const Point& b, const Point& point)
+    {
+      const float dx = b.x - a.x;
+      const float dy = b.y - a.y;
+      const float length_squared = dx * dx + dy * dy;
+      if (length_squared <= EPSILON) return a;
+
+      const float raw_t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / length_squared;
+      const float t = std::max(0.0f, std::min(1.0f, raw_t));
+      return Point{a.x + t * dx, a.y + t * dy};
+    }
+
+    std::optional<Point> polygon_closest_edge_point(const std::vector<Point>& polygon,
+                                                    const Point& point)
+    {
+      if (polygon.size() < 2) return std::nullopt;
+
+      Point closest = segment_closest_point(polygon.front(), polygon[1], point);
+      float closest_distance = closest.distance_squared_to(point);
+
+      for (size_t i = 1; i < polygon.size(); i++)
+      {
+        const Point& a = polygon[i];
+        const Point& b = polygon[(i + 1) % polygon.size()];
+        const Point candidate = segment_closest_point(a, b, point);
+        const float distance = candidate.distance_squared_to(point);
+        if (distance < closest_distance)
+        {
+          closest = candidate;
+          closest_distance = distance;
+        }
+      }
+
+      return closest;
+    }
+
+    std::optional<Point> polygon_vertex_center(const std::vector<Point>& polygon)
+    {
+      if (polygon.empty()) return std::nullopt;
+
+      float x = 0.0f;
+      float y = 0.0f;
+      for (const Point& point : polygon)
+      {
+        x += point.x;
+        y += point.y;
+      }
+
+      const float size = static_cast<float>(polygon.size());
+      return Point{x / size, y / size};
+    }
+
+    float polygon_area(const std::vector<Point>& polygon)
+    {
+      if (polygon.size() < 3) return 0.0f;
+
+      float twice_area = 0.0f;
+      for (size_t i = 0; i < polygon.size(); i++)
+      {
+        const Point& a = polygon[i];
+        const Point& b = polygon[(i + 1) % polygon.size()];
+        twice_area += a.x * b.y - b.x * a.y;
+      }
+
+      return std::abs(twice_area) * 0.5f;
+    }
+
     bool rect_contains_rect(const Rect& outer, const Rect& inner)
     {
       return inner.x >= outer.x && inner.y >= outer.y &&
@@ -205,17 +283,30 @@ namespace Pixils::Script
       return polygon_contains_point(a, b.front()) || polygon_contains_point(b, a.front());
     }
 
-    bool rect_intersects_polygon(const Rect& rect, const std::vector<Point>& polygon)
+    bool rect_intersects_rect(const Rect& a, const Rect& b, bool include_boundary)
+    {
+      if (include_boundary)
+      {
+        return a.x <= b.x + b.w && a.x + a.w >= b.x && a.y <= b.y + b.h && a.y + a.h >= b.y;
+      }
+
+      return a.intersects(b);
+    }
+
+    bool rect_intersects_polygon(const Rect& rect,
+                                 const std::vector<Point>& polygon,
+                                 bool include_boundary)
     {
       if (polygon.size() < 3) return false;
 
       auto bounds = polygon_bounds(polygon);
-      if (!bounds || !rect.intersects(*bounds)) return false;
+      if (!bounds || !rect_intersects_rect(rect, *bounds, include_boundary)) return false;
 
       const std::vector<Point> rect_polygon = rect_points(rect);
       if (std::any_of(polygon.begin(),
                       polygon.end(),
-                      [&rect](const Point& point) { return rect.contains(point); }))
+                      [&rect, include_boundary](const Point& point)
+                      { return rect_contains_point(rect, point, include_boundary); }))
       {
         return true;
       }
@@ -244,6 +335,41 @@ namespace Pixils::Script
         Geometry::polygon_bounds(Geometry::points_from_value(args[0]));
       if (!bounds) return Roo::Constant::NIL;
       return RectAdapter::make_unique(*bounds);
+    }
+
+    FUNC_IMPL(PolygonAreaFunction,
+              SIG((FN_ARGS((&HostType::VECTOR_OF_POINT)),
+                   EXEC_DISPATCH(&PolygonAreaFunction::exec_area))));
+
+    EXEC_BODY(PolygonAreaFunction, exec_area)
+    {
+      return Roo::number(Geometry::polygon_area(Geometry::points_from_value(args[0])));
+    }
+
+    FUNC_IMPL(PolygonVertexCenterFunction,
+              SIG((FN_ARGS((&HostType::VECTOR_OF_POINT)),
+                   EXEC_DISPATCH(&PolygonVertexCenterFunction::exec_vertex_center))));
+
+    EXEC_BODY(PolygonVertexCenterFunction, exec_vertex_center)
+    {
+      std::optional<Point> center =
+        Geometry::polygon_vertex_center(Geometry::points_from_value(args[0]));
+      if (!center) return Roo::Constant::NIL;
+      return PointAdapter::make_unique(*center);
+    }
+
+    FUNC_IMPL(
+      PolygonClosestEdgePointFunction,
+      SIG((FN_ARGS((&HostType::VECTOR_OF_POINT), (&HostType::POINT)),
+           EXEC_DISPATCH(&PolygonClosestEdgePointFunction::exec_closest_edge_point))));
+
+    EXEC_BODY(PolygonClosestEdgePointFunction, exec_closest_edge_point)
+    {
+      std::optional<Point> closest =
+        Geometry::polygon_closest_edge_point(Geometry::points_from_value(args[0]),
+                                             Roo::obj<Point>(*args[1]));
+      if (!closest) return Roo::Constant::NIL;
+      return PointAdapter::make_unique(*closest);
     }
 
     FUNC_IMPL(PolygonContainsFunction,
@@ -299,8 +425,11 @@ namespace Pixils::Script
   PolygonNamespace::PolygonNamespace()
     : Roo::Namespace(std::string(NS__PIXILS__POLYGON))
   {
+    values.emplace("area", Function::PolygonAreaFunction::make());
     values.emplace("bounds", Function::PolygonBoundsFunction::make());
+    values.emplace("closest-edge-point", Function::PolygonClosestEdgePointFunction::make());
     values.emplace("contains?", Function::PolygonContainsFunction::make());
     values.emplace("intersects?", Function::PolygonIntersectsFunction::make());
+    values.emplace("vertex-center", Function::PolygonVertexCenterFunction::make());
   }
 } // namespace Pixils::Script

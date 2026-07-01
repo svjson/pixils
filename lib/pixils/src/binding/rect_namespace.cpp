@@ -11,6 +11,16 @@
 
 namespace Pixils::Script
 {
+  namespace
+  {
+    bool include_boundary_option(Roo::Context& ctx, const Roo::sptr_val& value)
+    {
+      static Roo::MapSchema opts_schema({}, {{"include-boundary?", &Roo::Type::BOOL}});
+      auto opts = opts_schema.bind(ctx, *value);
+      return opts.boolean("include-boundary?", false);
+    }
+  } // namespace
+
   namespace Function
   {
     FUNC_IMPL(MakeRect,
@@ -66,12 +76,23 @@ namespace Pixils::Script
     FUNC_IMPL(RectIntersectsFunction,
               MULTI_SIG((FN_ARGS((&HostType::RECT), (&HostType::RECT)),
                          EXEC_DISPATCH(&RectIntersectsFunction::exec_intersects_rect)),
+                        (FN_ARGS((&HostType::RECT), (&HostType::RECT), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&RectIntersectsFunction::exec_intersects_with_opts)),
                         (FN_ARGS((&HostType::RECT), (&HostType::VECTOR_OF_POINT)),
                          EXEC_DISPATCH(&RectIntersectsFunction::exec_intersects_polygon))));
 
     EXEC_BODY(RectIntersectsFunction, exec_intersects_rect)
     {
       return Roo::obj<Rect>(*args[0]).intersects(Roo::obj<Rect>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    EXEC_BODY(RectIntersectsFunction, exec_intersects_with_opts)
+    {
+      const Rect& rect = Roo::obj<Rect>(*args[0]);
+      const bool include_boundary = include_boundary_option(ctx, args[2]);
+      return Geometry::rect_intersects_rect(rect, Roo::obj<Rect>(*args[1]), include_boundary)
                ? Roo::Constant::BOOL_TRUE
                : Roo::Constant::BOOL_FALSE;
     }

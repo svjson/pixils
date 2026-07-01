@@ -15,7 +15,9 @@
                                   pixils.color
                                   pixils.image
                                   pixils.keyboard
+                                  pixils.line
                                   pixils.point
+                                  pixils.polygon
                                   pixils.rect
                                   pixils.render
                                   pixils.state.counter

@@ -7,6 +7,7 @@
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/image_namespace.h>
 #include <pixils/binding/keyboard_namespace.h>
+#include <pixils/binding/line_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/polygon_namespace.h>
@@ -42,6 +43,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::LineNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StateTimerNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());

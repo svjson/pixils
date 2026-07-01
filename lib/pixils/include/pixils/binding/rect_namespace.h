@@ -32,7 +32,7 @@ namespace Pixils::Script
     /*! @brief Checks if a Rect contains a Point, Rect, or polygon */
     FUNC(RectContainsFunction, contains_point, contains_rect, contains_polygon);
     /*! @brief Checks if a Rect intersects a Rect or polygon */
-    FUNC(RectIntersectsFunction, intersects_rect, intersects_polygon);
+    FUNC(RectIntersectsFunction, intersects_rect, intersects_polygon, intersects_with_opts);
     /*! @brief Checks if a Point is inside the bounds of a Rect */
     FUNC(InsidePFunction, inside);
     /*! @brief Checks if to Rects intersect each other */

@@ -11,7 +11,6 @@ namespace Pixils
 {
   std::optional<RenderContext> init_sdl(const std::string& window_name)
   {
-    std::cout << "Initializing SDL..." << std::endl;
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
     {
       std::cerr << "Could not initialize media." << std::endl;

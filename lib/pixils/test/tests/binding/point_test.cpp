@@ -41,8 +41,10 @@ TEST_F(PointTest, translate_y_moves_only_y_axis)
 
 TEST_F(PointTest, clamp_limits_point_to_rect_bounds)
 {
-  auto x = runtime.eval("(:x (pixils.point/clamp {:x -5 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
-  auto y = runtime.eval("(:y (pixils.point/clamp {:x -5 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
+  auto x =
+    runtime.eval("(:x (pixils.point/clamp {:x -5 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
+  auto y =
+    runtime.eval("(:y (pixils.point/clamp {:x -5 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
 
   ASSERT_NE(x, nullptr);
   ASSERT_NE(y, nullptr);
@@ -52,10 +54,14 @@ TEST_F(PointTest, clamp_limits_point_to_rect_bounds)
 
 TEST_F(PointTest, wrap_repositions_point_to_opposite_edge_when_outside_bounds)
 {
-  auto left_x = runtime.eval("(:x (pixils.point/wrap {:x 9 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
-  auto right_x = runtime.eval("(:x (pixils.point/wrap {:x 111 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
-  auto top_y = runtime.eval("(:y (pixils.point/wrap {:x 20 :y 19} {:x 10 :y 20 :w 100 :h 50}))");
-  auto bottom_y = runtime.eval("(:y (pixils.point/wrap {:x 20 :y 71} {:x 10 :y 20 :w 100 :h 50}))");
+  auto left_x =
+    runtime.eval("(:x (pixils.point/wrap {:x 9 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
+  auto right_x =
+    runtime.eval("(:x (pixils.point/wrap {:x 111 :y 30} {:x 10 :y 20 :w 100 :h 50}))");
+  auto top_y =
+    runtime.eval("(:y (pixils.point/wrap {:x 20 :y 19} {:x 10 :y 20 :w 100 :h 50}))");
+  auto bottom_y =
+    runtime.eval("(:y (pixils.point/wrap {:x 20 :y 71} {:x 10 :y 20 :w 100 :h 50}))");
 
   ASSERT_NE(left_x, nullptr);
   ASSERT_NE(right_x, nullptr);
@@ -65,4 +71,12 @@ TEST_F(PointTest, wrap_repositions_point_to_opposite_edge_when_outside_bounds)
   EXPECT_EQ(right_x->num().get_int(), 10);
   EXPECT_EQ(top_y->num().get_int(), 70);
   EXPECT_EQ(bottom_y->num().get_int(), 20);
+}
+
+TEST_F(PointTest, distance_squared_returns_squared_euclidean_distance)
+{
+  auto distance = runtime.eval("(pixils.point/distance-squared {:x 0 :y 0} {:x 3 :y 4})");
+
+  ASSERT_NE(distance, nullptr);
+  EXPECT_FLOAT_EQ(distance->f32(), 25.0f);
 }

@@ -37,8 +37,7 @@ namespace Pixils::Script
                         (FN_ARGS((&Roo::Type::MAP)),
                          EXEC_DISPATCH(&MakePoint::exec_point_from_map))));
 
-    Roo::MapSchema point_schema({{"x", &Roo::Type::NUMBER},
-                                    {"y", &Roo::Type::NUMBER}});
+    Roo::MapSchema point_schema({{"x", &Roo::Type::NUMBER}, {"y", &Roo::Type::NUMBER}});
 
     EXEC_BODY(MakePoint, exec_point_from_map)
     {
@@ -69,6 +68,19 @@ namespace Pixils::Script
       return Roo::number(a.distance_to(b));
     }
 
+    /* Distance Squared - distance-squared */
+    FUNC_IMPL(DistanceSquared,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                   EXEC_DISPATCH(&DistanceSquared::exec_distance_squared))))
+
+    EXEC_BODY(DistanceSquared, exec_distance_squared)
+    {
+      const Point& a = Roo::obj<Point>(*args[0]);
+      const Point& b = Roo::obj<Point>(*args[1]);
+
+      return Roo::number(a.distance_squared_to(b));
+    }
+
     /* Clamp Point */
     FUNC_IMPL(ClampPoint,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
@@ -88,10 +100,9 @@ namespace Pixils::Script
     }
 
     /* Translate Point */
-    FUNC_IMPL(
-      TranslatePoint,
-      SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
-           EXEC_DISPATCH(&TranslatePoint::exec_translate))));
+    FUNC_IMPL(TranslatePoint,
+              SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+                   EXEC_DISPATCH(&TranslatePoint::exec_translate))));
 
     EXEC_BODY(TranslatePoint, exec_translate)
     {
@@ -153,8 +164,8 @@ namespace Pixils::Script
                  EXEC_DISPATCH(&RotatePoint::exec_with_opts))))
 
     Roo::MapSchema rotate_opts_schema({},
-                                         {{"origin", &HostType::POINT},
-                                          {"radians", &Roo::Type::NUMBER}});
+                                      {{"origin", &HostType::POINT},
+                                       {"radians", &Roo::Type::NUMBER}});
 
     EXEC_BODY(RotatePoint, exec_with_opts)
     {
@@ -167,8 +178,7 @@ namespace Pixils::Script
 
     EXEC_BODY(RotatePoint, exec_amount)
     {
-      Roo::sptr_val_v fwd_args = {args[0],
-                                     Roo::map({Roo::keyword("radians"), args[1]})};
+      Roo::sptr_val_v fwd_args = {args[0], Roo::map({Roo::keyword("radians"), args[1]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }
@@ -177,8 +187,7 @@ namespace Pixils::Script
     {
       Roo::sptr_val_v fwd_args = {
         args[0],
-        Roo::map(
-          {Roo::keyword("origin"), args[1], Roo::keyword("amount"), args[2]})};
+        Roo::map({Roo::keyword("origin"), args[1], Roo::keyword("amount"), args[2]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }
@@ -243,6 +252,7 @@ namespace Pixils::Script
     : Roo::Namespace(std::string(NS__PIXILS__POINT))
   {
     values.emplace(FN__DISTANCE, Function::DistanceBetween::make());
+    values.emplace(FN__DISTANCE_SQUARED, Function::DistanceSquared::make());
     values.emplace(FN__CLAMP, Function::ClampPoint::make());
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
     values.emplace(FN__INT_POINT, Function::IntPointFunction::make());

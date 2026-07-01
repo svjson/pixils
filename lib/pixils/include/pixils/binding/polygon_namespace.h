@@ -19,9 +19,17 @@ namespace Pixils::Script
     std::vector<Point> points_from_value(const Roo::sptr_val& value);
     std::vector<Point> rect_points(const Rect& rect);
     std::optional<Rect> polygon_bounds(const std::vector<Point>& points);
+    Point segment_closest_point(const Point& a, const Point& b, const Point& point);
+    std::optional<Point> polygon_closest_edge_point(const std::vector<Point>& polygon,
+                                                    const Point& point);
+    std::optional<Point> polygon_vertex_center(const std::vector<Point>& polygon);
+    float polygon_area(const std::vector<Point>& polygon);
     bool rect_contains_rect(const Rect& outer, const Rect& inner);
     bool rect_contains_polygon(const Rect& rect, const std::vector<Point>& polygon);
-    bool rect_intersects_polygon(const Rect& rect, const std::vector<Point>& polygon);
+    bool rect_intersects_rect(const Rect& a, const Rect& b, bool include_boundary);
+    bool rect_intersects_polygon(const Rect& rect,
+                                 const std::vector<Point>& polygon,
+                                 bool include_boundary = false);
     bool polygon_contains_point(const std::vector<Point>& polygon, const Point& point);
     bool polygon_contains_polygon(const std::vector<Point>& outer,
                                   const std::vector<Point>& inner);
@@ -32,6 +40,12 @@ namespace Pixils::Script
   {
     /*! @brief Return the raster-oriented bounding rect of a polygon */
     FUNC(PolygonBoundsFunction, bounds);
+    /*! @brief Return the absolute area of a polygon */
+    FUNC(PolygonAreaFunction, area);
+    /*! @brief Return the average of the polygon vertices */
+    FUNC(PolygonVertexCenterFunction, vertex_center);
+    /*! @brief Return the closest point on any polygon edge */
+    FUNC(PolygonClosestEdgePointFunction, closest_edge_point);
     /*! @brief Test whether a polygon fully contains a point, rect, or polygon */
     FUNC(PolygonContainsFunction, contains_point, contains_rect, contains_polygon);
     /*! @brief Test whether a polygon intersects a rect or polygon */

@@ -33,6 +33,12 @@ namespace Pixils
                      (other.y - this->y) * (other.y - this->y));
   }
 
+  float Point::distance_squared_to(const Point& other) const
+  {
+    return (other.x - this->x) * (other.x - this->x) +
+           (other.y - this->y) * (other.y - this->y);
+  }
+
   Point Point::plus(float x, float y) const
   {
     return Point{this->x + x, this->y + y};

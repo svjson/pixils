@@ -1833,6 +1833,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `wrap` | Wrap a point around a rect's bounds. |
 | `rotate`   | Rotate a point. Args: `point angle` or `point origin angle`. |
 | `distance` | Distance between two points. |
+| `distance-squared` | Squared Euclidean distance between two points. Useful for distance ordering without a square root. |
 
 ### `pixils.rect`
 
@@ -1840,17 +1841,26 @@ Accepts the same `:font` and `:scale` options as `text!`.
 |---------------|-------------|
 | `make-rect`   | Construct a rect from `{:x :y :w :h}`. |
 | `contains?`   | Return whether a rect fully contains a point, rect, or polygon. Rect right/bottom edges are exclusive. |
-| `intersects?` | Return whether a rect intersects another rect or a polygon. Touching rect edges without overlap do not intersect. |
+| `intersects?` | Return whether a rect intersects another rect or a polygon. For rect-vs-rect, touching edges without overlap do not intersect unless an options map `{:include-boundary? true}` is passed as the third argument. |
 | `inside?`     | Compatibility alias for point-in-rect checks. |
 | `intersect?`  | Compatibility alias for rect-rect intersection checks. |
+
+### `pixils.line`
+
+| Symbol          | Description |
+|-----------------|-------------|
+| `closest-point` | Return the closest point on a finite line to a point. Args: line start point, line end point, query point. The result is clamped to the line endpoints. |
 
 ### `pixils.polygon`
 
 | Symbol        | Description |
 |---------------|-------------|
+| `area`        | Return the absolute shoelace area of a polygon. Returns `0` for fewer than three vertices. |
 | `bounds`      | Return the integer bounding rect for a polygon, or `nil` for an empty point vector. |
+| `closest-edge-point` | Return the closest point on any polygon edge to a query point, or `nil` for fewer than two vertices. |
 | `contains?`   | Return whether a polygon fully contains a point, rect, or another polygon. Polygon edges count as contained. |
 | `intersects?` | Return whether a polygon intersects a rect or another polygon. Edge/vertex touches count as intersections. |
+| `vertex-center` | Return the average of all polygon vertices as a point, or `nil` for an empty point vector. |
 
 ### `pixils.resource`
 
