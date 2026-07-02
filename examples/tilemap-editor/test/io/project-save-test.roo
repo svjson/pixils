@@ -3,7 +3,8 @@
             [roo.io :as io]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.io.project :as project-io]
-            [tilemap-editor.io.project-support :as support]))
+            [tilemap-editor.io.project-support :as support]
+            [tilemap-editor.view.resources.model :as resources]))
 
 (deftest save-dialog-result-writes-project-edn
   (support/cleanup-project-io-test-files!)
@@ -21,6 +22,29 @@
     (is (= data/default-map-id (:selected-map document)))
     (is (= {:w 24 :h 24} (get-in document [:maps 0 :tile-size])))
     (is (= [] (get-in document [:maps 0 :layers]))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest save-after-resource-workspace-derivation-preserves-model-paths
+  (support/cleanup-project-io-test-files!)
+  (let [absolute-path "/tmp/project/assets/tiles.png"
+        state (resources/derive-resource-workspace-state
+               {:project-path "/tmp/project/map.edn"
+                :resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name absolute-path
+                                                 :name "Tiles"}}}}}
+                :layers []
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :tiles})]
+    (project-io/apply-project-file-dialog-result
+     state
+     (support/file-dialog-payload :file-dialog/save
+                                  support/SAVE-PATH
+                                  "saved-project.edn"))
+    (let [document (io/slurp-edn! support/SAVE-PATH)]
+      (is (= absolute-path
+             (get-in document
+                     [:resources :bundles :terrain-assets :images :tiles :file-name])))))
   (support/cleanup-project-io-test-files!))
 
 (deftest save-and-open-round-trips-terrain-rule-exclusive-flag

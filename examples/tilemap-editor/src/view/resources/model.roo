@@ -138,12 +138,7 @@
                        (if (blank? relative-path)
                          "."
                          relative-path)))))]
-    (do
-      (prn {:formatter :project-relative-file-label
-            :input path
-            :project-directory project-directory
-            :output result})
-      result)))
+    result))
 
 (defun project-file-directory [path project-directory]
   (let [directory (file-directory path)]
@@ -705,8 +700,7 @@
 
 (defun derive-resource-workspace-state [state]
   (let [project-directory (effective-project-directory state)
-        resources (project-relative-resources (:resources state)
-                                              project-directory)
+        resources (:resources state)
         bundle-id (selected-bundle-id resources
                                       (:selected-resource-bundle state))
         image-ids (selected-image-resource-ids resources
@@ -714,22 +708,14 @@
                                                (:selected-image-resources state)
                                                (:selected-image-resource state))
         image-id (single-selected-image-resource-id image-ids)]
-    (do
-      (prn {:derive :resource-workspace
-            :input-project-path (:project-path state)
-            :input-project-directory (:project-directory state)
-            :effective-project-directory project-directory
-            :selected-resource-bundle (:selected-resource-bundle state)
-            :selected-image-resource (:selected-image-resource state)})
-      (assoc state
-             :resources resources
-             :project-directory project-directory
-             :selected-resource-bundle bundle-id
-             :selected-image-resource image-id
-             :selected-image-resources image-ids
-             :image-resource-panel-disabled? (nil? bundle-id)
-             :image-resource-add-disabled? (nil? bundle-id)
-             :image-resource-detail-disabled? (not (= (count image-ids) 1))))))
+    (assoc state
+           :project-directory project-directory
+           :selected-resource-bundle bundle-id
+           :selected-image-resource image-id
+           :selected-image-resources image-ids
+           :image-resource-panel-disabled? (nil? bundle-id)
+           :image-resource-add-disabled? (nil? bundle-id)
+           :image-resource-detail-disabled? (not (= (count image-ids) 1)))))
 
 (defun resource-dependency [payload]
   (let [dependency {:file-name (:file-name payload)

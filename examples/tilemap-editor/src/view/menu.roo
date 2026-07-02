@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.menu
-  (:require [pixils.ui.menu :as menu]))
+  (:require [pixils.ui.menu :as menu]
+            [tilemap-editor.model.workbook :as editor-workbook]))
 
 
 (def tilemap-editor-menu-keymap
@@ -21,16 +22,10 @@
 
 (defun normalized-menu-state [state]
   {:recent-projects (or (:recent-projects state) [])
-   :can-undo? (not (empty? (or (get (or (:workbook-history state) {})
-                                      :undo)
-                                  [])))
-   :can-redo? (not (empty? (or (get (or (:workbook-history state) {})
-                                      :redo)
-                                  [])))
-   :undo-label (:label (head (get (or (:workbook-history state) {})
-                                :undo)))
-   :redo-label (:label (head (get (or (:workbook-history state) {})
-                                :redo)))
+   :can-undo? (editor-workbook/can-undo? state)
+   :can-redo? (editor-workbook/can-redo? state)
+   :undo-label (editor-workbook/undo-label state)
+   :redo-label (editor-workbook/redo-label state)
    :show-grid? (not= (:show-grid? state) false)
    :show-terrain-rules? (not= (:show-terrain-rules? state) false)
    :terrain-rule-application (or (:terrain-rule-application state)

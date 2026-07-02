@@ -90,6 +90,41 @@
 (defun apply-tileset-shortcut-dialog-result [state payload]
   (tileset-model/add-tileset-definition! state payload))
 
+(defun apply-map-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (let [operation (-> payload :context :operation)
+          label (case operation
+                  :add "Add map"
+                  :rename "Rename map"
+                  :duplicate "Duplicate map"
+                  :default nil)]
+      (if label
+        (editor-workbook/change-to
+         state
+         label
+         (map-model/apply-map-dialog-result state payload))
+        state))
+    state))
+
+(defun apply-map-delete-dialog-result [state payload]
+  (if (= (:choice payload) :dialog/ok)
+    (editor-workbook/change-to
+     state
+     "Delete map"
+     (map-model/delete-map state (-> payload :payload :map-id)))
+    state))
+
+(defun apply-map-dimensions-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (editor-workbook/change-to
+     state
+     "Change map dimensions"
+     (tilemap/set-map-dimensions state
+                                 (:width payload)
+                                 (:height payload)
+                                 (:tile-size payload)))
+    state))
+
 (defun apply-theme-selection! [state payload]
   (do
     (if (contains? payload :variant)
@@ -693,24 +728,15 @@
                        state))
        :map/id-name-dialog-result
        (fn [state event ctx]
-         (map-model/apply-map-dialog-result state (:payload event)))
+         (apply-map-dialog-result state (:payload event)))
        :map/delete-dialog-result
        (fn [state event ctx]
-         (let [payload (:payload event)]
-           (if (= (:choice payload) :dialog/ok)
-             (map-model/delete-map state (-> payload :payload :map-id))
-             state)))
+         (apply-map-delete-dialog-result state (:payload event)))
        :map/edit-dimensions (fn [state event ctx]
                               (controls/open-map-dimensions-dialog! state ctx))
        :map/dimensions-dialog-result
        (fn [state event ctx]
-         (let [payload (:payload event)]
-           (if (= (:type payload) :confirm)
-             (tilemap/set-map-dimensions state
-                                         (:width payload)
-                                         (:height payload)
-                                         (:tile-size payload))
-             state)))
+         (apply-map-dimensions-dialog-result state (:payload event)))
        :project/open (fn [state event ctx]
                        (project-io/open-project-file-dialog! state
                                                              ctx

@@ -1,12 +1,56 @@
 (ns tilemap-editor.root-test
   (:require proof.core
+            [pixils.tilemap.project.model :as data]
             [pixils.test.runtime :as runtime]
+            [tilemap-editor.model.workbook :as editor-workbook]
             tilemap-editor.root))
+
+(defun map-layer [id tile]
+  {:id id
+   :label (str id)
+   :role :source
+   :data-kind :tile-ref
+   :tileset :terrain
+   :tiles [[tile]]})
+
+(defun map-edit-state []
+  {:maps [{:id :map/one
+           :label "One"
+           :width 1
+           :height 1
+           :tile-size data/tile-size
+           :layer-profile :default
+           :layers [(map-layer :scene/ground :grass)]}
+          {:id :map/two
+           :label "Two"
+           :width 1
+           :height 1
+           :tile-size data/tile-size
+           :layer-profile :default
+           :layers [(map-layer :scene/ground :water)]}]
+   :selected-map-id :map/one
+   :selected-map-label "One"
+   :map-width 1
+   :map-height 1
+   :tile-size data/tile-size
+   :layer-profiles [{:id :default
+                     :label "Default"
+                     :layers [{:id :scene/ground
+                               :role :source
+                               :data-kind :tile-ref
+                               :tileset :terrain}]}]
+   :selected-layer-profile-id :default
+   :selected-layer-index 0
+   :selected-layer-label "Ground"
+   :hidden-layer-indices []
+   :map-offset {:x 0 :y 0}
+   :layers [(map-layer :scene/ground :edited)]
+   :show-terrain-rules? false})
 
 (deftest root-registers-main-mode
   (is (not (nil? (get pixils/modes 'main-mode)))))
 
-(deftest property-sets-tab-is_last_workspace_tab
+(deftest property-sets-tab-is-last-workspace-tab
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800
                                :buffer-height 600})]
@@ -22,7 +66,7 @@
       (is (= :terrains (:tab-id (runtime/view-state (nth tabs 5)))))
       (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 6))))))))
 
-(deftest status-bar-renders_at_root
+(deftest status-bar-renders-at-root
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800
                                :buffer-height 600})]
@@ -31,12 +75,12 @@
     (runtime/render! app)
     (is (not (nil? (runtime/find-view app "status-bar"))))))
 
-(deftest map-coordinate-status-formats_hover_cell
+(deftest map-coordinate-status-formats-hover-cell
   (is (= "Cell -" (tilemap-editor.root/map-coordinate-status nil)))
   (is (= "Cell 3,4"
          (tilemap-editor.root/map-coordinate-status {:x 3 :y 4}))))
 
-(deftest transition-mask-diagnostics-status-formats_counts
+(deftest transition-mask-diagnostics-status-formats-counts
   (is (= "Transitions -"
          (tilemap-editor.root/transition-mask-diagnostics-status nil)))
   (is (= "Transitions m:2 g:1 f:1"
@@ -46,14 +90,14 @@
            :generated-transition-entries 1
            :failed-transition-entries 1}))))
 
-(deftest tileset-shortcut-request-switches_tab_before_dialog
+(deftest tileset-shortcut-request-switches-tab-before-dialog
   (let [state (tilemap-editor.root/request-tileset-shortcut-dialog
                {:workspace-tab :map
                 :pending-tileset-shortcut-dialog? false})]
     (is (= :tilesets (:workspace-tab state)))
     (is (= true (:pending-tileset-shortcut-dialog? state)))))
 
-(deftest workspace-tab-switch-remembers_and_restores_terrain_and_mask_view_state
+(deftest workspace-tab-switch-remembers-and-restores-terrain-and-mask-view-state
   (let [state {:workspace-tab :terrains
                :selected-terrain-set-index 1
                :selected-terrain-index 2
@@ -93,7 +137,7 @@
             :mask-detail-tab :mask-set}
            (get-in state [:workspace-view-state :masks])))))
 
-(deftest tileset-shortcut-dialog-result-adds_tileset
+(deftest tileset-shortcut-dialog-result-adds-tileset
   (let [state (tilemap-editor.root/apply-tileset-shortcut-dialog-result
                {:tilesets []
                 :selected-tileset-definition-index nil}
@@ -106,7 +150,51 @@
     (is (= {:w 24 :h 24} (get-in state [:tilesets 0 :tile-size])))
     (is (= 0 (:selected-tileset-definition-index state)))))
 
-(deftest theme-selection-updates_state_and_queues_runtime_theme_switch
+(deftest map-dialog-result-records-workbook-change
+  (let [state (tilemap-editor.root/apply-map-dialog-result
+               (map-edit-state)
+               {:type :confirm
+                :id "map/start"
+                :name "Start"
+                :context {:operation :rename
+                          :map-id :map/one}})
+        undone (editor-workbook/undo state)]
+    (is (= :map/start (:selected-map-id state)))
+    (is (= "Start" (:selected-map-label state)))
+    (is (= "Rename map" (editor-workbook/undo-label state)))
+    (is (= :map/one (:selected-map-id undone)))
+    (is (= "One" (:selected-map-label undone)))
+    (is (= :map/one (get-in undone [:maps 0 :id])))))
+
+(deftest map-delete-result-records-workbook-change
+  (let [state (tilemap-editor.root/apply-map-delete-dialog-result
+               (map-edit-state)
+               {:choice :dialog/ok
+                :payload {:map-id :map/one}})
+        undone (editor-workbook/undo state)]
+    (is (= 1 (count (:maps state))))
+    (is (= :map/two (:selected-map-id state)))
+    (is (= "Delete map" (editor-workbook/undo-label state)))
+    (is (= 2 (count (:maps undone))))
+    (is (= :map/one (:selected-map-id undone)))))
+
+(deftest map-dimensions-result-records-workbook-change
+  (let [state (tilemap-editor.root/apply-map-dimensions-dialog-result
+               (map-edit-state)
+               {:type :confirm
+                :width 3
+                :height 2
+                :tile-size 32})
+        undone (editor-workbook/undo state)]
+    (is (= 3 (:map-width state)))
+    (is (= 2 (:map-height state)))
+    (is (= {:w 32 :h 32} (:tile-size state)))
+    (is (= "Change map dimensions" (editor-workbook/undo-label state)))
+    (is (= 1 (:map-width undone)))
+    (is (= 1 (:map-height undone)))
+    (is (= data/tile-size (:tile-size undone)))))
+
+(deftest theme-selection-updates-state-and-queues-runtime-theme-switch
   (let [message-index (count pixils/mode-stack-messages)
         state (tilemap-editor.root/apply-theme-selection!
                {:application-theme :pixils/windows-3}
@@ -117,7 +205,7 @@
     (is (= :theme (:type message)))
     (is (= 'pixils/windows-95 (:theme message)))))
 
-(deftest theme-selection-passes_variant_to_runtime_theme_switch
+(deftest theme-selection-passes-variant-to-runtime-theme-switch
   (let [message-index (count pixils/mode-stack-messages)
         state (tilemap-editor.root/apply-theme-selection!
                {:application-theme :pixils/windows-3}

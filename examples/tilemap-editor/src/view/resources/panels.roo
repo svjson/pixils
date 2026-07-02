@@ -414,21 +414,16 @@
                                                 (:selected-resource-bundle state))
                                                (:selected-image-resource state))
                    project-directory (effective-project-directory state)]
-               (do
-                 (prn {:detail :image-resource-detail
-                       :project-path (:project-path state)
-                       :project-directory (:project-directory state)
-                       :effective-project-directory project-directory})
-                 (assoc state
-                        :resource resource
-                        :edit-disabled? (nil? resource)
-                        :key-label (if resource (str (:key resource)) "")
-                        :name-label (or (:name resource) "")
-                        :file-label (project-relative-file-label
-                                     (:file-name resource)
-                                     project-directory)
-                        :transparency-color-label
-                        (or (:transparency-color resource) "")))))
+               (assoc state
+                      :resource resource
+                      :edit-disabled? (nil? resource)
+                      :key-label (if resource (str (:key resource)) "")
+                      :name-label (or (:name resource) "")
+                      :file-label (project-relative-file-label
+                                   (:file-name resource)
+                                   project-directory)
+                      :transparency-color-label
+                      (or (:transparency-color resource) ""))))
    :children [{:mode 'ui/button
                :class :ui/toolbar-button
                :style {:width :shrink

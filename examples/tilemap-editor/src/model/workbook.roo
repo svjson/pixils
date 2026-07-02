@@ -7,6 +7,27 @@
   (dissoc (dissoc state history-key)
           :rendered-menu-state))
 
+(defun unique-root-keys [before after]
+  (let [result []]
+    (map (keys (or before {}))
+         (fn [key]
+           (append! result key)))
+    (map (keys (or after {}))
+         (fn [key]
+           (when (not (contains? result key))
+             (append! result key))))
+    result))
+
+(defun top-level-state-patches [before after]
+  (let [before (editable-state before)
+        after (editable-state after)
+        patches []]
+    (map (unique-root-keys before after)
+         (fn [key]
+           (when (not= (get before key) (get after key))
+             (append! patches [:set [key] (get after key)]))))
+    patches))
+
 (defun initial-history [state]
   (workbook/history (workbook/init (editable-state state))))
 
@@ -22,6 +43,13 @@
 
 (defun change [state change]
   (restore-book (workbook/change (book state) change)))
+
+(defun change-to [state label next-state]
+  (let [patches (top-level-state-patches state next-state)]
+    (if (empty? patches)
+      next-state
+      (change state {:label label
+                     :patches patches}))))
 
 (defun undo [state]
   (restore-book (workbook/undo (book state))))

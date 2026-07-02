@@ -149,7 +149,7 @@
                                :file-name "/tmp/project/assets/tiles.png"}}}}}
           "/tmp/project"))))
 
-(deftest resource-workspace-state-derives_project_directory_from_project_path
+(deftest resource-workspace-state-derives-project-directory-without-rewriting-paths
   (let [state (resources/derive-resource-workspace-state
                {:project-path "/tmp/project/map.edn"
                 :resources {:bundles {:terrain-assets
@@ -158,7 +158,7 @@
                 :selected-resource-bundle :terrain-assets
                 :selected-image-resource :tiles})]
     (is (= "/tmp/project" (:project-directory state)))
-    (is (= "assets/tiles.png"
+    (is (= "/tmp/project/assets/tiles.png"
            (get-in state
                    [:resources :bundles :terrain-assets :images :tiles :file-name])))))
 
@@ -172,7 +172,7 @@
                 :selected-resource-bundle :terrain-assets
                 :selected-image-resource :tiles})]
     (is (= "/tmp/project" (:project-directory state)))
-    (is (= "assets/tiles.png"
+    (is (= "/tmp/project/assets/tiles.png"
            (get-in state
                    [:resources :bundles :terrain-assets :images :tiles :file-name])))))
 

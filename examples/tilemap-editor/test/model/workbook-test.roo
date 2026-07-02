@@ -25,3 +25,26 @@
     (is (= "Ground" (get-in undone [:layers 0 :label])))
     (is (= "Ground" (:selected-layer-label undone)))
     (is (= true (editor-workbook/can-redo? undone)))))
+
+(deftest change-to-records-top-level-state-differences
+  (let [state (editor-workbook/change-to
+               {:layers [{:label "Ground"}]
+                :selected-layer-label "Ground"
+                :rendered-menu-state {:can-undo? false}}
+               "Rename layer"
+               {:layers [{:label "Terrain"}]
+                :selected-layer-label "Terrain"
+                :rendered-menu-state {:can-undo? true}})
+        undone (editor-workbook/undo state)]
+    (is (= "Rename layer" (editor-workbook/undo-label state)))
+    (is (= "Terrain" (get-in state [:layers 0 :label])))
+    (is (= "Terrain" (:selected-layer-label state)))
+    (is (= "Ground" (get-in undone [:layers 0 :label])))
+    (is (= "Ground" (:selected-layer-label undone)))
+    (is (nil? (:rendered-menu-state state)))))
+
+(deftest change-to-skips-history-when-state-is-unchanged
+  (let [state {:layers [{:label "Ground"}]}
+        next-state (editor-workbook/change-to state "Rename layer" state)]
+    (is (= state next-state))
+    (is (= false (editor-workbook/can-undo? next-state)))))
