@@ -1,5 +1,6 @@
 (ns pixils.tilemap.project.runtime-test
   (:require proof.core
+            [roo.io :as io]
             [pixils.tilemap.model :as tilemap]
             [pixils.tilemap.project.model :as model]
             [pixils.tilemap.project.runtime :as runtime]))
@@ -74,6 +75,40 @@
     (is (= :floor-crack
            (get-in input
                    [:tile-substitution-rules 0 :choices 0 :tile])))))
+
+(deftest tilemap-pack-resolves-relative-resource-paths-from-project-path
+  (let [document (runtime/tilemap-pack
+                  {:format model/project-format
+                   :resources {:bundles {:game-assets
+                                         {:images {:tiles
+                                                   {:file-name
+                                                    "assets/tiles.png"}
+                                                   :absolute
+                                                   {:file-name
+                                                    "/opt/game/absolute.png"}}}}}
+                   :maps [{:id :map/main
+                           :layers []}]}
+                  {:project-path "/tmp/game/maps/world.edn"})]
+    (is (= (io/absolute-path! "/tmp/game/maps/assets/tiles.png")
+           (get-in document
+                   [:resources :bundles :game-assets :images :tiles :file-name])))
+    (is (= "/opt/game/absolute.png"
+           (get-in document
+                   [:resources :bundles :game-assets :images :absolute :file-name])))))
+
+(deftest render-input-resolves-relative-resource-paths-from-project-directory
+  (let [input (runtime/render-input
+               {:format model/project-format
+                :resources {:bundles {:game-assets
+                                      {:images {:tiles
+                                                {:file-name
+                                                 "assets/tiles.png"}}}}}
+                :maps [{:id :map/main
+                        :layers []}]}
+               {:project-directory "/tmp/game"})]
+    (is (= (io/absolute-path! "/tmp/game/assets/tiles.png")
+           (get-in input
+                   [:resources :bundles :game-assets :images :tiles :file-name])))))
 
 (deftest render-input-is_compatible_with_tilemap_model_lookup
   (let [input (runtime/render-input

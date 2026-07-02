@@ -1,5 +1,6 @@
 (ns pixils.tilemap.project.runtime
-  (:require [pixils.tilemap.model :as tilemap]
+  (:require [roo.io :as io]
+            [pixils.tilemap.model :as tilemap]
             [pixils.tilemap.project.model :as project]))
 
 (def pack-format :pixils.tilemap/pack)
@@ -13,12 +14,65 @@
     (project/selected-map-document (:maps document)
                                    (:selected-map document))))
 
-(defun tilemap-pack [document]
-  (let [document (normalized-project-document document)]
+(defun absolute-path? [path]
+  (and (not (blank? path))
+       (or (= (substr path 0 1) "/")
+           (and (> (count path) 1)
+                (= (substr path 1 1) ":")))))
+
+(defun project-directory [options]
+  (or (:project-directory options)
+      (when (:project-path options)
+        (io/parent-path (:project-path options)))))
+
+(defun runtime-resource-file-name [file-name project-directory]
+  (if (and (not (blank? file-name))
+           (not (blank? project-directory))
+           (not (absolute-path? file-name)))
+    (io/absolute-path! (io/join-path project-directory file-name))
+    file-name))
+
+(defun runtime-image-dependency [dependency project-directory]
+  (if (and (= (type-of dependency) "map")
+           (contains? dependency :file-name))
+    (assoc dependency
+           :file-name
+           (runtime-resource-file-name (:file-name dependency)
+                                       project-directory))
+    dependency))
+
+(defun runtime-bundle [bundle project-directory]
+  (assoc bundle
+         :images
+         (reduce-kv (or (:images bundle) {})
+                    {}
+                    (fn [result image-id dependency]
+                      (assoc result
+                             image-id
+                             (runtime-image-dependency dependency
+                                                       project-directory))))))
+
+(defun runtime-resources [resources project-directory]
+  (if (blank? project-directory)
+    resources
+    (assoc resources
+           :bundles
+           (reduce-kv (or (:bundles resources) {})
+                      {}
+                      (fn [result bundle-id bundle]
+                        (assoc result
+                               bundle-id
+                               (runtime-bundle bundle
+                                               project-directory)))))))
+
+(defun tilemap-pack [document & options &rest]
+  (let [options (or options {})
+        document (normalized-project-document document)
+        resources (project/normalize-project-resources
+                   (or (:resources document) project/project-resources))]
     {:format pack-format
      :version pack-format-version
-     :resources (project/normalize-project-resources
-                 (or (:resources document) project/project-resources))
+     :resources (runtime-resources resources (project-directory options))
      :tilesets (tilemap/apply-tilesets-property-defaults
                 (:property-sets document)
                 (:tilesets document))
@@ -29,12 +83,15 @@
      :maps (:maps document)
      :selected-map (:selected-map document)}))
 
+(defun load-tilemap-pack [path]
+  (tilemap-pack (io/slurp-edn! path) {:project-path path}))
+
 (defun selected-runtime-map [tilemap-pack]
   (project/selected-map-document (:maps tilemap-pack)
                                  (:selected-map tilemap-pack)))
 
-(defun render-input [document]
-  (let [tilemap-pack (tilemap-pack document)
+(defun render-input [document & options &rest]
+  (let [tilemap-pack (tilemap-pack document (or options {}))
         tilemap (selected-runtime-map tilemap-pack)]
     {:tilemap tilemap
      :resources (:resources tilemap-pack)
