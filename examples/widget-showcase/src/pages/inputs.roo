@@ -147,7 +147,7 @@
                [(style/field-row
                  "Bound value"
                  (progress-bar/make {:style {:width 240
-                                             :height 14}
+                                             :height 18}
                                      :value (ui/bind-state :slider-value)
                                      :min 0
                                      :max 100}))

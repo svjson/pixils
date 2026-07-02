@@ -305,7 +305,9 @@
                 :background (var :field-bg)
                 :border (var :inset-border-style)}
 
-    'ui/progress-bar {:background (var :field-bg)
+    'ui/progress-bar {:width 100
+                      :height 12
+                      :background (var :field-bg)
                       :border (var :inset-border-style)
                       :text {:color (var :highlight-color)}}
 

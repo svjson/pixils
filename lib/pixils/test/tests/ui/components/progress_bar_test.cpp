@@ -77,6 +77,32 @@ TEST_F(ProgressBarTest, progress_bar_renders_horizontal_fill_from_value_ratio)
   EXPECT_TRUE(has_fill_rect(render_target()->render_ops, {0, 0, 25, 12}));
 }
 
+TEST_F(ProgressBarTest, progress_bar_uses_theme_dimensions_when_instance_style_omits_them)
+{
+  runtime.eval(R"(
+    (pixils/deftheme tall-progress-theme
+      {:styles {'ui/progress-bar {:height 28}}})
+
+    (pixils/defmode root-mode
+      {:theme 'tall-progress-theme
+       :children [(pixils.ui.progress-bar/make
+                   {:style {:width 100}
+                    :value 25
+                    :max 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto progress = session.active_mode->children[0];
+  ASSERT_NE(progress, nullptr);
+  EXPECT_EQ(progress->bounds.w, 100);
+  EXPECT_EQ(progress->bounds.h, 28);
+}
+
 TEST_F(ProgressBarTest, progress_bar_does_not_inset_fill_for_bordered_styles)
 {
   auto rect = runtime.eval(R"(
