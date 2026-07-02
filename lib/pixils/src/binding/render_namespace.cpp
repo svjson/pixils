@@ -468,6 +468,101 @@ namespace Pixils::Script
         }
       }
 
+      bool point_on_segment(const Point& point, const Point& a, const Point& b)
+      {
+        const float cross = ((point.y - a.y) * (b.x - a.x)) -
+                            ((point.x - a.x) * (b.y - a.y));
+        if (std::abs(cross) > 0.000001f) return false;
+
+        const float dot = ((point.x - a.x) * (b.x - a.x)) +
+                          ((point.y - a.y) * (b.y - a.y));
+        if (dot < 0.0f) return false;
+
+        const float length_sq = ((b.x - a.x) * (b.x - a.x)) +
+                                ((b.y - a.y) * (b.y - a.y));
+        return dot <= length_sq;
+      }
+
+      template <typename Points>
+      bool polygon_contains_sample(const Points& points, const Point& sample)
+      {
+        if (points.size() < 3) return false;
+
+        bool inside = false;
+        for (size_t i = 0, j = points.size() - 1; i < points.size(); j = i++)
+        {
+          const Point& a = points[j];
+          const Point& b = points[i];
+
+          if (point_on_segment(sample, a, b)) return true;
+
+          const bool crosses = ((a.y > sample.y) != (b.y > sample.y));
+          if (crosses)
+          {
+            const float x = a.x + ((sample.y - a.y) * (b.x - a.x) / (b.y - a.y));
+            if (sample.x < x) inside = !inside;
+          }
+        }
+
+        return inside;
+      }
+
+      template <typename Points>
+      void draw_smooth_filled_polygon(SDL_Renderer* renderer,
+                                      const Points& points,
+                                      const Color& color)
+      {
+        if (points.size() < 3) return;
+
+        float min_x = points.front().x;
+        float max_x = points.front().x;
+        float min_y = points.front().y;
+        float max_y = points.front().y;
+        for (const Point& point : points)
+        {
+          min_x = std::min(min_x, point.x);
+          max_x = std::max(max_x, point.x);
+          min_y = std::min(min_y, point.y);
+          max_y = std::max(max_y, point.y);
+        }
+
+        constexpr int SAMPLE_GRID = 4;
+        constexpr int SAMPLE_COUNT = SAMPLE_GRID * SAMPLE_GRID;
+        const int first_x = static_cast<int>(std::floor(min_x));
+        const int last_x = static_cast<int>(std::ceil(max_x)) - 1;
+        const int first_y = static_cast<int>(std::floor(min_y));
+        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          for (int x = first_x; x <= last_x; x++)
+          {
+            int covered_samples = 0;
+            for (int sy = 0; sy < SAMPLE_GRID; sy++)
+            {
+              for (int sx = 0; sx < SAMPLE_GRID; sx++)
+              {
+                const Point sample{
+                  static_cast<float>(x) +
+                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
+                  static_cast<float>(y) +
+                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
+                if (polygon_contains_sample(points, sample)) covered_samples++;
+              }
+            }
+
+            if (covered_samples > 0)
+            {
+              fill_coverage_pixel(renderer,
+                                  x,
+                                  y,
+                                  color,
+                                  static_cast<double>(covered_samples) / SAMPLE_COUNT);
+            }
+          }
+        }
+      }
+
       struct VertexColoredPoint
       {
         Point point;
@@ -1273,6 +1368,116 @@ namespace Pixils::Script
                            points[next_index],
                            stroke_width,
                            line_join);
+        }
+      }
+
+      float distance_sq_to_extended_segment(const Point& sample,
+                                            const Point& from,
+                                            const Point& to)
+      {
+        const float dx = to.x - from.x;
+        const float dy = to.y - from.y;
+        const float length_sq = (dx * dx) + (dy * dy);
+        if (length_sq <= std::numeric_limits<float>::epsilon())
+        {
+          const float sx = sample.x - from.x;
+          const float sy = sample.y - from.y;
+          return (sx * sx) + (sy * sy);
+        }
+
+        const float length = std::sqrt(length_sq);
+        const float t = (((sample.x - from.x) * dx) + ((sample.y - from.y) * dy)) /
+                        length_sq;
+        const float extension = 0.5f / length;
+        const float clamped_t = std::clamp(t, -extension, 1.0f + extension);
+        const float closest_x = from.x + (clamped_t * dx);
+        const float closest_y = from.y + (clamped_t * dy);
+        const float sx = sample.x - closest_x;
+        const float sy = sample.y - closest_y;
+        return (sx * sx) + (sy * sy);
+      }
+
+      bool stroke_contains_sample(const std::vector<Point>& points,
+                                  bool close_shape,
+                                  float stroke_width,
+                                  const Point& sample)
+      {
+        if (stroke_width <= 0.0f || points.size() < 2) return false;
+
+        const float half_width = stroke_width * 0.5f;
+        const float threshold_sq = half_width * half_width;
+        for (size_t i = 0; i + 1 < points.size(); i++)
+        {
+          if (distance_sq_to_extended_segment(sample, points[i], points[i + 1]) <=
+              threshold_sq)
+          {
+            return true;
+          }
+        }
+
+        return close_shape &&
+               distance_sq_to_extended_segment(sample, points.back(), points.front()) <=
+                 threshold_sq;
+      }
+
+      void draw_smooth_stroked_polyline(SDL_Renderer* renderer,
+                                        const std::vector<Point>& points,
+                                        bool close_shape,
+                                        float stroke_width,
+                                        const Color& color)
+      {
+        if (stroke_width <= 0.0f || points.size() < 2) return;
+
+        float min_x = points.front().x;
+        float max_x = points.front().x;
+        float min_y = points.front().y;
+        float max_y = points.front().y;
+        for (const Point& point : points)
+        {
+          min_x = std::min(min_x, point.x);
+          max_x = std::max(max_x, point.x);
+          min_y = std::min(min_y, point.y);
+          max_y = std::max(max_y, point.y);
+        }
+
+        constexpr int SAMPLE_GRID = 4;
+        constexpr int SAMPLE_COUNT = SAMPLE_GRID * SAMPLE_GRID;
+        const float padding = (stroke_width * 0.5f) + 1.0f;
+        const int first_x = static_cast<int>(std::floor(min_x - padding));
+        const int last_x = static_cast<int>(std::ceil(max_x + padding)) - 1;
+        const int first_y = static_cast<int>(std::floor(min_y - padding));
+        const int last_y = static_cast<int>(std::ceil(max_y + padding)) - 1;
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          for (int x = first_x; x <= last_x; x++)
+          {
+            int covered_samples = 0;
+            for (int sy = 0; sy < SAMPLE_GRID; sy++)
+            {
+              for (int sx = 0; sx < SAMPLE_GRID; sx++)
+              {
+                const Point sample{
+                  static_cast<float>(x) +
+                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
+                  static_cast<float>(y) +
+                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
+                if (stroke_contains_sample(points, close_shape, stroke_width, sample))
+                {
+                  covered_samples++;
+                }
+              }
+            }
+
+            if (covered_samples > 0)
+            {
+              fill_coverage_pixel(renderer,
+                                  x,
+                                  y,
+                                  color,
+                                  static_cast<double>(covered_samples) / SAMPLE_COUNT);
+            }
+          }
         }
       }
 
@@ -2281,6 +2486,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
        {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
        {std::get<std::string>(MapKey::LINE_JOIN->value), &Roo::Type::ANY},
+       {std::get<std::string>(MapKey::RASTERIZATION->value), &Roo::Type::ANY},
        {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER},
        {std::get<std::string>(MapKey::SCALE->value), &Roo::Type::NUMBER}});
 
@@ -2318,6 +2524,7 @@ namespace Pixils::Script
       float stroke_width = opts.f32(std::get<std::string>(MapKey::STROKE_WIDTH->value),
                                     fill_shape ? 0.0f : 1.0f);
       LineJoin line_join = parse_line_join(opts, "polygon!");
+      Rasterization rasterization = parse_rasterization(opts, "polygon!");
 
       const Point& offset =
         opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
@@ -2369,19 +2576,48 @@ namespace Pixils::Script
                                      fill_color.b,
                                      fill_color.a);
             }
-            draw_filled_polygon(rc.renderer, pts, intersections);
+            if (rasterization == Rasterization::SMOOTH)
+            {
+              draw_smooth_filled_polygon(rc.renderer, pts, current_render_color(rc.renderer));
+            }
+            else
+            {
+              draw_filled_polygon(rc.renderer, pts, intersections);
+            }
           }
           if (color)
           {
             SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
           }
-          draw_stroked_polyline(rc.renderer, pts, true, stroke_width, line_join);
+          if (rasterization == Rasterization::SMOOTH)
+          {
+            draw_smooth_stroked_polyline(rc.renderer,
+                                         pts,
+                                         true,
+                                         stroke_width,
+                                         current_render_color(rc.renderer));
+          }
+          else
+          {
+            draw_stroked_polyline(rc.renderer, pts, true, stroke_width, line_join);
+          }
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
         else
         {
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-          draw_stroked_polyline(rc.renderer, pts, close_shape, stroke_width, line_join);
+          if (rasterization == Rasterization::SMOOTH)
+          {
+            draw_smooth_stroked_polyline(rc.renderer,
+                                         pts,
+                                         close_shape,
+                                         stroke_width,
+                                         current_render_color(rc.renderer));
+          }
+          else
+          {
+            draw_stroked_polyline(rc.renderer, pts, close_shape, stroke_width, line_join);
+          }
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
       }

@@ -1551,14 +1551,15 @@ bilinear interpolation.
 | `:color`        | Solid color for outlines, solid fills, or an explicit stroke drawn over a fill. |
 | `:fill-style`   | Fill style map. Supported forms: `{:type :solid :color color}` and `{:type :vertex-colors :colors [color ...]}`. |
 | `:line-join`    | Stroke join style: `:miter`, `:round`, `:bevel`, or `:none`. Default: `:miter`. |
+| `:rasterization` | `:pixel` or `:smooth`. Default: `:pixel`. Smooth rasterization applies to solid fills and strokes; vertex-color fills use the existing triangulated geometry path. |
 | `:stroke-width` | Stroke width in pixels. Outlines default to `1`; filled polygons default to no stroke unless this is supplied. |
 | `:rotation`     | Rotation in radians around the origin before offset is applied. Default: `0`. |
 | `:offset`       | Point offset applied after scale and rotation. Default: `{:x 0 :y 0}`. |
 | `:scale`        | Scale multiplier applied before rotation and offset. Default: `1.0`. |
 
-**Circle And Ellipse Rasterization**
+**Shape Rasterization**
 
-`circle!` and `ellipse!` support two rasterization modes:
+`circle!`, `ellipse!`, and `polygon!` support two rasterization modes:
 
 ```clojure
 ; Existing integer pixel rasterization. This is the default.
@@ -1573,13 +1574,23 @@ bilinear interpolation.
   {:x 16 :y 16 :rx 8 :ry 4}
   {:color {:r 255 :g 255 :b 255}
    :rasterization :smooth})
+
+; Coverage-sampled polygon fill.
+(pixils.render/polygon!
+  [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
+  {:fill true
+   :color {:r 80 :g 180 :b 255}
+   :rasterization :smooth})
 ```
 
 `:rasterization` applies to both filled shapes and outlines. `:pixel` keeps the
-hard-edged integer scanline/perimeter behavior. `:smooth` uses per-pixel
-coverage near the curve edge so small circles and ellipses read less spiky.
+hard-edged integer scanline/perimeter behavior. `:smooth` uses coverage near the
+shape edge so small circles, ellipses, and polygons read less jagged. Polygon
+smooth rasterization applies to solid fills and strokes; `:fill-style {:type
+:vertex-colors ...}` keeps the existing triangulated vertex-color renderer.
 
-Filled circles and ellipses also accept the canonical solid fill-style form:
+Filled circles, ellipses, and polygons also accept the canonical solid
+fill-style form:
 
 ```clojure
 (pixils.render/circle!
@@ -1594,7 +1605,7 @@ Filled circles and ellipses also accept the canonical solid fill-style form:
 |--------------------|-------------|
 | `:fill`            | Fill the circle or ellipse instead of drawing only its outline. Default: `false`. |
 | `:color`           | Solid color for outlines or simple solid fills. |
-| `:fill-style`      | Fill style map for filled circles/ellipses. Supported form: `{:type :solid :color color}`. |
+| `:fill-style`      | Fill style map for filled circles/ellipses/polygons. Supported solid form: `{:type :solid :color color}`. Polygons also support `{:type :vertex-colors :colors [color ...]}`. |
 | `:rasterization`   | `:pixel` or `:smooth`. Default: `:pixel`. |
 
 **`pixils.render/image!`**
@@ -1805,7 +1816,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
 | `ellipse!`  | Draw an ellipse. Args: `{:x :y :rx :ry}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
-| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:line-join`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
+| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:line-join`, `:rasterization`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
 | `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |
