@@ -22,3 +22,9 @@
                                 :min data/min-map-dimension
                                 :max data/max-map-dimension
                                 :path [:tile-size :h]}})
+
+(def layer-identity-schema
+  {:id {:type :keyword
+        :required true}
+   :name {:type :text
+          :required true}})

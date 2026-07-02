@@ -38,6 +38,13 @@
   {:width :fill
    :height 24})
 
+(def default-keyword-control-style
+  {:width :fill
+   :height 24
+   :layout {:direction :row
+            :align-items :center
+            :gap 4}})
+
 (def checkbox-style
   {:width :fill
    :height 24})
@@ -465,6 +472,26 @@
            :auto-focus? (:auto-focus? field-schema)
            :read-only? (:read-only? field-schema)}})
 
+(defcomponent pixils/form-keyword-input
+  {:children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width :shrink}
+               :state {:value ":"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height :fill}
+               :state {:value (ui/bind-state :value)
+                       :auto-focus? (ui/bind-state :auto-focus?)
+                       :read-only? (ui/bind-state :read-only?)}}]})
+
+(defun keyword-control [field-id field-schema field-label opts]
+  {:mode 'pixils/form-keyword-input
+   :style (merge default-keyword-control-style
+                 (or (:control-style opts) {}))
+   :state {:value (field-binding field-id field-schema)
+           :auto-focus? (:auto-focus? field-schema)
+           :read-only? (:read-only? field-schema)}})
+
 (defun number-control [field-id field-schema field-label opts]
   (number-input/make {:style (or (:control-style opts) default-control-style)
                       :value (field-binding field-id field-schema)
@@ -488,6 +515,7 @@
 (def default-controls
   {:text text-control
    :string text-control
+   :keyword keyword-control
    :integer number-control
    :number number-control
    :boolean boolean-control

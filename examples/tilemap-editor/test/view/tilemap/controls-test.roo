@@ -146,6 +146,16 @@
     (is (= :scene/layer-2 (get-in state [:layers 1 :id])))
     (is (= 1 (:selected-layer-index state)))))
 
+(deftest layer-add-dialog-result-uses-explicit-layer-id
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers []}
+               {:type :confirm
+                :operation :add
+                :name "Gameplay Collision"
+                :id "logic/collision"})]
+    (is (= "Gameplay Collision" (get-in state [:layers 0 :label])))
+    (is (= :logic/collision (get-in state [:layers 0 :id])))))
+
 (deftest layer-add-dialog-result-appends_terrain_layer
   (let [state (controls/apply-layer-name-dialog-result
                {:layers []
@@ -203,6 +213,7 @@
                 :name "Terrain"})
         entry (head (get-in state [:workbook-history :undo]))]
     (is (= "Terrain" (get-in state [:layers 0 :label])))
+    (is (= :scene/terrain (get-in state [:layers 0 :id])))
     (is (= "Terrain" (:selected-layer-label state)))
     (is (= "Rename layer" (:label entry)))
     (is (= [{:op :set
@@ -210,10 +221,111 @@
              :before "Ground"
              :after "Terrain"}
             {:op :set
+             :path [:layers 0 :id]
+             :before :scene/ground
+             :after :scene/terrain}
+            {:op :set
              :path [:selected-layer-label]
              :before "Ground"
              :after "Terrain"}]
            (:patches entry)))))
+
+(deftest layer-rename-dialog-result-updates-layer-id-references
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/ground
+                          :label "Ground"}
+                         {:id :scene/terrain
+                          :label "Terrain"}]
+                :selected-layer-label "Ground"
+                :rulesets [{:id :rules
+                            :source-layer :scene/ground
+                            :source-layers [:scene/ground]
+                            :rules [{:id :rule
+                                     :output {:layers [{:target-layer
+                                                        :scene/ground}]}}]}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/ground}
+                                           {:id :scene/derived
+                                            :target-layer :scene/ground}]}]}
+               {:type :confirm
+                :operation :rename
+                :index 0
+                :name "Terrain"})]
+    (is (= "Terrain 2" (get-in state [:layers 0 :label])))
+    (is (= :scene/terrain-2 (get-in state [:layers 0 :id])))
+    (is (= :scene/terrain-2 (get-in state [:rulesets 0 :source-layer])))
+    (is (= [:scene/terrain-2] (get-in state [:rulesets 0 :source-layers])))
+    (is (= :scene/terrain-2
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
+    (is (= :scene/terrain-2
+           (get-in state [:layer-profiles 0 :layers 0 :id])))
+    (is (= :scene/terrain-2
+           (get-in state [:layer-profiles 0 :layers 1 :target-layer])))))
+
+(deftest layer-rename-dialog-result-uses-explicit-layer-id
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/ground
+                          :label "Ground"}]
+                :selected-layer-label "Ground"}
+               {:type :confirm
+                :operation :rename
+                :index 0
+                :name "Collision"
+                :id "logic/collision"})]
+    (is (= "Collision" (get-in state [:layers 0 :label])))
+    (is (= :logic/collision (get-in state [:layers 0 :id])))))
+
+(deftest layer-duplicate-dialog-result-assigns-unique-layer-id
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/layer
+                          :label "Layer"}
+                         {:id :scene/layer-2
+                          :label "Layer 2"}]
+                :selected-layer-index 0}
+               {:type :confirm
+                :operation :duplicate
+                :index 0
+                :name "Layer"})]
+    (is (= ["Layer" "Layer 3" "Layer 2"] (map (:layers state) :label)))
+    (is (= [:scene/layer :scene/layer-3 :scene/layer-2]
+           (map (:layers state) :id)))
+    (is (= 1 (:selected-layer-index state)))))
+
+(deftest layer-duplicate-dialog-result-uses-explicit-layer-id
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/layer
+                          :label "Layer"}]}
+               {:type :confirm
+                :operation :duplicate
+                :index 0
+                :name "Layer Copy"
+                :id "logic/layer-copy"})]
+    (is (= ["Layer" "Layer Copy"] (map (:layers state) :label)))
+    (is (= [:scene/layer :logic/layer-copy] (map (:layers state) :id)))))
+
+(deftest layer-dialog-result-rejects-duplicate-explicit-layer-id
+  (let [input {:layers [{:id :scene/ground
+                         :label "Ground"}
+                        {:id :scene/collision
+                         :label "Collision"}]
+               :selected-layer-label "Ground"}
+        state (controls/apply-layer-name-dialog-result
+               input
+               {:type :confirm
+                :operation :rename
+                :index 0
+                :name "Ground"
+                :id "scene/collision"})]
+    (is (= input state))))
+
+(deftest layer-dialog-invalid-when-id-is-blank
+  (is (= true
+         (controls/layer-dialog-invalid?
+          {:operation :rename
+           :identity {:id ""
+                      :name "Ground"}
+           :layers [{:id :scene/ground
+                     :label "Ground"}]}))))
 
 (deftest layer-row-source-label-uses_terrain_set_for_terrain_layers
   (is (= "Caves"

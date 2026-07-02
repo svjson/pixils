@@ -182,6 +182,19 @@
     (is (= "Name"
            (get-in field-view [:children 0 :state :value])))))
 
+(deftest make-renders-keyword-fields-with-prefixed-input
+  (let [view (form/make {:schema {:field/id {:type :keyword
+                                             :required true
+                                             :auto-focus? true}}
+                         :text {:field/id "Id"}
+                         :layout [:field/id]
+                         :value {:field/id "scene/ground"}})
+        field-view (head (:children view))
+        control (nth (:children field-view) 1)]
+    (is (= 'pixils/form-keyword-input (:mode control)))
+    (is (contains? (:state control) :value))
+    (is (= true (get-in control [:state :auto-focus?])))))
+
 (deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make
               {:models {:register

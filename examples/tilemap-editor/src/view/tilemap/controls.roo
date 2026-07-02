@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.tilemap.controls
   (:require pixils
+            [pixils.form :as form]
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
@@ -14,6 +15,7 @@
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
+            [tilemap-editor.model.map-schemas :as map-schemas]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
@@ -249,6 +251,12 @@
     (if (= ":" (substr text 0 1))
       (substr text 1)
       text)))
+
+(defun string-contains? [text needle index]
+  (cond
+    (>= index (count text)) false
+    (= (substr text index 1) needle) true
+    :default (string-contains? text needle (inc index))))
 
 (defun color-id-label [color]
   (str (or (:r color) 0)
@@ -487,25 +495,48 @@
                               (if suffix (inc suffix) 2))
       candidate)))
 
-(defun layer-id-exists? [layers id]
-  (> (count (filter (or layers [])
-                    (fn [layer]
-                      (= (:id layer) id))))
+(defun layer-id-exists? [layers id exclude-index]
+  (> (count (filter (for-indexed [index layer (or layers [])]
+                      {:index index
+                       :id (:id layer)})
+                    (fn [entry]
+                      (and (= (:id entry) id)
+                           (not= (:index entry) exclude-index)))))
      0))
 
-(defun unique-layer-id-from [layers root suffix]
+(defun unique-layer-id-from [layers root exclude-index suffix]
   (let [candidate (if suffix
                     (str root "-" suffix)
                     root)
         id (keyword (str "scene/" candidate))]
-    (if (layer-id-exists? layers id)
+    (if (layer-id-exists? layers id exclude-index)
       (unique-layer-id-from layers
                             root
+                            exclude-index
                             (if suffix (inc suffix) 2))
       id)))
 
-(defun make-empty-tile-layer [state layers tilesets name]
-  {:id (unique-layer-id-from layers (kebab-case name) nil)
+(defun layer-id-from-text [text fallback-name]
+  (let [text (str (or text ""))]
+    (if (blank? text)
+      (unique-layer-id-from [] (kebab-case fallback-name) nil nil)
+      (let [text (keyword-label text)
+            id-text (if (string-contains? text "/" 0)
+                      text
+                      (str "scene/" (kebab-case text)))]
+        (keyword id-text)))))
+
+(defun requested-layer-id [layers payload name exclude-index]
+  (let [id-text (:id payload)]
+    (if (blank? id-text)
+      (unique-layer-id-from layers (kebab-case name) exclude-index nil)
+      (let [id (layer-id-from-text id-text name)]
+        (if (layer-id-exists? layers id exclude-index)
+          nil
+          id)))))
+
+(defun make-empty-tile-layer [state layers tilesets name id]
+  {:id (or id (unique-layer-id-from layers (kebab-case name) nil nil))
    :label name
    :kind :tile
    :role :source
@@ -514,8 +545,8 @@
    :order (* (count (or layers [])) 10)
    :tiles (data/make-empty-map-for (:map-width state) (:map-height state))})
 
-(defun make-empty-terrain-layer [state layers terrain-sets name terrain-set-index]
-  {:id (unique-layer-id-from layers (kebab-case name) nil)
+(defun make-empty-terrain-layer [state layers terrain-sets name id terrain-set-index]
+  {:id (or id (unique-layer-id-from layers (kebab-case name) nil nil))
    :label name
    :kind :tile
    :role :source
@@ -529,6 +560,11 @@
     (:name request)
     request))
 
+(defun layer-request-id [request]
+  (if (= (type-of request) "map")
+    (:id request)
+    nil))
+
 (defun layer-request-data-kind [request]
   (if (= (type-of request) "map")
     (or (:data-kind request) :tile-ref)
@@ -540,15 +576,17 @@
     0))
 
 (defun make-empty-layer [state layers tilesets terrain-sets request]
-  (let [name (layer-request-name request)]
+  (let [name (layer-request-name request)
+        id (layer-request-id request)]
     (if (and (= (layer-request-data-kind request) :terrain)
              (not (empty? (or terrain-sets []))))
       (make-empty-terrain-layer state
                                 layers
                                 terrain-sets
                                 name
+                                id
                                 (layer-request-terrain-set-index request))
-      (make-empty-tile-layer state layers tilesets name))))
+      (make-empty-tile-layer state layers tilesets name id))))
 
 (defun append-layer [state request]
   (let [layers (or (:layers state) [])
@@ -563,16 +601,113 @@
            :selected-layer-index index
            :selected-layer-label (:label layer))))
 
-(defun rename-layer-change [index name]
-  {:label "Rename layer"
-   :patches [[:set [:layers index :label] name]
-             [:set [:selected-layer-label] name]]})
+(defun source-layers-reference-patches [path source-layers old-id new-id]
+  (apply concat
+         (for-indexed [index source-layer (or source-layers [])]
+           (if (= source-layer old-id)
+             [[:set (concat path [:source-layers index]) new-id]]
+             []))))
 
-(defun duplicate-layer-after [layers index name]
+(defun output-layer-target-reference-patches [path layers old-id new-id]
+  (apply concat
+         (for-indexed [index layer (or layers [])]
+           (if (= (:target-layer layer) old-id)
+             [[:set (concat path [index :target-layer]) new-id]]
+             []))))
+
+(defun rule-layer-reference-patches [ruleset-index rule-index rule old-id new-id]
+  (output-layer-target-reference-patches
+   [:rulesets ruleset-index :rules rule-index :output :layers]
+   (get-in rule [:output :layers])
+   old-id
+   new-id))
+
+(defun ruleset-layer-reference-patches [ruleset-index ruleset old-id new-id]
+  (concat
+   (if (= (:source-layer ruleset) old-id)
+     [[:set [:rulesets ruleset-index :source-layer] new-id]]
+     [])
+   (source-layers-reference-patches
+    [:rulesets ruleset-index]
+    (:source-layers ruleset)
+    old-id
+    new-id)
+   (apply concat
+          (for-indexed [rule-index rule (or (:rules ruleset) [])]
+            (rule-layer-reference-patches
+             ruleset-index
+             rule-index
+             rule
+             old-id
+             new-id)))))
+
+(defun layer-profile-layer-reference-patches [profile-index layer-index layer old-id new-id]
+  (concat
+   (if (= (:id layer) old-id)
+     [[:set [:layer-profiles profile-index :layers layer-index :id] new-id]]
+     [])
+   (if (= (:target-layer layer) old-id)
+     [[:set [:layer-profiles profile-index :layers layer-index :target-layer] new-id]]
+     [])
+   (source-layers-reference-patches
+    [:layer-profiles profile-index :layers layer-index]
+    (:source-layers layer)
+    old-id
+    new-id)))
+
+(defun layer-profile-reference-patches [profile-index profile old-id new-id]
+  (apply concat
+         (for-indexed [layer-index layer (or (:layers profile) [])]
+           (layer-profile-layer-reference-patches
+            profile-index
+            layer-index
+            layer
+            old-id
+            new-id))))
+
+(defun layer-id-reference-patches [state old-id new-id]
+  (if (= old-id new-id)
+    []
+    (concat
+     (apply concat
+            (for-indexed [ruleset-index ruleset (or (:rulesets state) [])]
+              (ruleset-layer-reference-patches
+               ruleset-index
+               ruleset
+               old-id
+               new-id)))
+     (apply concat
+            (for-indexed [profile-index profile (or (:layer-profiles state) [])]
+              (layer-profile-reference-patches
+               profile-index
+               profile
+               old-id
+               new-id))))))
+
+(defun rename-layer-change [state index name id]
+  (let [old-id (get-in state [:layers index :id])
+        new-id (or id
+                   (requested-layer-id (:layers state)
+                                       {}
+                                       name
+                                       index))]
+    {:label "Rename layer"
+     :patches (concat [[:set [:layers index :label] name]
+                       [:set [:layers index :id] new-id]
+                       [:set [:selected-layer-label] name]]
+                      (layer-id-reference-patches state old-id new-id))}))
+
+(defun duplicate-layer-after [layers index name id]
   (apply concat
          (for-indexed [layer-index layer (or layers [])]
            (if (= layer-index index)
-             [layer (assoc layer :label name)]
+             [layer (assoc (assoc layer :label name)
+                           :id
+                           (or id
+                               (unique-layer-id-from layers
+                                                     (kebab-case name)
+                                                     nil
+                                                     nil)))]
              [layer]))))
 
 (defun shift-hidden-layer-indices-for-insert [hidden-layer-indices insert-index]
@@ -704,14 +839,16 @@
   (data/terrain-set-index (:terrain-sets state)
                           (get-in state [:layers index :terrain-set])))
 
-(defun open-layer-name-dialog! [state ctx operation index title name]
+(defun open-layer-name-dialog! [state ctx operation index title name id]
   (let [terrain-set-operation? (= operation :terrain-set)]
     (do
       (push-mode! 'layer-name-dialog-modal
                   {:operation operation
                    :index index
                    :title title
-                   :name name
+                   :identity {:id id
+                              :name name}
+                   :layers (:layers state)
                    :terrain-sets (:terrain-sets state)
                    :data-kind (if terrain-set-operation? :terrain :tile-ref)
                    :terrain-set-index (if terrain-set-operation?
@@ -727,7 +864,8 @@
                            :terrain-set
                            index
                            "Change Terrain Set"
-                           (selected-layer-name (:layers state) index)))
+                           (selected-layer-name (:layers state) index)
+                           (keyword-label (get-in state [:layers index :id]))))
 
 (defun open-layer-add-dialog! [state ctx]
   (open-layer-name-dialog! state
@@ -738,7 +876,12 @@
                            (unique-layer-name-from (:layers state)
                                                    "Layer"
                                                    nil
-                                                   nil)))
+                                                   nil)
+                           (keyword-label
+                            (unique-layer-id-from (:layers state)
+                                                  "layer"
+                                                  nil
+                                                  nil))))
 
 (defun open-layer-confirm-dialog! [state ctx operation index title message confirm-label]
   (do
@@ -828,25 +971,34 @@
           index (:index payload)
           layers (:layers state)
           requested-name (:name payload)]
-      (case operation
-        :add
-        (let [name (unique-layer-name-from layers requested-name nil nil)]
-          (append-layer state (assoc payload :name name)))
+        (case operation
+          :add
+        (let [name (unique-layer-name-from layers requested-name nil nil)
+              id (requested-layer-id layers payload name nil)]
+          (if id
+            (append-layer state (assoc (assoc payload :name name) :id id))
+            state))
 
         :rename
-        (let [name (unique-layer-name-from layers requested-name index nil)]
-          (editor-workbook/change state (rename-layer-change index name)))
+        (let [name (unique-layer-name-from layers requested-name index nil)
+              id (requested-layer-id layers payload name index)]
+          (if id
+            (editor-workbook/change state (rename-layer-change state index name id))
+            state))
 
         :duplicate
         (let [new-index (inc index)
-              name (unique-layer-name-from layers requested-name nil nil)]
-          (assoc state
-                 :layers (duplicate-layer-after layers index name)
-                 :selected-layer-index new-index
-                 :selected-layer-label name
-                 :hidden-layer-indices (shift-hidden-layer-indices-for-insert
-                                        (:hidden-layer-indices state)
-                                        new-index)))
+              name (unique-layer-name-from layers requested-name nil nil)
+              id (requested-layer-id layers payload name nil)]
+          (if id
+            (assoc state
+                   :layers (duplicate-layer-after layers index name id)
+                   :selected-layer-index new-index
+                   :selected-layer-label name
+                   :hidden-layer-indices (shift-hidden-layer-indices-for-insert
+                                          (:hidden-layer-indices state)
+                                          new-index))
+            state))
 
         :terrain-set
         (set-layer-terrain-set state index (:terrain-set-index payload))
@@ -865,6 +1017,13 @@
 
 
 ;; Layer Name Dialog
+
+(def layer-identity-text
+  {:id "Layer id"
+   :name "Layer name"})
+
+(def layer-identity-layout
+  [:id :name])
 
 (def layer-data-kind-options
   [{:value :tile-ref
@@ -1019,7 +1178,7 @@
                        :terrain-set-disabled?
                        (ui/bind-state :terrain-set-disabled?)}}]})
 
-(defcomponent layer-name-field
+(defcomponent layer-identity-form-panel
   {:style {:width :fill
            :height :shrink
            :layout {:direction :column
@@ -1032,39 +1191,60 @@
                             :none
                             :visible))
                state))
-   :children [{:mode 'ui/text
-               :state {:value "Layer name:"}}
-              {:mode 'ui/text-input
-               :style {:width :fill
-                       :height 24}
-               :state {:value (ui/bind-state :name)
-                       :auto-focus? true}}]})
+   :children [(form/make {:schema map-schemas/layer-identity-schema
+                          :text layer-identity-text
+                          :layout layer-identity-layout
+                          :value (ui/bind-state :identity)})]})
 
 (defcomponent layer-name-dialog-body
   {:class :ui/content
-   :style {:width 260
+   :style {:width 300
            :height :shrink
            :padding 10
            :layout {:direction :column
                     :gap 8}}
-   :children [{:mode 'layer-name-field
+   :children [{:mode 'layer-identity-form-panel
                :state {:operation (ui/bind-state :operation)
-                       :name (ui/bind-state :name)}}
+                       :identity (ui/bind-state :identity)}}
               {:mode 'layer-create-options
                :state {:operation (ui/bind-state :operation)
                        :data-kind (ui/bind-state :data-kind)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :terrain-set-index (ui/bind-state :terrain-set-index)}}
               {:mode 'layer-name-dialog-buttons
-               :state {:name (ui/bind-state :name)
+               :state {:identity (ui/bind-state :identity)
+                       :operation (ui/bind-state :operation)
+                       :index (ui/bind-state :index)
+                       :layers (ui/bind-state :layers)
                        :data-kind (ui/bind-state :data-kind)
                        :terrain-set-index (ui/bind-state :terrain-set-index)}}]})
+
+(defun layer-dialog-id-conflict? [layers id-text index operation name]
+  (and (not (= operation :terrain-set))
+       (not (blank? id-text))
+       (layer-id-exists? layers
+                         (layer-id-from-text id-text name)
+                         (if (= operation :rename)
+                           index
+                           nil))))
+
+(defun layer-dialog-invalid? [state]
+  (and (not (= (:operation state) :terrain-set))
+       (or (blank? (get-in state [:identity :name]))
+           (blank? (get-in state [:identity :id]))
+           (layer-dialog-id-conflict? (:layers state)
+                                      (get-in state [:identity :id])
+                                      (:index state)
+                                      (:operation state)
+                                      (get-in state [:identity :name])))))
 
 (defcomponent layer-name-dialog-buttons
   {:style {:width :fill
            :height 24
            :layout {:direction :row
                     :gap :space-between}}
+   :update (fn [state ctx]
+             (assoc state :invalid? (layer-dialog-invalid? state)))
    :children [{:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -1077,14 +1257,16 @@
                :style {:width 78
                        :height 24}
                :state {:label "OK"
-                       :name (ui/bind-state :name)
+                       :identity (ui/bind-state :identity)
+                       :disabled? (ui/bind-state :invalid?)
                        :data-kind (ui/bind-state :data-kind)
                        :terrain-set-index (ui/bind-state :terrain-set-index)}
                :on-click (fn [state event ctx]
                            (do
                              (ui/emit! (:view ctx)
                                        :layer-name-dialog/confirm
-                                       {:name (:name state)
+                                       {:name (get-in state [:identity :name])
+                                        :id (get-in state [:identity :id])
                                         :data-kind (:data-kind state)
                                         :terrain-set-index
                                         (:terrain-set-index state)})
@@ -1105,6 +1287,7 @@
                                                    :operation (:operation state)
                                                    :index (:index state)
                                                    :name (-> event :payload :name)
+                                                   :id (-> event :payload :id)
                                                    :data-kind (-> event :payload :data-kind)
                                                    :terrain-set-index
                                                    (-> event :payload :terrain-set-index)})
@@ -1114,14 +1297,17 @@
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :index (ui/bind-state :index)
-                               :name (ui/bind-state :name)
+                               :identity (ui/bind-state :identity)
+                               :layers (ui/bind-state :layers)
                                :data-kind (ui/bind-state :data-kind)
                                :terrain-sets (ui/bind-state :terrain-sets)
                                :terrain-set-index
                                (ui/bind-state :terrain-set-index)}
                        :body [{:mode 'layer-name-dialog-body
                                :state {:operation (ui/bind-state :operation)
-                                       :name (ui/bind-state :name)
+                                       :index (ui/bind-state :index)
+                                       :identity (ui/bind-state :identity)
+                                       :layers (ui/bind-state :layers)
                                        :data-kind (ui/bind-state :data-kind)
                                        :terrain-sets (ui/bind-state :terrain-sets)
                                        :terrain-set-index
@@ -1430,7 +1616,10 @@
                                                                        :rename
                                                                        index
                                                                        "Rename Layer"
-                                                                       name)
+                                                                       name
+                                                                       (keyword-label
+                                                                        (get-in state
+                                                                                [:layers index :id])))
 
                                               :duplicate
                                               (open-layer-name-dialog! state
@@ -1439,10 +1628,16 @@
                                                                        index
                                                                        "Duplicate Layer"
                                                                        (unique-layer-name-from
-                                                                        (:layers state)
-                                                                        name
-                                                                        nil
-                                                                        2))
+                                                                       (:layers state)
+                                                                       name
+                                                                       nil
+                                                                       2)
+                                                                       (keyword-label
+                                                                        (unique-layer-id-from
+                                                                         (:layers state)
+                                                                         (kebab-case name)
+                                                                         nil
+                                                                         2)))
 
                                               :terrain-set
                                               (open-layer-terrain-set-dialog! state
