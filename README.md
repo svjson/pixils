@@ -1558,7 +1558,7 @@ bilinear interpolation.
 | `:color`        | Solid color for outlines, solid fills, or an explicit stroke drawn over a fill. |
 | `:fill-style`   | Fill style map. Supported forms: `{:type :solid :color color}` and `{:type :vertex-colors :colors [color ...]}`. |
 | `:line-join`    | Stroke join style: `:miter`, `:round`, `:bevel`, or `:none`. Default: `:miter`. |
-| `:rasterization` | `:pixel` or `:smooth`. Default: `:pixel`. Smooth rasterization applies to solid fills and strokes; vertex-color fills use the existing triangulated geometry path. |
+| `:rasterization` | `:pixel` or `:smooth`. Default: `:pixel`. For polygons, smooth rasterization applies to outlines and explicit strokes. Filled polygons keep the existing fill renderer; vertex-color fills keep the triangulated geometry path. |
 | `:stroke-width` | Stroke width in pixels. Outlines default to `1`; filled polygons default to no stroke unless this is supplied. |
 | `:rotation`     | Rotation in radians around the origin before offset is applied. Default: `0`. |
 | `:offset`       | Point offset applied after scale and rotation. Default: `{:x 0 :y 0}`. |
@@ -1582,19 +1582,22 @@ bilinear interpolation.
   {:color {:r 255 :g 255 :b 255}
    :rasterization :smooth})
 
-; Coverage-sampled polygon fill.
+; Coverage-sampled polygon outline.
 (pixils.render/polygon!
   [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
-  {:fill true
+  {:close true
+   :stroke-width 2
    :color {:r 80 :g 180 :b 255}
    :rasterization :smooth})
 ```
 
-`:rasterization` applies to both filled shapes and outlines. `:pixel` keeps the
-hard-edged integer scanline/perimeter behavior. `:smooth` uses coverage near the
-shape edge so small circles, ellipses, and polygons read less jagged. Polygon
-smooth rasterization applies to solid fills and strokes; `:fill-style {:type
-:vertex-colors ...}` keeps the existing triangulated vertex-color renderer.
+For circles and ellipses, `:rasterization` applies to both fills and outlines.
+For polygons, it applies to outlines and explicit strokes over a fill. `:pixel`
+keeps the hard-edged integer scanline/perimeter behavior. `:smooth` uses
+coverage near the shape edge so small circles, ellipses, and polygon strokes
+read less jagged. Polygon fills keep their existing fill renderers: solid fills
+use scanlines, and `:fill-style {:type :vertex-colors ...}` uses triangulated
+vertex-color rendering.
 
 Filled circles, ellipses, and polygons also accept the canonical solid
 fill-style form:

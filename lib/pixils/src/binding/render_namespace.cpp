@@ -18,6 +18,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <roo/host/schema.h>
 #include <roo/namespace.h>
@@ -26,6 +27,7 @@
 #include <roo/runtime/lower.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
+#include <unordered_map>
 #include <vector>
 
 #if SDL_VERSION_ATLEAST(3, 0, 0) && (defined(__unix__) || defined(__APPLE__))
@@ -463,101 +465,6 @@ namespace Pixils::Script
             if (x2 >= x1)
             {
               fill_horizontal_span(renderer, x1, x2, y);
-            }
-          }
-        }
-      }
-
-      bool point_on_segment(const Point& point, const Point& a, const Point& b)
-      {
-        const float cross = ((point.y - a.y) * (b.x - a.x)) -
-                            ((point.x - a.x) * (b.y - a.y));
-        if (std::abs(cross) > 0.000001f) return false;
-
-        const float dot = ((point.x - a.x) * (b.x - a.x)) +
-                          ((point.y - a.y) * (b.y - a.y));
-        if (dot < 0.0f) return false;
-
-        const float length_sq = ((b.x - a.x) * (b.x - a.x)) +
-                                ((b.y - a.y) * (b.y - a.y));
-        return dot <= length_sq;
-      }
-
-      template <typename Points>
-      bool polygon_contains_sample(const Points& points, const Point& sample)
-      {
-        if (points.size() < 3) return false;
-
-        bool inside = false;
-        for (size_t i = 0, j = points.size() - 1; i < points.size(); j = i++)
-        {
-          const Point& a = points[j];
-          const Point& b = points[i];
-
-          if (point_on_segment(sample, a, b)) return true;
-
-          const bool crosses = ((a.y > sample.y) != (b.y > sample.y));
-          if (crosses)
-          {
-            const float x = a.x + ((sample.y - a.y) * (b.x - a.x) / (b.y - a.y));
-            if (sample.x < x) inside = !inside;
-          }
-        }
-
-        return inside;
-      }
-
-      template <typename Points>
-      void draw_smooth_filled_polygon(SDL_Renderer* renderer,
-                                      const Points& points,
-                                      const Color& color)
-      {
-        if (points.size() < 3) return;
-
-        float min_x = points.front().x;
-        float max_x = points.front().x;
-        float min_y = points.front().y;
-        float max_y = points.front().y;
-        for (const Point& point : points)
-        {
-          min_x = std::min(min_x, point.x);
-          max_x = std::max(max_x, point.x);
-          min_y = std::min(min_y, point.y);
-          max_y = std::max(max_y, point.y);
-        }
-
-        constexpr int SAMPLE_GRID = 4;
-        constexpr int SAMPLE_COUNT = SAMPLE_GRID * SAMPLE_GRID;
-        const int first_x = static_cast<int>(std::floor(min_x));
-        const int last_x = static_cast<int>(std::ceil(max_x)) - 1;
-        const int first_y = static_cast<int>(std::floor(min_y));
-        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
-
-        for (int y = first_y; y <= last_y; y++)
-        {
-          for (int x = first_x; x <= last_x; x++)
-          {
-            int covered_samples = 0;
-            for (int sy = 0; sy < SAMPLE_GRID; sy++)
-            {
-              for (int sx = 0; sx < SAMPLE_GRID; sx++)
-              {
-                const Point sample{
-                  static_cast<float>(x) +
-                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
-                  static_cast<float>(y) +
-                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
-                if (polygon_contains_sample(points, sample)) covered_samples++;
-              }
-            }
-
-            if (covered_samples > 0)
-            {
-              fill_coverage_pixel(renderer,
-                                  x,
-                                  y,
-                                  color,
-                                  static_cast<double>(covered_samples) / SAMPLE_COUNT);
             }
           }
         }
@@ -1397,27 +1304,83 @@ namespace Pixils::Script
         return (sx * sx) + (sy * sy);
       }
 
-      bool stroke_contains_sample(const std::vector<Point>& points,
-                                  bool close_shape,
-                                  float stroke_width,
-                                  const Point& sample)
+      bool stroke_segment_contains_sample(const Point& from,
+                                          const Point& to,
+                                          float stroke_width,
+                                          const Point& sample)
       {
-        if (stroke_width <= 0.0f || points.size() < 2) return false;
-
         const float half_width = stroke_width * 0.5f;
         const float threshold_sq = half_width * half_width;
-        for (size_t i = 0; i + 1 < points.size(); i++)
+        return distance_sq_to_extended_segment(sample, from, to) <= threshold_sq;
+      }
+
+      uint64_t pixel_key(int x, int y)
+      {
+        return (static_cast<uint64_t>(static_cast<uint32_t>(x)) << 32) |
+               static_cast<uint32_t>(y);
+      }
+
+      int pixel_key_x(uint64_t key)
+      {
+        return static_cast<int32_t>(static_cast<uint32_t>(key >> 32));
+      }
+
+      int pixel_key_y(uint64_t key)
+      {
+        return static_cast<int32_t>(static_cast<uint32_t>(key));
+      }
+
+      int coverage_sample_count(uint16_t mask)
+      {
+        int count = 0;
+        while (mask != 0)
         {
-          if (distance_sq_to_extended_segment(sample, points[i], points[i + 1]) <=
-              threshold_sq)
+          count += mask & 1u;
+          mask >>= 1u;
+        }
+        return count;
+      }
+
+      void accumulate_smooth_stroked_segment(
+        std::unordered_map<uint64_t, uint16_t>& pixel_samples,
+        const Point& from,
+        const Point& to,
+        float stroke_width)
+      {
+        constexpr int SAMPLE_GRID = 4;
+        const float padding = (stroke_width * 0.5f) + 1.0f;
+        const int first_x = static_cast<int>(std::floor(std::min(from.x, to.x) - padding));
+        const int last_x = static_cast<int>(std::ceil(std::max(from.x, to.x) + padding)) - 1;
+        const int first_y = static_cast<int>(std::floor(std::min(from.y, to.y) - padding));
+        const int last_y = static_cast<int>(std::ceil(std::max(from.y, to.y) + padding)) - 1;
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          for (int x = first_x; x <= last_x; x++)
           {
-            return true;
+            uint16_t mask = 0;
+            for (int sy = 0; sy < SAMPLE_GRID; sy++)
+            {
+              for (int sx = 0; sx < SAMPLE_GRID; sx++)
+              {
+                const Point sample{
+                  static_cast<float>(x) +
+                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
+                  static_cast<float>(y) +
+                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
+                if (stroke_segment_contains_sample(from, to, stroke_width, sample))
+                {
+                  mask |= static_cast<uint16_t>(1u << ((sy * SAMPLE_GRID) + sx));
+                }
+              }
+            }
+
+            if (mask != 0)
+            {
+              pixel_samples[pixel_key(x, y)] |= mask;
+            }
           }
         }
-
-        return close_shape &&
-               distance_sq_to_extended_segment(sample, points.back(), points.front()) <=
-                 threshold_sq;
       }
 
       void draw_smooth_stroked_polyline(SDL_Renderer* renderer,
@@ -1428,56 +1391,44 @@ namespace Pixils::Script
       {
         if (stroke_width <= 0.0f || points.size() < 2) return;
 
-        float min_x = points.front().x;
-        float max_x = points.front().x;
-        float min_y = points.front().y;
-        float max_y = points.front().y;
-        for (const Point& point : points)
+        std::unordered_map<uint64_t, uint16_t> pixel_samples;
+        float estimated_length = 0.0f;
+        for (size_t i = 0; i + 1 < points.size(); i++)
         {
-          min_x = std::min(min_x, point.x);
-          max_x = std::max(max_x, point.x);
-          min_y = std::min(min_y, point.y);
-          max_y = std::max(max_y, point.y);
+          estimated_length += point_distance(points[i], points[i + 1]);
+        }
+        if (close_shape)
+        {
+          estimated_length += point_distance(points.back(), points.front());
+        }
+        pixel_samples.reserve(static_cast<size_t>(
+          std::ceil(estimated_length * (stroke_width + 2.0f) * 2.0f)));
+
+        for (size_t i = 0; i + 1 < points.size(); i++)
+        {
+          accumulate_smooth_stroked_segment(pixel_samples,
+                                            points[i],
+                                            points[i + 1],
+                                            stroke_width);
         }
 
-        constexpr int SAMPLE_GRID = 4;
-        constexpr int SAMPLE_COUNT = SAMPLE_GRID * SAMPLE_GRID;
-        const float padding = (stroke_width * 0.5f) + 1.0f;
-        const int first_x = static_cast<int>(std::floor(min_x - padding));
-        const int last_x = static_cast<int>(std::ceil(max_x + padding)) - 1;
-        const int first_y = static_cast<int>(std::floor(min_y - padding));
-        const int last_y = static_cast<int>(std::ceil(max_y + padding)) - 1;
-
-        for (int y = first_y; y <= last_y; y++)
+        if (close_shape)
         {
-          for (int x = first_x; x <= last_x; x++)
-          {
-            int covered_samples = 0;
-            for (int sy = 0; sy < SAMPLE_GRID; sy++)
-            {
-              for (int sx = 0; sx < SAMPLE_GRID; sx++)
-              {
-                const Point sample{
-                  static_cast<float>(x) +
-                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
-                  static_cast<float>(y) +
-                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
-                if (stroke_contains_sample(points, close_shape, stroke_width, sample))
-                {
-                  covered_samples++;
-                }
-              }
-            }
+          accumulate_smooth_stroked_segment(pixel_samples,
+                                            points.back(),
+                                            points.front(),
+                                            stroke_width);
+        }
 
-            if (covered_samples > 0)
-            {
-              fill_coverage_pixel(renderer,
-                                  x,
-                                  y,
-                                  color,
-                                  static_cast<double>(covered_samples) / SAMPLE_COUNT);
-            }
-          }
+        constexpr int SAMPLE_COUNT = 16;
+        for (const auto& [key, mask] : pixel_samples)
+        {
+          fill_coverage_pixel(renderer,
+                              pixel_key_x(key),
+                              pixel_key_y(key),
+                              color,
+                              static_cast<double>(coverage_sample_count(mask)) /
+                                SAMPLE_COUNT);
         }
       }
 
@@ -2576,14 +2527,7 @@ namespace Pixils::Script
                                      fill_color.b,
                                      fill_color.a);
             }
-            if (rasterization == Rasterization::SMOOTH)
-            {
-              draw_smooth_filled_polygon(rc.renderer, pts, current_render_color(rc.renderer));
-            }
-            else
-            {
-              draw_filled_polygon(rc.renderer, pts, intersections);
-            }
+            draw_filled_polygon(rc.renderer, pts, intersections);
           }
           if (color)
           {
