@@ -46,7 +46,7 @@
   (let [pack (level-loader/load-level-pack)]
     (is (= {:boulder-rush
             {:images {:simples-pimples
-                      {:file-name "../assets/simples_pimples.png"
+                      {:file-name "assets/simples_pimples.png"
                        :transparency-color "#5a5268"}}}}
            (tilemap-resources/runtime-bundle-dependencies (:resources pack)
                                                           (:tilesets pack))))))

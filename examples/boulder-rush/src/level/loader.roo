@@ -15,7 +15,7 @@
   (io/slurp-edn! (project-path)))
 
 (defun load-level-pack []
-  (project-runtime/tilemap-pack (load-project)))
+  (project-runtime/tilemap-pack (load-project) {:project-path (project-path)}))
 
 (defun load-level-pack! []
   (let [pack (load-level-pack)]
