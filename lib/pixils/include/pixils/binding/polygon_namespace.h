@@ -34,10 +34,21 @@ namespace Pixils::Script
     bool polygon_contains_polygon(const std::vector<Point>& outer,
                                   const std::vector<Point>& inner);
     bool polygons_intersect(const std::vector<Point>& a, const std::vector<Point>& b);
+    std::vector<Point> circle_points(float cx, float cy, float radius, int segments, float rotation);
+    std::vector<Point> ellipse_points(float cx,
+                                      float cy,
+                                      float rx,
+                                      float ry,
+                                      int segments,
+                                      float rotation);
   } // namespace Geometry
 
   namespace Function
   {
+    /*! @brief Generate a polygon approximating a circle */
+    FUNC(PolygonCircleFunction, circle, circle_with_opts);
+    /*! @brief Generate a polygon approximating an ellipse */
+    FUNC(PolygonEllipseFunction, ellipse, ellipse_with_opts);
     /*! @brief Return the raster-oriented bounding rect of a polygon */
     FUNC(PolygonBoundsFunction, bounds);
     /*! @brief Return the absolute area of a polygon */

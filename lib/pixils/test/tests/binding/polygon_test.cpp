@@ -84,6 +84,77 @@ TEST_F(PolygonTest, polygon_closest_edge_point_returns_closest_point_on_boundary
   EXPECT_EQ(empty, Roo::Constant::NIL);
 }
 
+TEST_F(PolygonTest, polygon_circle_generates_default_point_count)
+{
+  auto count = runtime.eval("(count (pixils.polygon/circle {:x 10 :y 20 :r 4}))");
+  auto first_x = runtime.eval("(:x (nth (pixils.polygon/circle {:x 10 :y 20 :r 4}) 0))");
+  auto first_y = runtime.eval("(:y (nth (pixils.polygon/circle {:x 10 :y 20 :r 4}) 0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(first_x, nullptr);
+  ASSERT_NE(first_y, nullptr);
+  EXPECT_EQ(count->num().get_int(), 32);
+  EXPECT_FLOAT_EQ(first_x->f32(), 14.0f);
+  EXPECT_FLOAT_EQ(first_y->f32(), 20.0f);
+}
+
+TEST_F(PolygonTest, polygon_circle_accepts_segments_and_rotation)
+{
+  auto count = runtime.eval(
+    "(count (pixils.polygon/circle {:x 10 :y 20 :r 4} {:segments 4 :rotation 1.57079632679}))");
+  auto first_x = runtime.eval(
+    "(:x (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
+    "{:segments 4 :rotation 1.57079632679}) 0))");
+  auto first_y = runtime.eval(
+    "(:y (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
+    "{:segments 4 :rotation 1.57079632679}) 0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(first_x, nullptr);
+  ASSERT_NE(first_y, nullptr);
+  EXPECT_EQ(count->num().get_int(), 4);
+  EXPECT_NEAR(first_x->f32(), 10.0f, 0.0001f);
+  EXPECT_FLOAT_EQ(first_y->f32(), 24.0f);
+}
+
+TEST_F(PolygonTest, polygon_ellipse_generates_scaled_points)
+{
+  auto count =
+    runtime.eval("(count (pixils.polygon/ellipse {:x 10 :y 20 :rx 8 :ry 4} {:segments 4}))");
+  auto first_x = runtime.eval(
+    "(:x (nth (pixils.polygon/ellipse {:x 10 :y 20 :rx 8 :ry 4} {:segments 4}) 0))");
+  auto second_y = runtime.eval(
+    "(:y (nth (pixils.polygon/ellipse {:x 10 :y 20 :rx 8 :ry 4} {:segments 4}) 1))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(first_x, nullptr);
+  ASSERT_NE(second_y, nullptr);
+  EXPECT_EQ(count->num().get_int(), 4);
+  EXPECT_FLOAT_EQ(first_x->f32(), 18.0f);
+  EXPECT_FLOAT_EQ(second_y->f32(), 24.0f);
+}
+
+TEST_F(PolygonTest, polygon_shape_generators_return_empty_for_non_positive_radius)
+{
+  auto circle_count = runtime.eval("(count (pixils.polygon/circle {:x 10 :y 20 :r 0}))");
+  auto ellipse_count =
+    runtime.eval("(count (pixils.polygon/ellipse {:x 10 :y 20 :rx -1 :ry 4}))");
+
+  ASSERT_NE(circle_count, nullptr);
+  ASSERT_NE(ellipse_count, nullptr);
+  EXPECT_EQ(circle_count->num().get_int(), 0);
+  EXPECT_EQ(ellipse_count->num().get_int(), 0);
+}
+
+TEST_F(PolygonTest, polygon_shape_generators_reject_too_few_segments)
+{
+  EXPECT_THROW(runtime.eval("(pixils.polygon/circle {:x 10 :y 20 :r 4} {:segments 2})"),
+               Roo::TypeError);
+  EXPECT_THROW(runtime.eval("(pixils.polygon/ellipse {:x 10 :y 20 :rx 4 :ry 8} "
+                            "{:segments 2})"),
+               Roo::TypeError);
+}
+
 TEST_F(PolygonTest, polygon_contains_point_including_boundary)
 {
   EXPECT_TRUE(eval_bool(runtime,

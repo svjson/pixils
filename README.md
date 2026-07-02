@@ -1509,6 +1509,13 @@ polygon. Filled polygons are implicitly closed.
   {:fill true
    :fill-style {:type :solid
                 :color {:r 80 :g 180 :b 255}}})
+
+; Generate a regular polygon approximation of a circle, then draw it.
+(pixils.render/polygon!
+  (pixils.polygon/circle {:x 16 :y 16 :r 12}
+                         {:segments 24})
+  {:fill true
+   :color {:r 80 :g 180 :b 255}})
 ```
 
 `:fill-style` describes how a filled polygon is colored. The first non-solid
@@ -1868,8 +1875,10 @@ Accepts the same `:font` and `:scale` options as `text!`.
 |---------------|-------------|
 | `area`        | Return the absolute shoelace area of a polygon. Returns `0` for fewer than three vertices. |
 | `bounds`      | Return the integer bounding rect for a polygon, or `nil` for an empty point vector. |
+| `circle`      | Generate a polygon approximating a circle. Args: `{:x :y :r}`, optional opts `{:segments N :rotation radians}`. Default segments: `32`. Returns `[]` for non-positive radius. |
 | `closest-edge-point` | Return the closest point on any polygon edge to a query point, or `nil` for fewer than two vertices. |
 | `contains?`   | Return whether a polygon fully contains a point, rect, or another polygon. Polygon edges count as contained. |
+| `ellipse`     | Generate a polygon approximating an ellipse. Args: `{:x :y :rx :ry}`, optional opts `{:segments N :rotation radians}`. Default segments: `32`. Returns `[]` for non-positive radii. |
 | `intersects?` | Return whether a polygon intersects a rect or another polygon. Edge/vertex touches count as intersections. |
 | `vertex-center` | Return the average of all polygon vertices as a point, or `nil` for an empty point vector. |
 

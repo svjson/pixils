@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <roo/host/schema.h>
 #include <roo/runtime/seq.h>
 
 namespace Pixils::Script
@@ -283,6 +284,35 @@ namespace Pixils::Script
       return polygon_contains_point(a, b.front()) || polygon_contains_point(b, a.front());
     }
 
+    std::vector<Point> ellipse_points(float cx,
+                                      float cy,
+                                      float rx,
+                                      float ry,
+                                      int segments,
+                                      float rotation)
+    {
+      std::vector<Point> points;
+      if (rx <= 0.0f || ry <= 0.0f || segments < 3) return points;
+
+      constexpr float TWO_PI = 6.28318530717958647692f;
+      points.reserve(static_cast<size_t>(segments));
+      for (int i = 0; i < segments; i++)
+      {
+        const float angle = rotation + (TWO_PI * (static_cast<float>(i) / segments));
+        points.push_back(Point{cx + (std::cos(angle) * rx), cy + (std::sin(angle) * ry)});
+      }
+      return points;
+    }
+
+    std::vector<Point> circle_points(float cx,
+                                     float cy,
+                                     float radius,
+                                     int segments,
+                                     float rotation)
+    {
+      return ellipse_points(cx, cy, radius, radius, segments, rotation);
+    }
+
     bool rect_intersects_rect(const Rect& a, const Rect& b, bool include_boundary)
     {
       if (include_boundary)
@@ -325,6 +355,97 @@ namespace Pixils::Script
 
   namespace Function
   {
+    namespace
+    {
+      constexpr int DEFAULT_SHAPE_SEGMENTS = 32;
+
+      Roo::sptr_val points_to_value(const std::vector<Point>& points)
+      {
+        Roo::sptr_val_v result;
+        result.reserve(points.size());
+        for (const Point& point : points)
+        {
+          result.push_back(PointAdapter::make_unique(point));
+        }
+        return Roo::vector(result);
+      }
+
+      int polygon_segments(Roo::MapSchema::Inspector& opts, const std::string& context)
+      {
+        const int segments = opts.i32("segments", DEFAULT_SHAPE_SEGMENTS);
+        if (segments < 3)
+        {
+          throw Roo::TypeError(context + ": :segments must be at least 3.");
+        }
+        return segments;
+      }
+    } // namespace
+
+    FUNC_IMPL(PolygonCircleFunction,
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&PolygonCircleFunction::exec_circle)),
+                        (FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&PolygonCircleFunction::exec_circle_with_opts))));
+
+    EXEC_BODY(PolygonCircleFunction, exec_circle)
+    {
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
+      return this->exec_circle_with_opts(ctx, opt_args);
+    }
+
+    EXEC_BODY(PolygonCircleFunction, exec_circle_with_opts)
+    {
+      static Roo::MapSchema circle_schema(
+        {{"x", &Roo::Type::NUMBER}, {"y", &Roo::Type::NUMBER}, {"r", &Roo::Type::NUMBER}});
+      static Roo::MapSchema opts_schema(
+        {},
+        {{"segments", &Roo::Type::NUMBER}, {"rotation", &Roo::Type::NUMBER}});
+
+      auto circle = circle_schema.bind(ctx, *args[0]);
+      auto opts = opts_schema.bind(ctx, *args[1]);
+
+      return points_to_value(Geometry::circle_points(circle.f32("x"),
+                                                     circle.f32("y"),
+                                                     circle.f32("r"),
+                                                     polygon_segments(opts, "circle"),
+                                                     opts.f32("rotation", 0.0f)));
+    }
+
+    FUNC_IMPL(PolygonEllipseFunction,
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&PolygonEllipseFunction::exec_ellipse)),
+                        (FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&PolygonEllipseFunction::exec_ellipse_with_opts))));
+
+    EXEC_BODY(PolygonEllipseFunction, exec_ellipse)
+    {
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
+      return this->exec_ellipse_with_opts(ctx, opt_args);
+    }
+
+    EXEC_BODY(PolygonEllipseFunction, exec_ellipse_with_opts)
+    {
+      static Roo::MapSchema ellipse_schema({{"x", &Roo::Type::NUMBER},
+                                            {"y", &Roo::Type::NUMBER},
+                                            {"rx", &Roo::Type::NUMBER},
+                                            {"ry", &Roo::Type::NUMBER}});
+      static Roo::MapSchema opts_schema(
+        {},
+        {{"segments", &Roo::Type::NUMBER}, {"rotation", &Roo::Type::NUMBER}});
+
+      auto ellipse = ellipse_schema.bind(ctx, *args[0]);
+      auto opts = opts_schema.bind(ctx, *args[1]);
+
+      return points_to_value(Geometry::ellipse_points(ellipse.f32("x"),
+                                                      ellipse.f32("y"),
+                                                      ellipse.f32("rx"),
+                                                      ellipse.f32("ry"),
+                                                      polygon_segments(opts, "ellipse"),
+                                                      opts.f32("rotation", 0.0f)));
+    }
+
     FUNC_IMPL(PolygonBoundsFunction,
               SIG((FN_ARGS((&HostType::VECTOR_OF_POINT)),
                    EXEC_DISPATCH(&PolygonBoundsFunction::exec_bounds))));
@@ -427,8 +548,10 @@ namespace Pixils::Script
   {
     values.emplace("area", Function::PolygonAreaFunction::make());
     values.emplace("bounds", Function::PolygonBoundsFunction::make());
+    values.emplace("circle", Function::PolygonCircleFunction::make());
     values.emplace("closest-edge-point", Function::PolygonClosestEdgePointFunction::make());
     values.emplace("contains?", Function::PolygonContainsFunction::make());
+    values.emplace("ellipse", Function::PolygonEllipseFunction::make());
     values.emplace("intersects?", Function::PolygonIntersectsFunction::make());
     values.emplace("vertex-center", Function::PolygonVertexCenterFunction::make());
   }
