@@ -1,0 +1,27 @@
+(ns tilemap-editor.model.workbook-test
+  (:require proof.core
+            [tilemap-editor.model.workbook :as editor-workbook]))
+
+(deftest change-records-history-outside-editable-state
+  (let [state (editor-workbook/change
+               {:layers [{:label "Ground"}]
+                :selected-layer-label "Ground"}
+               {:label "Rename layer"
+                :patches [[:set [:layers 0 :label] "Terrain"]
+                          [:set [:selected-layer-label] "Terrain"]]})]
+    (is (= "Terrain" (get-in state [:layers 0 :label])))
+    (is (= "Rename layer"
+           (editor-workbook/undo-label state)))
+    (is (nil? (get-in state [:workbook-history :value])))))
+
+(deftest undo-restores-workbook-backed-change
+  (let [state (editor-workbook/change
+               {:layers [{:label "Ground"}]
+                :selected-layer-label "Ground"}
+               {:label "Rename layer"
+                :patches [[:set [:layers 0 :label] "Terrain"]
+                          [:set [:selected-layer-label] "Terrain"]]})
+        undone (editor-workbook/undo state)]
+    (is (= "Ground" (get-in undone [:layers 0 :label])))
+    (is (= "Ground" (:selected-layer-label undone)))
+    (is (= true (editor-workbook/can-redo? undone)))))

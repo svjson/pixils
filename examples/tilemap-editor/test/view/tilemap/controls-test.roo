@@ -192,6 +192,29 @@
     (is (= :terrain (get-in state [:layers 0 :tileset])))
     (is (nil? (get-in state [:layers 0 :terrain-set])))))
 
+(deftest layer-rename-dialog-result-records-workbook-change
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/ground
+                          :label "Ground"}]
+                :selected-layer-label "Ground"}
+               {:type :confirm
+                :operation :rename
+                :index 0
+                :name "Terrain"})
+        entry (head (get-in state [:workbook-history :undo]))]
+    (is (= "Terrain" (get-in state [:layers 0 :label])))
+    (is (= "Terrain" (:selected-layer-label state)))
+    (is (= "Rename layer" (:label entry)))
+    (is (= [{:op :set
+             :path [:layers 0 :label]
+             :before "Ground"
+             :after "Terrain"}
+            {:op :set
+             :path [:selected-layer-label]
+             :before "Ground"
+             :after "Terrain"}]
+           (:patches entry)))))
+
 (deftest layer-row-source-label-uses_terrain_set_for_terrain_layers
   (is (= "Caves"
          (controls/layer-source-label

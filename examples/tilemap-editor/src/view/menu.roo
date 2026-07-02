@@ -1,7 +1,5 @@
 (ns tilemap-editor.view.menu
-  (:require pixils
-            [pixils.ui :as ui]
-            [pixils.ui.menu :as menu]))
+  (:require [pixils.ui.menu :as menu]))
 
 
 (def tilemap-editor-menu-keymap
@@ -9,6 +7,8 @@
    [:key/ctrl :key/o] :project/open
    [:key/ctrl :key/s] :project/save
    [:key/ctrl :key/shift :key/s] :project/save-as
+   [:key/ctrl :key/z] :edit/undo
+   [:key/ctrl :key/y] :edit/redo
    [:key/ctrl :key/x] :edit/cut
    [:key/ctrl :key/c] :edit/copy
    [:key/ctrl :key/v] :edit/paste
@@ -21,6 +21,16 @@
 
 (defun normalized-menu-state [state]
   {:recent-projects (or (:recent-projects state) [])
+   :can-undo? (not (empty? (or (get (or (:workbook-history state) {})
+                                      :undo)
+                                  [])))
+   :can-redo? (not (empty? (or (get (or (:workbook-history state) {})
+                                      :redo)
+                                  [])))
+   :undo-label (:label (head (get (or (:workbook-history state) {})
+                                :undo)))
+   :redo-label (:label (head (get (or (:workbook-history state) {})
+                                :redo)))
    :show-grid? (not= (:show-grid? state) false)
    :show-terrain-rules? (not= (:show-terrain-rules? state) false)
    :terrain-rule-application (or (:terrain-rule-application state)
@@ -88,7 +98,20 @@
                       {:label "&Quit"
                        :action :app/quit}]}
              {:label "&Edit"
-              :items [{:label "Cu&t"
+              :items [{:label (if (:undo-label state)
+                                 (str "&Undo " (:undo-label state))
+                                 "&Undo")
+                       :action :edit/undo
+                       :shortcut [:key/ctrl :key/z]
+                       :disabled? (not (:can-undo? state))}
+                      {:label (if (:redo-label state)
+                                 (str "&Redo " (:redo-label state))
+                                 "&Redo")
+                       :action :edit/redo
+                       :shortcut [:key/ctrl :key/y]
+                       :disabled? (not (:can-redo? state))}
+                      :separator
+                      {:label "Cu&t"
                        :action :edit/cut
                        :shortcut [:key/ctrl :key/x]}
                       {:label "&Copy"
@@ -147,27 +170,12 @@
                                                 nil)]}]}]}))
 
 (defun tilemap-editor-menu-child [state]
-  (let [state (normalized-menu-state state)]
+  (let [menu-state (normalized-menu-state state)]
     (merge {:id "tilemap-editor-menu"}
            (menu/make-menu {:style {:width :fill}
-                            :state {:option-state state}}
+                            :state {:option-state menu-state}}
                            (tilemap-editor-menu state)
                            tilemap-editor-menu-keymap))))
 
 (defun tilemap-editor-menu-state [state]
   (normalized-menu-state state))
-
-(defcomponent tilemap-editor-menu-bar
-  {:style {:width :fill
-           :layout {:direction :row}}
-   :init (fn [state ctx]
-           (assoc state :rendered-menu-state nil))
-   :update (fn [state ctx]
-             (let [menu-state (tilemap-editor-menu-state state)]
-               (do
-                 (when (not= menu-state (:rendered-menu-state state))
-                   (ui/replace-child! (:view ctx)
-                                      "tilemap-editor-menu"
-                                      (tilemap-editor-menu-child menu-state)))
-                 (assoc state :rendered-menu-state menu-state))))
-   :children [(tilemap-editor-menu-child {})]})

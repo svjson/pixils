@@ -1,0 +1,42 @@
+(ns tilemap-editor.model.workbook
+  (:require [workbook :as workbook]))
+
+(def history-key :workbook-history)
+
+(defun editable-state [state]
+  (dissoc (dissoc state history-key)
+          :rendered-menu-state))
+
+(defun initial-history [state]
+  (workbook/history (workbook/init (editable-state state))))
+
+(defun book [state]
+  {:value (editable-state state)
+   :history (or (get state history-key)
+                (initial-history state))})
+
+(defun restore-book [book]
+  (assoc (workbook/value book)
+         history-key
+         (workbook/history book)))
+
+(defun change [state change]
+  (restore-book (workbook/change (book state) change)))
+
+(defun undo [state]
+  (restore-book (workbook/undo (book state))))
+
+(defun redo [state]
+  (restore-book (workbook/redo (book state))))
+
+(defun can-undo? [state]
+  (workbook/can-undo? (book state)))
+
+(defun can-redo? [state]
+  (workbook/can-redo? (book state)))
+
+(defun undo-label [state]
+  (workbook/undo-label (book state)))
+
+(defun redo-label [state]
+  (workbook/redo-label (book state)))

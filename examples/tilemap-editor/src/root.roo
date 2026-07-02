@@ -6,6 +6,7 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.maps :as map-model]
+            [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.model.view-state :as view-state]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
@@ -198,6 +199,7 @@
            :map-clipboard nil
            :map-line nil
            :map-hover-cell nil
+           :workbook-history nil
            :terrain-rule-application :preview
            :application-theme :pixils/windows-3
            :show-terrain-rules? true
@@ -271,36 +273,36 @@
                                  layer
                                  (:selected-tile state))
                   zoom (tilemap/clamp-zoom state (:zoom state))]
-              (open-pending-tileset-shortcut-dialog!
-               (assoc state
-                      :tileset tileset
-                      :selected-tileset-index (when tileset
-                                                (data/tileset-index tilesets
-                                                                    tileset))
-                      :selected-tileset-definition-index tileset-definition-index
-                      :selected-tileset-tile-index tileset-tile-index
-                      :selected-tileset-tile-indices tileset-tile-indices
-                      :selected-tile selected-tile
-                      :selected-label (data/source-layer-value-label
-                                       tilesets
-                                       terrain-sets
-                                       layer
-                                       selected-tile)
-                      :zoom zoom
-                      :zoom-label (tilemap/zoom-label state zoom)
-                      :selected-layer-label (or (:label layer) ""))
-               ctx)))
-  :children [{:mode 'tilemap-editor-menu-bar
-              :state {:recent-projects (ui/bind-state :recent-projects)
-                      :show-grid? (ui/bind-state :show-grid?)
-                      :show-terrain-rules?
-                      (ui/bind-state :show-terrain-rules?)
-                      :terrain-rule-application
-                      (ui/bind-state :terrain-rule-application)
-                      :map-selection (ui/bind-state :map-selection)
-                      :map-clipboard (ui/bind-state :map-clipboard)
-                      :application-theme
-                      (ui/bind-state :application-theme)}}
+              (let [state (assoc state
+                                  :tileset tileset
+                                  :selected-tileset-index
+                                  (when tileset
+                                    (data/tileset-index tilesets tileset))
+                                  :selected-tileset-definition-index
+                                  tileset-definition-index
+                                  :selected-tileset-tile-index
+                                  tileset-tile-index
+                                  :selected-tileset-tile-indices
+                                  tileset-tile-indices
+                                  :selected-tile selected-tile
+                                  :selected-label
+                                  (data/source-layer-value-label
+                                   tilesets
+                                   terrain-sets
+                                   layer
+                                   selected-tile)
+                                  :zoom zoom
+                                  :zoom-label (tilemap/zoom-label state zoom)
+                                  :selected-layer-label (or (:label layer) ""))
+                    menu-state (app-menu/tilemap-editor-menu-state state)]
+                (when (not= menu-state (:rendered-menu-state state))
+                  (ui/replace-child! (:view ctx)
+                                     "tilemap-editor-menu"
+                                     (app-menu/tilemap-editor-menu-child state)))
+                (open-pending-tileset-shortcut-dialog!
+                 (assoc state :rendered-menu-state menu-state)
+                 ctx))))
+  :children [(app-menu/tilemap-editor-menu-child {})
              (tabs/make
               {:selected-tab (ui/bind-state :workspace-tab)
                :style {:width :fill
@@ -647,6 +649,10 @@
                                                     (:map-selection state)
                                                     nil)
                                    :map-line nil)))
+       :edit/undo (fn [state event ctx]
+                    (editor-workbook/undo state))
+       :edit/redo (fn [state event ctx]
+                    (editor-workbook/redo state))
        :edit/copy (fn [state event ctx]
                     (tilemap/copy-map-selection state))
        :edit/cut (fn [state event ctx]

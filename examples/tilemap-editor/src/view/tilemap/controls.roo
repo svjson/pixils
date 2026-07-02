@@ -15,6 +15,7 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
             [tilemap-editor.model.tilemap :as tilemap]
+            [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.tilemap.dimensions-dialog :as dimensions-dialog]))
 
@@ -562,11 +563,10 @@
            :selected-layer-index index
            :selected-layer-label (:label layer))))
 
-(defun rename-layer [layers index name]
-  (for-indexed [layer-index layer (or layers [])]
-    (if (= layer-index index)
-      (assoc layer :label name)
-      layer)))
+(defun rename-layer-change [index name]
+  {:label "Rename layer"
+   :patches [[:set [:layers index :label] name]
+             [:set [:selected-layer-label] name]]})
 
 (defun duplicate-layer-after [layers index name]
   (apply concat
@@ -835,9 +835,7 @@
 
         :rename
         (let [name (unique-layer-name-from layers requested-name index nil)]
-          (assoc state
-                 :layers (rename-layer layers index name)
-                 :selected-layer-label name))
+          (editor-workbook/change state (rename-layer-change index name)))
 
         :duplicate
         (let [new-index (inc index)

@@ -362,9 +362,9 @@
           state (runtime/view-state edit-item)]
       (is (not (nil? edit-item)))
       (is (= [nil nil nil]
-             [(get-in state [:node :items 0 :disabled?])
-              (get-in state [:node :items 1 :disabled?])
-              (get-in state [:node :items 2 :disabled?])])))
+             [(get-in state [:node :items 3 :disabled?])
+              (get-in state [:node :items 4 :disabled?])
+              (get-in state [:node :items 5 :disabled?])])))
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app)
@@ -376,9 +376,47 @@
                                                   ":menu-index 1")
           state (runtime/view-state edit-item)]
       (is (= [nil nil nil]
-             [(get-in state [:node :items 0 :disabled?])
-              (get-in state [:node :items 1 :disabled?])
-              (get-in state [:node :items 2 :disabled?])])))))
+             [(get-in state [:node :items 3 :disabled?])
+              (get-in state [:node :items 4 :disabled?])
+              (get-in state [:node :items 5 :disabled?])])))))
+
+(deftest edit-menu-enables-undo-when-workbook-history-exists
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workbook-history {:undo [{:label "Rename layer"}]
+                               :redo []}))
+    (is (= ["Rename layer"]
+           (map (get-in (runtime/active-state app)
+                        [:workbook-history :undo])
+                :label)))
+    (runtime/update! app)
+    (is (= ["Rename layer"]
+           (map (get-in (runtime/active-state app)
+                        [:workbook-history :undo])
+                :label)))
+    (runtime/render! app)
+    (is (= ["Rename layer"]
+           (map (get-in (runtime/active-state app)
+                        [:workbook-history :undo])
+                :label)))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [edit-item (runtime/find-view-containing app
+                                                  "ui/menu-bar-item"
+                                                  ":menu-index 1")
+          state (runtime/view-state edit-item)]
+      (is (not (nil? edit-item)))
+      (is (= "&Undo Rename layer"
+             (get-in state [:node :items 0 :label])))
+      (is (= false
+             (get-in state [:node :items 0 :disabled?])))
+      (is (= true
+             (get-in state [:node :items 1 :disabled?]))))))
 
 (deftest direct-project-load-keeps-existing-palette-interactive
   (cleanup-application-startup-test-files!)

@@ -15,7 +15,7 @@
     (is (= "map.edn" (get-in item [:items 0 :label])))
     (is (= :project/open-recent (get-in item [:items 0 :action])))))
 
-(deftest menu-keymap-binds_project_and_view_actions
+(deftest menu-keymap-binds-project-and-view-actions
   (is (= :project/new
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/shift :key/n])))
   (is (= :project/open
@@ -24,6 +24,10 @@
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/s])))
   (is (= :project/save-as
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/shift :key/s])))
+  (is (= :edit/undo
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/z])))
+  (is (= :edit/redo
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/y])))
   (is (= :edit/cut
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/x])))
   (is (= :edit/copy
@@ -41,7 +45,7 @@
           :payload :paint-baked}
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/alt :key/b]))))
 
-(deftest option-menu-reflects_current_view_state
+(deftest option-menu-reflects-current-view-state
   (let [menu (menu/tilemap-editor-menu
               {:show-grid? false
                :show-terrain-rules? true
@@ -51,21 +55,30 @@
                :terrain-rule-application :paint-baked})
         edit (get-in menu [:items 1 :items])
         options (get-in menu [:items 2 :items])]
-    (is (= "Cu&t" (get-in edit [0 :label])))
-    (is (= :edit/cut (get-in edit [0 :action])))
-    (is (= [:key/ctrl :key/x] (get-in edit [0 :shortcut])))
-    (is (nil? (get-in edit [0 :disabled?])))
-    (is (= "&Copy" (get-in edit [1 :label])))
-    (is (= :edit/copy (get-in edit [1 :action])))
-    (is (= [:key/ctrl :key/c] (get-in edit [1 :shortcut])))
-    (is (nil? (get-in edit [1 :disabled?])))
-    (is (= "&Paste" (get-in edit [2 :label])))
-    (is (= :edit/paste (get-in edit [2 :action])))
-    (is (= [:key/ctrl :key/v] (get-in edit [2 :shortcut])))
-    (is (nil? (get-in edit [2 :disabled?])))
-    (is (= :separator (get-in edit [3])))
-    (is (= "Map &Dimensions..." (get-in edit [4 :label])))
-    (is (= :map/edit-dimensions (get-in edit [4 :action])))
+    (is (= "&Undo" (get-in edit [0 :label])))
+    (is (= :edit/undo (get-in edit [0 :action])))
+    (is (= [:key/ctrl :key/z] (get-in edit [0 :shortcut])))
+    (is (= true (get-in edit [0 :disabled?])))
+    (is (= "&Redo" (get-in edit [1 :label])))
+    (is (= :edit/redo (get-in edit [1 :action])))
+    (is (= [:key/ctrl :key/y] (get-in edit [1 :shortcut])))
+    (is (= true (get-in edit [1 :disabled?])))
+    (is (= :separator (get-in edit [2])))
+    (is (= "Cu&t" (get-in edit [3 :label])))
+    (is (= :edit/cut (get-in edit [3 :action])))
+    (is (= [:key/ctrl :key/x] (get-in edit [3 :shortcut])))
+    (is (nil? (get-in edit [3 :disabled?])))
+    (is (= "&Copy" (get-in edit [4 :label])))
+    (is (= :edit/copy (get-in edit [4 :action])))
+    (is (= [:key/ctrl :key/c] (get-in edit [4 :shortcut])))
+    (is (nil? (get-in edit [4 :disabled?])))
+    (is (= "&Paste" (get-in edit [5 :label])))
+    (is (= :edit/paste (get-in edit [5 :action])))
+    (is (= [:key/ctrl :key/v] (get-in edit [5 :shortcut])))
+    (is (nil? (get-in edit [5 :disabled?])))
+    (is (= :separator (get-in edit [6])))
+    (is (= "Map &Dimensions..." (get-in edit [7 :label])))
+    (is (= :map/edit-dimensions (get-in edit [7 :action])))
     (is (= "Show &Grid" (get-in options [0 :label])))
     (is (= :toggle (get-in options [0 :type])))
     (is (= [:option-state :show-grid?] (get-in options [0 :selected-path])))
@@ -132,3 +145,14 @@
     (is (= :pixils/classic-blue (get-in options [5 :items 3 :value])))
     (is (= 'pixils/classic-blue
            (get-in options [5 :items 3 :payload :theme])))))
+
+(deftest edit-menu-reflects-workbook-undo-and-redo-state
+  (let [menu (menu/tilemap-editor-menu
+              {:workbook-history
+               {:undo [{:label "Rename layer"}]
+                :redo [{:label "Paint tiles"}]}})
+        edit (get-in menu [:items 1 :items])]
+    (is (= "&Undo Rename layer" (get-in edit [0 :label])))
+    (is (= false (get-in edit [0 :disabled?])))
+    (is (= "&Redo Paint tiles" (get-in edit [1 :label])))
+    (is (= false (get-in edit [1 :disabled?])))))
