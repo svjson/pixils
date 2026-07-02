@@ -100,14 +100,12 @@ TEST_F(PolygonTest, polygon_circle_generates_default_point_count)
 
 TEST_F(PolygonTest, polygon_circle_accepts_segments_and_rotation)
 {
-  auto count = runtime.eval(
-    "(count (pixils.polygon/circle {:x 10 :y 20 :r 4} {:segments 4 :rotation 1.57079632679}))");
-  auto first_x = runtime.eval(
-    "(:x (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
-    "{:segments 4 :rotation 1.57079632679}) 0))");
-  auto first_y = runtime.eval(
-    "(:y (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
-    "{:segments 4 :rotation 1.57079632679}) 0))");
+  auto count = runtime.eval("(count (pixils.polygon/circle {:x 10 :y 20 :r 4} {:segments 4 "
+                            ":rotation 1.57079632679}))");
+  auto first_x = runtime.eval("(:x (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
+                              "{:segments 4 :rotation 1.57079632679}) 0))");
+  auto first_y = runtime.eval("(:y (nth (pixils.polygon/circle {:x 10 :y 20 :r 4} "
+                              "{:segments 4 :rotation 1.57079632679}) 0))");
 
   ASSERT_NE(count, nullptr);
   ASSERT_NE(first_x, nullptr);
@@ -153,6 +151,105 @@ TEST_F(PolygonTest, polygon_shape_generators_reject_too_few_segments)
   EXPECT_THROW(runtime.eval("(pixils.polygon/ellipse {:x 10 :y 20 :rx 4 :ry 8} "
                             "{:segments 2})"),
                Roo::TypeError);
+}
+
+TEST_F(PolygonTest, polygon_intersection_returns_overlapping_regions)
+{
+  auto count = runtime.eval("(count (pixils.polygon/intersection "
+                            "[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}] "
+                            "[{:x 5 :y 5} {:x 15 :y 5} {:x 15 :y 15} {:x 5 :y 15}]))");
+  auto area = runtime.eval("(pixils.polygon/area "
+                           "(nth (pixils.polygon/intersection "
+                           "[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}] "
+                           "[{:x 5 :y 5} {:x 15 :y 5} {:x 15 :y 15} {:x 5 :y 15}]) "
+                           "0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(area, nullptr);
+  EXPECT_EQ(count->num().get_int(), 1);
+  EXPECT_NEAR(area->f32(), 25.0f, 0.0001f);
+}
+
+TEST_F(PolygonTest, polygon_intersection_returns_empty_for_disjoint_polygons)
+{
+  auto count = runtime.eval("(count (pixils.polygon/intersection "
+                            "[{:x 0 :y 0} {:x 4 :y 0} {:x 4 :y 4} {:x 0 :y 4}] "
+                            "[{:x 5 :y 5} {:x 9 :y 5} {:x 9 :y 9} {:x 5 :y 9}]))");
+
+  ASSERT_NE(count, nullptr);
+  EXPECT_EQ(count->num().get_int(), 0);
+}
+
+TEST_F(PolygonTest, polygon_intersection_accepts_polygon_lists)
+{
+  auto count = runtime.eval("(count (pixils.polygon/intersection "
+                            "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}]] "
+                            "[[{:x 5 :y 5} {:x 15 :y 5} {:x 15 :y 15} {:x 5 :y 15}]]))");
+
+  ASSERT_NE(count, nullptr);
+  EXPECT_EQ(count->num().get_int(), 1);
+}
+
+TEST_F(PolygonTest, polygon_union_merges_overlapping_polygons)
+{
+  auto count = runtime.eval("(count (pixils.polygon/union "
+                            "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}]] "
+                            "[[{:x 5 :y 5} {:x 15 :y 5} {:x 15 :y 15} {:x 5 :y 15}]]))");
+  auto area = runtime.eval("(pixils.polygon/area "
+                           "(nth (pixils.polygon/union "
+                           "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}]] "
+                           "[[{:x 5 :y 5} {:x 15 :y 5} {:x 15 :y 15} {:x 5 :y 15}]]"
+                           ") 0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(area, nullptr);
+  EXPECT_EQ(count->num().get_int(), 1);
+  EXPECT_NEAR(area->f32(), 175.0f, 0.0001f);
+}
+
+TEST_F(PolygonTest, polygon_union_merges_touching_polygons)
+{
+  auto count = runtime.eval("(count (pixils.polygon/union "
+                            "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}] "
+                            " [{:x 10 :y 0} {:x 20 :y 0} {:x 20 :y 10} {:x 10 :y 10}]]))");
+  auto area = runtime.eval("(pixils.polygon/area "
+                           "(nth (pixils.polygon/union "
+                           "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}] "
+                           " [{:x 10 :y 0} {:x 20 :y 0} {:x 20 :y 10} {:x 10 :y 10}]]"
+                           ") 0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(area, nullptr);
+  EXPECT_EQ(count->num().get_int(), 1);
+  EXPECT_NEAR(area->f32(), 200.0f, 0.0001f);
+}
+
+TEST_F(PolygonTest, polygon_union_keeps_disconnected_islands)
+{
+  auto count = runtime.eval("(count (pixils.polygon/union "
+                            "[[{:x 0 :y 0} {:x 10 :y 0} {:x 10 :y 10} {:x 0 :y 10}] "
+                            " [{:x 20 :y 0} {:x 30 :y 0} {:x 30 :y 10} {:x 20 :y 10}]]))");
+
+  ASSERT_NE(count, nullptr);
+  EXPECT_EQ(count->num().get_int(), 2);
+}
+
+TEST_F(PolygonTest, polygon_boolean_ops_accept_precision_option)
+{
+  auto area = runtime.eval("(pixils.polygon/area "
+                           "(nth (pixils.polygon/intersection "
+                           "[{:x 0 :y 0} {:x 1.25 :y 0} {:x 1.25 :y 1.25} {:x 0 :y 1.25}] "
+                           "[{:x 0.5 :y 0.5} {:x 2 :y 0.5} {:x 2 :y 2} {:x 0.5 :y 2}] "
+                           "{:precision 3}) "
+                           "0))");
+
+  ASSERT_NE(area, nullptr);
+  EXPECT_NEAR(area->f32(), 0.5625f, 0.0001f);
+}
+
+TEST_F(PolygonTest, polygon_boolean_ops_reject_invalid_precision)
+{
+  EXPECT_THROW(runtime.eval("(pixils.polygon/union [] {:precision 9})"), Roo::TypeError);
 }
 
 TEST_F(PolygonTest, polygon_contains_point_including_boundary)

@@ -4,6 +4,7 @@
 #include <pixils/binding/rect_namespace.h>
 
 #include <algorithm>
+#include <clipper2/clipper.h>
 #include <cmath>
 #include <limits>
 #include <roo/host/schema.h>
@@ -14,6 +15,7 @@ namespace Pixils::Script
   namespace
   {
     constexpr float EPSILON = 0.000001f;
+    constexpr int DEFAULT_BOOLEAN_PRECISION = 4;
 
     Roo::sptr_val bool_value(bool value)
     {
@@ -28,6 +30,29 @@ namespace Pixils::Script
     bool nearly_zero(float value)
     {
       return std::abs(value) <= EPSILON;
+    }
+
+    bool nearly_same_point(const Point& a, const Point& b)
+    {
+      return std::abs(a.x - b.x) <= EPSILON && std::abs(a.y - b.y) <= EPSILON;
+    }
+
+    std::vector<Point> normalized_polygon(std::vector<Point> points)
+    {
+      std::vector<Point> result;
+      result.reserve(points.size());
+      for (const Point& point : points)
+      {
+        if (result.empty() || !nearly_same_point(result.back(), point))
+        {
+          result.push_back(point);
+        }
+      }
+      while (result.size() > 1 && nearly_same_point(result.front(), result.back()))
+      {
+        result.pop_back();
+      }
+      return result;
     }
 
     bool point_on_segment(const Point& point, const Point& a, const Point& b)
@@ -108,6 +133,82 @@ namespace Pixils::Script
 
       return false;
     }
+
+    bool native_host_type_named(const Roo::sptr_val& value, const Roo::HostTypeRef& type_ref)
+    {
+      return value && value->type == Roo::Value::Type::NATIVE_OBJECT &&
+             value->nobj()->get_host_type()->to_string() == type_ref.to_string();
+    }
+
+    bool value_is_point(const Roo::sptr_val& value)
+    {
+      return native_host_type_named(value, HostType::POINT);
+    }
+
+    Clipper2Lib::PathD clipper_path_from_points(const std::vector<Point>& raw_points)
+    {
+      const std::vector<Point> points = normalized_polygon(raw_points);
+      Clipper2Lib::PathD path;
+      if (points.size() < 3) return path;
+
+      path.reserve(points.size());
+      for (const Point& point : points)
+      {
+        path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
+      }
+      return path;
+    }
+
+    Clipper2Lib::PathsD clipper_paths_from_polygons(
+      const std::vector<std::vector<Point>>& polygons)
+    {
+      Clipper2Lib::PathsD paths;
+      paths.reserve(polygons.size());
+      for (const std::vector<Point>& polygon : polygons)
+      {
+        Clipper2Lib::PathD path = clipper_path_from_points(polygon);
+        if (path.size() >= 3) paths.push_back(std::move(path));
+      }
+      return paths;
+    }
+
+    std::vector<Point> points_from_clipper_path(const Clipper2Lib::PathD& path)
+    {
+      std::vector<Point> points;
+      points.reserve(path.size());
+      for (const Clipper2Lib::PointD& point : path)
+      {
+        points.push_back(Point{static_cast<float>(point.x), static_cast<float>(point.y)});
+      }
+      return normalized_polygon(std::move(points));
+    }
+
+    std::vector<std::vector<Point>> polygons_from_clipper_paths(
+      const Clipper2Lib::PathsD& paths)
+    {
+      std::vector<std::vector<Point>> polygons;
+      polygons.reserve(paths.size());
+      for (const Clipper2Lib::PathD& path : paths)
+      {
+        std::vector<Point> points = points_from_clipper_path(path);
+        if (points.size() >= 3) polygons.push_back(std::move(points));
+      }
+      return polygons;
+    }
+
+    int boolean_precision_from_options(Roo::Context& ctx,
+                                       const Roo::sptr_val& value,
+                                       const std::string& context)
+    {
+      static Roo::MapSchema opts_schema({}, {{"precision", &Roo::Type::NUMBER}});
+      auto opts = opts_schema.bind(ctx, *value);
+      const int precision = opts.i32("precision", DEFAULT_BOOLEAN_PRECISION);
+      if (precision < -8 || precision > 8)
+      {
+        throw Roo::TypeError(context + ": :precision must be between -8 and 8.");
+      }
+      return precision;
+    }
   } // namespace
 
   namespace Geometry
@@ -122,6 +223,30 @@ namespace Pixils::Script
         points.push_back(Roo::obj<Point>(*child));
       }
       return points;
+    }
+
+    std::vector<std::vector<Point>> polygons_from_value(const Roo::sptr_val& value)
+    {
+      std::vector<std::vector<Point>> polygons;
+      if (!value || value->type == Roo::Value::Type::NIL) return polygons;
+
+      Roo::sptr_val_v children = Roo::get_children(*value);
+      if (children.empty()) return polygons;
+
+      if (value_is_point(children.front()))
+      {
+        std::vector<Point> polygon = normalized_polygon(points_from_value(value));
+        if (polygon.size() >= 3) polygons.push_back(std::move(polygon));
+        return polygons;
+      }
+
+      polygons.reserve(children.size());
+      for (auto& child : children)
+      {
+        std::vector<Point> polygon = normalized_polygon(points_from_value(child));
+        if (polygon.size() >= 3) polygons.push_back(std::move(polygon));
+      }
+      return polygons;
     }
 
     std::vector<Point> rect_points(const Rect& rect)
@@ -284,6 +409,33 @@ namespace Pixils::Script
       return polygon_contains_point(a, b.front()) || polygon_contains_point(b, a.front());
     }
 
+    std::vector<std::vector<Point>> polygon_intersection(
+      const std::vector<std::vector<Point>>& subjects,
+      const std::vector<std::vector<Point>>& clips,
+      int precision)
+    {
+      const Clipper2Lib::PathsD subject_paths = clipper_paths_from_polygons(subjects);
+      const Clipper2Lib::PathsD clip_paths = clipper_paths_from_polygons(clips);
+      if (subject_paths.empty() || clip_paths.empty()) return {};
+
+      return polygons_from_clipper_paths(
+        Clipper2Lib::Intersect(subject_paths,
+                               clip_paths,
+                               Clipper2Lib::FillRule::NonZero,
+                               precision));
+    }
+
+    std::vector<std::vector<Point>> polygon_union(
+      const std::vector<std::vector<Point>>& polygons,
+      int precision)
+    {
+      const Clipper2Lib::PathsD paths = clipper_paths_from_polygons(polygons);
+      if (paths.empty()) return {};
+
+      return polygons_from_clipper_paths(
+        Clipper2Lib::Union(paths, Clipper2Lib::FillRule::NonZero, precision));
+    }
+
     std::vector<Point> ellipse_points(float cx,
                                       float cy,
                                       float rx,
@@ -366,6 +518,17 @@ namespace Pixils::Script
         for (const Point& point : points)
         {
           result.push_back(PointAdapter::make_unique(point));
+        }
+        return Roo::vector(result);
+      }
+
+      Roo::sptr_val polygons_to_value(const std::vector<std::vector<Point>>& polygons)
+      {
+        Roo::sptr_val_v result;
+        result.reserve(polygons.size());
+        for (const std::vector<Point>& polygon : polygons)
+        {
+          result.push_back(points_to_value(polygon));
         }
         return Roo::vector(result);
       }
@@ -541,6 +704,59 @@ namespace Pixils::Script
       return bool_value(Geometry::polygons_intersect(Geometry::points_from_value(args[0]),
                                                      Geometry::points_from_value(args[1])));
     }
+
+    FUNC_IMPL(
+      PolygonIntersectionFunction,
+      MULTI_SIG((FN_ARGS((&Type::POLYGON_INPUT), (&Type::POLYGON_INPUT)),
+                 EXEC_DISPATCH(&PolygonIntersectionFunction::exec_intersection)),
+                (FN_ARGS((&Type::POLYGON_INPUT), (&Type::POLYGON_INPUT), (&Roo::Type::MAP)),
+                 EXEC_DISPATCH(&PolygonIntersectionFunction::exec_intersection_with_opts))));
+
+    EXEC_BODY(PolygonIntersectionFunction, exec_intersection)
+    {
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
+      return this->exec_intersection_with_opts(ctx, opt_args);
+    }
+
+    EXEC_BODY(PolygonIntersectionFunction, exec_intersection_with_opts)
+    {
+      const int precision =
+        boolean_precision_from_options(ctx, args[2], "polygon/intersection");
+      return polygons_to_value(
+        Geometry::polygon_intersection(Geometry::polygons_from_value(args[0]),
+                                       Geometry::polygons_from_value(args[1]),
+                                       precision));
+    }
+
+    FUNC_IMPL(
+      PolygonUnionFunction,
+      MULTI_SIG((FN_ARGS((&Type::POLYGON_INPUT)),
+                 EXEC_DISPATCH(&PolygonUnionFunction::exec_combine)),
+                (FN_ARGS((&Type::POLYGON_INPUT), (&Type::POLYGON_INPUT_OR_MAP)),
+                 EXEC_DISPATCH(&PolygonUnionFunction::exec_combine)),
+                (FN_ARGS((&Type::POLYGON_INPUT), (&Type::POLYGON_INPUT), (&Roo::Type::MAP)),
+                 EXEC_DISPATCH(&PolygonUnionFunction::exec_combine))));
+
+    EXEC_BODY(PolygonUnionFunction, exec_combine)
+    {
+      std::vector<std::vector<Point>> polygons = Geometry::polygons_from_value(args[0]);
+      size_t opts_index = 1;
+      if (args.size() >= 2 && args[1]->type == Roo::Value::Type::VECTOR)
+      {
+        std::vector<std::vector<Point>> added = Geometry::polygons_from_value(args[1]);
+        polygons.insert(polygons.end(), added.begin(), added.end());
+        opts_index = 2;
+      }
+
+      int precision = DEFAULT_BOOLEAN_PRECISION;
+      if (args.size() > opts_index)
+      {
+        precision = boolean_precision_from_options(ctx, args[opts_index], "polygon/union");
+      }
+
+      return polygons_to_value(Geometry::polygon_union(polygons, precision));
+    }
   } // namespace Function
 
   PolygonNamespace::PolygonNamespace()
@@ -552,7 +768,9 @@ namespace Pixils::Script
     values.emplace("closest-edge-point", Function::PolygonClosestEdgePointFunction::make());
     values.emplace("contains?", Function::PolygonContainsFunction::make());
     values.emplace("ellipse", Function::PolygonEllipseFunction::make());
+    values.emplace("intersection", Function::PolygonIntersectionFunction::make());
     values.emplace("intersects?", Function::PolygonIntersectsFunction::make());
+    values.emplace("union", Function::PolygonUnionFunction::make());
     values.emplace("vertex-center", Function::PolygonVertexCenterFunction::make());
   }
 } // namespace Pixils::Script

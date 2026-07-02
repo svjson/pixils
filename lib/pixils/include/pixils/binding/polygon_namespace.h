@@ -1,6 +1,7 @@
 #ifndef PIXILS__POLYGON_NAMESPACE_H
 #define PIXILS__POLYGON_NAMESPACE_H
 
+#include <pixils/binding/point_namespace.h>
 #include <pixils/geom.h>
 
 #include <optional>
@@ -34,7 +35,18 @@ namespace Pixils::Script
     bool polygon_contains_polygon(const std::vector<Point>& outer,
                                   const std::vector<Point>& inner);
     bool polygons_intersect(const std::vector<Point>& a, const std::vector<Point>& b);
-    std::vector<Point> circle_points(float cx, float cy, float radius, int segments, float rotation);
+    std::vector<std::vector<Point>> polygon_intersection(
+      const std::vector<std::vector<Point>>& subjects,
+      const std::vector<std::vector<Point>>& clips,
+      int precision);
+    std::vector<std::vector<Point>> polygon_union(
+      const std::vector<std::vector<Point>>& polygons,
+      int precision);
+    std::vector<Point> circle_points(float cx,
+                                     float cy,
+                                     float radius,
+                                     int segments,
+                                     float rotation);
     std::vector<Point> ellipse_points(float cx,
                                       float cy,
                                       float rx,
@@ -42,6 +54,18 @@ namespace Pixils::Script
                                       int segments,
                                       float rotation);
   } // namespace Geometry
+
+  namespace Type
+  {
+    inline const Roo::SeqRef VECTOR_OF_POLYGON(&Roo::Type::VECTOR,
+                                               &HostType::VECTOR_OF_POINT,
+                                               "[[HPoint]]");
+    inline const Roo::MultiRef POLYGON_INPUT({&HostType::VECTOR_OF_POINT,
+                                              &VECTOR_OF_POLYGON},
+                                             "[HPoint]|[[HPoint]]");
+    inline const Roo::MultiRef POLYGON_INPUT_OR_MAP({&POLYGON_INPUT, &Roo::Type::MAP},
+                                                    "[HPoint]|[[HPoint]]|Map");
+  } // namespace Type
 
   namespace Function
   {
@@ -61,6 +85,10 @@ namespace Pixils::Script
     FUNC(PolygonContainsFunction, contains_point, contains_rect, contains_polygon);
     /*! @brief Test whether a polygon intersects a rect or polygon */
     FUNC(PolygonIntersectsFunction, intersects_rect, intersects_polygon);
+    /*! @brief Return polygon intersections */
+    FUNC(PolygonIntersectionFunction, intersection, intersection_with_opts);
+    /*! @brief Return polygon union */
+    FUNC(PolygonUnionFunction, combine);
   } // namespace Function
 
   class PolygonNamespace : public Roo::Namespace

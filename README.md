@@ -13,6 +13,12 @@ no C++ required.
 Pixils is general-purpose. A tile-based game, a C64 asset editor, and a Minesweeper clone are
 equally valid Pixils applications.
 
+## Third-party code
+
+Pixils vendors Clipper2 for polygon boolean operations. See
+`lib/pixils/THIRD_PARTY.md` for provenance, license, and build/distribution
+details.
+
 ## The `pixils` binary
 
 Run an application from a Roo script with a single command:
@@ -1882,8 +1888,20 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `closest-edge-point` | Return the closest point on any polygon edge to a query point, or `nil` for fewer than two vertices. |
 | `contains?`   | Return whether a polygon fully contains a point, rect, or another polygon. Polygon edges count as contained. |
 | `ellipse`     | Generate a polygon approximating an ellipse. Args: `{:x :y :rx :ry}`, optional opts `{:segments N :rotation radians}`. Default segments: `32`. Returns `[]` for non-positive radii. |
+| `intersection` | Return the polygon regions shared by two polygon inputs. Args may be one polygon or a vector of polygons. Returns a vector of polygons. Optional opts: `{:precision N}` where `N` is Clipper decimal precision from `-8` to `8`; default `4`. |
 | `intersects?` | Return whether a polygon intersects a rect or another polygon. Edge/vertex touches count as intersections. |
+| `union`       | Return the geometric union of polygon input. Accepts `(union polygons)` or `(union polygons-a polygons-b)`, where each input may be one polygon or a vector of polygons. Returns disconnected islands as separate polygons. Optional opts: `{:precision N}`. |
 | `vertex-center` | Return the average of all polygon vertices as a point, or `nil` for an empty point vector. |
+
+```clojure
+; Clip one polygon to another.
+(pixils.polygon/intersection reveal-polygon cell-polygon)
+;; => [clipped-polygon ...]
+
+; Merge stored coverage with newly revealed coverage.
+(pixils.polygon/union existing-polygons new-polygons)
+;; => [merged-polygon ...]
+```
 
 ### `pixils.resource`
 

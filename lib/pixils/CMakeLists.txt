@@ -25,6 +25,10 @@ file(GLOB_RECURSE pixils_EMBEDDED_LISP_SOURCES CONFIGURE_DEPENDS
   lisp/*.roo
 )
 
+file(GLOB clipper2_SOURCES CONFIGURE_DEPENDS
+  third_party/clipper2/src/*.cpp
+)
+
 set(pixils_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 set(pixils_EMBEDDED_LISP_CPP ${pixils_GENERATED_DIR}/embedded_lisp_sources.cpp)
 set(pixils_EMBEDDED_LISP_H ${pixils_GENERATED_DIR}/pixils/embedded_lisp_sources.h)
@@ -42,8 +46,22 @@ add_custom_command(
 )
 
 add_library(pixils INTERFACE)
+add_library(pixils_clipper2 OBJECT ${clipper2_SOURCES})
 add_library(pixils_objects OBJECT ${pixils_SOURCES} ${pixils_EMBEDDED_LISP_CPP})
 add_library(pixils_benchmark_objects OBJECT ${pixils_SOURCES} ${pixils_EMBEDDED_LISP_CPP})
+
+set_target_properties(pixils_clipper2 PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(pixils_clipper2
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/clipper2/include>
+)
+
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  target_compile_options(pixils_clipper2 PRIVATE -w)
+endif()
 
 foreach(target pixils_objects pixils_benchmark_objects)
 
@@ -55,6 +73,7 @@ foreach(target pixils_objects pixils_benchmark_objects)
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/clipper2/include>
       $<INSTALL_INTERFACE:include>
       ${FREETYPE_INCLUDE_DIRS}
   )
@@ -84,8 +103,8 @@ set_target_properties(pixils_benchmark_objects PROPERTIES
   EXCLUDE_FROM_ALL ON
 )
 
-add_library(pixils_static STATIC $<TARGET_OBJECTS:pixils_objects>)
-add_library(pixils_shared SHARED $<TARGET_OBJECTS:pixils_objects>)
+add_library(pixils_static STATIC $<TARGET_OBJECTS:pixils_objects> $<TARGET_OBJECTS:pixils_clipper2>)
+add_library(pixils_shared SHARED $<TARGET_OBJECTS:pixils_objects> $<TARGET_OBJECTS:pixils_clipper2>)
 
 foreach(target pixils_static pixils_shared)
 
@@ -97,6 +116,7 @@ foreach(target pixils_static pixils_shared)
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/clipper2/include>
       $<INSTALL_INTERFACE:include>
       ${FREETYPE_INCLUDE_DIRS}
   )
@@ -123,6 +143,7 @@ target_link_libraries(pixils_static
 
 add_library(pixils_roo_native SHARED
   $<TARGET_OBJECTS:pixils_objects>
+  $<TARGET_OBJECTS:pixils_clipper2>
   src/native_package.cpp
 )
 
@@ -134,6 +155,7 @@ target_include_directories(pixils_roo_native
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/clipper2/include>
     $<INSTALL_INTERFACE:include>
     ${FREETYPE_INCLUDE_DIRS}
 )
@@ -187,6 +209,14 @@ install(DIRECTORY lisp/
 
 install(FILES package.edn
   DESTINATION share/roo/pkg/pixils
+)
+
+install(FILES THIRD_PARTY.md
+  DESTINATION share/doc/pixils
+)
+
+install(FILES third_party/clipper2/LICENSE
+  DESTINATION share/doc/pixils/third_party/clipper2
 )
 
 install(TARGETS pixils_roo_native

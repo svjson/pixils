@@ -29,6 +29,7 @@ target_link_libraries(testpixils
   gtest
   gmock
   pixils_objects
+  pixils_clipper2
   Roo::package_shared
   sdl3_mock::sdl3_mock
   Roo::roo_shared
