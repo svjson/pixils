@@ -52,6 +52,14 @@ namespace Pixils::UI
       return {rect.x - origin.round_x(), rect.y - origin.round_y(), rect.w, rect.h};
     }
 
+    int repeat_start(int anchor, int size, int min)
+    {
+      if (size <= 0) return anchor;
+      double steps =
+        std::floor(static_cast<double>(min - anchor) / static_cast<double>(size));
+      return anchor + static_cast<int>(steps) * size;
+    }
+
     int align_offset(int available, int size, Style::Background::Align align)
     {
       switch (align)
@@ -155,6 +163,32 @@ namespace Pixils::UI
       if (width <= 0 || height <= 0) return std::nullopt;
 
       return SDL_Rect{source.x + left, source.y + top, width, height};
+    }
+
+    void render_background_image_tiles(SDL_Renderer* renderer,
+                                       SDL_Texture* texture,
+                                       const SDL_Rect& source,
+                                       const SDL_Rect& target,
+                                       const SDL_Rect& bounds,
+                                       bool repeat_x,
+                                       bool repeat_y)
+    {
+      if (target.w <= 0 || target.h <= 0) return;
+
+      int start_x = repeat_x ? repeat_start(target.x, target.w, bounds.x) : target.x;
+      int start_y = repeat_y ? repeat_start(target.y, target.h, bounds.y) : target.y;
+      int end_x = repeat_x ? bounds.x + bounds.w : target.x + 1;
+      int end_y = repeat_y ? bounds.y + bounds.h : target.y + 1;
+
+      for (int y = start_y; y < end_y; y += target.h)
+      {
+        for (int x = start_x; x < end_x; x += target.w)
+        {
+          SDL_Rect dest{x, y, target.w, target.h};
+          PIXILS_BENCHMARK_COUNT(render_copy_calls);
+          render_texture(renderer, texture, &source, &dest);
+        }
+      }
     }
 
     void set_clip(Pixils::RenderContext& render_ctx,
@@ -309,18 +343,38 @@ namespace Pixils::UI
           if (image_clip)
           {
             SDL_Rect clip_rect = target_rect(*image_clip, origin).to_SDL_rect();
-            auto clipped_dest = intersect_sdl_rect(dest, clip_rect);
-            auto clipped_source =
-              clipped_dest ? cropped_source_rect(source, dest, *clipped_dest) : std::nullopt;
-            if (clipped_dest && clipped_source)
+            bool repeat_x = background.repeat_x.value_or(false);
+            bool repeat_y = background.repeat_y.value_or(false);
+            if (repeat_x || repeat_y)
             {
               set_clip(render_ctx, image_clip, origin);
               const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
               SDL_SetTextureAlphaMod(texture, alpha);
-              PIXILS_BENCHMARK_COUNT(render_copy_calls);
-              render_texture(render_ctx.renderer, texture, &*clipped_source, &*clipped_dest);
+              render_background_image_tiles(render_ctx.renderer,
+                                            texture,
+                                            source,
+                                            dest,
+                                            clip_rect,
+                                            repeat_x,
+                                            repeat_y);
               if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
               set_clip(render_ctx, inherited_clip, origin);
+            }
+            else
+            {
+              auto clipped_dest = intersect_sdl_rect(dest, clip_rect);
+              auto clipped_source =
+                clipped_dest ? cropped_source_rect(source, dest, *clipped_dest) : std::nullopt;
+              if (clipped_dest && clipped_source)
+              {
+                set_clip(render_ctx, image_clip, origin);
+                const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
+                SDL_SetTextureAlphaMod(texture, alpha);
+                PIXILS_BENCHMARK_COUNT(render_copy_calls);
+                render_texture(render_ctx.renderer, texture, &*clipped_source, &*clipped_dest);
+                if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+                set_clip(render_ctx, inherited_clip, origin);
+              }
             }
           }
         }

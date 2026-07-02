@@ -104,7 +104,8 @@ namespace Pixils::Script
     const auto& background = *get_self_object().background;
     const bool needs_background_adapter =
       (background.color && background.image) || background.source || background.fit ||
-      background.align_x || background.align_y || background.offset || background.opacity;
+      background.align_x || background.align_y || background.offset || background.opacity ||
+      background.repeat_x || background.repeat_y;
 
     if (needs_background_adapter)
     {
@@ -449,7 +450,9 @@ namespace Pixils::Script
                       (fit),
                       (align),
                       (offset),
-                      (opacity));
+                      (opacity),
+                      ("repeat-x?", repeat_x),
+                      ("repeat-y?", repeat_y));
 
   NOBJ_PROP_GET(BackgroundAdapter, image)
   {
@@ -490,6 +493,16 @@ namespace Pixils::Script
   {
     return get_self_object().opacity ? Roo::number(*get_self_object().opacity)
                                      : Roo::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, repeat_x)
+  {
+    return StyleDefinition::optional_bool_to_value(get_self_object().repeat_x);
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, repeat_y)
+  {
+    return StyleDefinition::optional_bool_to_value(get_self_object().repeat_y);
   }
 
   NATIVE_ADAPTER_IMPL(BorderAdapter,

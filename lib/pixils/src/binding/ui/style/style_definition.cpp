@@ -1182,7 +1182,9 @@ namespace Pixils::Script::StyleDefinition
                                                 {"fit", &Roo::Type::KEYWORD},
                                                 {"align", &Roo::Type::KEYWORD},
                                                 {"offset", &HostType::POINT},
-                                                {"opacity", &Roo::Type::NUMBER}});
+                                                {"opacity", &Roo::Type::NUMBER},
+                                                {"repeat-x?", &Roo::Type::BOOL},
+                                                {"repeat-y?", &Roo::Type::BOOL}});
 
     auto bg = std::make_unique<UI::Style::Background>();
     auto opts = background_schema.bind(ctx, *source);
@@ -1198,6 +1200,8 @@ namespace Pixils::Script::StyleDefinition
     apply_background_align(*bg, opts.val("align"));
     bg->offset = opts.optional_obj<Point>("offset");
     bg->opacity = parse_opacity(opts, "opacity");
+    bg->repeat_x = parse_optional_bool(opts.val("repeat-x?"));
+    bg->repeat_y = parse_optional_bool(opts.val("repeat-y?"));
 
     return bg;
   }

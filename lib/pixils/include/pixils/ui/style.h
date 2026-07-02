@@ -83,6 +83,8 @@ namespace Pixils::UI
       std::optional<Align> align_y;
       std::optional<Point> offset;
       std::optional<float> opacity = std::nullopt;
+      std::optional<bool> repeat_x;
+      std::optional<bool> repeat_y;
     };
 
     struct Image

@@ -498,6 +498,10 @@ namespace Pixils::UI
       if (variant.background->offset) out.background->offset = *variant.background->offset;
       if (variant.background->opacity)
         out.background->opacity = *variant.background->opacity;
+      if (variant.background->repeat_x)
+        out.background->repeat_x = *variant.background->repeat_x;
+      if (variant.background->repeat_y)
+        out.background->repeat_y = *variant.background->repeat_y;
     }
     if (variant.image)
     {

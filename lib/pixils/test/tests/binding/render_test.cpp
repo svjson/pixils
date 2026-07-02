@@ -1261,6 +1261,34 @@ TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
   EXPECT_EQ(ops[0].rendered_rect.h, 7);
 }
 
+TEST_F(RenderTest, StyleBackgroundImageRepeatsWithinBounds)
+{
+  SDL3Mock::prepared_surfaces["./checkmark.png"] = {7, 7};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:checkmark "checkmark.png"}})
+    (pixils/defmode test-mode
+      {:style {:width 15
+               :height 12
+               :background {:image :icons/checkmark
+                            :repeat-x? true
+                            :repeat-y? true}}})
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 6u);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[1].rendered_rect.x, 7);
+  EXPECT_EQ(ops[1].rendered_rect.y, 0);
+  EXPECT_EQ(ops[2].rendered_rect.x, 14);
+  EXPECT_EQ(ops[2].rendered_rect.y, 0);
+  EXPECT_EQ(ops[3].rendered_rect.x, 0);
+  EXPECT_EQ(ops[3].rendered_rect.y, 7);
+}
+
 TEST_F(RenderTest, style_background_image_accepts_opacity)
 {
   SDL3Mock::prepared_surfaces["./checkmark.png"] = {7, 7};
