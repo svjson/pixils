@@ -289,3 +289,18 @@ TEST_F(DefModeTest, defmode_resources_accept_sounds)
   EXPECT_EQ(mode.resources.sounds[0].resource_id, "laser");
   EXPECT_EQ(mode.resources.sounds[0].file_name, "laser.wav");
 }
+
+TEST_F(DefModeTest, defmode_resources_accept_music)
+{
+  // When
+  runtime.eval(R"(
+    (pixils/defmode test-mode
+      {:resources {:music {:theme "theme.mp3"}}})
+  )");
+
+  // Then
+  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  ASSERT_EQ(mode.resources.music.size(), 1u);
+  EXPECT_EQ(mode.resources.music[0].resource_id, "theme");
+  EXPECT_EQ(mode.resources.music[0].file_name, "theme.mp3");
+}

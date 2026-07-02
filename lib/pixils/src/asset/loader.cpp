@@ -87,6 +87,12 @@ namespace Pixils::Asset
                             load_sound_from_file(sound_dep.file_name));
     }
 
+    for (auto& music_dep : deps.music)
+    {
+      bundle.music.emplace(music_dep.resource_id,
+                           load_music_from_file(music_dep.file_name));
+    }
+
     for (auto& font_dep : deps.fonts)
     {
       bundle.fonts.emplace(font_dep.resource_id,
@@ -128,5 +134,12 @@ namespace Pixils::Asset
     if (!ctx.audio_mixer) return nullptr;
     std::string resolved = resolve_asset_path(base_path, file_name);
     return MIX_LoadAudio(ctx.audio_mixer, resolved.c_str(), true);
+  }
+
+  MIX_Audio* Loader::load_music_from_file(const std::string& file_name)
+  {
+    if (!ctx.audio_mixer) return nullptr;
+    std::string resolved = resolve_asset_path(base_path, file_name);
+    return MIX_LoadAudio(ctx.audio_mixer, resolved.c_str(), false);
   }
 } // namespace Pixils::Asset

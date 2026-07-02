@@ -20,13 +20,22 @@ namespace Pixils
 {
   namespace
   {
-    void destroy_audio_resources(MIX_Mixer*& mixer, std::vector<MIX_Track*>& tracks)
+    float clamped_audio_volume(float volume)
+    {
+      return std::clamp(volume, 0.0f, 1.0f);
+    }
+
+    void destroy_audio_resources(MIX_Mixer*& mixer,
+                                 std::vector<MIX_Track*>& tracks,
+                                 MIX_Track*& music_track)
     {
       for (auto* track : tracks)
       {
         if (track) MIX_DestroyTrack(track);
       }
       tracks.clear();
+      if (music_track) MIX_DestroyTrack(music_track);
+      music_track = nullptr;
       if (mixer) MIX_DestroyMixer(mixer);
       mixer = nullptr;
     }
@@ -43,7 +52,7 @@ namespace Pixils
 
   RenderContext::~RenderContext()
   {
-    destroy_audio_resources(audio_mixer, audio_tracks);
+    destroy_audio_resources(audio_mixer, audio_tracks, music_track);
   }
 
   RenderContext::RenderContext(RenderContext&& other) noexcept
@@ -51,6 +60,7 @@ namespace Pixils
     , renderer(other.renderer)
     , audio_mixer(other.audio_mixer)
     , audio_tracks(std::move(other.audio_tracks))
+    , music_track(other.music_track)
     , buffer_texture(other.buffer_texture)
     , current_render_target(other.current_render_target)
     , current_clip_rect(other.current_clip_rect)
@@ -66,18 +76,20 @@ namespace Pixils
   {
     other.audio_mixer = nullptr;
     other.audio_tracks.clear();
+    other.music_track = nullptr;
   }
 
   RenderContext& RenderContext::operator=(RenderContext&& other) noexcept
   {
     if (this == &other) return *this;
 
-    destroy_audio_resources(audio_mixer, audio_tracks);
+    destroy_audio_resources(audio_mixer, audio_tracks, music_track);
 
     window = other.window;
     renderer = other.renderer;
     audio_mixer = other.audio_mixer;
     audio_tracks = std::move(other.audio_tracks);
+    music_track = other.music_track;
     buffer_texture = other.buffer_texture;
     current_render_target = other.current_render_target;
     current_clip_rect = other.current_clip_rect;
@@ -93,6 +105,7 @@ namespace Pixils
 
     other.audio_mixer = nullptr;
     other.audio_tracks.clear();
+    other.music_track = nullptr;
     return *this;
   }
 
@@ -311,8 +324,7 @@ namespace Pixils
     MIX_StopTrack(track, 0);
     if (!MIX_SetTrackAudio(track, audio)) return -1;
 
-    float clamped_volume = std::clamp(volume, 0.0f, 1.0f);
-    if (!MIX_SetTrackGain(track, clamped_volume)) return -1;
+    if (!MIX_SetTrackGain(track, clamped_audio_volume(volume))) return -1;
 
     SDL_PropertiesID props = SDL_CreateProperties();
     if (props)
@@ -323,5 +335,68 @@ namespace Pixils
     bool played = MIX_PlayTrack(track, props);
     if (props) SDL_DestroyProperties(props);
     return played ? target_channel : -1;
+  }
+
+  bool RenderContext::play_music(MIX_Audio* audio, int loops, float volume, int fade_in_ms)
+  {
+    if (!audio_mixer || !audio) return false;
+
+    if (!music_track)
+    {
+      music_track = MIX_CreateTrack(audio_mixer);
+      if (!music_track) return false;
+    }
+
+    MIX_StopTrack(music_track, 0);
+    if (!MIX_SetTrackAudio(music_track, audio)) return false;
+    if (!MIX_SetTrackGain(music_track, clamped_audio_volume(volume))) return false;
+
+    SDL_PropertiesID props = SDL_CreateProperties();
+    if (props)
+    {
+      SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, loops);
+      SDL_SetNumberProperty(props,
+                            MIX_PROP_PLAY_FADE_IN_MILLISECONDS_NUMBER,
+                            std::max(0, fade_in_ms));
+    }
+
+    bool played = MIX_PlayTrack(music_track, props);
+    if (props) SDL_DestroyProperties(props);
+    return played;
+  }
+
+  bool RenderContext::stop_music(int fade_out_ms)
+  {
+    if (!music_track) return true;
+    Sint64 fade_out_frames = 0;
+    if (fade_out_ms > 0)
+    {
+      fade_out_frames = MIX_TrackMSToFrames(music_track, fade_out_ms);
+      if (fade_out_frames < 0) fade_out_frames = 0;
+    }
+    return MIX_StopTrack(music_track, fade_out_frames);
+  }
+
+  bool RenderContext::pause_music()
+  {
+    if (!music_track) return true;
+    return MIX_PauseTrack(music_track);
+  }
+
+  bool RenderContext::resume_music()
+  {
+    if (!music_track) return true;
+    return MIX_ResumeTrack(music_track);
+  }
+
+  bool RenderContext::set_music_volume(float volume)
+  {
+    if (!music_track) return true;
+    return MIX_SetTrackGain(music_track, clamped_audio_volume(volume));
+  }
+
+  bool RenderContext::music_playing() const
+  {
+    return music_track && MIX_TrackPlaying(music_track);
   }
 } // namespace Pixils

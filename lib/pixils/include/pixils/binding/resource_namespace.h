@@ -40,7 +40,7 @@ namespace Pixils::Script
 
   NATIVE_ADAPTER(ResourceDependenciesAdapter,
                  Pixils::Runtime::ResourceDependencies,
-                 (images, sounds, fonts));
+                 (images, music, sounds, fonts));
 
   class ResourceNamespace : public Roo::Namespace
   {

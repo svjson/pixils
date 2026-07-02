@@ -70,6 +70,7 @@ namespace Pixils::Asset
     SDL_Surface* get_image_surface(const std::string& bundle, const std::string& asset_id);
     SDL_Texture* get_tint_mask(const std::string& bundle, const std::string& asset_id);
     MIX_Audio* get_sound(const std::string& bundle, const std::string& asset_id);
+    MIX_Audio* get_music(const std::string& bundle, const std::string& asset_id);
     std::optional<std::string> get_font_path(const std::string& bundle,
                                              const std::string& asset_id);
     const Assets::EmbeddedAsset* get_embedded_font(const std::string& bundle,

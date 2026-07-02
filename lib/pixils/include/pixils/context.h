@@ -43,6 +43,7 @@ namespace Pixils
     SDL_Renderer* renderer = nullptr;
     MIX_Mixer* audio_mixer = nullptr;
     std::vector<MIX_Track*> audio_tracks;
+    MIX_Track* music_track = nullptr;
 
     /*!
      * @brief The buffer texture that all in-game drawing happens against
@@ -143,6 +144,12 @@ namespace Pixils
     void set_render_target(SDL_Texture* target);
     void set_clip_rect(std::optional<Rect> rect);
     int play_audio(MIX_Audio* audio, int channel, int loops, float volume);
+    bool play_music(MIX_Audio* audio, int loops, float volume, int fade_in_ms);
+    bool stop_music(int fade_out_ms);
+    bool pause_music();
+    bool resume_music();
+    bool set_music_volume(float volume);
+    bool music_playing() const;
 
    private:
     /*!

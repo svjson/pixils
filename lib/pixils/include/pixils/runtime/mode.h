@@ -27,6 +27,12 @@ namespace Pixils::Runtime
     std::string file_name;
   };
 
+  struct MusicDependency
+  {
+    std::string resource_id;
+    std::string file_name;
+  };
+
   struct FontDependency
   {
     std::string resource_id;
@@ -37,6 +43,7 @@ namespace Pixils::Runtime
   {
     std::vector<ImageDependency> images;
     std::vector<SoundDependency> sounds;
+    std::vector<MusicDependency> music;
     std::vector<FontDependency> fonts;
   };
 

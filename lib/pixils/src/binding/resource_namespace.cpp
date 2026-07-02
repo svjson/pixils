@@ -28,6 +28,7 @@ namespace Pixils::Script
     SHKEY(FONTS, "fonts");
     SHKEY(ID, "id");
     SHKEY(IMAGES, "images");
+    SHKEY(MUSIC, "music");
     SHKEY(SIZE, "size");
     SHKEY(SOUNDS, "sounds");
     SHKEY(RESOURCE_SOURCE, "source");
@@ -83,6 +84,7 @@ namespace Pixils::Script
     {
       static Roo::MapSchema resources_schema({},
                                                 {{"images", &Roo::Type::MAP},
+                                                 {"music", &Roo::Type::MAP},
                                                  {"sounds", &Roo::Type::MAP},
                                                  {"fonts", &Roo::Type::MAP}});
 
@@ -105,6 +107,15 @@ namespace Pixils::Script
         {
           auto val = Roo::Dict::get_property(sound_map, *key);
           deps.sounds.push_back({key->str(), val->str()});
+        }
+      }
+
+      if (auto music_map = opts.val("music"))
+      {
+        for (auto& key : Roo::Dict::map_keys(*music_map))
+        {
+          auto val = Roo::Dict::get_property(music_map, *key);
+          deps.music.push_back({key->str(), val->str()});
         }
       }
 
@@ -417,6 +428,11 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ResourceDependenciesAdapter, sounds)
   {
     return file_dependencies_map(get_self_object().sounds);
+  }
+
+  NOBJ_PROP_GET(ResourceDependenciesAdapter, music)
+  {
+    return file_dependencies_map(get_self_object().music);
   }
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, fonts)

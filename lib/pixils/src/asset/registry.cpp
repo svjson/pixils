@@ -216,6 +216,11 @@ namespace Pixils::Asset
       {
         if (sound) MIX_DestroyAudio(sound);
       }
+
+      for (auto& [__, music] : bundle.music)
+      {
+        if (music) MIX_DestroyAudio(music);
+      }
     }
   }
 
@@ -320,6 +325,7 @@ namespace Pixils::Asset
       add_image(bundle_id, image);
     }
     if (!deps.sounds.empty()) record->second.declaration.sounds = deps.sounds;
+    if (!deps.music.empty()) record->second.declaration.music = deps.music;
     if (!deps.fonts.empty()) record->second.declaration.fonts = deps.fonts;
   }
 
@@ -509,6 +515,22 @@ namespace Pixils::Asset
     if (!bundle.sounds.count(asset_id)) return nullptr;
 
     return bundle.sounds.at(asset_id);
+  }
+
+  MIX_Audio* Registry::get_music(const std::string& bundle_id, const std::string& asset_id)
+  {
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
+
+    if (!bundle.music.count(asset_id)) return nullptr;
+
+    return bundle.music.at(asset_id);
   }
 
   std::optional<std::string> Registry::get_font_path(const std::string& bundle_id,

@@ -33,6 +33,7 @@ namespace Pixils::Asset
     SDL_Surface* load_surface_from_memory(const unsigned char* data, std::size_t size);
     SDL_Texture* load_texture_from_memory(const unsigned char* data, std::size_t size);
     MIX_Audio* load_sound_from_file(const std::string& file_name);
+    MIX_Audio* load_music_from_file(const std::string& file_name);
   };
 
 } // namespace Pixils::Asset

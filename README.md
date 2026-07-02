@@ -1683,15 +1683,19 @@ rendered copy.
 
 ### Sound resources
 
-A mode can also declare sounds under `:resources`.
+A mode can also declare sounds and music under `:resources`. Sounds are short effects
+loaded for immediate playback. Music is long-running audio, such as MP3 tracks, loaded
+without predecoding and played through Pixils' single managed music track.
 
 ```clojure
 (pixils/defmode game-mode
   {:resources {:sounds {:laser "assets/laser.wav"
-                        :boom  "assets/explosion.wav"}}})
+                        :boom  "assets/explosion.wav"}
+               :music  {:theme "assets/music/theme.mp3"}}})
 ```
 
-Sounds are referenced as qualified keywords in the same way as images: `:mode-name/resource-id`.
+Audio resources are referenced as qualified keywords in the same way as images:
+`:mode-name/resource-id`.
 
 **`pixils.audio/play!`**
 
@@ -1709,6 +1713,41 @@ Plays a sound effect loaded via a bundle or mode resource declaration.
 | `:loops`  | Number of extra repeats after the first play. Default: `0`. |
 | `:volume` | Playback volume from `0.0` to `1.0`. Default: `1.0`. |
 
+**`pixils.audio/play-music!`**
+
+Starts music playback from a music resource. Pixils keeps one managed music track;
+starting another music resource replaces the current one. SDL_mixer-supported formats,
+including MP3 when decoder support is available, can be used.
+
+```clojure
+(pixils.audio/play-music! :game-mode/theme)
+(pixils.audio/play-music! :game-mode/theme
+  {:loops -1
+   :volume 0.8
+   :fade-in-ms 1500})
+```
+
+| Option        | Description |
+|---------------|-------------|
+| `:loops`      | Number of extra repeats after the first play. `-1` loops indefinitely. Default: `-1`. |
+| `:volume`     | Playback volume from `0.0` to `1.0`. Default: `1.0`. |
+| `:fade-in-ms` | Fade-in duration in milliseconds. Default: `0`. |
+
+**Music controls**
+
+```clojure
+(pixils.audio/set-music-volume! 0.45)
+(pixils.audio/pause-music!)
+(pixils.audio/resume-music!)
+(pixils.audio/music-playing?)
+(pixils.audio/stop-music! {:fade-out-ms 800})
+```
+
+`set-music-volume!`, `pause-music!`, `resume-music!`, and `stop-music!` return
+`true` when the operation succeeds. `music-playing?` returns whether the managed
+music track is currently playing. `stop-music!` also accepts no options for an
+immediate stop.
+
 ### Text and fonts
 
 Pixils supports bitmap fonts. A font is declared with `deffont` and references an image
@@ -1723,7 +1762,8 @@ are the primary mechanism for loading font sheets and other shared assets.
 (pixils/defbundle ui-assets
   {:images {:font-sheet "assets/font.png"
             :icons      "assets/icons.png"}
-   :sounds {:click      "assets/click.wav"}})
+   :sounds {:click      "assets/click.wav"}
+   :music  {:theme      "assets/music/theme.mp3"}})
 ```
 
 Bundle resources are referenced as `:bundle-name/resource-id`.
@@ -1792,7 +1832,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `defprogram`  | Declare the application entry point |
 | `defmode`     | Declare a mode |
 | `defcomponent`| Declare a reusable component (alias for `defmode`) |
-| `defbundle`   | Declare a global named image bundle |
+| `defbundle`   | Declare a global named resource bundle |
 | `deffont`     | Declare a bitmap font |
 | `push-mode!`  | Push a mode onto the stack. Args: `mode-sym`, optional `state`, optional override map. The override map also accepts optional `:origin` for pop-result routing. |
 | `pop-mode!`   | Pop the top mode from the stack. Optional arg: payload returned as a `:pop/result`-style custom event. |
@@ -1802,6 +1842,12 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | Symbol  | Description |
 |---------|-------------|
 | `play!` | Play a sound resource. Args: qualified keyword `:bundle/id`, optional options map `{:channel N :loops N :volume N}`. Returns the SDL_mixer channel index, or `-1` if playback fails. |
+| `play-music!` | Play a music resource on Pixils' managed music track. Args: qualified keyword `:bundle/id`, optional options map `{:loops N :volume N :fade-in-ms N}`. Returns `true` on success. |
+| `stop-music!` | Stop the managed music track. Optional options map: `{:fade-out-ms N}`. Returns `true` on success. |
+| `pause-music!` | Pause the managed music track. Returns `true` on success. |
+| `resume-music!` | Resume the managed music track. Returns `true` on success. |
+| `set-music-volume!` | Set current music volume from `0.0` to `1.0`. Returns `true` on success. |
+| `music-playing?` | Return whether the managed music track is currently playing. |
 
 ### `pixils.ui`
 
@@ -1912,7 +1958,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `create-image!`             | Create or replace a generated image in a dynamic bundle. Args: qualified image keyword, `{:size {:w :h} :clear color}`, and a zero-arg drawing function. Drawing commands inside the function target the new image. |
 | `remove-image!`             | Remove a file-backed or generated image from a dynamic bundle. Args: qualified image keyword. |
 | `list-images`               | List image resources in a bundle. Generated images include `:source :generated` and `:size`. |
-| `make-resource-dependencies`| Declare resource dependencies explicitly. Takes `{:images {:id "file.png"} :sounds {:id "file.wav"}}`. The plain map form in `:resources` is equivalent and preferred. |
+| `make-resource-dependencies`| Declare resource dependencies explicitly. Takes `{:images {:id "file.png"} :sounds {:id "file.wav"} :music {:id "file.mp3"}}`. The plain map form in `:resources` is equivalent and preferred. |
 
 ## Using Pixils as a library
 

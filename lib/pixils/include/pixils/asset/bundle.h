@@ -22,6 +22,7 @@ namespace Pixils::Asset
     std::unordered_map<std::string, SDL_Surface*> image_sources;
     std::unordered_map<std::string, SDL_Texture*> tint_masks;
     std::unordered_map<std::string, MIX_Audio*> sounds;
+    std::unordered_map<std::string, MIX_Audio*> music;
     std::unordered_map<std::string, std::string> fonts;
     std::unordered_map<std::string, const Assets::EmbeddedAsset*> embedded_fonts;
   };
