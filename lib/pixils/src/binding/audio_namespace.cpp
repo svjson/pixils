@@ -24,6 +24,21 @@ namespace Pixils::Script
       {
         return Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       }
+
+      const Roo::MultiRef LOOP_COUNT({&Roo::Type::NUMBER, &Roo::Type::KEYWORD},
+                                     "Number|Keyword");
+
+      int loop_count(Roo::MapSchema::Inspector& opts, int default_value)
+      {
+        auto value = opts.val("loops");
+        if (!value || value->type == Roo::Value::Type::NIL) return default_value;
+
+        if (value->type == Roo::Value::Type::NUMBER) return value->num().get_int();
+
+        if (value->str() == "forever") return -1;
+
+        throw Roo::TypeError("Audio :loops keyword must be :forever");
+      }
     } // namespace
 
     FUNC_IMPL(PlayBang,
@@ -43,7 +58,7 @@ namespace Pixils::Script
     {
       static Roo::MapSchema opts_schema({},
                                            {{"channel", &Roo::Type::NUMBER},
-                                            {"loops", &Roo::Type::NUMBER},
+                                            {"loops", &LOOP_COUNT},
                                             {"volume", &Roo::Type::NUMBER}});
 
       auto [bundle_id, sound_id] = args[0]->qual();
@@ -56,7 +71,7 @@ namespace Pixils::Script
       if (!audio) return Roo::number(-1);
 
       int channel = opts.i32("channel", -1);
-      int loops = opts.i32("loops", 0);
+      int loops = loop_count(opts, 0);
       float volume = opts.f32("volume", 1.0f);
       int played_channel = rc.play_audio(audio, channel, loops, volume);
       return Roo::number(played_channel);
@@ -80,7 +95,7 @@ namespace Pixils::Script
       static Roo::MapSchema opts_schema(
         {},
         {{"fade-in-ms", &Roo::Type::NUMBER},
-         {"loops", &Roo::Type::NUMBER},
+         {"loops", &LOOP_COUNT},
          {"volume", &Roo::Type::NUMBER}});
 
       auto [bundle_id, music_id] = args[0]->qual();
@@ -92,7 +107,7 @@ namespace Pixils::Script
       if (!audio) return Roo::Constant::BOOL_FALSE;
 
       return bool_value(rc.play_music(audio,
-                                      opts.i32("loops", -1),
+                                      loop_count(opts, -1),
                                       opts.f32("volume", 1.0f),
                                       opts.i32("fade-in-ms", 0)));
     }

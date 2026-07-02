@@ -1705,12 +1705,13 @@ Plays a sound effect loaded via a bundle or mode resource declaration.
 (pixils.audio/play! :game-mode/laser)
 (pixils.audio/play! :game-mode/laser {:volume 0.35})
 (pixils.audio/play! :game-mode/boom {:loops 1})
+(pixils.audio/play! :game-mode/ambience {:loops :forever})
 ```
 
 | Option    | Description |
 |-----------|-------------|
 | `:channel`| SDL_mixer channel to use. Default: `-1` (first free channel). |
-| `:loops`  | Number of extra repeats after the first play. Default: `0`. |
+| `:loops`  | Number of extra repeats after the first play, or `:forever` for infinite looping. Numeric `-1` is also accepted for infinite looping. Default: `0`. |
 | `:volume` | Playback volume from `0.0` to `1.0`. Default: `1.0`. |
 
 **`pixils.audio/play-music!`**
@@ -1722,14 +1723,14 @@ including MP3 when decoder support is available, can be used.
 ```clojure
 (pixils.audio/play-music! :game-mode/theme)
 (pixils.audio/play-music! :game-mode/theme
-  {:loops -1
+  {:loops :forever
    :volume 0.8
    :fade-in-ms 1500})
 ```
 
 | Option        | Description |
 |---------------|-------------|
-| `:loops`      | Number of extra repeats after the first play. `-1` loops indefinitely. Default: `-1`. |
+| `:loops`      | Number of extra repeats after the first play, or `:forever` for infinite looping. Numeric `-1` is also accepted for infinite looping. Default: `:forever`. |
 | `:volume`     | Playback volume from `0.0` to `1.0`. Default: `1.0`. |
 | `:fade-in-ms` | Fade-in duration in milliseconds. Default: `0`. |
 
@@ -1841,8 +1842,8 @@ Accepts the same `:font` and `:scale` options as `text!`.
 
 | Symbol  | Description |
 |---------|-------------|
-| `play!` | Play a sound resource. Args: qualified keyword `:bundle/id`, optional options map `{:channel N :loops N :volume N}`. Returns the SDL_mixer channel index, or `-1` if playback fails. |
-| `play-music!` | Play a music resource on Pixils' managed music track. Args: qualified keyword `:bundle/id`, optional options map `{:loops N :volume N :fade-in-ms N}`. Returns `true` on success. |
+| `play!` | Play a sound resource. Args: qualified keyword `:bundle/id`, optional options map `{:channel N :loops N/:forever :volume N}`. Returns the SDL_mixer channel index, or `-1` if playback fails. |
+| `play-music!` | Play a music resource on Pixils' managed music track. Args: qualified keyword `:bundle/id`, optional options map `{:loops N/:forever :volume N :fade-in-ms N}`. Returns `true` on success. |
 | `stop-music!` | Stop the managed music track. Optional options map: `{:fade-out-ms N}`. Returns `true` on success. |
 | `pause-music!` | Pause the managed music track. Returns `true` on success. |
 | `resume-music!` | Resume the managed music track. Returns `true` on success. |

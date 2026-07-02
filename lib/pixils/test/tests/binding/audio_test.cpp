@@ -53,6 +53,20 @@ TEST_F(AudioTest, play_bang_accepts_per_invocation_volume)
   EXPECT_EQ(result->num().get_int(), 0);
 }
 
+TEST_F(AudioTest, play_bang_accepts_forever_loop_keyword)
+{
+  // Given
+  SDL3Mock::prepared_wave_audio.insert("./laser.wav");
+  runtime.eval("(pixils/defbundle sfx {:sounds {:laser \"laser.wav\"}})");
+
+  // When
+  auto result = runtime.eval("(pixils.audio/play! :sfx/laser {:loops :forever})");
+
+  // Then
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(result->num().get_int(), 0);
+}
+
 TEST_F(AudioTest, defbundle_declares_music_loaded_without_predecoding)
 {
   // Given
@@ -83,6 +97,34 @@ TEST_F(AudioTest, play_music_bang_plays_music_on_managed_track)
   ASSERT_NE(render_ctx.music_track, nullptr);
   EXPECT_TRUE(render_ctx.music_track->playing);
   EXPECT_FLOAT_EQ(render_ctx.music_track->gain, 0.4f);
+}
+
+TEST_F(AudioTest, play_music_bang_accepts_forever_loop_keyword)
+{
+  // Given
+  SDL3Mock::prepared_wave_audio.insert("./theme.mp3");
+  runtime.eval("(pixils/defbundle soundtrack {:music {:theme \"theme.mp3\"}})");
+
+  // When
+  auto result =
+    runtime.eval("(pixils.audio/play-music! :soundtrack/theme {:loops :forever})");
+
+  // Then
+  EXPECT_EQ(result, Roo::Constant::BOOL_TRUE);
+  ASSERT_NE(render_ctx.music_track, nullptr);
+  EXPECT_TRUE(render_ctx.music_track->playing);
+}
+
+TEST_F(AudioTest, play_music_bang_rejects_unknown_loop_keyword)
+{
+  // Given
+  SDL3Mock::prepared_wave_audio.insert("./theme.mp3");
+  runtime.eval("(pixils/defbundle soundtrack {:music {:theme \"theme.mp3\"}})");
+
+  // Then
+  EXPECT_THROW(runtime.eval("(pixils.audio/play-music! :soundtrack/theme "
+                            "{:loops :always})"),
+               Roo::TypeError);
 }
 
 TEST_F(AudioTest, set_music_volume_clamps_current_music_track_gain)
