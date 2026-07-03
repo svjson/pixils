@@ -1633,9 +1633,9 @@ namespace Pixils::Script
         return mode;
       }
 
-      SDL_BlendMode image_blend_mode(Roo::MapSchema::Inspector& opts,
-                                     const std::string& context,
-                                     SDL_BlendMode fallback = SDL_BLENDMODE_BLEND)
+      SDL_BlendMode render_blend_mode(Roo::MapSchema::Inspector& opts,
+                                      const std::string& context,
+                                      SDL_BlendMode fallback = SDL_BLENDMODE_BLEND)
       {
         auto value = opts.val(std::get<std::string>(MapKey::BLEND_MODE->value));
         if (!value || value->type == Roo::Value::Type::NIL) return fallback;
@@ -1848,7 +1848,7 @@ namespace Pixils::Script
         bool repeat_x = opts.boolean(std::get<std::string>(MapKey::REPEAT_X->value), false);
         bool repeat_y = opts.boolean(std::get<std::string>(MapKey::REPEAT_Y->value), false);
         Uint8 alpha = image_opacity_alpha(opts, inherited_alpha);
-        SDL_BlendMode blend_mode = image_blend_mode(opts, context, inherited_blend_mode);
+        SDL_BlendMode blend_mode = render_blend_mode(opts, context, inherited_blend_mode);
         std::optional<SDL_Rect> source_rect = std::nullopt;
         if (auto source_value = opts.val(std::get<std::string>(MapKey::SOURCE->value));
             source_value && source_value->type != Roo::Value::Type::NIL)
@@ -2116,7 +2116,7 @@ namespace Pixils::Script
 
       auto opts = draw_images_opts_schema.bind(ctx, *args.back());
       Uint8 inherited_alpha = image_opacity_alpha(opts);
-      SDL_BlendMode inherited_blend_mode = image_blend_mode(opts, "images!");
+      SDL_BlendMode inherited_blend_mode = render_blend_mode(opts, "images!");
 
       std::optional<Rect> previous_clip = rc.current_clip_rect;
       std::optional<Rect> requested_clip =
@@ -2436,6 +2436,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
        {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
        {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
+       {std::get<std::string>(MapKey::BLEND_MODE->value), &Roo::Type::KEYWORD},
        {std::get<std::string>(MapKey::LINE_JOIN->value), &Roo::Type::ANY},
        {std::get<std::string>(MapKey::RASTERIZATION->value), &Roo::Type::ANY},
        {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER},
@@ -2476,6 +2477,7 @@ namespace Pixils::Script
                                     fill_shape ? 0.0f : 1.0f);
       LineJoin line_join = parse_line_join(opts, "polygon!");
       Rasterization rasterization = parse_rasterization(opts, "polygon!");
+      SDL_BlendMode blend_mode = render_blend_mode(opts, "polygon!");
 
       const Point& offset =
         opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
@@ -2505,7 +2507,7 @@ namespace Pixils::Script
         if (fill_shape)
         {
           std::vector<float> intersections;
-          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawBlendMode(rc.renderer, blend_mode);
           if (fill_style && fill_style->type == PolygonFillStyle::Type::VERTEX_COLORS)
           {
             if (fill_style->colors.size() != pts.size())
@@ -2549,7 +2551,7 @@ namespace Pixils::Script
         }
         else
         {
-          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawBlendMode(rc.renderer, blend_mode);
           if (rasterization == Rasterization::SMOOTH)
           {
             draw_smooth_stroked_polyline(rc.renderer,

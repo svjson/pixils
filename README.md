@@ -1522,6 +1522,15 @@ polygon. Filled polygons are implicitly closed.
                          {:segments 24})
   {:fill true
    :color {:r 80 :g 180 :b 255}})
+
+; Erase alpha from the current render target using a filled polygon.
+(pixils.render/polygon!
+  reveal-polygon
+  {:close true
+   :fill true
+   :color {:r 255 :g 255 :b 255 :a 255}
+   :blend-mode :erase-alpha
+   :rasterization :pixel})
 ```
 
 `:fill-style` describes how a filled polygon is colored. The first non-solid
@@ -1563,6 +1572,7 @@ bilinear interpolation.
 | `:fill`         | Fill the polygon instead of drawing only its outline. Default: `false`. |
 | `:color`        | Solid color for outlines, solid fills, or an explicit stroke drawn over a fill. |
 | `:fill-style`   | Fill style map. Supported forms: `{:type :solid :color color}` and `{:type :vertex-colors :colors [color ...]}`. |
+| `:blend-mode`   | Blend mode: `:blend`, `:none`, or `:erase-alpha`. Default: `:blend`. `:erase-alpha` reduces destination alpha by the source alpha and is intended for render-target masks. |
 | `:line-join`    | Stroke join style: `:miter`, `:round`, `:bevel`, or `:none`. Default: `:miter`. |
 | `:rasterization` | `:pixel` or `:smooth`. Default: `:pixel`. For polygons, smooth rasterization applies to outlines and explicit strokes. Filled polygons keep the existing fill renderer; vertex-color fills keep the triangulated geometry path. |
 | `:stroke-width` | Stroke width in pixels. Outlines default to `1`; filled polygons default to no stroke unless this is supplied. |
@@ -1879,7 +1889,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
 | `ellipse!`  | Draw an ellipse. Args: `{:x :y :rx :ry}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
-| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:line-join`, `:rasterization`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
+| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:line-join`, `:rasterization`, `:rotation`, `:offset`, `:color`, `:scale`, `:blend-mode`, and `:fill-style` for solid or vertex-colored fills. |
 | `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |

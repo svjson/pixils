@@ -485,6 +485,50 @@ TEST_F(RenderTest, polygon_fill_uses_pixel_centers_for_fractional_edges)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 3, 1}));
 }
 
+TEST_F(RenderTest, polygon_accepts_erase_alpha_blend_mode)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 2} {:x 6 :y 2} {:x 6 :y 5} {:x 2 :y 5}]
+                  {:fill true
+                   :color {:r 255 :g 255 :b 255 :a 255}
+                   :blend-mode :erase-alpha
+                   :rasterization :pixel}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 3, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 4, 4, 1}));
+}
+
+TEST_F(RenderTest, polygon_rejects_unknown_blend_mode)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 2} {:x 6 :y 2} {:x 6 :y 5} {:x 2 :y 5}]
+                  {:fill true
+                   :color {:r 255 :g 255 :b 255 :a 255}
+                   :blend-mode :screen}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  EXPECT_THROW(session.render_mode(), Roo::TypeError);
+}
+
 TEST_F(RenderTest, polygon_fill_handles_concave_shapes)
 {
   // Given
