@@ -1947,6 +1947,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `ellipse`     | Generate a polygon approximating an ellipse. Args: `{:x :y :rx :ry}`, optional opts `{:segments N :rotation radians}`. Default segments: `32`. Returns `[]` for non-positive radii. |
 | `intersection` | Return the polygon regions shared by two polygon inputs. Args may be one polygon or a vector of polygons. Returns a vector of polygons. Optional opts: `{:precision N}` where `N` is Clipper decimal precision from `-8` to `8`; default `4`. |
 | `intersects?` | Return whether a polygon intersects a rect or another polygon. Edge/vertex touches count as intersections. |
+| `simplify`    | Remove redundant polygon vertices. Accepts one polygon or a vector of polygons, with optional opts `{:threshold N}` in coordinate units. Default threshold: `0.001`. |
 | `union`       | Return the geometric union of polygon input. Accepts `(union polygons)` or `(union polygons-a polygons-b)`, where each input may be one polygon or a vector of polygons. Returns disconnected islands as separate polygons. Optional opts: `{:precision N}`. |
 | `vertex-center` | Return the average of all polygon vertices as a point, or `nil` for an empty point vector. |
 
@@ -1958,6 +1959,11 @@ Accepts the same `:font` and `:scale` options as `text!`.
 ; Merge stored coverage with newly revealed coverage.
 (pixils.polygon/union existing-polygons new-polygons)
 ;; => [merged-polygon ...]
+
+; Remove redundant vertices introduced by repeated boolean operations.
+(map (fn [polygon]
+       (pixils.polygon/simplify polygon {:threshold 0.01}))
+     (pixils.polygon/union existing-polygons new-polygons))
 ```
 
 ### `pixils.resource`

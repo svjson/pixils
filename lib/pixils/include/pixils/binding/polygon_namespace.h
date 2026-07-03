@@ -42,6 +42,11 @@ namespace Pixils::Script
     std::vector<std::vector<Point>> polygon_union(
       const std::vector<std::vector<Point>>& polygons,
       int precision);
+    std::vector<Point> simplify_polygon(const std::vector<Point>& polygon,
+                                        float threshold);
+    std::vector<std::vector<Point>> simplify_polygons(
+      const std::vector<std::vector<Point>>& polygons,
+      float threshold);
     std::vector<Point> circle_points(float cx,
                                      float cy,
                                      float radius,
@@ -89,6 +94,8 @@ namespace Pixils::Script
     FUNC(PolygonIntersectionFunction, intersection, intersection_with_opts);
     /*! @brief Return polygon union */
     FUNC(PolygonUnionFunction, combine);
+    /*! @brief Remove redundant polygon vertices */
+    FUNC(PolygonSimplifyFunction, simplify, simplify_with_opts);
   } // namespace Function
 
   class PolygonNamespace : public Roo::Namespace

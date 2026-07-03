@@ -252,6 +252,86 @@ TEST_F(PolygonTest, polygon_boolean_ops_reject_invalid_precision)
   EXPECT_THROW(runtime.eval("(pixils.polygon/union [] {:precision 9})"), Roo::TypeError);
 }
 
+TEST_F(PolygonTest, polygon_simplify_removes_redundant_collinear_vertices)
+{
+  auto count = runtime.eval("(count (pixils.polygon/simplify "
+                            "[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
+                            " {:x 10 :y 5} {:x 10 :y 10} "
+                            " {:x 5 :y 10} {:x 0 :y 10} "
+                            " {:x 0 :y 5}]))");
+  auto first_x = runtime.eval("(:x (nth (pixils.polygon/simplify "
+                              "[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
+                              " {:x 10 :y 5} {:x 10 :y 10} "
+                              " {:x 5 :y 10} {:x 0 :y 10} "
+                              " {:x 0 :y 5}]) 0))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(first_x, nullptr);
+  EXPECT_EQ(count->num().get_int(), 4);
+  EXPECT_FLOAT_EQ(first_x->f32(), 0.0f);
+}
+
+TEST_F(PolygonTest, polygon_simplify_removes_redundant_diagonal_vertices)
+{
+  auto count = runtime.eval("(count (pixils.polygon/simplify "
+                            "[{:x 0 :y 0} {:x 5 :y 5} {:x 10 :y 10} "
+                            " {:x 10 :y 0}]))");
+  auto second_x = runtime.eval("(:x (nth (pixils.polygon/simplify "
+                               "[{:x 0 :y 0} {:x 5 :y 5} {:x 10 :y 10} "
+                               " {:x 10 :y 0}]) 1))");
+
+  ASSERT_NE(count, nullptr);
+  ASSERT_NE(second_x, nullptr);
+  EXPECT_EQ(count->num().get_int(), 3);
+  EXPECT_FLOAT_EQ(second_x->f32(), 10.0f);
+}
+
+TEST_F(PolygonTest, polygon_simplify_uses_threshold)
+{
+  auto preserved = runtime.eval("(count (pixils.polygon/simplify "
+                                "[{:x 0 :y 0} {:x 5 :y 0.25} {:x 10 :y 0} "
+                                " {:x 10 :y 10} {:x 0 :y 10}] "
+                                "{:threshold 0.1}))");
+  auto removed = runtime.eval("(count (pixils.polygon/simplify "
+                              "[{:x 0 :y 0} {:x 5 :y 0.25} {:x 10 :y 0} "
+                              " {:x 10 :y 10} {:x 0 :y 10}] "
+                              "{:threshold 0.3}))");
+
+  ASSERT_NE(preserved, nullptr);
+  ASSERT_NE(removed, nullptr);
+  EXPECT_EQ(preserved->num().get_int(), 5);
+  EXPECT_EQ(removed->num().get_int(), 4);
+}
+
+TEST_F(PolygonTest, polygon_simplify_accepts_polygon_lists)
+{
+  auto outer_count = runtime.eval("(count (pixils.polygon/simplify "
+                                  "[[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
+                                  "  {:x 10 :y 10} {:x 0 :y 10}] "
+                                  " [{:x 20 :y 20} {:x 25 :y 20} {:x 30 :y 20} "
+                                  "  {:x 30 :y 30} {:x 20 :y 30}]]))");
+  auto first_count = runtime.eval("(count (nth (pixils.polygon/simplify "
+                                  "[[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
+                                  "  {:x 10 :y 10} {:x 0 :y 10}] "
+                                  " [{:x 20 :y 20} {:x 25 :y 20} {:x 30 :y 20} "
+                                  "  {:x 30 :y 30} {:x 20 :y 30}]]"
+                                  ") 0))");
+
+  ASSERT_NE(outer_count, nullptr);
+  ASSERT_NE(first_count, nullptr);
+  EXPECT_EQ(outer_count->num().get_int(), 2);
+  EXPECT_EQ(first_count->num().get_int(), 4);
+}
+
+TEST_F(PolygonTest, polygon_simplify_rejects_negative_threshold)
+{
+  EXPECT_THROW(runtime.eval("(pixils.polygon/simplify "
+                            "[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
+                            " {:x 10 :y 10} {:x 0 :y 10}] "
+                            "{:threshold -0.1})"),
+               Roo::TypeError);
+}
+
 TEST_F(PolygonTest, polygon_contains_point_including_boundary)
 {
   EXPECT_TRUE(eval_bool(runtime,

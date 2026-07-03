@@ -16,6 +16,7 @@ namespace Pixils::Script
   {
     constexpr float EPSILON = 0.000001f;
     constexpr int DEFAULT_BOOLEAN_PRECISION = 4;
+    constexpr float DEFAULT_SIMPLIFY_THRESHOLD = 0.001f;
 
     Roo::sptr_val bool_value(bool value)
     {
@@ -436,6 +437,32 @@ namespace Pixils::Script
         Clipper2Lib::Union(paths, Clipper2Lib::FillRule::NonZero, precision));
     }
 
+    std::vector<Point> simplify_polygon(const std::vector<Point>& polygon, float threshold)
+    {
+      Clipper2Lib::PathD path = clipper_path_from_points(polygon);
+      if (path.size() < 3) return {};
+
+      Clipper2Lib::PathD simplified =
+        Clipper2Lib::SimplifyPath(path, static_cast<double>(threshold), true);
+      std::vector<Point> points = points_from_clipper_path(simplified);
+      if (points.size() < 3) return {};
+      return points;
+    }
+
+    std::vector<std::vector<Point>> simplify_polygons(
+      const std::vector<std::vector<Point>>& polygons,
+      float threshold)
+    {
+      std::vector<std::vector<Point>> result;
+      result.reserve(polygons.size());
+      for (const std::vector<Point>& polygon : polygons)
+      {
+        std::vector<Point> simplified = simplify_polygon(polygon, threshold);
+        if (simplified.size() >= 3) result.push_back(std::move(simplified));
+      }
+      return result;
+    }
+
     std::vector<Point> ellipse_points(float cx,
                                       float cy,
                                       float rx,
@@ -541,6 +568,27 @@ namespace Pixils::Script
           throw Roo::TypeError(context + ": :segments must be at least 3.");
         }
         return segments;
+      }
+
+      float simplify_threshold_from_options(Roo::Context& ctx,
+                                            const Roo::sptr_val& value,
+                                            const std::string& context)
+      {
+        static Roo::MapSchema opts_schema({}, {{"threshold", &Roo::Type::NUMBER}});
+        auto opts = opts_schema.bind(ctx, *value);
+        const float threshold = opts.f32("threshold", DEFAULT_SIMPLIFY_THRESHOLD);
+        if (threshold < 0.0f)
+        {
+          throw Roo::TypeError(context + ": :threshold must be non-negative.");
+        }
+        return threshold;
+      }
+
+      bool input_is_polygon(const Roo::sptr_val& value)
+      {
+        if (!value || value->type == Roo::Value::Type::NIL) return false;
+        Roo::sptr_val_v children = Roo::get_children(*value);
+        return !children.empty() && value_is_point(children.front());
       }
     } // namespace
 
@@ -757,6 +805,35 @@ namespace Pixils::Script
 
       return polygons_to_value(Geometry::polygon_union(polygons, precision));
     }
+
+    FUNC_IMPL(
+      PolygonSimplifyFunction,
+      MULTI_SIG((FN_ARGS((&Type::POLYGON_INPUT)),
+                 EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify)),
+                (FN_ARGS((&Type::POLYGON_INPUT), (&Roo::Type::MAP)),
+                 EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify_with_opts))));
+
+    EXEC_BODY(PolygonSimplifyFunction, exec_simplify)
+    {
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
+      return this->exec_simplify_with_opts(ctx, opt_args);
+    }
+
+    EXEC_BODY(PolygonSimplifyFunction, exec_simplify_with_opts)
+    {
+      const float threshold =
+        simplify_threshold_from_options(ctx, args[1], "polygon/simplify");
+
+      if (input_is_polygon(args[0]))
+      {
+        return points_to_value(
+          Geometry::simplify_polygon(Geometry::points_from_value(args[0]), threshold));
+      }
+
+      return polygons_to_value(
+        Geometry::simplify_polygons(Geometry::polygons_from_value(args[0]), threshold));
+    }
   } // namespace Function
 
   PolygonNamespace::PolygonNamespace()
@@ -770,6 +847,7 @@ namespace Pixils::Script
     values.emplace("ellipse", Function::PolygonEllipseFunction::make());
     values.emplace("intersection", Function::PolygonIntersectionFunction::make());
     values.emplace("intersects?", Function::PolygonIntersectsFunction::make());
+    values.emplace("simplify", Function::PolygonSimplifyFunction::make());
     values.emplace("union", Function::PolygonUnionFunction::make());
     values.emplace("vertex-center", Function::PolygonVertexCenterFunction::make());
   }
