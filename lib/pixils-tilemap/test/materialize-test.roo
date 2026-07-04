@@ -549,6 +549,116 @@
            (get-in generated-tile
                    [:mask-source :tiles 0 :tile-definition :id])))))
 
+(deftest materialize-render-map-applies-terrain-stamp-transition-overlay-rules
+  (let [render-map (materialize/roo-materialize-render-map
+                    {:width 2
+                     :height 2
+                     :tile-size {:w 16 :h 16}
+                     :tilesets [{:id :world
+                                 :tiles [{:id :grass-fill}
+                                         {:id :mountain-fill}
+                                         {:id :mountain-nw-overlay}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :mountain
+                                                 :tile :mountain-fill}]}]
+                     :rulesets [{:id :mountain-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :mountain-north-grass
+                                          :terrain :mountain
+                                          :match {:n :other-terrain}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil]]
+                                                             :transition-overlays
+                                                             [[:mountain-nw-overlay]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :grass]
+                                       [:mountain :mountain]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil]
+                                       [nil nil]]}]})
+        generated-tileset (head (:tilesets render-map))
+        generated-tile (head (:tiles generated-tileset))
+        transition-layer (head (filter (:layers render-map)
+                                       (fn [layer]
+                                         (= (:tileset layer)
+                                            :pixils-transition-tiles))))
+        terrain-layer (head (filter (:layers render-map)
+                                    (fn [layer]
+                                      (= (:tileset layer) :world))))]
+    (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= :transition-overlay (:type generated-tile)))
+    (is (= :grass-fill (get-in generated-tile [:base :tile])))
+    (is (= :mountain-nw-overlay (get-in generated-tile [:overlay :tile])))
+    (is (= :grass-fill (get-in generated-tile [:base :tile-definition :id])))
+    (is (= :mountain-nw-overlay
+           (get-in generated-tile [:overlay :tile-definition :id])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id generated-tile)}
+           (get-in transition-layer [:tiles 1 0])))
+    (is (nil? (get-in terrain-layer [:tiles 1 0])))))
+
+(deftest native-materializer-applies-terrain-stamp-transition-overlay-rules
+  (let [render-map (materialize/materialize-render-map
+                    {:width 2
+                     :height 2
+                     :tile-size {:w 16 :h 16}
+                     :tilesets [{:id :world
+                                 :tiles [{:id :grass-fill}
+                                         {:id :mountain-fill}
+                                         {:id :mountain-nw-overlay}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :mountain
+                                                 :tile :mountain-fill}]}]
+                     :rulesets [{:id :mountain-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :mountain-north-grass
+                                          :terrain :mountain
+                                          :match {:n :other-terrain}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil]]
+                                                             :transition-overlays
+                                                             [[:mountain-nw-overlay]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :grass]
+                                       [:mountain :mountain]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil]
+                                       [nil nil]]}]})
+        generated-tileset (head (:tilesets render-map))
+        generated-tile (head (:tiles generated-tileset))
+        transition-layer (head (filter (:layers render-map)
+                                       (fn [layer]
+                                         (= (:tileset layer)
+                                            :pixils-transition-tiles))))]
+    (is (= :transition-overlay (:type generated-tile)))
+    (is (= :grass-fill (get-in generated-tile [:base :tile])))
+    (is (= :mountain-nw-overlay (get-in generated-tile [:overlay :tile])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id generated-tile)}
+           (get-in transition-layer [:tiles 1 0])))))
+
 (deftest materialize-render-rect-applies-terrain-stamp-transition-mask-rules
   (let [mask-ref {:mask-set :soft-edge
                   :mask :north}

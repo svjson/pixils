@@ -982,6 +982,23 @@ namespace
     }
   }
 
+  void draw_transition_overlay_tile(Pixils::RenderContext& rc,
+                                    const Roo::sptr_val& tile,
+                                    const Pixils::Rect& rect,
+                                    double zoom)
+  {
+    auto base = prop(prop(tile, "base"), "tile-definition");
+    auto overlay = prop(prop(tile, "overlay"), "tile-definition");
+    if (!nil_value(base))
+    {
+      draw_tile(rc, base, rect, zoom);
+    }
+    if (!nil_value(overlay))
+    {
+      draw_tile(rc, overlay, rect, zoom);
+    }
+  }
+
   void draw_tile(Pixils::RenderContext& rc,
                  const Roo::sptr_val& tile,
                  const Pixils::Rect& rect,
@@ -1009,6 +1026,10 @@ namespace
     else if (type == "transition-mask")
     {
       draw_transition_mask_tile(rc, tile, rect, zoom);
+    }
+    else if (type == "transition-overlay")
+    {
+      draw_transition_overlay_tile(rc, tile, rect, zoom);
     }
     else
     {
@@ -1734,6 +1755,7 @@ namespace
     Roo::sptr_val tileset = Roo::Constant::NIL;
     std::vector<std::vector<Roo::sptr_val>> tiles;
     std::vector<std::vector<Roo::sptr_val>> transition_masks;
+    std::vector<std::vector<Roo::sptr_val>> transition_overlays;
   };
 
   struct TerrainStampRule
@@ -1779,6 +1801,7 @@ namespace
     int y = 0;
     Roo::sptr_val tile = Roo::Constant::NIL;
     Roo::sptr_val mask_ref = Roo::Constant::NIL;
+    Roo::sptr_val overlay_ref = Roo::Constant::NIL;
   };
 
   struct TerrainRuleMaterialization
@@ -2019,6 +2042,7 @@ namespace
     layer.tileset = prop(value, "tileset");
     layer.tiles = tile_rows(prop(value, "tiles"));
     layer.transition_masks = tile_rows(prop(value, "transition-masks"));
+    layer.transition_overlays = tile_rows(prop(value, "transition-overlays"));
     return layer;
   }
 
@@ -2326,6 +2350,15 @@ namespace
            id_label(prop(mask_ref, "mask"));
   }
 
+  std::string transition_overlay_tile_id_label(const Roo::sptr_val& base_ref,
+                                               const Roo::sptr_val& overlay_ref)
+  {
+    return "transition-overlay-" + id_label(prop(base_ref, "tileset")) + "-" +
+           id_label(prop(base_ref, "tile")) + "-" +
+           id_label(prop(overlay_ref, "tileset")) + "-" +
+           id_label(prop(overlay_ref, "tile"));
+  }
+
   Roo::sptr_val transition_cache_image(const Roo::sptr_val& tile_id)
   {
     return keyword_value("pixils-transition-cache/" + id_label(tile_id));
@@ -2404,6 +2437,71 @@ namespace
                       transition_cache_image(tile_id)});
   }
 
+  Roo::sptr_val transition_overlay_ref(const TerrainStampRuleset& ruleset,
+                                       const OutputLayer& output_layer,
+                                       const Roo::sptr_val& overlay_ref)
+  {
+    if (nil_value(overlay_ref)) return Roo::Constant::NIL;
+    if (overlay_ref && overlay_ref->type == Roo::Value::Type::MAP)
+    {
+      auto tileset = prop(overlay_ref, "tileset");
+      if (nil_value(tileset))
+      {
+        tileset = terrain_stamp_output_tileset(ruleset, output_layer);
+      }
+      auto tile = prop(overlay_ref, "tile");
+      if (nil_value(tile)) tile = prop(overlay_ref, "tile-ref");
+      return map_value({keyword_value("tileset"),
+                        tileset,
+                        keyword_value("tile"),
+                        tile});
+    }
+    return map_value({keyword_value("tileset"),
+                      terrain_stamp_output_tileset(ruleset, output_layer),
+                      keyword_value("tile"),
+                      overlay_ref});
+  }
+
+  Roo::sptr_val transition_overlay_tile_definition(
+    const Roo::sptr_val& tilemap,
+    const TileDefinitionsByTileset& tile_defs,
+    const TerrainSet* terrain_set,
+    const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+    const TerrainStampRuleset& ruleset,
+    const TerrainStampRule& rule,
+    const OutputLayer& output_layer,
+    const Roo::sptr_val& overlay_ref,
+    int source_x,
+    int source_y)
+  {
+    auto base_ref =
+      terrain_preview_ref_value(terrain_set,
+                                first_opposing_terrain_at(source_rows,
+                                                          ruleset,
+                                                          rule,
+                                                          source_x,
+                                                          source_y));
+    auto resolved_overlay_ref = transition_overlay_ref(ruleset, output_layer, overlay_ref);
+    if (nil_value(base_ref) || nil_value(resolved_overlay_ref))
+    {
+      return Roo::Constant::NIL;
+    }
+
+    auto tile_id =
+      keyword_value(transition_overlay_tile_id_label(base_ref, resolved_overlay_ref));
+
+    return map_value({keyword_value("id"),
+                      tile_id,
+                      keyword_value("type"),
+                      keyword_value("transition-overlay"),
+                      keyword_value("size"),
+                      prop(tilemap, "tile-size"),
+                      keyword_value("base"),
+                      transition_ref_with_definition(base_ref, tile_defs),
+                      keyword_value("overlay"),
+                      transition_ref_with_definition(resolved_overlay_ref, tile_defs)});
+  }
+
   void add_unique_transition_tile(TerrainRuleMaterialization& result,
                                   const Roo::sptr_val& tile)
   {
@@ -2441,6 +2539,9 @@ namespace
                           tile_at(output_layer.tiles, rule.anchor_x, rule.anchor_y),
                           tile_at(output_layer.transition_masks,
                                   rule.anchor_x,
+                                  rule.anchor_y),
+                          tile_at(output_layer.transition_overlays,
+                                  rule.anchor_x,
                                   rule.anchor_y)}};
     }
 
@@ -2456,6 +2557,9 @@ namespace
                                   output_layer.tiles[tile_y][tile_x],
                                   tile_at(output_layer.transition_masks,
                                           tile_x,
+                                          tile_y),
+                                  tile_at(output_layer.transition_overlays,
+                                          tile_x,
                                           tile_y)});
       }
     }
@@ -2468,7 +2572,7 @@ namespace
   {
     for (const auto& entry : output_entries(ruleset, rule, output_layer))
     {
-      if (nil_value(entry.mask_ref)) return true;
+      if (nil_value(entry.mask_ref) && nil_value(entry.overlay_ref)) return true;
     }
     return false;
   }
@@ -2508,6 +2612,24 @@ namespace
                                              entry.mask_ref,
                                              source_x,
                                              source_y);
+      add_unique_transition_tile(result, tile);
+      set_transition_replacement(
+        result, x, y, nil_value(tile) ? entry.tile : transition_tile_ref(tile));
+      return;
+    }
+
+    if (!nil_value(entry.overlay_ref))
+    {
+      auto tile = transition_overlay_tile_definition(tilemap,
+                                                    tile_defs,
+                                                    terrain_set,
+                                                    source_rows,
+                                                    ruleset,
+                                                    rule,
+                                                    output_layer,
+                                                    entry.overlay_ref,
+                                                    source_x,
+                                                    source_y);
       add_unique_transition_tile(result, tile);
       set_transition_replacement(
         result, x, y, nil_value(tile) ? entry.tile : transition_tile_ref(tile));

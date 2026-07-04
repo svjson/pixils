@@ -308,6 +308,14 @@
       (when overlay
         (draw-tile! overlay rect (merge {:opacity 0.5} (or render-opts {})) zoom)))))
 
+(defun draw-transition-overlay-tile! [tile rect render-opts zoom]
+  (let [base (-> tile :base :tile-definition)
+        overlay (-> tile :overlay :tile-definition)]
+    (when base
+      (draw-tile! base rect nil zoom))
+    (when overlay
+      (draw-tile! overlay rect render-opts zoom))))
+
 (defun draw-tile! [tile rect render-opts zoom]
   (cond
     (= (:type tile) :color)
@@ -321,6 +329,9 @@
 
     (= (:type tile) :transition-mask)
     (draw-transition-mask-tile! tile rect render-opts zoom)
+
+    (= (:type tile) :transition-overlay)
+    (draw-transition-overlay-tile! tile rect render-opts zoom)
 
     :default
     (draw-missing-tile! rect)))

@@ -636,13 +636,20 @@
                                                old-anchor
                                                unit))
                 layer)]
-    (if (:terrain-signatures layer)
-      (assoc layer
-             :terrain-signatures
-             (normalize-stamp-matrix (:terrain-signatures layer)
-                                     old-anchor
-                                     unit))
-      layer)))
+    (let [layer (if (:terrain-signatures layer)
+                  (assoc layer
+                         :terrain-signatures
+                         (normalize-stamp-matrix (:terrain-signatures layer)
+                                                 old-anchor
+                                                 unit))
+                  layer)]
+      (if (:transition-overlays layer)
+        (assoc layer
+               :transition-overlays
+               (normalize-stamp-matrix (:transition-overlays layer)
+                                       old-anchor
+                                       unit))
+        layer))))
 
 (defun normalize-rule-stamp-output [rule unit]
   (let [output (or (:output rule) {})

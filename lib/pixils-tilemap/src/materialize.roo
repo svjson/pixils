@@ -237,7 +237,10 @@
               :tile tile
               :mask-ref (nth (or (nth (or (:transition-masks output-layer) [])
                                       tile-y) [])
-                             tile-x)}))))
+                             tile-x)
+              :overlay-ref (nth (or (nth (or (:transition-overlays output-layer) [])
+                                          tile-y) [])
+                                tile-x)}))))
 
 (defun output-layer-anchor-entry [output output-layer]
   (let [anchor (output-anchor output)]
@@ -247,7 +250,10 @@
                 (:x anchor))
      :mask-ref (nth (or (nth (or (:transition-masks output-layer) [])
                              (:y anchor)) [])
-                    (:x anchor))}))
+                    (:x anchor))
+     :overlay-ref (nth (or (nth (or (:transition-overlays output-layer) [])
+                                (:y anchor)) [])
+                       (:x anchor))}))
 
 (defun terrain-stamp-output-entries [ruleset output output-layer]
   (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)]
@@ -261,7 +267,8 @@
    (empty?
     (filter (terrain-stamp-output-entries ruleset output output-layer)
             (fn [entry]
-              (not (:mask-ref entry)))))))
+              (and (not (:mask-ref entry))
+                   (not (:overlay-ref entry))))))))
 
 (defun terrain-stamp-output-tileset [ruleset output-layer]
   (or (:tileset output-layer)
@@ -407,6 +414,16 @@
                 "-"
                 (id-label (:mask mask-ref)))))
 
+(defun transition-overlay-tile-id [base-ref overlay-ref]
+  (keyword (str "transition-overlay-"
+                (id-label (:tileset base-ref))
+                "-"
+                (id-label (:tile base-ref))
+                "-"
+                (id-label (:tileset overlay-ref))
+                "-"
+                (id-label (:tile overlay-ref)))))
+
 (def default-transition-mask-polarity :solid-is-current)
 
 (defun transition-mask-polarity [mask-ref]
@@ -465,6 +482,49 @@
          :mask-polarity (transition-mask-polarity mask-ref)
          :mask-source mask-source
          :image (transition-cache-image tile-id)}))))
+
+(defun transition-overlay-ref [ruleset output-layer overlay-ref]
+  (cond
+    (nil? overlay-ref)
+    nil
+
+    (= (type-of overlay-ref) "map")
+    {:tileset (or (:tileset overlay-ref)
+                  (terrain-stamp-output-tileset ruleset output-layer))
+     :tile (or (:tile overlay-ref)
+               (:tile-ref overlay-ref))}
+
+    :default
+    {:tileset (terrain-stamp-output-tileset ruleset output-layer)
+     :tile overlay-ref}))
+
+(defun transition-overlay-tile-definition
+  [tilemap source-layer ruleset rule output-layer overlay-ref source-x source-y]
+  (let [terrain-set-id (:terrain-set ruleset)
+        base-ref (terrain-preview-tile-ref
+                  (:terrain-sets tilemap)
+                  terrain-set-id
+                  (first-opposing-terrain-at source-layer
+                                             ruleset
+                                             rule
+                                             source-x
+                                             source-y))
+        overlay-ref (transition-overlay-ref ruleset output-layer overlay-ref)]
+    (when (and base-ref overlay-ref)
+      (let [tile-id (transition-overlay-tile-id base-ref overlay-ref)]
+        {:id tile-id
+         :type :transition-overlay
+         :size (tm/tile-size tilemap)
+         :base (assoc base-ref
+                      :tile-definition
+                      (tm/tile-in (:tilesets tilemap)
+                                  (:tileset base-ref)
+                                  (:tile base-ref)))
+         :overlay (assoc overlay-ref
+                         :tile-definition
+                         (tm/tile-in (:tilesets tilemap)
+                                     (:tileset overlay-ref)
+                                     (:tile overlay-ref)))}))))
 
 (defun transition-diagnostic-reason-list
   [tilemap source-layer ruleset rule mask-ref source-x source-y]
@@ -556,7 +616,7 @@
     (update state :transition-tiles (fn [tiles]
                                       (concat (or tiles []) [tile])))))
 
-(defun transition-entry-tile [state source-layer ruleset rule entry source-x source-y]
+(defun transition-entry-tile [state source-layer ruleset rule output-layer entry source-x source-y]
   (if (:mask-ref entry)
     (let [tile (transition-tile-definition (:tilemap state)
                                            source-layer
@@ -567,8 +627,19 @@
                                            source-y)]
       {:state (ensure-transition-tile state tile)
        :tile (if tile (transition-tile-ref tile) (:tile entry))})
-    {:state state
-     :tile (:tile entry)}))
+    (if (:overlay-ref entry)
+      (let [tile (transition-overlay-tile-definition (:tilemap state)
+                                                     source-layer
+                                                     ruleset
+                                                     rule
+                                                     output-layer
+                                                     (:overlay-ref entry)
+                                                     source-x
+                                                     source-y)]
+        {:state (ensure-transition-tile state tile)
+         :tile (if tile (transition-tile-ref tile) (:tile entry))})
+      {:state state
+       :tile (:tile entry)})))
 
 (defun same-position? [entry x y]
   (and (= (:x entry) x)
@@ -667,6 +738,7 @@
                                         source-layer
                                         ruleset
                                         rule
+                                        output-layer
                                         entry
                                         source-x
                                         source-y)
@@ -674,7 +746,8 @@
         layer-id (terrain-stamp-output-layer-key source-layer
                                                  ruleset
                                                  output-layer)]
-    (if (:mask-ref entry)
+    (if (or (:mask-ref entry)
+            (:overlay-ref entry))
       (set-transition-replacement state
                                   (:x pos)
                                   (:y pos)

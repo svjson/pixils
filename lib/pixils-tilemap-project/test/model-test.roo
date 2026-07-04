@@ -250,6 +250,10 @@
                                                    :tiles [[:a :b :c]
                                                            [:d :e :f]
                                                            [:g :h :i]]
+                                                   :transition-overlays
+                                                   [[:oa :ob :oc]
+                                                    [:od :oe :of]
+                                                    [:og :oh :oi]]
                                                    :terrain-signatures
                                                    [[{:center :a}
                                                      {:center :b}
@@ -265,6 +269,16 @@
            (get-in document [:rulesets 0 :rules 0 :output :anchor])))
     (is (= [[:e]]
            (get-in document [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[:oe]]
+           (get-in document
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :transition-overlays])))
     (is (= [[{:center :e}]]
            (get-in document
                    [:rulesets
@@ -331,6 +345,10 @@
                                                    :tiles [[:a :b :c]
                                                            [:d :e :f]
                                                            [:g :h :i]]
+                                                   :transition-overlays
+                                                   [[:oa :ob :oc]
+                                                    [:od :oe :of]
+                                                    [:og :oh :oi]]
                                                    :terrain-signatures
                                                    [[{:center :a}
                                                      {:center :b}
@@ -347,6 +365,17 @@
     (is (= [[:e :f]
             [:h :i]]
            (get-in document [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[:oe :of]
+            [:oh :oi]]
+           (get-in document
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :transition-overlays])))
     (is (= [[{:center :e} {:center :f}]
             [{:center :h} {:center :i}]]
            (get-in document
