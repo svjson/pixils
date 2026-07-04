@@ -357,6 +357,16 @@
                            nil
                            (max 0 (min (count value)
                                        (:selection-anchor state))))
+        selection-start (if (nil? selection-anchor)
+                          nil
+                          (let [start (min selection-anchor cursor-index)
+                                end (max selection-anchor cursor-index)]
+                            (if (< start end) start nil)))
+        selection-end (if (nil? selection-anchor)
+                        nil
+                        (let [start (min selection-anchor cursor-index)
+                              end (max selection-anchor cursor-index)]
+                          (if (< start end) end nil)))
         prefix (substr value 0 cursor-index)
         text-width (measure-text-width value text-opts)
         cursor-x (measure-text-width prefix text-opts)
@@ -379,18 +389,18 @@
         selection-prefix-width (measure-text-width
                                  (substr value
                                          0
-                                         (or (:selection-start state)
-                                             0))
+                                         (or selection-start 0))
                                  text-opts)
         selection-end-width (measure-text-width
                               (substr value
                                       0
-                                      (or (:selection-end state)
-                                          0))
+                                      (or selection-end 0))
                               text-opts)
-        selection-x (- selection-prefix-width scroll-x)
-        selection-w (max 0 (- selection-end-width
-                              selection-prefix-width))]
+        selection-left (- selection-prefix-width scroll-x)
+        selection-right (- selection-end-width scroll-x)
+        selection-x (max 0 selection-left)
+        selection-w (max 0 (- (min content-width selection-right)
+                              selection-x))]
     (do
       (position-text-input-children! ctx
                                      scroll-x
@@ -402,20 +412,8 @@
           (assoc :value value)
           (assoc :cursor-index cursor-index)
           (assoc :selection-anchor selection-anchor)
-          (assoc :selection-start (if (nil? selection-anchor)
-                                    nil
-                                    (let [start (min selection-anchor
-                                                     cursor-index)
-                                          end (max selection-anchor
-                                                   cursor-index)]
-                                      (if (< start end) start nil))))
-          (assoc :selection-end (if (nil? selection-anchor)
-                                  nil
-                                  (let [start (min selection-anchor
-                                                   cursor-index)
-                                        end (max selection-anchor
-                                                 cursor-index)]
-                                    (if (< start end) end nil))))
+          (assoc :selection-start selection-start)
+          (assoc :selection-end selection-end)
           (assoc :scroll-x scroll-x)
           (assoc :cursor-x cursor-x)
           (assoc :caret-x (- cursor-x scroll-x))

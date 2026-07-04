@@ -580,6 +580,66 @@ TEST_F(TextInputTest, text_input_shift_home_end_extend_selection_and_delete_remo
   EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
 }
 
+TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highlight)
+{
+  ScopedClipboardBackend clipboard;
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
+
+  runtime.eval(R"(
+    (pixils.clipboard/set-text! "")
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "AAAAAAAAAAAA"})
+       :children [{:mode 'ui/text-input
+                   :style {:width 30
+                           :height 22
+                           :text {:font :font/test-font}}
+                   :state {:value (pixils.ui/bind-state :text)
+                           :auto-focus? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+  update_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+
+  auto scroll_x = get_keyword(text_input_inner->state, "scroll-x");
+  ASSERT_NE(scroll_x, nullptr);
+  EXPECT_GT(scroll_x->num().get_int(), 0);
+
+  input().key_down(SDLK_LSHIFT);
+  update_cycle();
+  input().key_down(SDLK_HOME);
+  update_cycle();
+  input().key_up(SDLK_HOME);
+  update_cycle();
+  input().key_up(SDLK_LSHIFT);
+  update_cycle();
+  render_cycle();
+
+  auto selection_x = get_keyword(text_input_inner->state, "selection-x");
+  auto selection_w = get_keyword(text_input_inner->state, "selection-w");
+  ASSERT_NE(selection_x, nullptr);
+  ASSERT_NE(selection_w, nullptr);
+  EXPECT_GE(selection_x->num().get_int(), 0);
+  EXPECT_GT(selection_w->num().get_int(), 0);
+  EXPECT_LE(selection_x->num().get_int() + selection_w->num().get_int(),
+            text_input_inner->bounds.w);
+
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_C);
+
+  EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(),
+            "\"AAAAAAAAAAAA\"");
+}
+
 TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_layer)
 {
   SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
