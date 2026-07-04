@@ -1428,6 +1428,10 @@
   (or (:transition-masks output-layer)
       (empty-terrain-signature-grid)))
 
+(defun output-layer-transition-overlays [output-layer]
+  (or (:transition-overlays output-layer)
+      (empty-terrain-signature-grid)))
+
 (defun rule-output-terrain-signature-at [rule x y]
   (or (output-layer-terrain-signature-at (head (or (-> rule :output :layers)
                                                    []))
@@ -2528,6 +2532,7 @@
 (defun rule-with-stamp-output [rule output-layer x y tile-ref mask-ref]
   (let [signatures (output-layer-terrain-signatures output-layer)
         transition-masks (output-layer-transition-masks output-layer)
+        transition-overlays (output-layer-transition-overlays output-layer)
         existing-signature (output-layer-terrain-signature-at output-layer x y)
         signature (when (or tile-ref mask-ref)
                     (or existing-signature
@@ -2536,13 +2541,49 @@
      (assoc-in
       (assoc-in
        (assoc-in
-        (assoc-in rule
-                  [:output :layers 0 :tiles y x]
-                  tile-ref)
-        [:output :layers 0 :transition-masks]
-        transition-masks)
-       [:output :layers 0 :transition-masks y x]
-       mask-ref)
+        (assoc-in
+         (assoc-in
+          (assoc-in rule
+                    [:output :layers 0 :tiles y x]
+                    tile-ref)
+          [:output :layers 0 :transition-masks]
+          transition-masks)
+         [:output :layers 0 :transition-masks y x]
+         mask-ref)
+        [:output :layers 0 :transition-overlays]
+        transition-overlays)
+       [:output :layers 0 :transition-overlays y x]
+       nil)
+      [:output :layers 0 :terrain-signatures]
+      signatures)
+     [:output :layers 0 :terrain-signatures y x]
+     signature)))
+
+(defun rule-with-stamp-overlay [rule output-layer x y overlay-ref]
+  (let [signatures (output-layer-terrain-signatures output-layer)
+        transition-masks (output-layer-transition-masks output-layer)
+        transition-overlays (output-layer-transition-overlays output-layer)
+        existing-signature (output-layer-terrain-signature-at output-layer x y)
+        signature (when overlay-ref
+                    (or existing-signature
+                        (default-terrain-signature-for-rule rule)))]
+    (assoc-in
+     (assoc-in
+      (assoc-in
+       (assoc-in
+        (assoc-in
+         (assoc-in
+          (assoc-in rule
+                    [:output :layers 0 :tiles y x]
+                    nil)
+          [:output :layers 0 :transition-masks]
+          transition-masks)
+         [:output :layers 0 :transition-masks y x]
+         nil)
+        [:output :layers 0 :transition-overlays]
+        transition-overlays)
+       [:output :layers 0 :transition-overlays y x]
+       overlay-ref)
       [:output :layers 0 :terrain-signatures]
       signatures)
      [:output :layers 0 :terrain-signatures y x]
@@ -2584,6 +2625,36 @@
 
 (defun set-selected-rule-stamp-mask [state x y mask-ref]
   (set-selected-rule-stamp-output state x y nil mask-ref))
+
+(defun set-selected-rule-stamp-overlay [state x y overlay-ref]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id
+             rule-id
+             (selected-rule-stamp-cell-editable? state x y))
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule
+                                  (:rules ruleset)
+                                  rule-id
+                                  (fn [rule]
+                                    (if-let [output-layer (head (or (-> rule
+                                                                        :output
+                                                                        :layers)
+                                                                    []))]
+                                      (rule-with-stamp-overlay rule
+                                                               output-layer
+                                                               x
+                                                               y
+                                                               overlay-ref)
+                                      rule)))))))
+      state)))
 
 (def terrain-standard-setup-definitions
   [{:id :island-3x3
@@ -3294,6 +3365,12 @@
     (nth (or (nth (or (:transition-masks layer) []) (:y pos)) [])
          (:x pos))))
 
+(defun terrain-standard-role-overlay-ref [state setup-id role-id opposing]
+  (let [layer (terrain-standard-role-output-layer state setup-id role-id opposing)
+        pos (terrain-standard-role-output-position state role-id)]
+    (nth (or (nth (or (:transition-overlays layer) []) (:y pos)) [])
+         (:x pos))))
+
 (defun terrain-standard-role-tileset [state setup-id role-id opposing]
   (let [terrain-set (selected-terrain-set (:terrain-sets state)
                                           (:selected-terrain-set-index state))
@@ -3322,13 +3399,17 @@
                       (:x pos))
         mask-ref (nth (or (nth (or (:transition-masks layer) []) (:y pos)) [])
                       (:x pos))
+        overlay-ref (nth (or (nth (or (:transition-overlays layer) []) (:y pos)) [])
+                         (:x pos))
         tileset (or (:tileset layer)
                     default-tileset)]
     {:rule-id (:id rule)
      :tile-ref tile-ref
      :mask-ref mask-ref
+     :overlay-ref overlay-ref
      :tileset tileset
-     :tile (data/tile-in (:tilesets state) tileset tile-ref)}))
+     :tile (data/tile-in (:tilesets state) tileset tile-ref)
+     :overlay-tile (data/tile-in (:tilesets state) tileset overlay-ref)}))
 
 (defun terrain-standard-role-slot-cache [state opposing]
   (let [rules (terrain-rules-for-selected-terrain state)
@@ -3399,25 +3480,36 @@
         mask-ref
         nil))))
 
+(defun terrain-unit-single-overlay-stamp [unit pos overlay-ref]
+  (dotimes [y (:h unit)]
+    (dotimes [x (:w unit)]
+      (if (and (= x (:x pos))
+               (= y (:y pos)))
+        overlay-ref
+        nil))))
+
 (defun terrain-standard-output-layer [state
                                       terrain-set
                                       terrain
                                       rule
                                       role-id
                                       tile-ref
-                                      mask-ref]
+                                      mask-ref
+                                      overlay-ref]
   (let [unit (data/terrain-unit terrain-set)
         pos (terrain-standard-role-output-position state role-id)
         fallback-layer (default-output-stamp-layer state terrain-set terrain)
         output-layer (or (head (or (-> rule :output :layers) []))
                          fallback-layer)
-        signature (when (or tile-ref mask-ref)
+        signature (when (or tile-ref mask-ref overlay-ref)
                     (terrain-standard-role-output-signature rule role-id))]
     (assoc (assoc output-layer
                   :tiles
                   (terrain-unit-single-tile-stamp unit pos tile-ref))
            :transition-masks
            (terrain-unit-single-mask-stamp unit pos mask-ref)
+           :transition-overlays
+           (terrain-unit-single-overlay-stamp unit pos overlay-ref)
            :terrain-signatures
            (terrain-unit-single-signature-stamp unit pos signature))))
 
@@ -3428,7 +3520,8 @@
                                           role-id
                                           opposing
                                           tile-ref
-                                          mask-ref]
+                                          mask-ref
+                                          overlay-ref]
   (replace-first-output-layer
    (assoc rule :match (terrain-standard-role-match role-id opposing))
    (terrain-standard-output-layer state
@@ -3440,7 +3533,8 @@
                                                                       opposing))
                                   role-id
                                   tile-ref
-                                  mask-ref)))
+                                  mask-ref
+                                  overlay-ref)))
 
 (defun terrain-standard-rule-with-tile [state terrain-set terrain rule role-id opposing tile-ref]
   (terrain-standard-rule-with-output state
@@ -3450,6 +3544,7 @@
                                      role-id
                                      opposing
                                      tile-ref
+                                     nil
                                      nil))
 
 (defun terrain-standard-rule-with-mask [state terrain-set terrain rule role-id opposing mask-ref]
@@ -3460,7 +3555,25 @@
                                      role-id
                                      opposing
                                      nil
-                                     mask-ref))
+                                     mask-ref
+                                     nil))
+
+(defun terrain-standard-rule-with-overlay [state
+                                           terrain-set
+                                           terrain
+                                           rule
+                                           role-id
+                                           opposing
+                                           overlay-ref]
+  (terrain-standard-rule-with-output state
+                                     terrain-set
+                                     terrain
+                                     rule
+                                     role-id
+                                     opposing
+                                     nil
+                                     nil
+                                     overlay-ref))
 
 (defun add-terrain-standard-role-rule [state setup-id role-id opposing tile-ref]
   (let [state (ensure-terrain-ruleset (derive-terrain-workspace-state state))
@@ -3599,6 +3712,77 @@
                                            role-id
                                            opposing
                                            mask-ref))))
+
+(defun add-terrain-standard-role-overlay-rule [state setup-id role-id opposing overlay-ref]
+  (let [state (ensure-terrain-ruleset (derive-terrain-workspace-state state))
+        ruleset-id (selected-terrain-ruleset-id state)
+        terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (selected-terrain terrain-set (:selected-terrain-index state))]
+    (if (and ruleset-id terrain-set terrain overlay-ref)
+      (let [rule (assoc (make-terrain-rule state)
+                        :label (terrain-standard-rule-label state
+                                                            setup-id
+                                                            role-id
+                                                            opposing)
+                        :exclusive? true
+                        :match (terrain-standard-role-match role-id opposing))
+            rule (terrain-standard-rule-with-overlay state
+                                                     terrain-set
+                                                     terrain
+                                                     rule
+                                                     role-id
+                                                     opposing
+                                                     overlay-ref)]
+        (assoc state
+               :rulesets (update-ruleset
+                          (:rulesets state)
+                          ruleset-id
+                          (fn [ruleset]
+                            (assoc ruleset
+                                   :rules
+                                   (insert-terrain-rule-by-specificity
+                                    (:rules ruleset)
+                                    rule))))
+               :selected-terrain-ruleset-id ruleset-id
+               :selected-terrain-rule-id (:id rule)))
+      state)))
+
+(defun set-terrain-standard-role-overlay [state setup-id role-id opposing overlay-ref]
+  (let [state (derive-terrain-workspace-state state)
+        opposing (or opposing (selected-terrain-standard-opposing state))
+        opposing (normalize-terrain-standard-opposing state opposing)
+        rule-id (terrain-standard-role-rule-id state setup-id role-id opposing)]
+    (if rule-id
+      (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                              (:selected-terrain-set-index state))
+            terrain (selected-terrain terrain-set (:selected-terrain-index state))
+            ruleset-id (selected-terrain-ruleset-id state)]
+        (assoc state
+               :rulesets (update-ruleset
+                          (:rulesets state)
+                          ruleset-id
+                          (fn [ruleset]
+                            (assoc ruleset
+                                   :rules
+                                   (update-rule
+                                    (:rules ruleset)
+                                    rule-id
+                                    (fn [rule]
+                                      (terrain-standard-rule-with-overlay
+                                       state
+                                       terrain-set
+                                       terrain
+                                       rule
+                                       role-id
+                                       opposing
+                                       overlay-ref))))))
+               :selected-terrain-rule-id rule-id))
+      (add-terrain-standard-role-overlay-rule state
+                                              setup-id
+                                              role-id
+                                              opposing
+                                              overlay-ref))))
 
 (defun terrain-condition-option [terrain]
   {:value (:id terrain)

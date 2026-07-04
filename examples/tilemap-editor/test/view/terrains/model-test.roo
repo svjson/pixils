@@ -1804,6 +1804,28 @@
     (is (= [[mask-ref]]
            (get-in rule [:output :layers 0 :transition-masks])))))
 
+(deftest terrain-standard-role-overlay-can-create-transition-overlay-rule
+  (let [state (model/set-terrain-standard-role-overlay
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :mountain-nw-overlay}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :island-3x3
+               :n
+               :water
+               :mountain-nw-overlay)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= {:terrain :water} (get-in rule [:match :nw])))
+    (is (= [[nil]] (get-in rule [:output :layers 0 :tiles])))
+    (is (= [[nil]] (get-in rule [:output :layers 0 :transition-masks])))
+    (is (= [[:mountain-nw-overlay]]
+           (get-in rule [:output :layers 0 :transition-overlays])))))
+
 (deftest terrain-standard-cardinal-fork-mask-keeps-broad-output-signature
   (let [mask-ref {:mask-set :soft-edge
                   :mask :fork-n-e-s

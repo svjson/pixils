@@ -2158,10 +2158,23 @@
     (:mask-ref entry)
     nil))
 
+(defun terrain-standard-role-slot-overlay-ref [state]
+  (if-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:overlay-ref entry)
+    nil))
+
+(defun terrain-standard-role-slot-overlay-tile [state]
+  (if-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:overlay-tile entry)
+    nil))
+
 (defun terrain-standard-role-slot-rule-id [state]
   (if-let [entry (terrain-standard-role-slot-cache-entry state)]
     (:rule-id entry)
     nil))
+
+(defun terrain-standard-output-tab [state]
+  (or (:terrain-standard-output-picker-tab state) :tiles))
 
 (defun terrain-standard-marker-condition? [condition]
   (and (not (= condition :ignore))
@@ -2290,6 +2303,8 @@
 (defun draw-terrain-standard-role-slot! [state ctx]
   (let [tile (:tile state)
         mask-ref (:mask-ref state)
+        overlay-ref (:overlay-ref state)
+        overlay-tile (:overlay-tile state)
         label (:label state)
         tile-rect (terrain-standard-role-tile-rect state)]
     (do
@@ -2304,11 +2319,18 @@
                         :h (- (:h tile-rect) 8)}))
       (when (and (not tile)
                  (not mask-ref)
+                 (not overlay-ref)
                  (not (terrain-standard-role-uses-surround-markers? state)))
         (r/text! label
                  {:x (+ (:x tile-rect) 8)
                   :y (+ (:y tile-rect) 13)}
                  {:color {:r 0x86 :g 0x91 :b 0x9b}}))
+      (when (and (not tile) overlay-tile)
+        (tr/draw-tile! overlay-tile
+                       {:x (+ (:x tile-rect) 4)
+                        :y (+ (:y tile-rect) 4)
+                        :w (- (:w tile-rect) 8)
+                        :h (- (:h tile-rect) 8)}))
       (when (and (not tile) mask-ref)
         (draw-terrain-standard-transition-preview!
          state
@@ -2338,6 +2360,8 @@
                         :rule-id rule-id
                         :tile (terrain-standard-role-slot-tile state)
                         :mask-ref (terrain-standard-role-slot-mask-ref state)
+                        :overlay-ref (terrain-standard-role-slot-overlay-ref state)
+                        :overlay-tile (terrain-standard-role-slot-overlay-tile state)
                         :selected? (and rule-id
                                         (= rule-id
                                            (:selected-terrain-rule-id
@@ -2347,21 +2371,60 @@
      (do
        (ui/stop-propagation! event)
        (if (secondary-mouse-button? event)
-         (ui/emit! (:view ctx)
-                   :terrain/standard-role-tile-change
-                   {:setup-id (:setup-id state)
-                    :role-id (:role-id state)
-                    :opposing (:terrain-standard-role-cache-opposing state)
-                    :tile nil})
-         (if-let [mask-ref (:terrain-rule-selected-mask state)]
+         (case (terrain-standard-output-tab state)
+           :masks
            (ui/emit! (:view ctx)
                      :terrain/standard-role-mask-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask (model/mask-ref-with-polarity
-                             mask-ref
-                             (:terrain-rule-mask-polarity state))})
+                      :mask nil})
+
+           :overlays
+           (ui/emit! (:view ctx)
+                     :terrain/standard-role-overlay-change
+                     {:setup-id (:setup-id state)
+                      :role-id (:role-id state)
+                      :opposing (:terrain-standard-role-cache-opposing state)
+                      :overlay nil})
+
+           :default
+           (ui/emit! (:view ctx)
+                     :terrain/standard-role-tile-change
+                     {:setup-id (:setup-id state)
+                      :role-id (:role-id state)
+                      :opposing (:terrain-standard-role-cache-opposing state)
+                      :tile nil}))
+         (case (terrain-standard-output-tab state)
+           :masks
+           (if-let [mask-ref (:terrain-rule-selected-mask state)]
+             (ui/emit! (:view ctx)
+                       :terrain/standard-role-mask-change
+                       {:setup-id (:setup-id state)
+                        :role-id (:role-id state)
+                        :opposing (:terrain-standard-role-cache-opposing state)
+                        :mask (model/mask-ref-with-polarity
+                               mask-ref
+                               (:terrain-rule-mask-polarity state))})
+             (when (:rule-id state)
+               (ui/emit! (:view ctx)
+                         :terrain/rule-select
+                         (:rule-id state))))
+
+           :overlays
+           (if-let [tile-ref (:terrain-rule-selected-tile state)]
+             (ui/emit! (:view ctx)
+                       :terrain/standard-role-overlay-change
+                       {:setup-id (:setup-id state)
+                        :role-id (:role-id state)
+                        :opposing (:terrain-standard-role-cache-opposing state)
+                        :overlay tile-ref})
+             (when (:rule-id state)
+               (ui/emit! (:view ctx)
+                         :terrain/rule-select
+                         (:rule-id state))))
+
+           :default
            (if-let [tile-ref (:terrain-rule-selected-tile state)]
              (ui/emit! (:view ctx)
                        :terrain/standard-role-tile-change
@@ -2393,12 +2456,25 @@
          (if (terrain-stamp-tile-drag-payload? payload)
            (do
              (ui/stop-propagation! event)
-             (ui/emit! (:view ctx)
-                       :terrain/standard-role-tile-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :tile (:tile payload)})
+             (case (terrain-standard-output-tab state)
+               :overlays
+               (ui/emit! (:view ctx)
+                         :terrain/standard-role-overlay-change
+                         {:setup-id (:setup-id state)
+                          :role-id (:role-id state)
+                          :opposing (:terrain-standard-role-cache-opposing state)
+                          :overlay (:tile payload)})
+
+               :tiles
+               (ui/emit! (:view ctx)
+                         :terrain/standard-role-tile-change
+                         {:setup-id (:setup-id state)
+                          :role-id (:role-id state)
+                          :opposing (:terrain-standard-role-cache-opposing state)
+                          :tile (:tile payload)})
+
+               :default
+               nil)
              state)
            state))))
    :render draw-terrain-standard-role-slot!})
@@ -2416,6 +2492,8 @@
            (ui/bind-state :terrain-rule-selected-mask)
            :terrain-rule-mask-polarity
            (ui/bind-state :terrain-rule-mask-polarity)
+           :terrain-standard-output-picker-tab
+           (ui/bind-state :terrain-standard-output-picker-tab)
            :tilesets (ui/bind-state :tilesets)
            :mask-sets (ui/bind-state :mask-sets)
            :terrain-sets (ui/bind-state :terrain-sets)
@@ -2961,6 +3039,10 @@
     :state (terrain-standard-output-picker-state)
     :tabs [{:id :tiles
             :label "Tiles"
+            :child {:mode 'terrain-stamp-tile-picker-scroll-pane
+                    :state (ui/bind-state)}}
+           {:id :overlays
+            :label "Overlays"
             :child {:mode 'terrain-stamp-tile-picker-scroll-pane
                     :state (ui/bind-state)}}
            {:id :masks
@@ -5197,9 +5279,9 @@
              state
              (fn [state]
                (model/set-terrain-standard-role-tile
-               state
-               (:setup-id payload)
-               (:role-id payload)
+                state
+                (:setup-id payload)
+                (:role-id payload)
                 (:opposing payload)
                 (:tile payload))))))
         :terrain/standard-role-mask-change
@@ -5213,5 +5295,17 @@
                 (:setup-id payload)
                 (:role-id payload)
                 (:opposing payload)
-                (:mask payload))))))}
+                (:mask payload))))))
+        :terrain/standard-role-overlay-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (model/set-terrain-standard-role-overlay
+                state
+                (:setup-id payload)
+                (:role-id payload)
+                (:opposing payload)
+                (:overlay payload))))))}
    :children (terrain-definition-workspace-children)})
