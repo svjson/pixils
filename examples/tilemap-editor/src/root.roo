@@ -38,6 +38,7 @@
    :selected-terrain-rule-match-direction
    :selected-terrain-rule-output-position
    :terrain-rule-selected-tile
+   :terrain-rule-selected-tile-output-tab
    :terrain-rule-selected-mask
    :terrain-rule-mask-polarity
    :terrain-rule-list-offset
@@ -205,6 +206,7 @@
            :selected-terrain-rule-match-direction :n
            :selected-terrain-rule-output-position {:x 1 :y 1}
            :terrain-rule-selected-tile nil
+           :terrain-rule-selected-tile-output-tab nil
            :terrain-rule-selected-mask nil
            :terrain-rule-mask-polarity :solid-is-current
            :terrain-rule-list-offset {:x 0 :y 0}
@@ -398,6 +400,8 @@
                         :selected-terrain-rule-output-position)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
+                       :terrain-rule-selected-tile-output-tab
+                       (ui/bind-state :terrain-rule-selected-tile-output-tab)
                        :terrain-rule-selected-mask
                        (ui/bind-state :terrain-rule-selected-mask)
                        :terrain-rule-mask-polarity
@@ -630,6 +634,9 @@
                                        :terrain-rule-selected-tile
                                        (ui/bind-state
                                         :terrain-rule-selected-tile)
+                                       :terrain-rule-selected-tile-output-tab
+                                       (ui/bind-state
+                                        :terrain-rule-selected-tile-output-tab)
                                        :terrain-rule-selected-mask
                                        (ui/bind-state
                                         :terrain-rule-selected-mask)

@@ -131,17 +131,25 @@
     (is (= "Semantic Roles" (-> tabs (nth 1) :label)))
     (is (= 'terrain-standard-setup-editor (-> tabs (nth 1) :child :mode)))))
 
-(deftest terrain-standard-output-picker-tabs-include-tiles-and-masks
+(deftest terrain-standard-output-picker-tabs-include-tiles-overlays-and-masks
   (let [panel (layout/terrain-standard-output-picker-tabs-panel)
         tabs (-> panel :state :tabs)]
     (is (= :tiles (-> tabs head :id)))
     (is (= "Tiles" (-> tabs head :label)))
     (is (= 'terrain-stamp-tile-picker-scroll-pane
            (-> tabs head :child :mode)))
-    (is (= :masks (-> tabs (nth 1) :id)))
-    (is (= "Masks" (-> tabs (nth 1) :label)))
+    (is (= :overlays (-> tabs (nth 1) :id)))
+    (is (= "Overlays" (-> tabs (nth 1) :label)))
+    (is (= 'terrain-stamp-tile-picker-scroll-pane
+           (-> tabs (nth 1) :child :mode)))
+    (is (= :masks (-> tabs (nth 2) :id)))
+    (is (= "Masks" (-> tabs (nth 2) :label)))
     (is (= 'terrain-standard-mask-picker
-           (-> tabs (nth 1) :child :mode)))))
+           (-> tabs (nth 2) :child :mode)))))
+
+(deftest terrain-standard-output-picker-state-includes-selected-tab-binding
+  (let [state (layout/terrain-standard-output-picker-state)]
+    (is (contains? state :terrain-standard-output-picker-tab))))
 
 (deftest terrain-detail-tabs-keep-existing-tabs-before-transitions
   (let [panel (layout/terrain-detail-tabs-child false)

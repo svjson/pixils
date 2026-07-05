@@ -25,6 +25,20 @@
     (runtime/render! app)
     app))
 
+(defun switch-standard-output-picker-to! [app tab-id opts]
+  (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
+    (is (not (nil? tab)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app tab)
+      :default (runtime/click! app tab))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [selected-tab (runtime/find-view-containing app
+                                                     "ui/tab"
+                                                     (str ":tab-id " tab-id))]
+      (is (= true (:selected? (runtime/view-state selected-tab)))))
+    app))
+
 (defun add-rule! [app opts]
   (let [button (runtime/find-view-containing app "ui/button" "Add rule")]
     (is (not (nil? button)))
@@ -59,6 +73,9 @@
 
 (defun selected-rule-output-tiles [app]
   (get-in (selected-rule app) [:output :layers 0 :tiles]))
+
+(defun selected-rule-output-overlays [app]
+  (get-in (selected-rule app) [:output :layers 0 :transition-overlays]))
 
 (defun set-selected-rule-exclusive! [app exclusive? opts]
   (let [checkbox (runtime/find-view-containing app
@@ -180,4 +197,9 @@
 (defun output-tiles-are? [app tiles]
   (let [actual (selected-rule-output-tiles app)]
     (is (= tiles actual))
+    actual))
+
+(defun output-overlays-are? [app overlays]
+  (let [actual (selected-rule-output-overlays app)]
+    (is (= overlays actual))
     actual))

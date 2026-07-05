@@ -1164,6 +1164,8 @@
            (ui/bind-state :selected-terrain-rule-output-position)
            :terrain-rule-selected-tile
            (ui/bind-state :terrain-rule-selected-tile)
+           :terrain-rule-selected-tile-output-tab
+           (ui/bind-state :terrain-rule-selected-tile-output-tab)
            :terrain-rule-selected-mask
            (ui/bind-state :terrain-rule-selected-mask)
            :terrain-rule-mask-polarity
@@ -1382,6 +1384,10 @@
    :selected-terrain-rule-match-direction
    (:selected-terrain-rule-match-direction state)
    :terrain-rule-selected-tile (:terrain-rule-selected-tile state)
+   :terrain-rule-selected-tile-output-tab
+   (:terrain-rule-selected-tile-output-tab state)
+   :terrain-standard-output-picker-tab
+   (:terrain-standard-output-picker-tab state)
    :terrain-sets (:terrain-sets state)
    :selected-terrain-set-index (:selected-terrain-set-index state)
    :selected-terrain-index (:selected-terrain-index state)
@@ -1425,6 +1431,7 @@
       {:kind :terrain-rule-stamp-tile
        :tileset (model/selected-rule-stamp-tileset state)
        :tile (:value option)
+       :output-tab (terrain-standard-output-tab state)
        :offset (terrain-stamp-tile-drag-offset event rect)}
       nil)))
 
@@ -1468,7 +1475,8 @@
       (when (not (nil? index))
         (ui/emit! (:view ctx)
                   :terrain/rule-stamp-tile-select
-                  (:value option)))
+                  {:tile (:value option)
+                   :output-tab (terrain-standard-output-tab state)}))
       state)))
 
 (defun draw-no-tile-picker-mark! [rect]
@@ -2176,6 +2184,10 @@
 (defun terrain-standard-output-tab [state]
   (or (:terrain-standard-output-picker-tab state) :tiles))
 
+(defun terrain-standard-selected-tile-output-tab [state]
+  (or (:terrain-rule-selected-tile-output-tab state)
+      (terrain-standard-output-tab state)))
+
 (defun terrain-standard-marker-condition? [condition]
   (and (not (= condition :ignore))
        (not (= condition :same))))
@@ -2369,9 +2381,9 @@
    :on-mouse-down
    (fn [state event ctx]
      (do
-       (ui/stop-propagation! event)
-       (if (secondary-mouse-button? event)
-         (case (terrain-standard-output-tab state)
+      (ui/stop-propagation! event)
+      (if (secondary-mouse-button? event)
+        (case (terrain-standard-output-tab state)
            :masks
            (ui/emit! (:view ctx)
                      :terrain/standard-role-mask-change
@@ -2388,14 +2400,19 @@
                       :opposing (:terrain-standard-role-cache-opposing state)
                       :overlay nil})
 
-           :default
+           :tiles
            (ui/emit! (:view ctx)
                      :terrain/standard-role-tile-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :tile nil}))
-         (case (terrain-standard-output-tab state)
+                      :tile nil})
+
+           :default
+           nil)
+        (case (if (:terrain-rule-selected-tile state)
+                (terrain-standard-selected-tile-output-tab state)
+                (terrain-standard-output-tab state))
            :masks
            (if-let [mask-ref (:terrain-rule-selected-mask state)]
              (ui/emit! (:view ctx)
@@ -2424,7 +2441,7 @@
                          :terrain/rule-select
                          (:rule-id state))))
 
-           :default
+           :tiles
            (if-let [tile-ref (:terrain-rule-selected-tile state)]
              (ui/emit! (:view ctx)
                        :terrain/standard-role-tile-change
@@ -2435,7 +2452,10 @@
              (when (:rule-id state)
                (ui/emit! (:view ctx)
                          :terrain/rule-select
-                         (:rule-id state))))))
+                         (:rule-id state))))
+
+           :default
+           nil))
        state))
    :on-drop
    (fn [state event ctx]
@@ -2456,7 +2476,8 @@
          (if (terrain-stamp-tile-drag-payload? payload)
            (do
              (ui/stop-propagation! event)
-             (case (terrain-standard-output-tab state)
+             (case (or (:output-tab payload)
+                       (terrain-standard-output-tab state))
                :overlays
                (ui/emit! (:view ctx)
                          :terrain/standard-role-overlay-change
@@ -2621,6 +2642,8 @@
    (ui/bind-state :selected-terrain-rule-id)
    :terrain-rule-selected-tile
    (ui/bind-state :terrain-rule-selected-tile)
+   :terrain-rule-selected-tile-output-tab
+   (ui/bind-state :terrain-rule-selected-tile-output-tab)
    :terrain-rule-selected-mask
    (ui/bind-state :terrain-rule-selected-mask)
    :terrain-rule-mask-polarity
@@ -3019,6 +3042,8 @@
    (ui/bind-state :terrain-rule-mask-polarity)
    :terrain-standard-opposing
    (ui/bind-state :terrain-standard-opposing)
+   :terrain-standard-output-picker-tab
+   (ui/bind-state :terrain-standard-output-picker-tab)
    :terrain-sets (ui/bind-state :terrain-sets)
    :selected-terrain-set-index
    (ui/bind-state :selected-terrain-set-index)
@@ -3031,6 +3056,11 @@
    :selected-layer-profile-id
    (ui/bind-state :selected-layer-profile-id)})
 
+(defun terrain-standard-output-picker-tab-state [tab-id]
+  (assoc (terrain-standard-output-picker-state)
+         :terrain-standard-output-picker-tab
+         tab-id))
+
 (defun terrain-standard-output-picker-tabs-panel []
   (tabs/make
    {:selected-tab (ui/bind-state :terrain-standard-output-picker-tab)
@@ -3040,11 +3070,11 @@
     :tabs [{:id :tiles
             :label "Tiles"
             :child {:mode 'terrain-stamp-tile-picker-scroll-pane
-                    :state (ui/bind-state)}}
+                    :state (terrain-standard-output-picker-tab-state :tiles)}}
            {:id :overlays
             :label "Overlays"
             :child {:mode 'terrain-stamp-tile-picker-scroll-pane
-                    :state (ui/bind-state)}}
+                    :state (terrain-standard-output-picker-tab-state :overlays)}}
            {:id :masks
             :label "Masks"
             :child {:mode 'terrain-standard-mask-picker
@@ -3053,13 +3083,6 @@
 (defcomponent terrain-standard-output-picker-tabs
   {:style {:width terrain-stamp-tile-picker-width
            :height :fill}
-   :on {:tab-panel/change
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (assoc state
-                   :terrain-standard-output-picker-tab
-                   (-> event :payload :tab))))}
    :children [(terrain-standard-output-picker-tabs-panel)]})
 
 (defcomponent terrain-standard-setup-editor
@@ -3068,6 +3091,13 @@
            :padding [10 12]
            :layout {:direction :row
                     :gap 12}}
+   :on {:tab-panel/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state
+                   :terrain-standard-output-picker-tab
+                   (-> event :payload :tab))))}
    :children [{:style {:width :fill
                        :height :fill
                        :layout {:direction :column
@@ -3616,6 +3646,8 @@
             (ui/bind-state :selected-terrain-rule-output-position)
             :terrain-rule-selected-tile
             (ui/bind-state :terrain-rule-selected-tile)
+            :terrain-rule-selected-tile-output-tab
+            (ui/bind-state :terrain-rule-selected-tile-output-tab)
             :terrain-rule-selected-mask
             (ui/bind-state :terrain-rule-selected-mask)
             :terrain-rule-mask-polarity
@@ -3626,6 +3658,8 @@
             (ui/bind-state :terrain-rule-editor-tab)
             :terrain-standard-opposing
             (ui/bind-state :terrain-standard-opposing)
+            :terrain-standard-output-picker-tab
+            (ui/bind-state :terrain-standard-output-picker-tab)
             :terrain-standard-role-cache-opposing
             (ui/bind-state :terrain-standard-role-cache-opposing)
             :terrain-standard-role-slots
@@ -4225,6 +4259,8 @@
             (ui/bind-state :selected-terrain-rule-output-position)
             :terrain-rule-selected-tile
             (ui/bind-state :terrain-rule-selected-tile)
+            :terrain-rule-selected-tile-output-tab
+            (ui/bind-state :terrain-rule-selected-tile-output-tab)
             :terrain-rule-selected-mask
             (ui/bind-state :terrain-rule-selected-mask)
             :terrain-rule-mask-polarity
@@ -4314,6 +4350,9 @@
                             :terrain-rule-selected-tile
                             (ui/bind-state
                              :terrain-rule-selected-tile)
+                            :terrain-rule-selected-tile-output-tab
+                            (ui/bind-state
+                             :terrain-rule-selected-tile-output-tab)
                             :terrain-rule-selected-mask
                             (ui/bind-state
                              :terrain-rule-selected-mask)
@@ -4451,6 +4490,8 @@
                     (ui/bind-state :selected-terrain-rule-output-position)
                     :terrain-rule-selected-tile
                     (ui/bind-state :terrain-rule-selected-tile)
+                    :terrain-rule-selected-tile-output-tab
+                    (ui/bind-state :terrain-rule-selected-tile-output-tab)
                     :terrain-rule-selected-mask
                     (ui/bind-state :terrain-rule-selected-mask)
                     :terrain-rule-mask-polarity
@@ -4620,6 +4661,8 @@
              (ui/bind-state :selected-terrain-rule-output-position)
              :terrain-rule-selected-tile
              (ui/bind-state :terrain-rule-selected-tile)
+             :terrain-rule-selected-tile-output-tab
+             (ui/bind-state :terrain-rule-selected-tile-output-tab)
              :terrain-rule-selected-mask
              (ui/bind-state :terrain-rule-selected-mask)
              :terrain-rule-mask-polarity
@@ -5209,14 +5252,23 @@
               state)))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
-          (assoc state
-                 :terrain-rule-selected-tile (:payload event)
-                 :terrain-rule-selected-mask nil))
+          (let [payload (:payload event)
+                tile (if (= (type-of payload) "map")
+                       (:tile payload)
+                       payload)
+                output-tab (if (= (type-of payload) "map")
+                             (:output-tab payload)
+                             nil)]
+            (assoc state
+                   :terrain-rule-selected-tile tile
+                   :terrain-rule-selected-tile-output-tab output-tab
+                   :terrain-rule-selected-mask nil)))
         :terrain/rule-stamp-mask-select
         (fn [state event ctx]
           (assoc state
                  :terrain-rule-selected-mask (:payload event)
-                 :terrain-rule-selected-tile nil))
+                 :terrain-rule-selected-tile nil
+                 :terrain-rule-selected-tile-output-tab nil))
         :terrain/rule-stamp-mask-polarity-change
         (fn [state event ctx]
           (assoc state
