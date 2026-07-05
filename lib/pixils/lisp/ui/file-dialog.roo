@@ -33,6 +33,16 @@
   (concat (io/list-directory! path {:files? false})
           (io/list-directory! path (file-list-options filter))))
 
+(defun accessible-directory? [path]
+  (and (not (nil? path))
+       (not (empty? path))
+       (io/directory? path)))
+
+(defun safe-list-directory [path filter]
+  (if (accessible-directory? path)
+    (list-directory path filter)
+    []))
+
 (defun parent-path [path]
   (let [parent (io/parent-path path)]
     (if (empty? parent)
@@ -110,8 +120,10 @@
         filter-index (or (:filter-index opts) 0)]
     {:dialog-mode mode
      :path path
+     :pending-path path
+     :path-error nil
      :entry-path path
-     :entries (list-directory path (filter-at filters filter-index))
+     :entries (safe-list-directory path (filter-at filters filter-index))
      :selected-index nil
      :selected-indices []
      :selected-entry nil
@@ -136,16 +148,22 @@
      :toggle-selected? false})))
 
 (defun navigate-to [state path]
-  (assoc state
-         :path path
-         :entry-path nil
-         :entries (list-directory path
-                                  (filter-at (:filters state)
-                                             (:filter-index state)))
-         :selected-index nil
-         :selected-indices []
-         :selected-entry nil
-         :filename ""))
+  (if (accessible-directory? path)
+    (assoc state
+           :path path
+           :pending-path path
+           :path-error nil
+           :entry-path nil
+           :entries (safe-list-directory path
+                                         (filter-at (:filters state)
+                                                    (:filter-index state)))
+           :selected-index nil
+           :selected-indices []
+           :selected-entry nil
+           :filename "")
+    (assoc state
+           :pending-path path
+           :path-error "Folder not found")))
 
 (defun selected-file-entries [state]
   (filter (map (or (:selected-indices state) [])
@@ -236,12 +254,27 @@
               {:mode 'ui/text-input
                :style {:width :fill
                        :height 22}
-               :state {:value (ui/bind-state :path)}}
+               :state {:value (ui/bind-state :pending-path)}}
               {:mode 'ui/button
                :state {:label "Up"}
                :on-click (fn [state event ctx]
                            (ui/emit! (:view ctx) :file-dialog/up)
-                           state)}]})
+                           state)}]
+   :on {:text-input/change (fn [state event ctx]
+                             (do
+                               (ui/stop-propagation! event)
+                               (assoc state
+                                      :pending-path (-> event :payload :value)
+                                      :path-error nil)))}
+   :on-key-down (fn [state event ctx]
+                  (if (= (:key event) :key/enter)
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/emit! (:view ctx)
+                                :file-dialog/commit-path
+                                {:path (:pending-path state)})
+                      state)
+                    state))})
 
 (defcomponent ui/file-dialog-name-row
   {:style {:width :fill
@@ -331,6 +364,7 @@
                  filters (or (:filters state) default-filters)]
              (assoc state
                     :path path
+                    :pending-path (or (:pending-path state) path)
                     :filters filters
                     :filter-index (or (:filter-index state) 0)
                     :filter-options (filter-options filters))))
@@ -338,9 +372,9 @@
              (let [path (or (:path state) default-path)]
                (if (= path (:entry-path state))
                  state
-                 (let [entries (list-directory path
-                                               (filter-at (:filters state)
-                                                          (:filter-index state)))]
+                 (let [entries (safe-list-directory path
+                                                    (filter-at (:filters state)
+                                                               (:filter-index state)))]
                    (do
                      (ui/replace-child! (:view ctx)
                                         "entry-list"
@@ -350,6 +384,8 @@
                                                            state)))
                      (assoc state
                             :path path
+                            :pending-path path
+                            :path-error nil
                             :entry-path path
                             :entries entries
                             :selected-index nil
@@ -380,11 +416,16 @@
                           (do
                             (ui/stop-propagation! event)
                             (navigate-to state (parent-path (:path state)))))
+        :file-dialog/commit-path (fn [state event ctx]
+                                   (do
+                                     (ui/stop-propagation! event)
+                                     (navigate-to state
+                                                  (-> event :payload :path))))
         :combo-box/change (fn [state event ctx]
                             (let [filter-index (-> event :payload :selected-index)
-                                  entries (list-directory (:path state)
-                                                          (filter-at (:filters state)
-                                                                     filter-index))]
+                                  entries (safe-list-directory (:path state)
+                                                               (filter-at (:filters state)
+                                                                          filter-index))]
                               (do
                                 (ui/stop-propagation! event)
                                 (ui/replace-child! (:view ctx)
@@ -415,7 +456,9 @@
                     :auto-focus-filename? (= (:dialog-mode state)
                                              :file-dialog/save)})
      :children [{:mode 'ui/file-dialog-path-row
-                 :state {:path (ui/bind-state :path)}}
+                 :state {:path (ui/bind-state :path)
+                         :pending-path (ui/bind-state :pending-path)
+                         :path-error (ui/bind-state :path-error)}}
                 (entry-list-child (:entries state)
                                   (:selected-indices state)
                                   (:multi-select? state))

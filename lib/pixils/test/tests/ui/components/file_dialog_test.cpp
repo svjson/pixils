@@ -1,5 +1,6 @@
 #include "../../render_fixture.h"
 
+#include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
@@ -8,6 +9,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <string>
 
 using FileDialogTest = RenderFixture;
@@ -68,6 +70,18 @@ namespace
   Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
   {
     return Roo::Dict::get_property(value, Roo::keyword(key));
+  }
+
+  void press_ctrl_a(InputSimulator& input, const std::function<void()>& update_cycle)
+  {
+    input.key_down(SDLK_LCTRL);
+    update_cycle();
+    input.key_down(SDLK_A);
+    update_cycle();
+    input.key_up(SDLK_A);
+    update_cycle();
+    input.key_up(SDLK_LCTRL);
+    update_cycle();
   }
 
   std::shared_ptr<View> find_button_with_label(const std::shared_ptr<View>& view,
@@ -341,6 +355,105 @@ TEST_F(FileDialogTest, large_font_file_list_scroll_range_uses_measured_row_heigh
   const int measured_content_bottom =
     last_item->bounds.y + last_item->bounds.h - content->bounds.y;
   EXPECT_GE(content_height->num().get_int(), measured_content_bottom);
+}
+
+TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_path_is_safe)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(project.path()) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  frame_cycle();
+
+  auto path_input = find_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(path_input, nullptr);
+  input().mouse_down({path_input->bounds.x + 2,
+                      path_input->bounds.y + (path_input->bounds.h / 2)});
+  update_cycle();
+  input().mouse_up({path_input->bounds.x + 2,
+                    path_input->bounds.y + (path_input->bounds.h / 2)});
+  update_cycle();
+
+  press_ctrl_a(input(), [&] { update_cycle(); });
+  input().key_down(SDLK_Z);
+  update_cycle();
+  input().key_up(SDLK_Z);
+  update_cycle();
+  frame_cycle();
+
+  auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
+  ASSERT_NE(file_dialog_body, nullptr);
+  EXPECT_EQ(get_key(file_dialog_body->state, "path")->str(), project.path());
+  EXPECT_EQ(get_key(file_dialog_body->state, "pending-path")->str(), "z");
+  EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->type,
+            Roo::Value::Type::NIL);
+
+  auto original_entry = find_list_item_with_label(session.active_mode,
+                                                 "    tilemap-editor.edn");
+  ASSERT_NE(original_entry, nullptr);
+
+  input().key_down(SDLK_RETURN);
+  update_cycle();
+  input().key_up(SDLK_RETURN);
+  update_cycle();
+  frame_cycle();
+
+  file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
+  ASSERT_NE(file_dialog_body, nullptr);
+  EXPECT_EQ(get_key(file_dialog_body->state, "path")->str(), project.path());
+  EXPECT_EQ(get_key(file_dialog_body->state, "pending-path")->str(), "z");
+  EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->str(), "Folder not found");
+  EXPECT_NE(find_list_item_with_label(session.active_mode, "    tilemap-editor.edn"),
+            nullptr);
+}
+
+TEST_F(FileDialogTest, invalid_initial_path_opens_empty_dialog_without_crashing)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+  const auto missing_path = (project.root / "missing").string();
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(missing_path) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  frame_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
+  auto list_box = find_mode(session.active_mode, "ui/list-box");
+  auto content = file_dialog_list_content(list_box);
+  ASSERT_NE(file_dialog_body, nullptr);
+  ASSERT_NE(content, nullptr);
+
+  EXPECT_EQ(get_key(file_dialog_body->state, "path")->str(), missing_path);
+  EXPECT_EQ(get_key(file_dialog_body->state, "pending-path")->str(), missing_path);
+  EXPECT_EQ(content->children.size(), 0u);
 }
 
 TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
