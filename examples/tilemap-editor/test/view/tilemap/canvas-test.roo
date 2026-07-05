@@ -1,6 +1,62 @@
 (ns tilemap-editor.view.tilemap.canvas-test
   (:require proof.core
+            [tilemap-editor.model.tilemap :as tm]
+            [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.tilemap.canvas :as canvas]))
+
+(defun paint-event [button x y]
+  {:button button
+   :position {:x (* 16 x)
+              :y (* 16 y)}})
+
+(defun map-edit-state []
+  {:map-width 3
+   :map-height 1
+   :tile-size 16
+   :zoom 1
+   :offset {:x 0 :y 0}
+   :map-tool :paint
+   :map-palette-tab :tiles
+   :selected-tile :grass
+   :selected-layer-index 0
+   :layers [{:id :base
+             :tileset :world
+             :tiles [[nil nil nil]]}]})
+
+(deftest map-canvas-paint-stroke-records-one-workbook-change
+  (let [down-event (paint-event :left 0 0)
+        drag-event (paint-event :left 1 0)
+        state (map-edit-state)
+        state (tm/map-canvas-mouse-down
+               (canvas/begin-map-edit-history state down-event {})
+               down-event
+               {})
+        state (tm/map-canvas-drag state drag-event)
+        state (canvas/commit-map-edit-history
+               (tm/map-canvas-mouse-up state drag-event))
+        undone (editor-workbook/undo state)]
+    (is (= "Paint map" (editor-workbook/undo-label state)))
+    (is (= [[:grass :grass nil]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[nil nil nil]]
+           (get-in undone [:layers 0 :tiles])))))
+
+(deftest map-canvas-clear-selection-records-workbook-change
+  (let [state (assoc (map-edit-state)
+                     :map-selection {:rect {:x 0 :y 0 :w 1 :h 1}
+                                     :active? false}
+                     :layers [{:id :base
+                               :tileset :world
+                               :tiles [[:grass nil nil]]}])
+        state (canvas/change-map-edit-to state
+                                         "Clear map selection"
+                                         (tm/clear-map-selection state))
+        undone (editor-workbook/undo state)]
+    (is (= "Clear map selection" (editor-workbook/undo-label state)))
+    (is (= [[nil nil nil]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[:grass nil nil]]
+           (get-in undone [:layers 0 :tiles])))))
 
 (deftest map-hover-cell-at-event-uses-scroll-offset
   (let [state {:map-width 4

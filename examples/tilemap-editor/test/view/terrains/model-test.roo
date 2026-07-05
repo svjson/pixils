@@ -2075,24 +2075,52 @@
           :s :none
           :se :ignore}
          (model/terrain-standard-role-match :ring-straight-h :none)))
-  (is (= {:nw {:terrain :water}
+  (is (= {:nw :ignore
           :n {:terrain :water}
-          :ne {:terrain :water}
+          :ne :ignore
           :w {:terrain :water}
           :e :same
-          :sw {:terrain :water}
+          :sw :ignore
           :s :same
-          :se {:terrain :water}}
+          :se :ignore}
          (model/terrain-standard-role-match :ring-bend-se :water)))
-  (is (= {:nw {:terrain :water}
+  (is (= {:nw :ignore
           :n :same
-          :ne {:terrain :water}
+          :ne :ignore
           :w :same
           :e {:terrain :water}
-          :sw {:terrain :water}
+          :sw :ignore
           :s {:terrain :water}
-          :se {:terrain :water}}
+          :se :ignore}
          (model/terrain-standard-role-match :ring-bend-nw :water))))
+
+(deftest terrain-standard-ring-roles-recognize-legacy-strict-bends
+  (let [state {:terrain-sets [{:id :overworld
+                               :tileset :terrain
+                               :terrains [{:id :cart-rail}
+                                          {:id :water}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :rulesets [{:id :rules
+                           :terrain-set :overworld
+                           :rules [{:id :legacy-ring-se
+                                    :terrain :cart-rail
+                                    :match {:nw {:terrain :water}
+                                            :n {:terrain :water}
+                                            :ne {:terrain :water}
+                                            :w {:terrain :water}
+                                            :e :same
+                                            :sw {:terrain :water}
+                                            :s :same
+                                            :se {:terrain :water}}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:rail-se]]}]}}]}]
+               :selected-terrain-ruleset-id :rules}]
+    (is (= :legacy-ring-se
+           (model/terrain-standard-role-rule-id state
+                                                :ring
+                                                :ring-bend-se
+                                                :water)))))
 
 (deftest terrain-standard-island-center-requires-all-neighbors-same
   (is (= {:nw :same
@@ -2155,23 +2183,23 @@
          (model/terrain-standard-role-match :fork-diagonal-nesw :water))))
 
 (deftest terrain-standard-stump-roles-match-exactly-one-neighbor
-  (is (= {:nw :none
+  (is (= {:nw :ignore
           :n :none
-          :ne :none
+          :ne :ignore
           :w :none
           :e :none
-          :sw :none
+          :sw :ignore
           :s :same
-          :se :none}
+          :se :ignore}
          (model/terrain-standard-role-match :stump-n :none)))
-  (is (= {:nw {:terrain :water}
+  (is (= {:nw :ignore
           :n {:terrain :water}
-          :ne {:terrain :water}
+          :ne :ignore
           :w :same
           :e {:terrain :water}
-          :sw {:terrain :water}
+          :sw :ignore
           :s {:terrain :water}
-          :se {:terrain :water}}
+          :se :ignore}
          (model/terrain-standard-role-match :stump-e :water)))
   (is (= {:nw :same
           :n {:terrain :water}
@@ -2182,6 +2210,34 @@
           :s {:terrain :water}
           :se {:terrain :water}}
          (model/terrain-standard-role-match :stump-se :water))))
+
+(deftest terrain-standard-stump-roles-recognize-legacy-strict-cardinal-stumps
+  (let [state {:terrain-sets [{:id :overworld
+                               :tileset :terrain
+                               :terrains [{:id :cart-rail}
+                                          {:id :water}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :rulesets [{:id :rules
+                           :terrain-set :overworld
+                           :rules [{:id :legacy-stump-e
+                                    :terrain :cart-rail
+                                    :match {:nw {:terrain :water}
+                                            :n {:terrain :water}
+                                            :ne {:terrain :water}
+                                            :w :same
+                                            :e {:terrain :water}
+                                            :sw {:terrain :water}
+                                            :s {:terrain :water}
+                                            :se {:terrain :water}}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:rail-stop-e]]}]}}]}]
+               :selected-terrain-ruleset-id :rules}]
+    (is (= :legacy-stump-e
+           (model/terrain-standard-role-rule-id state
+                                                :stumps
+                                                :stump-e
+                                                :water)))))
 
 (deftest terrain-standard-role-tile-inserts-created-rule-after-more-specific-rule
   (let [state (model/set-terrain-standard-role-tile

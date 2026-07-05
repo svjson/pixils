@@ -3005,10 +3005,10 @@
    :isolated-all [:nw :n :ne :w :e :sw :s :se]
    :isolated-cardinal [:n :w :e :s]
    :isolated-diagonal [:nw :ne :sw :se]
-   :ring-bend-nw [:nw :ne :e :sw :s :se]
-   :ring-bend-ne [:nw :ne :w :sw :s :se]
-   :ring-bend-sw [:nw :n :ne :e :sw :se]
-   :ring-bend-se [:nw :n :ne :w :sw :se]
+   :ring-bend-nw [:e :s]
+   :ring-bend-ne [:w :s]
+   :ring-bend-sw [:n :e]
+   :ring-bend-se [:n :w]
    :ring-straight-h [:n :s]
    :ring-straight-v [:w :e]
    :fork-new [:nw :ne :s]
@@ -3021,12 +3021,12 @@
    :fork-diagonal-nes [:w]
    :fork-diagonal-esw [:n]
    :stump-nw [:nw :n :ne :w :e :sw :s]
-   :stump-n [:nw :n :ne :w :e :sw :se]
+   :stump-n [:n :w :e]
    :stump-ne [:nw :n :ne :w :e :s :se]
-   :stump-w [:nw :n :ne :w :sw :s :se]
-   :stump-e [:nw :n :ne :e :sw :s :se]
+   :stump-w [:n :w :s]
+   :stump-e [:n :e :s]
    :stump-sw [:nw :n :w :e :sw :s :se]
-   :stump-s [:nw :ne :w :e :sw :s :se]
+   :stump-s [:w :e :s]
    :stump-se [:n :ne :w :e :sw :s :se]})
 
 (def terrain-standard-role-same-directions
@@ -3119,8 +3119,23 @@
    :w [:e]
    :e [:w]})
 
-(defun terrain-standard-legacy-edge-role-match [role-id opposing]
-  (when (contains? terrain-standard-legacy-edge-role-same-directions role-id)
+(def terrain-standard-legacy-ring-bend-role-opposing-directions
+  {:ring-bend-nw [:nw :ne :e :sw :s :se]
+   :ring-bend-ne [:nw :ne :w :sw :s :se]
+   :ring-bend-sw [:nw :n :ne :e :sw :se]
+   :ring-bend-se [:nw :n :ne :w :sw :se]})
+
+(def terrain-standard-legacy-cardinal-stump-role-opposing-directions
+  {:stump-n [:nw :n :ne :w :e :sw :se]
+   :stump-w [:nw :n :ne :w :sw :s :se]
+   :stump-e [:nw :n :ne :e :sw :s :se]
+   :stump-s [:nw :ne :w :e :sw :s :se]})
+
+(defun terrain-standard-legacy-role-match-from [opposing-directions
+                                                same-directions
+                                                role-id
+                                                opposing]
+  (when (contains? same-directions role-id)
     (reduce neighbor-directions
             {}
             (fn [match direction]
@@ -3128,17 +3143,34 @@
                match
                direction
                (cond
-                 (contains? (get terrain-standard-legacy-edge-role-opposing-directions
-                                  role-id)
-                            direction)
+                 (contains? (get opposing-directions role-id) direction)
                  (terrain-standard-opposing-condition opposing)
 
-                 (contains? (get terrain-standard-legacy-edge-role-same-directions
-                                  role-id)
-                            direction)
+                 (contains? (get same-directions role-id) direction)
                  :same
 
                  :default :ignore))))))
+
+(defun terrain-standard-legacy-edge-role-match [role-id opposing]
+  (terrain-standard-legacy-role-match-from
+   terrain-standard-legacy-edge-role-opposing-directions
+   terrain-standard-legacy-edge-role-same-directions
+   role-id
+   opposing))
+
+(defun terrain-standard-legacy-ring-bend-role-match [role-id opposing]
+  (terrain-standard-legacy-role-match-from
+   terrain-standard-legacy-ring-bend-role-opposing-directions
+   terrain-standard-role-same-directions
+   role-id
+   opposing))
+
+(defun terrain-standard-legacy-cardinal-stump-role-match [role-id opposing]
+  (terrain-standard-legacy-role-match-from
+   terrain-standard-legacy-cardinal-stump-role-opposing-directions
+   terrain-standard-role-same-directions
+   role-id
+   opposing))
 
 (defun normalized-match-condition [condition]
   (or condition :ignore))
@@ -3316,10 +3348,26 @@
 
 (defun terrain-standard-rule-match? [rule role-id opposing]
   (let [shape (terrain-standard-role-match role-id opposing)
-        legacy-shape (terrain-standard-legacy-edge-role-match role-id opposing)]
+        legacy-edge-shape (terrain-standard-legacy-edge-role-match role-id
+                                                                    opposing)
+        legacy-ring-shape (terrain-standard-legacy-ring-bend-role-match role-id
+                                                                        opposing)
+        legacy-stump-shape (terrain-standard-legacy-cardinal-stump-role-match
+                            role-id
+                            opposing)]
     (or (terrain-standard-rule-match-shape? rule shape opposing)
-        (and legacy-shape
-             (terrain-standard-rule-match-shape? rule legacy-shape opposing)))))
+        (and legacy-edge-shape
+             (terrain-standard-rule-match-shape? rule
+                                                 legacy-edge-shape
+                                                 opposing))
+        (and legacy-ring-shape
+             (terrain-standard-rule-match-shape? rule
+                                                 legacy-ring-shape
+                                                 opposing))
+        (and legacy-stump-shape
+             (terrain-standard-rule-match-shape? rule
+                                                 legacy-stump-shape
+                                                 opposing)))))
 
 (defun terrain-standard-role-output-position [state role-id]
   (let [unit (selected-terrain-unit state)

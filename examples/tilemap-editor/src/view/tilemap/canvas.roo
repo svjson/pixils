@@ -8,7 +8,8 @@
             [pixils.tilemap.project.model :as data]
             [pixils.tilemap.renderer :as tilemap-renderer]
             [tilemap-editor.model.derivation :as derivation]
-            [tilemap-editor.model.tilemap :as tm]))
+            [tilemap-editor.model.tilemap :as tm]
+            [tilemap-editor.model.workbook :as editor-workbook]))
 
 
 
@@ -16,6 +17,44 @@
 
 (def map-render-cache-bundle :tilemap-render-cache)
 (def map-render-cache-image :tilemap-render-cache/map-canvas)
+(def map-edit-history-start-key :map-edit-history-start)
+(def map-edit-history-label-key :map-edit-history-label)
+
+(defun clear-map-edit-history [state]
+  (dissoc (dissoc state map-edit-history-start-key)
+          map-edit-history-label-key))
+
+(defun map-edit-history-label [state event ctx]
+  (if (tm/map-tile-pick-event? event ctx)
+    nil
+    (case (:map-tool state)
+      :select nil
+      :line "Draw map line"
+      :fill-rect "Draw map rectangle"
+      :fill "Fill map"
+      :default
+      (case (:button event)
+        :right "Erase map"
+        :left "Paint map"
+        :default nil))))
+
+(defun begin-map-edit-history [state event ctx]
+  (if-let [label (map-edit-history-label state event ctx)]
+    (assoc (assoc state map-edit-history-start-key (clear-map-edit-history state))
+           map-edit-history-label-key
+           label)
+    state))
+
+(defun commit-map-edit-history [state]
+  (let [start (get state map-edit-history-start-key)
+        label (get state map-edit-history-label-key)
+        next-state (clear-map-edit-history state)]
+    (if (and start label)
+      (editor-workbook/change-to start label next-state)
+      next-state)))
+
+(defun change-map-edit-to [state label next-state]
+  (editor-workbook/change-to state label next-state))
 
 (defun ensure-map-render-cache-bundle! []
   (when (res/can-create-images?)
@@ -538,7 +577,10 @@
              (update-map-canvas-state state ctx))
    :on-mouse-down (fn [state event ctx]
                     (update-map-hover-cell
-                     (tm/map-canvas-mouse-down state event ctx)
+                     (tm/map-canvas-mouse-down
+                      (begin-map-edit-history state event ctx)
+                      event
+                      ctx)
                      event))
    :on-mouse-motion (fn [state event ctx]
                       (update-map-hover-cell state event))
@@ -548,15 +590,22 @@
                event))
    :on-mouse-up (fn [state event ctx]
                   (update-map-hover-cell
-                   (tm/map-canvas-mouse-up state event)
+                   (commit-map-edit-history
+                    (tm/map-canvas-mouse-up state event))
                    event))
    :on-mouse-leave (fn [state event ctx]
                      (assoc state :map-hover-cell nil))
    :on-key-down (fn [state event ctx]
 	                  (let [step (tm/scaled-tile-size state (:zoom state))]
 	                    (case (:key event)
-	                      :key/delete (tm/clear-map-selection state)
-	                      :key/backspace (tm/clear-map-selection state)
+	                      :key/delete
+                         (change-map-edit-to state
+                                             "Clear map selection"
+                                             (tm/clear-map-selection state))
+	                      :key/backspace
+                         (change-map-edit-to state
+                                             "Clear map selection"
+                                             (tm/clear-map-selection state))
 	                      :key/left (tm/pan-map state ctx (* -1 (:w step)) 0)
 	                      :key/right (tm/pan-map state ctx (:w step) 0)
 	                      :key/up (tm/pan-map state ctx 0 (* -1 (:h step)))
@@ -618,6 +667,7 @@
                        :map-hover-cell (ui/bind-state :map-hover-cell)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
+                       :workbook-history (ui/bind-state :workbook-history)
                        :layers (ui/bind-state :layers)
                        :terrain-rule-application
                        (ui/bind-state :terrain-rule-application)

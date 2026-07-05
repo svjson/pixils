@@ -698,9 +698,14 @@
        :edit/copy (fn [state event ctx]
                     (tilemap/copy-map-selection state))
        :edit/cut (fn [state event ctx]
-                   (tilemap/cut-map-selection state))
+                   (editor-workbook/change-to state
+                                              "Cut map selection"
+                                              (tilemap/cut-map-selection state)))
        :edit/paste (fn [state event ctx]
-                     (tilemap/paste-map-clipboard state))
+                     (editor-workbook/change-to
+                      state
+                      "Paste map selection"
+                      (tilemap/paste-map-clipboard state)))
        :tab-panel/change (fn [state event ctx]
                            (select-workspace-tab state
                                                  (-> event :payload :tab)))

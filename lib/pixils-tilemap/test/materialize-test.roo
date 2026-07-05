@@ -249,6 +249,198 @@
     (is (= :soft-edge (get-in render-map [:layers 1 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
 
+(def cart-rail-ring-rules
+  [{:id :stump-e
+    :label "Stump E - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :same
+            :e :none
+            :sw :ignore
+            :s :none
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-stop-e]]}]}
+    :exclusive? true}
+   {:id :stump-n
+    :label "Stump N - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :none
+            :e :none
+            :sw :ignore
+            :s :same
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-stop-n]]}]}
+    :exclusive? true}
+   {:id :ring-nw
+    :label "Ring NW - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :same
+            :ne :ignore
+            :w :same
+            :e :none
+            :sw :ignore
+            :s :none
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-bend-nw]]}]}
+    :exclusive? true}
+   {:id :ring-ne
+    :label "Ring NE - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :same
+            :ne :ignore
+            :w :none
+            :e :same
+            :sw :ignore
+            :s :none
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-bend-ne]]}]}
+    :exclusive? true}
+   {:id :ring-sw
+    :label "Ring SW - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :same
+            :e :none
+            :sw :ignore
+            :s :same
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-bend-sw]]}]}
+    :exclusive? true}
+   {:id :ring-se
+    :label "Ring SE - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :none
+            :e :same
+            :sw :ignore
+            :s :same
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-bend-se]]}]}
+    :exclusive? true}
+   {:id :ring-v
+    :label "Ring V - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :same
+            :ne :ignore
+            :w :none
+            :e :none
+            :sw :ignore
+            :s :same
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-v-1]]}]}
+    :exclusive? true}
+   {:id :ring-h
+    :label "Ring H - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :same
+            :e :same
+            :sw :ignore
+            :s :none
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[:cart-rail-h-1]]}]}
+    :exclusive? true}])
+
+(defun cart-rail-ring-test-tilemap []
+  {:width 16
+   :height 9
+   :tile-size {:w 16 :h 16}
+   :tilesets [{:id :cave-env
+               :tiles [{:id :cart-rail-h-1}
+                       {:id :cart-rail-v-1}
+                       {:id :cart-rail-bend-se}
+                       {:id :cart-rail-bend-sw}
+                       {:id :cart-rail-bend-ne}
+                       {:id :cart-rail-bend-nw}
+                       {:id :cart-rail-stop-e}
+                       {:id :cart-rail-stop-n}]}]
+   :terrain-sets [{:id :mine-env-set
+                   :tileset :cave-env
+                   :terrains [{:id :cart-rail
+                               :label "Cart Rail"
+                               :tile :cart-rail-v-1}]}]
+   :rulesets [{:id :mine-env-set-rules
+               :label "Terrain rules"
+               :kind :terrain-stamp
+               :terrain-set :mine-env-set
+               :source-layer nil
+               :rules cart-rail-ring-rules}]
+   :layers [{:id :rails
+             :data-kind :terrain
+             :terrain-set :mine-env-set
+             :tiles [[nil nil nil nil nil nil :cart-rail nil nil :cart-rail nil nil nil :cart-rail nil nil]
+                     [nil :cart-rail :cart-rail :cart-rail nil nil :cart-rail nil nil nil :cart-rail :cart-rail nil :cart-rail :cart-rail nil]
+                     [nil nil nil nil nil nil :cart-rail nil nil nil :cart-rail nil nil nil nil nil]
+                     [nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil]
+                     [nil nil nil :cart-rail nil nil nil nil nil nil nil nil nil nil nil nil]
+                     [nil :cart-rail :cart-rail nil nil nil :cart-rail nil nil nil :cart-rail nil nil nil nil nil]
+                     [nil nil :cart-rail nil nil nil :cart-rail :cart-rail nil :cart-rail :cart-rail nil nil nil :cart-rail nil]
+                     [nil nil nil nil nil :cart-rail nil nil nil nil nil :cart-rail nil :cart-rail :cart-rail :cart-rail]
+                     [nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil]]}]})
+
+(defun cart-rail-ring-output-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (= (:ruleset layer) :mine-env-set-rules)))))
+
+(defun assert-cart-rail-ring-output [render-map]
+  (let [layer (cart-rail-ring-output-layer render-map)]
+    (is (= :cave-env (:tileset layer)))
+    (is (= :cart-rail-h-1 (get-in layer [:tiles 1 2])))
+    (is (= :cart-rail-v-1 (get-in layer [:tiles 1 6])))
+    (is (= :cart-rail-bend-se (get-in layer [:tiles 1 10])))
+    (is (= :cart-rail-bend-sw (get-in layer [:tiles 5 2])))
+    (is (= :cart-rail-bend-ne (get-in layer [:tiles 6 6])))
+    (is (= :cart-rail-bend-nw (get-in layer [:tiles 6 10])))
+    (is (= :cart-rail-stop-e (get-in layer [:tiles 1 14])))
+    (is (= :cart-rail-stop-n (get-in layer [:tiles 6 14])))))
+
+(deftest materialize-render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors
+  (assert-cart-rail-ring-output
+   (materialize/materialize-render-map (cart-rail-ring-test-tilemap))))
+
+(deftest roo-materialize-render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors
+  (assert-cart-rail-ring-output
+   (materialize/roo-materialize-render-map (cart-rail-ring-test-tilemap))))
+
 (def transition-mask-test-ref {:mask-set :soft-edge
                                :mask :north})
 

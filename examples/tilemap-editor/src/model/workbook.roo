@@ -4,8 +4,10 @@
 (def history-key :workbook-history)
 
 (defun editable-state [state]
-  (dissoc (dissoc state history-key)
-          :rendered-menu-state))
+  (dissoc (dissoc (dissoc (dissoc state history-key)
+                          :rendered-menu-state)
+                  :map-edit-history-start)
+          :map-edit-history-label))
 
 (defun unique-root-keys [before after]
   (let [result []]

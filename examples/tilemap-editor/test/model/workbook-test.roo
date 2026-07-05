@@ -48,3 +48,18 @@
         next-state (editor-workbook/change-to state "Rename layer" state)]
     (is (= state next-state))
     (is (= false (editor-workbook/can-undo? next-state)))))
+
+(deftest editable-state-excludes-map-edit-history-session
+  (let [state (editor-workbook/change-to
+               {:layers [{:tiles [[nil]]}]
+                :map-edit-history-start {:layers [{:tiles [[nil]]}]}
+                :map-edit-history-label "Paint map"}
+               "Paint map"
+               {:layers [{:tiles [[:grass]]}]
+                :map-edit-history-start {:layers [{:tiles [[nil]]}]}
+                :map-edit-history-label "Paint map"})
+        undone (editor-workbook/undo state)]
+    (is (= "Paint map" (editor-workbook/undo-label state)))
+    (is (= [[nil]] (get-in undone [:layers 0 :tiles])))
+    (is (nil? (:map-edit-history-start state)))
+    (is (nil? (:map-edit-history-label state)))))
