@@ -123,6 +123,18 @@ namespace
     return nullptr;
   }
 
+  std::shared_ptr<View> file_dialog_list_content(const std::shared_ptr<View>& list_box)
+  {
+    if (!list_box || list_box->children.empty()) return nullptr;
+    auto scroll_pane = list_box->children[0];
+    if (!scroll_pane || scroll_pane->children.empty()) return nullptr;
+    auto row = scroll_pane->children[0];
+    if (!row || row->children.empty()) return nullptr;
+    auto viewport = row->children[0];
+    if (!viewport || viewport->children.empty()) return nullptr;
+    return viewport->children[0];
+  }
+
   bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
   {
     if (!view || !view->mode) return false;
@@ -201,6 +213,134 @@ TEST_F(FileDialogTest, open_file_dialog_adds_dialog_specific_classes_for_theming
   EXPECT_EQ(button_row->effective_style.height->fixed_value_or(0), 30);
   ASSERT_TRUE(open_button->effective_style.width.has_value());
   EXPECT_EQ(open_button->effective_style.width->fixed_value_or(0), 112);
+}
+
+TEST_F(FileDialogTest, file_list_keeps_dialog_dimensions_when_directory_count_changes)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+  TempProject::write(project.root / "extra-1.edn", "{}");
+  TempProject::write(project.root / "extra-2.edn", "{}");
+  TempProject::write(project.root / "extra-3.edn", "{}");
+  TempProject::write(project.root / "assets" /
+                       "a-very-long-file-name-that-should-not-resize-the-dialog.edn",
+                     "{}");
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(project.path()) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  frame_cycle();
+  frame_cycle();
+
+  auto window = find_mode(session.active_mode, "ui/window");
+  auto list_box = find_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(window, nullptr);
+  ASSERT_NE(list_box, nullptr);
+  const auto initial_window_bounds = window->bounds;
+  const auto initial_list_bounds = list_box->bounds;
+
+  auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
+  ASSERT_NE(assets, nullptr);
+  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
+                      assets->bounds.y + (assets->bounds.h / 2)});
+  update_cycle();
+  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
+                    assets->bounds.y + (assets->bounds.h / 2)});
+  update_cycle();
+  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
+                      assets->bounds.y + (assets->bounds.h / 2)},
+                     SDL_BUTTON_LEFT,
+                     2);
+  update_cycle();
+  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
+                    assets->bounds.y + (assets->bounds.h / 2)},
+                   SDL_BUTTON_LEFT,
+                   2);
+  update_cycle();
+  frame_cycle();
+  frame_cycle();
+
+  window = find_mode(session.active_mode, "ui/window");
+  list_box = find_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(window, nullptr);
+  ASSERT_NE(list_box, nullptr);
+
+  EXPECT_EQ(window->bounds.w, initial_window_bounds.w);
+  EXPECT_EQ(window->bounds.h, initial_window_bounds.h);
+  EXPECT_EQ(list_box->bounds.w, initial_list_bounds.w);
+  EXPECT_EQ(list_box->bounds.h, initial_list_bounds.h);
+}
+
+TEST_F(FileDialogTest, large_font_file_list_scroll_range_uses_measured_row_height)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+  for (int i = 0; i < 16; i++)
+  {
+    TempProject::write(project.root / ("entry-" + std::to_string(i) + ".edn"), "{}");
+  }
+
+  runtime.eval(R"(
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 30})
+    (pixils/deftheme large-text-theme
+      {:defaults {:text {:font :font/large-font}}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'large-text-theme]
+       :init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(project.path()) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  frame_cycle();
+  frame_cycle();
+
+  auto list_box = find_mode(session.active_mode, "ui/list-box");
+  auto scroll_pane = find_mode(list_box, "ui/scroll-pane");
+  auto content = file_dialog_list_content(list_box);
+  ASSERT_NE(list_box, nullptr);
+  ASSERT_NE(scroll_pane, nullptr);
+  ASSERT_NE(content, nullptr);
+  ASSERT_GT(content->children.size(), 6u);
+
+  const auto first_item = content->children.front();
+  const auto last_item = content->children.back();
+  ASSERT_NE(first_item, nullptr);
+  ASSERT_NE(last_item, nullptr);
+  EXPECT_GT(first_item->bounds.h, 22);
+
+  auto content_size = get_key(scroll_pane->state, "content-size");
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = get_key(content_size, "h");
+  ASSERT_NE(content_height, nullptr);
+
+  const int measured_content_bottom =
+    last_item->bounds.y + last_item->bounds.h - content->bounds.y;
+  EXPECT_GE(content_height->num().get_int(), measured_content_bottom);
 }
 
 TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)

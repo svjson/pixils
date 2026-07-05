@@ -190,9 +190,14 @@
 (defun list-box-content-height [options row-height]
   (* (count options) row-height))
 
-(defun list-box-visible-height [options row-height visible-rows max-height]
-  (min (or max-height (* row-height visible-rows))
-       (list-box-content-height options row-height)))
+(defun list-box-visible-height [options row-height visible-rows max-height fixed-visible-rows?]
+  (let [visible-height (* row-height visible-rows)
+        target-height (if fixed-visible-rows?
+                        visible-height
+                        (min visible-height
+                             (list-box-content-height options row-height)))]
+    (min (or max-height target-height)
+         target-height)))
 
 (defun list-box-style [ctx]
   (or (-> ctx :view :effective-style)
@@ -259,7 +264,8 @@
   (list-box-visible-height (:options state)
                            (list-box-row-height state ctx)
                            (or (:visible-rows state) default-visible-rows)
-                           (:max-height state)))
+                           (:max-height state)
+                           (:fixed-visible-rows? state)))
 
 (defun list-box-content-state [state]
   (merge (reduce (or (:item-state-keys state) [])
@@ -904,7 +910,7 @@
                    (list-box-managed-style state ctx)))
       (assoc state :rendered-render-key render-key))))
 
-(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
+(defun make [{:keys [options style row-height visible-rows max-height fixed-visible-rows? content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
   (let [computed-row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
@@ -913,7 +919,11 @@
         explicit-row-height? (not (nil? row-height))
         managed-height? (not (contains? (or style {}) :height))
         content-height (list-box-content-height options computed-row-height)
-        height (list-box-visible-height options computed-row-height visible-rows max-height)
+        height (list-box-visible-height options
+                                        computed-row-height
+                                        visible-rows
+                                        max-height
+                                        fixed-visible-rows?)
         final-style (merge {:height (if managed-height?
                                       :shrink
                                       height)
@@ -931,6 +941,7 @@
                     :auto-row-height? (nil? row-height)
                     :visible-rows visible-rows
                     :max-height max-height
+                    :fixed-visible-rows? fixed-visible-rows?
                     :content-width content-width
                     :computed-content-width computed-content-width
                     :auto-content-width? (nil? content-width)
@@ -953,6 +964,9 @@
                   :content-width content-width
                   :computed-content-width computed-content-width
                   :options options
+                  :visible-rows visible-rows
+                  :max-height max-height
+                  :fixed-visible-rows? fixed-visible-rows?
                   :stretch-items? stretch-items?
                   :disabled? disabled?
                   :reorderable? reorderable?
