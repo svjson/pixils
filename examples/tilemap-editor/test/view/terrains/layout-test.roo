@@ -332,12 +332,15 @@
         option-state (layout/terrain-standard-opposing-menu-option-state state)]
     (is (= "None" (-> menu :items head :label)))
     (is (= "Any other" (-> menu :items (nth 1) :label)))
-    (is (= "Water" (-> menu :items (nth 2) :label)))
-    (is (= :toggle (-> menu :items (nth 2) :type)))
+    (is (= "Not same or empty" (-> menu :items (nth 2) :label)))
+    (is (= :not-same-or-none
+           (-> menu :items (nth 2) :payload :opposing)))
+    (is (= "Water" (-> menu :items (nth 3) :label)))
+    (is (= :toggle (-> menu :items (nth 3) :type)))
     (is (= :toggle-terrain
-           (-> menu :items (nth 2) :payload :action)))
+           (-> menu :items (nth 3) :payload :action)))
     (is (= [:option-state :water]
-           (-> menu :items (nth 2) :selected-path)))
+           (-> menu :items (nth 3) :selected-path)))
     (is (= true (:water option-state)))
     (is (= false (:sand option-state)))))
 

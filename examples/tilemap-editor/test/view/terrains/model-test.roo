@@ -1753,6 +1753,22 @@
             sand-state
             (:terrain-standard-opposing sand-state))))))
 
+(deftest terrain-standard-opposing-supports_not_same_or_empty
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}
+                                          {:id :water}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+        state (model/set-terrain-standard-opposing state :not-same-or-none)]
+    (is (= :not-same-or-none (:terrain-standard-opposing state)))
+    (is (= "Not same or empty"
+           (model/terrain-standard-opposing-label
+            state
+            (:terrain-standard-opposing state))))
+    (is (= :not-same-or-none
+           (model/terrain-standard-opposing-condition
+            (:terrain-standard-opposing state))))))
+
 (deftest terrain-standard-role-tile-can-create-grouped-opposing-rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
@@ -1884,6 +1900,32 @@
                                                       {:terrain-in [:grass
                                                                     :water]}
                                                       :other-terrain))))
+
+(deftest terrain-rule-condition-not_same_or_none-implication-preserves_existing_conditions
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      :none
+                                                      :not-same-or-none)))
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      :other-terrain
+                                                      :not-same-or-none)))
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain :water}
+                                                      :not-same-or-none)))
+  (is (= false
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      :not-same-or-none
+                                                      :none)))
+  (is (= false
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      :not-same-or-none
+                                                      :other-terrain)))
+  (is (= false
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      :same
+                                                      :not-same-or-none))))
 
 (deftest terrain-standard-rule-labels-include-semantic-setup-name
   (let [outer-state (model/set-terrain-standard-role-tile

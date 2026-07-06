@@ -226,6 +226,39 @@
     (is (= true
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
+(deftest terrain-stamp-not_same_or_none_matches_empty_cells
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil nil nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :not-same-or-none}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-not_same_or_none_rejects_same_terrain
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil :grass nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :not-same-or-none}}]
+    (is (= false
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-not_same_or_none_matches_different_terrain
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil :water nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :not-same-or-none}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
 (deftest terrain-stamp-any_terrain_matches_same_terrain
   (let [source (terrain-layer (terrain-map [[nil :grass nil]
                                            [nil :grass nil]

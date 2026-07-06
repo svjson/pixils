@@ -1415,6 +1415,7 @@
                    (assoc signature direction value)
                    (if (or (= condition :not-same)
                            (= condition :other-terrain)
+                           (= condition :not-same-or-none)
                            (= condition :any-terrain)
                            (and (= (type-of condition) "map")
                                 (contains? condition :terrain-in)))
@@ -2260,6 +2261,7 @@
     :any-terrain :any-terrain
     :not-same :not-same
     :other-terrain :other-terrain
+    :not-same-or-none :not-same-or-none
     :default
     {:terrain value}))
 
@@ -2271,6 +2273,7 @@
     :any-terrain :any-terrain
     :not-same :not-same
     :other-terrain :not-same
+    :not-same-or-none :not-same-or-none
     :default
     (if (= (type-of condition) "map")
       (:terrain condition)
@@ -2814,6 +2817,7 @@
 
 (def terrain-standard-opposing-none :none)
 (def terrain-standard-opposing-any-other :any-other)
+(def terrain-standard-opposing-not-same-or-none :not-same-or-none)
 
 (defun terrain-standard-opposing-terrain-in? [opposing]
   (and (= (type-of opposing) "map")
@@ -2837,6 +2841,8 @@
       (= opposing terrain-standard-opposing-none) terrain-standard-opposing-none
       (= opposing terrain-standard-opposing-any-other)
       terrain-standard-opposing-any-other
+      (= opposing terrain-standard-opposing-not-same-or-none)
+      terrain-standard-opposing-not-same-or-none
       (terrain-standard-opposing-terrain-in? opposing)
       (let [requested (or (:terrain-in opposing) [])
             values (filter terrain-values
@@ -2856,7 +2862,8 @@
       (terrain-standard-opposing-terrain-in? opposing)
       (or (:terrain-in opposing) [])
       (or (= opposing terrain-standard-opposing-none)
-          (= opposing terrain-standard-opposing-any-other))
+          (= opposing terrain-standard-opposing-any-other)
+          (= opposing terrain-standard-opposing-not-same-or-none))
       []
       :default [opposing])))
 
@@ -2897,6 +2904,7 @@
   (cond
     (= opposing :none) :none
     (= opposing :any-other) :other-terrain
+    (= opposing :not-same-or-none) :not-same-or-none
     (terrain-standard-opposing-terrain-in? opposing)
     {:terrain-in (or (:terrain-in opposing) [])}
     :default {:terrain opposing}))
@@ -2913,6 +2921,7 @@
     (= opposing :none) (= condition :none)
     (= opposing :any-other) (or (= condition :other-terrain)
                                 (= condition :not-same))
+    (= opposing :not-same-or-none) (= condition :not-same-or-none)
     (terrain-standard-opposing-terrain-in? opposing)
     (and (= (type-of condition) "map")
          (contains? condition :terrain-in)
@@ -2939,7 +2948,10 @@
                                                "None")
              (terrain-standard-opposing-option
               terrain-standard-opposing-any-other
-              "Any other")]
+              "Any other")
+             (terrain-standard-opposing-option
+              terrain-standard-opposing-not-same-or-none
+              "Not same or empty")]
             (map (filter (or (:terrains terrain-set) [])
                          (fn [terrain]
                            (not= (:id terrain) center-terrain-id)))
@@ -3237,6 +3249,12 @@
                                (fn [value]
                                  (= value center-terrain)))))))))
 
+(defun terrain-rule-condition-not-same-or-none? [center-terrain condition]
+  (let [condition (normalized-match-condition condition)]
+    (or (= condition :not-same-or-none)
+        (= condition :none)
+        (terrain-rule-condition-other-terrain? center-terrain condition))))
+
 (defun terrain-rule-match-condition-implies? [center-terrain specific general]
   (let [specific (normalized-match-condition specific)
         general (normalized-match-condition general)]
@@ -3247,6 +3265,8 @@
            (= general :not-same)) true
       (and (= specific :not-same)
            (= general :other-terrain)) true
+      (= general :not-same-or-none)
+      (terrain-rule-condition-not-same-or-none? center-terrain specific)
       (= general :any-terrain)
       (terrain-rule-condition-known-terrain? center-terrain specific)
       (or (= general :other-terrain)
@@ -3853,7 +3873,9 @@
           (map (filter (or (:terrains terrain-set) [])
                        (fn [terrain]
                          (not= (:id terrain) center-terrain-id)))
-               terrain-condition-option)))
+               terrain-condition-option)
+          [{:value :not-same-or-none
+            :label "Not same or empty"}]))
 
 (defun terrain-signature-condition-option [terrain]
   {:value (:id terrain)
