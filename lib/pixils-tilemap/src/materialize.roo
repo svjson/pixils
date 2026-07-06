@@ -197,6 +197,9 @@
                    (not= value center-terrain))
     :other-terrain (and (known-terrain-value? value)
                         (not= value center-terrain))
+    :not-same-or-none (or (nil? value)
+                          (and (known-terrain-value? value)
+                               (not= value center-terrain)))
     :default
     (if (= (type-of condition) "map")
       (if (contains? condition :terrain-in)

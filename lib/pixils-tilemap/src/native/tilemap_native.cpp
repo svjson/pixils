@@ -2010,6 +2010,11 @@ namespace
     {
       return known_terrain_value(value) && !same_value(value, center);
     }
+    if (keyword_named(condition, "not-same-or-none"))
+    {
+      return nil_value(value) ||
+             (known_terrain_value(value) && !same_value(value, center));
+    }
     if (condition && condition->type == Roo::Value::Type::MAP)
     {
       if (!nil_value(prop(condition, "terrain-in")))

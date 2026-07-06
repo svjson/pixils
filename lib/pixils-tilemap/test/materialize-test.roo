@@ -249,6 +249,51 @@
     (is (= :soft-edge (get-in render-map [:layers 1 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
 
+(defun not-same-or-none-test-tilemap []
+  {:width 3
+   :height 2
+   :terrain-sets [{:id :terrain
+                   :tileset :world
+                   :terrains [{:id :grass
+                               :tile :grass-fill}
+                              {:id :water
+                               :tile :water-fill}]}]
+   :rulesets [{:id :edge-rules
+               :kind :terrain-stamp
+               :terrain-set :terrain
+               :source-layer :base
+               :rules [{:id :grass-north-not-same-or-none
+                        :terrain :grass
+                        :match {:n :not-same-or-none}
+                        :output {:anchor {:x 0 :y 0}
+                                 :layers [{:target-layer :visuals
+                                           :tileset :world
+                                           :tiles [[:edge]]}]}}]}]
+   :layers [{:id :base
+             :data-kind :terrain
+             :terrain-set :terrain
+             :tiles [[:water nil :grass]
+                     [:grass :grass :grass]]}
+            {:id :visuals
+             :data-kind :tile-ref
+             :tileset :world
+             :tiles [[nil nil nil]
+                     [nil nil nil]]}]})
+
+(deftest materialize-render-map-terrain-stamp-rules-match_not_same_or_none
+  (let [render-map (materialize/materialize-render-map
+                    (not-same-or-none-test-tilemap))]
+    (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
+    (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
+    (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
+
+(deftest native-materializer-terrain-stamp-rules-match_not_same_or_none
+  (let [render-map (materialize-impl/materialize-render-map
+                    (not-same-or-none-test-tilemap))]
+    (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
+    (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
+    (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
+
 (def cart-rail-ring-rules
   [{:id :stump-e
     :label "Stump E - None"
