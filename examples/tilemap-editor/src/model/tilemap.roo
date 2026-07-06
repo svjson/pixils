@@ -1,5 +1,6 @@
 (ns tilemap-editor.model.tilemap
-  (:require [pixils.tilemap.project.model :as data]
+  (:require [pixils.tilemap.ops :as tilemap-ops]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.derivation :as derivation]))
 
 
@@ -139,19 +140,6 @@
            (dotimes [x (map-width state)]
              {:x x
               :y y}))))
-
-(defun pattern-width [brush]
-  (or (-> brush :pattern :size :w) 1))
-
-(defun pattern-height [brush]
-  (or (-> brush :pattern :size :h) 1))
-
-(defun pattern-anchor [brush]
-  (let [anchor (or (-> brush :pattern :anchor) {:x 0 :y 0})
-        width (pattern-width brush)
-        height (pattern-height brush)]
-    {:x (clamp (or (:x anchor) 0) 0 (dec width))
-     :y (clamp (or (:y anchor) 0) 0 (dec height))}))
 
 (defun in-map-bounds? [x y]
   (and (>= x 0)
@@ -1029,108 +1017,26 @@
                                              [{:x tile-x
                                                :y tile-y}]))
 
-(defun stamp-pattern-cell [state layer-index target-x target-y anchor cell]
-  (let [tile-ref (:tile-ref cell)
-        map-x (+ (- target-x (:x anchor)) (:x cell))
-        map-y (+ (- target-y (:y anchor)) (:y cell))]
-    (if (and (not (nil? tile-ref))
-             (in-map-bounds-for? state map-x map-y))
-      (set-map-tile state layer-index map-x map-y tile-ref)
-      state)))
+(defun finish-brush-map-change [state next-state]
+  (if (= (:layers state) (:layers next-state))
+    state
+    (mark-map-region-content-changed next-state)))
 
-(defun stamp-pattern-row [state layer-index target-x target-y anchor row]
-  (reduce (for-indexed [x tile-ref (or (:tiles row) [])]
-            {:x x
-             :y (:y row)
-             :tile-ref tile-ref})
-          state
-          (fn [out cell]
-            (stamp-pattern-cell out
-                                layer-index
-                                target-x
-                                target-y
-                                anchor
-                                cell))))
+(defun stamp-pattern-brush [state target-x target-y brush]
+  (finish-brush-map-change
+   state
+   (tilemap-ops/apply-pattern-brush state
+                                    brush
+                                    {:position {:x target-x
+                                                :y target-y}})))
 
-(defun stamp-pattern-layer [state layer-index target-x target-y brush layer]
-  (if (not (nil? layer-index))
-    (let [anchor (pattern-anchor brush)]
-      (reduce (for-indexed [y row (or (:tiles layer) [])]
-                {:y y
-                 :tiles row})
-              state
-              (fn [out row]
-                (stamp-pattern-row out
-                                   layer-index
-                                   target-x
-                                   target-y
-                                   anchor
-                                   row))))
-    state))
-
-(defun legacy-pattern-layer-target-index [state selected-layer-index pattern-layer]
-  (let [layer (selected-layer (:layers state) selected-layer-index)]
-    (if (= (:tileset pattern-layer) (:tileset layer))
-      selected-layer-index
-      nil)))
-
-(defun pattern-layer-target-index [state selected-layer-index pattern-layer]
-  (if (:target-layer pattern-layer)
-    (layer-index-by-id (:layers state) (:target-layer pattern-layer))
-    (legacy-pattern-layer-target-index state
-                                       selected-layer-index
-                                       pattern-layer)))
-
-(defun stamp-pattern-brush [state layer-index target-x target-y brush]
-  (if (and brush (= (:kind brush) :pattern))
-    (reduce (or (-> brush :pattern :layers) [])
-            state
-            (fn [out pattern-layer]
-              (stamp-pattern-layer out
-                                   (pattern-layer-target-index state
-                                                               layer-index
-                                                               pattern-layer)
-                                   target-x
-                                   target-y
-                                   brush
-                                   pattern-layer)))
-    state))
-
-(defun clear-pattern-footprint-row [state layer-index target-x target-y anchor y width]
-  (reduce (range 0 (dec width))
-          state
-          (fn [out x]
-            (set-map-tile out
-                          layer-index
-                          (+ (- target-x (:x anchor)) x)
-                          (+ (- target-y (:y anchor)) y)
-                          nil))))
-
-(defun clear-pattern-footprint [state layer-index target-x target-y brush]
-  (if (and brush (= (:kind brush) :pattern))
-    (let [anchor (pattern-anchor brush)
-          width (pattern-width brush)
-          height (pattern-height brush)]
-      (reduce (or (-> brush :pattern :layers) [])
-              state
-              (fn [out pattern-layer]
-                (let [target-layer-index (pattern-layer-target-index
-                                          state
-                                          layer-index
-                                          pattern-layer)]
-                  (if (nil? target-layer-index)
-                    out
-                    (reduce (range 0 (dec height))
-                            out
-                            (fn [row-out y]
-                              (clear-pattern-footprint-row row-out
-                                                           target-layer-index
-                                                           target-x
-                                                           target-y
-                                                           anchor
-                                                           y
-                                                           width))))))))
-    state))
+(defun clear-pattern-brush [state target-x target-y brush]
+  (finish-brush-map-change
+   state
+   (tilemap-ops/clear-pattern-brush state
+                                    brush
+                                    {:position {:x target-x
+                                                :y target-y}})))
 
 (defun paint-tile-at [state layer-index tile-x tile-y event]
   (let [tile-ref (map-edit-value-for-button state (:button event))]
@@ -1142,22 +1048,14 @@
          :y tile-y}]
        tile-ref))))
 
-(defun paint-brush-at [state layer-index tile-x tile-y event]
+(defun paint-brush-at [state tile-x tile-y event]
   (let [brush (selected-brush (:brushes state) (:selected-brush-index state))]
     (cond
       (= (:button event) :left)
-      (stamp-pattern-brush state layer-index tile-x tile-y brush)
+      (stamp-pattern-brush state tile-x tile-y brush)
 
       (= (:button event) :right)
-      (paint-tile-at (clear-pattern-footprint state
-                                               layer-index
-                                               tile-x
-                                               tile-y
-                                               brush)
-                     layer-index
-                     tile-x
-                     tile-y
-                     event)
+      (clear-pattern-brush state tile-x tile-y brush)
 
       :default
       state)))
@@ -1485,11 +1383,12 @@
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (if (and (in-map-bounds-for? state tile-x tile-y)
-             (> (count layers) 0)
-             (< layer-index (count layers)))
+             (> (count layers) 0))
       (if (= (:map-palette-tab state) :brushes)
-        (paint-brush-at state layer-index tile-x tile-y event)
-        (paint-tile-at state layer-index tile-x tile-y event))
+        (paint-brush-at state tile-x tile-y event)
+        (if (< layer-index (count layers))
+          (paint-tile-at state layer-index tile-x tile-y event)
+          state))
       state)))
 
 (defun fill-map-from-event [state event]
