@@ -441,6 +441,72 @@
   (assert-cart-rail-ring-output
    (materialize/roo-materialize-render-map (cart-rail-ring-test-tilemap))))
 
+(def terrain-rule-as-test-tilemap
+  {:width 2
+   :height 1
+   :tile-size {:w 16 :h 16}
+   :tilesets [{:id :mine-env
+               :tiles [{:id :rail-preview}
+                       {:id :rail-connected}
+                       {:id :rail-stump}]}]
+   :terrain-sets [{:id :mine-env-set
+                   :tileset :mine-env
+                   :terrains [{:id :cart-rail
+                               :tile :rail-preview}]}]
+   :rulesets [{:id :rail-rules
+               :kind :terrain-stamp
+               :terrain-set :mine-env-set
+               :source-layer :rails
+               :rules [{:id :connected-east
+                        :terrain :cart-rail
+                        :match {:e :same}
+                        :output {:anchor {:x 0 :y 0}
+                                 :layers [{:id :rail-output
+                                           :tileset :mine-env
+                                           :tiles [[:rail-connected]]}]}
+                        :exclusive? true}
+                       {:id :stump-east
+                        :terrain :cart-rail
+                        :match {:e :none}
+                        :output {:anchor {:x 0 :y 0}
+                                 :layers [{:id :rail-output
+                                           :tileset :mine-env
+                                           :tiles [[:rail-stump]]}]}
+                        :exclusive? true}]}]
+   :layers [{:id :rails
+             :data-kind :terrain
+             :terrain-set :mine-env-set
+             :tiles [[:cart-rail {:terrain-rule/as :cart-rail}]]}]})
+
+(defun terrain-rule-as-output-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (= (:ruleset layer) :rail-rules)))))
+
+(defun terrain-rule-as-source-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (and (= (:render-source-layer-id layer) :rails)
+                       (nil? (:ruleset layer)))))))
+
+(defun assert-terrain-rule-as-output [render-map]
+  (let [output-layer (terrain-rule-as-output-layer render-map)
+        source-layer (terrain-rule-as-source-layer render-map)]
+    (is (= :rail-connected
+           (get-in output-layer [:tiles 0 0])))
+    (is (= nil
+           (get-in output-layer [:tiles 0 1])))
+    (is (= nil
+           (get-in source-layer [:tiles 0 1])))))
+
+(deftest materialize-render-map-uses-terrain-rule-as-for-neighbor-matching
+  (assert-terrain-rule-as-output
+   (materialize/materialize-render-map terrain-rule-as-test-tilemap)))
+
+(deftest roo-materialize-render-map-uses-terrain-rule-as-for-neighbor-matching
+  (assert-terrain-rule-as-output
+   (materialize/roo-materialize-render-map terrain-rule-as-test-tilemap)))
+
 (def transition-mask-test-ref {:mask-set :soft-edge
                                :mask :north})
 
@@ -451,7 +517,10 @@
    :tilesets [{:id :world
                :tiles [{:id :grass-fill
                         :type :color
-                        :color {:r 0 :g 200 :b 0}}
+                        :color {:r 0 :g 200 :b 0}
+                        :properties {:walkable true
+                                     :cost 1
+                                     :sound :grass}}
                        {:id :grass-variant
                         :type :color
                         :color {:r 0 :g 160 :b 0}}
@@ -467,7 +536,9 @@
                        {:id :mask-north
                         :type :sprite
                         :image :terrain/masks
-                        :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                        :source {:x 0 :y 0 :w 16 :h 16}
+                        :properties {:cost 4
+                                     :edge :soft}}]}]
    :mask-sets [{:id :soft-edge
                 :mask-size {:w 16 :h 16}
                 :masks [{:id :north
@@ -554,11 +625,27 @@
     (is (not= (get-in generated-tile [:base :tile])
               (get-in generated-tile [:overlay :tile])))
     (is (= transition-mask-test-ref (:mask generated-tile)))
+    (is (= {:walkable true
+            :cost 4
+            :sound :grass
+            :edge :soft}
+           (:properties generated-tile)))
     (is (= :mask-north
            (get-in generated-tile [:mask-source :tiles 0 :tile])))
     (is (= :mask-north
            (get-in generated-tile
                    [:mask-source :tiles 0 :tile-definition :id])))))
+
+(deftest roo-transition-mask-materialization-merges-generated-tile-properties
+  (let [render-map (materialize/roo-materialize-render-map
+                    (transition-mask-test-tilemap))
+        generated-tile (head (:tiles (transition-mask-generated-tileset
+                                      render-map)))]
+    (is (= {:walkable true
+            :cost 4
+            :sound :grass
+            :edge :soft}
+           (:properties generated-tile)))))
 
 (deftest transition-mask-materialization_can_treat_solid_mask_as_opposing
   (let [mask-ref (assoc transition-mask-test-ref
@@ -605,6 +692,11 @@
         generated-tileset (transition-mask-generated-tileset render-map)
         transition-layer (transition-mask-layer render-map)]
     (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= {:walkable true
+            :cost 4
+            :sound :grass
+            :edge :soft}
+           (:properties (head (:tiles generated-tileset)))))
     (is (= {:tileset :pixils-transition-tiles
             :tile (:id (head (:tiles generated-tileset)))}
            (get-in transition-layer [:tiles 1 1])))))
@@ -748,8 +840,13 @@
                      :tile-size {:w 16 :h 16}
                      :tilesets [{:id :world
                                  :tiles [{:id :grass-fill}
-                                         {:id :mountain-fill}
-                                         {:id :mountain-nw-overlay}]}]
+                                         {:id :mountain-fill
+                                          :properties {:blocked true
+                                                       :cost 9
+                                                       :source :mountain}}
+                                         {:id :mountain-nw-overlay
+                                          :properties {:cost 2
+                                                       :edge :corner}}]}]
                      :terrain-sets [{:id :terrain
                                      :tileset :world
                                      :terrains [{:id :grass
@@ -795,6 +892,11 @@
     (is (= :grass-fill (get-in generated-tile [:base :tile-definition :id])))
     (is (= :mountain-nw-overlay
            (get-in generated-tile [:overlay :tile-definition :id])))
+    (is (= {:blocked true
+            :cost 2
+            :source :mountain
+            :edge :corner}
+           (:properties generated-tile)))
     (is (= {:tileset :pixils-transition-tiles
             :tile (:id generated-tile)}
            (get-in transition-layer [:tiles 1 0])))
@@ -807,8 +909,13 @@
                      :tile-size {:w 16 :h 16}
                      :tilesets [{:id :world
                                  :tiles [{:id :grass-fill}
-                                         {:id :mountain-fill}
-                                         {:id :mountain-nw-overlay}]}]
+                                         {:id :mountain-fill
+                                          :properties {:blocked true
+                                                       :cost 9
+                                                       :source :mountain}}
+                                         {:id :mountain-nw-overlay
+                                          :properties {:cost 2
+                                                       :edge :corner}}]}]
                      :terrain-sets [{:id :terrain
                                      :tileset :world
                                      :terrains [{:id :grass
@@ -847,6 +954,11 @@
     (is (= :transition-overlay (:type generated-tile)))
     (is (= :grass-fill (get-in generated-tile [:base :tile])))
     (is (= :mountain-nw-overlay (get-in generated-tile [:overlay :tile])))
+    (is (= {:blocked true
+            :cost 2
+            :source :mountain
+            :edge :corner}
+           (:properties generated-tile)))
     (is (= {:tileset :pixils-transition-tiles
             :tile (:id generated-tile)}
            (get-in transition-layer [:tiles 1 0])))))

@@ -42,6 +42,34 @@
 (defun layer-cell [layer x y]
   (nth (or (nth (or (:tiles layer) []) y) []) x))
 
+(defun terrain-cell-value [cell]
+  (if (= (type-of cell) "map")
+    (:terrain cell)
+    cell))
+
+(defun terrain-rule-cell-value [cell terrain-set-id]
+  (if (= (type-of cell) "map")
+    (let [as (:terrain-rule/as cell)]
+      (cond
+        (nil? as)
+        (terrain-cell-value cell)
+
+        (= (type-of as) "map")
+        (or (get as terrain-set-id)
+            (terrain-cell-value cell))
+
+        :default
+        as))
+    cell))
+
+(defun layer-terrain-cell [layer x y]
+  (terrain-cell-value (layer-cell layer x y)))
+
+(defun layer-terrain-rule-cell [layer ruleset x y]
+  (terrain-rule-cell-value (layer-cell layer x y)
+                           (or (:terrain-set ruleset)
+                               (:terrain-set layer))))
+
 (def terrain-stamp-directions
   {:nw {:dx -1 :dy -1}
    :n {:dx 0 :dy -1}
@@ -126,7 +154,10 @@
   (consistent-terrain-value
    (map (terrain-unit-cell-positions unit x y)
         (fn [pos]
-          (layer-cell source-layer (:x pos) (:y pos))))))
+          (layer-terrain-rule-cell source-layer
+                                   nil
+                                   (:x pos)
+                                   (:y pos))))))
 
 (defun terrain-value-at-for-ruleset [source-layer ruleset direction x y]
   (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)
@@ -134,8 +165,11 @@
     (if (and (= (:w unit) 1)
              (= (:h unit) 1))
       (if-let [offset (get terrain-stamp-directions direction)]
-        (layer-cell source-layer (+ x (:dx offset)) (+ y (:dy offset)))
-        (layer-cell source-layer x y))
+        (layer-terrain-rule-cell source-layer
+                                 ruleset
+                                 (+ x (:dx offset))
+                                 (+ y (:dy offset)))
+        (layer-terrain-cell source-layer x y))
       (if (and (= direction :center)
                (not (terrain-unit-anchor-position? unit x y)))
         nil
@@ -431,6 +465,28 @@
     :solid-is-opposing
     default-transition-mask-polarity))
 
+(defun transition-ref-tile-definition [tilemap ref]
+  (tm/tile-in (:tilesets tilemap) (:tileset ref) (:tile ref)))
+
+(defun transition-ref-properties [tilemap ref]
+  (or (:properties (transition-ref-tile-definition tilemap ref)) {}))
+
+(defun transition-mask-source-properties [mask-source]
+  (reduce (or (:tiles mask-source) [])
+          {}
+          (fn [properties item]
+            (merge properties
+                   (or (-> item :tile-definition :properties) {})))))
+
+(defun transition-tile-properties [tilemap base-ref overlay-properties]
+  (merge (transition-ref-properties tilemap base-ref)
+         (or overlay-properties {})))
+
+(defun assoc-transition-properties [tile properties]
+  (if (> (count properties) 0)
+    (assoc tile :properties properties)
+    tile))
+
 (defun orient-transition-mask-tiles [base-ref overlay-ref mask-ref]
   (if (= (transition-mask-polarity mask-ref) :solid-is-opposing)
     {:base overlay-ref
@@ -462,26 +518,28 @@
       (let [oriented (orient-transition-mask-tiles base-ref
                                                    overlay-ref
                                                    mask-ref)
+            properties (transition-tile-properties
+                        tilemap
+                        base-ref
+                        (transition-mask-source-properties mask-source))
             base-ref (:base oriented)
             overlay-ref (:overlay oriented)
             tile-id (transition-tile-id base-ref overlay-ref mask-ref)]
-        {:id tile-id
-         :type :transition-mask
-         :size (tm/tile-size tilemap)
-         :base (assoc base-ref
-                      :tile-definition
-                      (tm/tile-in (:tilesets tilemap)
-                                  (:tileset base-ref)
-                                  (:tile base-ref)))
-         :overlay (assoc overlay-ref
-                         :tile-definition
-                         (tm/tile-in (:tilesets tilemap)
-                                     (:tileset overlay-ref)
-                                     (:tile overlay-ref)))
-         :mask mask-ref
-         :mask-polarity (transition-mask-polarity mask-ref)
-         :mask-source mask-source
-         :image (transition-cache-image tile-id)}))))
+        (assoc-transition-properties
+         {:id tile-id
+          :type :transition-mask
+          :size (tm/tile-size tilemap)
+          :base (assoc base-ref
+                       :tile-definition
+                       (transition-ref-tile-definition tilemap base-ref))
+          :overlay (assoc overlay-ref
+                          :tile-definition
+                          (transition-ref-tile-definition tilemap overlay-ref))
+          :mask mask-ref
+          :mask-polarity (transition-mask-polarity mask-ref)
+          :mask-source mask-source
+          :image (transition-cache-image tile-id)}
+         properties)))))
 
 (defun transition-overlay-ref [ruleset output-layer overlay-ref]
   (cond
@@ -511,20 +569,25 @@
                                              source-y))
         overlay-ref (transition-overlay-ref ruleset output-layer overlay-ref)]
     (when (and base-ref overlay-ref)
-      (let [tile-id (transition-overlay-tile-id base-ref overlay-ref)]
-        {:id tile-id
-         :type :transition-overlay
-         :size (tm/tile-size tilemap)
-         :base (assoc base-ref
-                      :tile-definition
-                      (tm/tile-in (:tilesets tilemap)
-                                  (:tileset base-ref)
-                                  (:tile base-ref)))
-         :overlay (assoc overlay-ref
-                         :tile-definition
-                         (tm/tile-in (:tilesets tilemap)
-                                     (:tileset overlay-ref)
-                                     (:tile overlay-ref)))}))))
+      (let [tile-id (transition-overlay-tile-id base-ref overlay-ref)
+            rule-base-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
+                                                    terrain-set-id
+                                                    (terrain-match-center rule))
+            properties (transition-tile-properties
+                        tilemap
+                        rule-base-ref
+                        (transition-ref-properties tilemap overlay-ref))]
+        (assoc-transition-properties
+         {:id tile-id
+          :type :transition-overlay
+          :size (tm/tile-size tilemap)
+          :base (assoc base-ref
+                       :tile-definition
+                       (transition-ref-tile-definition tilemap base-ref))
+          :overlay (assoc overlay-ref
+                          :tile-definition
+                          (transition-ref-tile-definition tilemap overlay-ref))}
+         properties)))))
 
 (defun transition-diagnostic-reason-list
   [tilemap source-layer ruleset rule mask-ref source-x source-y]
@@ -1006,7 +1069,7 @@
                                   (let [preview (terrain-preview-ref
                                                  terrain-sets
                                                  (:terrain-set layer)
-                                                 terrain-ref)]
+                                                 (terrain-cell-value terrain-ref))]
                                     (add-unique-tileset tilesets
                                                         (:tileset preview))))))))
             replacement-tilesets)))
@@ -1016,7 +1079,7 @@
     (let [replacement (transition-replacement-at layer x y)
           preview (terrain-preview-ref terrain-sets
                                        (:terrain-set layer)
-                                       terrain-ref)]
+                                       (terrain-cell-value terrain-ref))]
       (cond
         (= (:tileset replacement) tileset)
         replacement
@@ -1048,9 +1111,10 @@
                                   (let [preview (terrain-preview-ref
                                                  terrain-sets
                                                  (:terrain-set layer)
-                                                 (layer-cell layer
-                                                             (+ (:x rect) dx)
-                                                             (+ (:y rect) dy)))]
+                                                 (layer-terrain-cell
+                                                  layer
+                                                  (+ (:x rect) dx)
+                                                  (+ (:y rect) dy)))]
                                     (add-unique-tileset tilesets
                                                         (:tileset preview))))))))
             replacement-tilesets)))
@@ -1062,9 +1126,9 @@
             replacement (transition-replacement-at layer source-x source-y)
             preview (terrain-preview-ref terrain-sets
                                          (:terrain-set layer)
-                                         (layer-cell layer
-                                                     source-x
-                                                     source-y))]
+                                         (layer-terrain-cell layer
+                                                             source-x
+                                                             source-y))]
         (cond
           (= (:tileset replacement) tileset)
           replacement
