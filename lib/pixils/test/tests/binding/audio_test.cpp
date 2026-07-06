@@ -115,6 +115,54 @@ TEST_F(AudioTest, play_music_bang_accepts_forever_loop_keyword)
   EXPECT_TRUE(render_ctx.music_track->playing);
 }
 
+TEST_F(AudioTest, play_music_bang_crossfades_from_current_music)
+{
+  // Given
+  SDL3Mock::prepared_wave_audio.insert("./theme.mp3");
+  SDL3Mock::prepared_wave_audio.insert("./battle.mp3");
+  runtime.eval("(pixils/defbundle soundtrack {:music {:theme \"theme.mp3\" "
+               ":battle \"battle.mp3\"}})");
+  runtime.eval("(pixils.audio/play-music! :soundtrack/theme)");
+  MIX_Track* first_track = render_ctx.music_track;
+  ASSERT_NE(first_track, nullptr);
+  ASSERT_NE(first_track->audio, nullptr);
+  EXPECT_EQ(first_track->audio->file_name, "./theme.mp3");
+
+  // When
+  auto result =
+    runtime.eval("(pixils.audio/play-music! :soundtrack/battle "
+                 "{:crossfade-ms 1200 :volume 0.6})");
+
+  // Then
+  EXPECT_EQ(result, Roo::Constant::BOOL_TRUE);
+  ASSERT_NE(render_ctx.music_track, nullptr);
+  ASSERT_NE(render_ctx.music_fadeout_track, nullptr);
+  EXPECT_NE(render_ctx.music_track, first_track);
+  EXPECT_EQ(render_ctx.music_fadeout_track, first_track);
+  ASSERT_NE(render_ctx.music_track->audio, nullptr);
+  EXPECT_EQ(render_ctx.music_track->audio->file_name, "./battle.mp3");
+  EXPECT_TRUE(render_ctx.music_track->playing);
+  EXPECT_FLOAT_EQ(render_ctx.music_track->gain, 0.6f);
+  EXPECT_EQ(render_ctx.music_fadeout_track->fade_out_frames, 1200);
+}
+
+TEST_F(AudioTest, play_music_bang_crossfade_without_current_music_fades_in)
+{
+  // Given
+  SDL3Mock::prepared_wave_audio.insert("./theme.mp3");
+  runtime.eval("(pixils/defbundle soundtrack {:music {:theme \"theme.mp3\"}})");
+
+  // When
+  auto result =
+    runtime.eval("(pixils.audio/play-music! :soundtrack/theme {:crossfade-ms 900})");
+
+  // Then
+  EXPECT_EQ(result, Roo::Constant::BOOL_TRUE);
+  ASSERT_NE(render_ctx.music_track, nullptr);
+  EXPECT_TRUE(render_ctx.music_track->playing);
+  EXPECT_EQ(render_ctx.music_fadeout_track, nullptr);
+}
+
 TEST_F(AudioTest, play_music_bang_rejects_unknown_loop_keyword)
 {
   // Given

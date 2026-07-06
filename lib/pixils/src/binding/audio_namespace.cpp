@@ -94,7 +94,8 @@ namespace Pixils::Script
     {
       static Roo::MapSchema opts_schema(
         {},
-        {{"fade-in-ms", &Roo::Type::NUMBER},
+        {{"crossfade-ms", &Roo::Type::NUMBER},
+         {"fade-in-ms", &Roo::Type::NUMBER},
          {"loops", &LOOP_COUNT},
          {"volume", &Roo::Type::NUMBER}});
 
@@ -109,7 +110,8 @@ namespace Pixils::Script
       return bool_value(rc.play_music(audio,
                                       loop_count(opts, -1),
                                       opts.f32("volume", 1.0f),
-                                      opts.i32("fade-in-ms", 0)));
+                                      opts.i32("fade-in-ms", 0),
+                                      opts.i32("crossfade-ms", 0)));
     }
 
     FUNC_IMPL(StopMusicBang,
