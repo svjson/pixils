@@ -266,6 +266,23 @@
                        :tileset :cave-env
                        :tiles [[:cart-rail-stop-e]]}]}
     :exclusive? true}
+   {:id :stump-w
+    :label "Stump W - None"
+    :terrain :cart-rail
+    :match {:nw :ignore
+            :n :none
+            :ne :ignore
+            :w :none
+            :e :same
+            :sw :ignore
+            :s :none
+            :se :ignore}
+    :output {:anchor {:x 0 :y 0}
+             :layers [{:id :layer
+                       :tileset :cave-env
+                       :tiles [[nil]]
+                       :transition-overlays [[:cart-rail-stop-w]]}]}
+    :exclusive? true}
    {:id :stump-n
     :label "Stump N - None"
     :terrain :cart-rail
@@ -391,6 +408,7 @@
                        {:id :cart-rail-bend-ne}
                        {:id :cart-rail-bend-nw}
                        {:id :cart-rail-stop-e}
+                       {:id :cart-rail-stop-w}
                        {:id :cart-rail-stop-n}]}]
    :terrain-sets [{:id :mine-env-set
                    :tileset :cave-env
@@ -414,15 +432,37 @@
                      [nil :cart-rail :cart-rail nil nil nil :cart-rail nil nil nil :cart-rail nil nil nil nil nil]
                      [nil nil :cart-rail nil nil nil :cart-rail :cart-rail nil :cart-rail :cart-rail nil nil nil :cart-rail nil]
                      [nil nil nil nil nil :cart-rail nil nil nil nil nil :cart-rail nil :cart-rail :cart-rail :cart-rail]
-                     [nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil]]}]})
+                     [nil :cart-rail :cart-rail nil nil nil nil nil nil nil nil nil nil nil nil nil]]}]})
 
 (defun cart-rail-ring-output-layer [render-map]
   (head (filter (:layers render-map)
                 (fn [layer]
                   (= (:ruleset layer) :mine-env-set-rules)))))
 
+(defun cart-rail-ring-source-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (and (= (:render-source-layer-id layer) :rails)
+                       (= (:tileset layer) :cave-env)
+                       (nil? (:ruleset layer)))))))
+
+(defun cart-rail-ring-transition-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (= (:tileset layer) :pixils-transition-tiles)))))
+
+(defun cart-rail-ring-transition-tileset [render-map]
+  (head (filter (:tilesets render-map)
+                (fn [tileset]
+                  (= (:id tileset) :pixils-transition-tiles)))))
+
 (defun assert-cart-rail-ring-output [render-map]
-  (let [layer (cart-rail-ring-output-layer render-map)]
+  (let [layer (cart-rail-ring-output-layer render-map)
+        source-layer (cart-rail-ring-source-layer render-map)
+        transition-layer (cart-rail-ring-transition-layer render-map)
+        transition-tileset (cart-rail-ring-transition-tileset render-map)
+        west-stump (get-in transition-layer [:tiles 8 1])
+        west-stump-tile (head (:tiles transition-tileset))]
     (is (= :cave-env (:tileset layer)))
     (is (= :cart-rail-h-1 (get-in layer [:tiles 1 2])))
     (is (= :cart-rail-v-1 (get-in layer [:tiles 1 6])))
@@ -431,6 +471,12 @@
     (is (= :cart-rail-bend-ne (get-in layer [:tiles 6 6])))
     (is (= :cart-rail-bend-nw (get-in layer [:tiles 6 10])))
     (is (= :cart-rail-stop-e (get-in layer [:tiles 1 14])))
+    (is (nil? (get-in source-layer [:tiles 8 1])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id west-stump-tile)}
+           west-stump))
+    (is (= :cart-rail-stop-w
+           (get-in west-stump-tile [:overlay :tile])))
     (is (= :cart-rail-stop-n (get-in layer [:tiles 6 14])))))
 
 (deftest materialize-render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors

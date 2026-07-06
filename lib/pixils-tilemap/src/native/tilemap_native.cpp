@@ -2546,13 +2546,13 @@ namespace
     int source_x,
     int source_y)
   {
-    auto base_ref =
-      terrain_preview_ref_value(terrain_set,
-                                first_opposing_terrain_at(source_rows,
-                                                          ruleset,
-                                                          rule,
-                                                          source_x,
-                                                          source_y));
+    auto base_terrain = first_opposing_terrain_at(source_rows,
+                                                  ruleset,
+                                                  rule,
+                                                  source_x,
+                                                  source_y);
+    if (nil_value(base_terrain)) base_terrain = rule.center;
+    auto base_ref = terrain_preview_ref_value(terrain_set, base_terrain);
     auto resolved_overlay_ref = transition_overlay_ref(ruleset, output_layer, overlay_ref);
     if (nil_value(base_ref) || nil_value(resolved_overlay_ref))
     {
@@ -2709,8 +2709,11 @@ namespace
                                                     source_x,
                                                     source_y);
       add_unique_transition_tile(result, tile);
+      auto replacement = nil_value(tile)
+                           ? transition_overlay_ref(ruleset, output_layer, entry.overlay_ref)
+                           : transition_tile_ref(tile);
       set_transition_replacement(
-        result, x, y, nil_value(tile) ? entry.tile : transition_tile_ref(tile));
+        result, x, y, nil_value(replacement) ? entry.tile : replacement);
       return;
     }
 

@@ -559,14 +559,16 @@
 (defun transition-overlay-tile-definition
   [tilemap source-layer ruleset rule output-layer overlay-ref source-x source-y]
   (let [terrain-set-id (:terrain-set ruleset)
+        base-terrain (or (first-opposing-terrain-at source-layer
+                                                    ruleset
+                                                    rule
+                                                    source-x
+                                                    source-y)
+                         (terrain-match-center rule))
         base-ref (terrain-preview-tile-ref
                   (:terrain-sets tilemap)
                   terrain-set-id
-                  (first-opposing-terrain-at source-layer
-                                             ruleset
-                                             rule
-                                             source-x
-                                             source-y))
+                  base-terrain)
         overlay-ref (transition-overlay-ref ruleset output-layer overlay-ref)]
     (when (and base-ref overlay-ref)
       (let [tile-id (transition-overlay-tile-id base-ref overlay-ref)
@@ -700,7 +702,11 @@
                                                      source-x
                                                      source-y)]
         {:state (ensure-transition-tile state tile)
-         :tile (if tile (transition-tile-ref tile) (:tile entry))})
+         :tile (or (if tile (transition-tile-ref tile) nil)
+                   (transition-overlay-ref ruleset
+                                           output-layer
+                                           (:overlay-ref entry))
+                   (:tile entry))})
       {:state state
        :tile (:tile entry)})))
 
