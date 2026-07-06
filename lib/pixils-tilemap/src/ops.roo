@@ -6,3 +6,123 @@
 
 (defun live-base-tilemap [tilemap opts]
   (ops-impl/live-base-tilemap tilemap (or opts {})))
+
+(defun layer-index-by-id [layers layer-id]
+  (find-index (or layers [])
+              (fn [layer]
+                (= (:id layer) layer-id))))
+
+(defun pattern-anchor [brush]
+  (or (-> brush :pattern :anchor) {:x 0 :y 0}))
+
+(defun pattern-width [brush]
+  (or (-> brush :pattern :size :w) 1))
+
+(defun pattern-height [brush]
+  (or (-> brush :pattern :size :h) 1))
+
+(defun layer-cell-in-bounds? [layer x y]
+  (let [rows (or (:tiles layer) [])]
+    (and (>= x 0)
+         (>= y 0)
+         (< y (count rows))
+         (< x (count (or (nth rows y) []))))))
+
+(defun pattern-layer-compatible? [target-layer pattern-layer]
+  (let [data-kind (or (:data-kind pattern-layer) :tile-ref)
+        target-kind (or (:data-kind target-layer) :tile-ref)]
+    (and (= data-kind target-kind)
+         (case data-kind
+           :terrain (= (:terrain-set pattern-layer) (:terrain-set target-layer))
+           :tile-ref (= (:tileset pattern-layer) (:tileset target-layer))
+           :default true))))
+
+(defun pattern-target-layer-index [tilemap pattern-layer]
+  (when-let [target-layer-id (:target-layer pattern-layer)]
+    (let [layers (or (:layers tilemap) [])
+          index (layer-index-by-id layers target-layer-id)
+          layer (when (not (nil? index)) (nth layers index))]
+      (when (and layer (pattern-layer-compatible? layer pattern-layer))
+        index))))
+
+(defun set-layer-cell [tilemap layer-index x y tile-ref]
+  (let [layer (nth (or (:layers tilemap) []) layer-index)]
+    (if (layer-cell-in-bounds? layer x y)
+      (let [tilemap (assoc-in tilemap [:layers layer-index :tiles y x] tile-ref)]
+        (if (contains? layer :terrain-signatures)
+          (assoc-in tilemap [:layers layer-index :terrain-signatures y x] nil)
+          tilemap))
+      tilemap)))
+
+(defun apply-pattern-cell [tilemap layer-index anchor position x y tile-ref]
+  (if (nil? tile-ref)
+    tilemap
+    (set-layer-cell tilemap
+                    layer-index
+                    (+ (- (:x position) (:x anchor)) x)
+                    (+ (- (:y position) (:y anchor)) y)
+                    tile-ref)))
+
+(defun apply-pattern-layer [tilemap brush pattern-layer position]
+  (if-let [layer-index (pattern-target-layer-index tilemap pattern-layer)]
+    (let [anchor (pattern-anchor brush)]
+      (reduce (for-indexed [y row (or (:tiles pattern-layer) [])]
+                {:y y
+                 :tiles row})
+              tilemap
+              (fn [out row]
+                (reduce (for-indexed [x tile-ref (or (:tiles row) [])]
+                          {:x x
+                           :tile-ref tile-ref})
+                        out
+                        (fn [row-out cell]
+                          (apply-pattern-cell row-out
+                                              layer-index
+                                              anchor
+                                              position
+                                              (:x cell)
+                                              (:y row)
+                                              (:tile-ref cell)))))))
+    tilemap))
+
+(defun apply-pattern-brush [tilemap brush opts]
+  (if (and (= (:kind brush) :pattern)
+           (:position opts))
+    (reduce (or (-> brush :pattern :layers) [])
+            tilemap
+            (fn [out pattern-layer]
+              (apply-pattern-layer out brush pattern-layer (:position opts))))
+    tilemap))
+
+(defun clear-pattern-layer-row [tilemap layer-index anchor position y width]
+  (reduce (range 0 (dec width))
+          tilemap
+          (fn [out x]
+            (set-layer-cell out
+                            layer-index
+                            (+ (- (:x position) (:x anchor)) x)
+                            (+ (- (:y position) (:y anchor)) y)
+                            nil))))
+
+(defun clear-pattern-layer [tilemap brush pattern-layer position]
+  (if-let [layer-index (pattern-target-layer-index tilemap pattern-layer)]
+    (let [anchor (pattern-anchor brush)]
+      (reduce (range 0 (dec (pattern-height brush)))
+              tilemap
+              (fn [out y]
+                (clear-pattern-layer-row out
+                                         layer-index
+                                         anchor
+                                         position
+                                         y
+                                         (pattern-width brush)))))
+    tilemap))
+
+(defun clear-pattern-brush [tilemap brush opts]
+  (if (and (= (:kind brush) :pattern)
+           (:position opts))
+    (reduce (or (-> brush :pattern :layers) [])
+            tilemap
+            (fn [out pattern-layer]
+              (clear-pattern-layer out brush pattern-layer (:position opts))))
+    tilemap))

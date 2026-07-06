@@ -85,3 +85,85 @@
         layer (-> tilemap :layers (nth 1))]
     (is (= :over-actors
            (:atlas/render-position layer)))))
+
+(def brush-test-tilemap
+  {:width 5
+   :height 4
+   :layers [{:id :ground
+             :role :source
+             :data-kind :terrain
+             :terrain-set :outdoors
+             :tiles [[:grass :grass :grass :grass :grass]
+                     [:grass :grass :grass :grass :grass]
+                     [:grass :grass :grass :grass :grass]
+                     [:grass :grass :grass :grass :grass]]}
+            {:id :objects
+             :role :source
+             :data-kind :tile-ref
+             :tileset :village
+             :tiles [[nil nil nil nil nil]
+                     [nil nil nil nil nil]
+                     [nil nil nil nil nil]
+                     [nil nil nil nil nil]]}]})
+
+(def object-hut-brush
+  {:id :hut
+   :kind :pattern
+   :pattern {:size {:w 3 :h 2}
+             :anchor {:x 1 :y 1}
+             :layers [{:id :hut
+                       :target-layer :objects
+                       :data-kind :tile-ref
+                       :tileset :village
+                       :tiles [[:roof-left :roof-center :roof-right]
+                               [nil :door nil]]}]}})
+
+(deftest apply-pattern-brush-stamps-object-tiles-by-target-layer
+  (let [tilemap (ops/apply-pattern-brush brush-test-tilemap
+                                         object-hut-brush
+                                         {:position {:x 2 :y 2}})]
+    (is (= [[nil nil nil nil nil]
+            [nil :roof-left :roof-center :roof-right nil]
+            [nil nil :door nil nil]
+            [nil nil nil nil nil]]
+           (get-in tilemap [:layers 1 :tiles])))))
+
+(deftest apply-pattern-brush-skips-incompatible-target-layer
+  (let [brush (assoc-in object-hut-brush
+                        [:pattern :layers 0 :tileset]
+                        :other-tileset)
+        tilemap (ops/apply-pattern-brush brush-test-tilemap
+                                         brush
+                                         {:position {:x 2 :y 2}})]
+    (is (= (get-in brush-test-tilemap [:layers 1 :tiles])
+           (get-in tilemap [:layers 1 :tiles])))))
+
+(deftest apply-pattern-brush-stamps-terrain-layer-by-terrain-set
+  (let [brush {:id :pond
+               :kind :pattern
+               :pattern {:size {:w 2 :h 2}
+                         :anchor {:x 0 :y 0}
+                         :layers [{:id :water
+                                   :target-layer :ground
+                                   :data-kind :terrain
+                                   :terrain-set :outdoors
+                                   :tiles [[:water :water]
+                                           [:water nil]]}]}}
+        tilemap (ops/apply-pattern-brush brush-test-tilemap
+                                         brush
+                                         {:position {:x 1 :y 1}})]
+    (is (= [[:grass :grass :grass :grass :grass]
+            [:grass :water :water :grass :grass]
+            [:grass :water :grass :grass :grass]
+            [:grass :grass :grass :grass :grass]]
+           (get-in tilemap [:layers 0 :tiles])))))
+
+(deftest clear-pattern-brush-clears-target-layer-footprint
+  (let [painted (ops/apply-pattern-brush brush-test-tilemap
+                                         object-hut-brush
+                                         {:position {:x 2 :y 2}})
+        cleared (ops/clear-pattern-brush painted
+                                         object-hut-brush
+                                         {:position {:x 2 :y 2}})]
+    (is (= (get-in brush-test-tilemap [:layers 1 :tiles])
+           (get-in cleared [:layers 1 :tiles])))))
