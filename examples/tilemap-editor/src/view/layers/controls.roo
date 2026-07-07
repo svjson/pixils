@@ -1,0 +1,266 @@
+(ns tilemap-editor.view.layers.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
+            [pixils.tilemap.project.model :as data]))
+
+(def layer-list-row-height 26)
+(def layer-list-min-visible-rows 3)
+
+(defun layer-visible? [hidden-layer-indices index]
+  (not (contains? (or hidden-layer-indices []) index)))
+
+(defun terrain-set-label [terrain-sets terrain-set]
+  (let [item (head (filter (or terrain-sets [])
+                           (fn [item]
+                             (= (:id item) terrain-set))))]
+    (if item
+      (or (:label item) (:name item) (str (:id item)))
+      "")))
+
+(defun layer-source-label [state layer]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-set-label (:terrain-sets state) (:terrain-set layer))
+    (data/tileset-label (:tilesets state) (:tileset layer))))
+
+(defun layer-source-menu-item [state]
+  (let [layer (:layer state)
+        terrain-layer? (= :terrain (:data-kind layer))
+        tile-layer? (not terrain-layer?)
+        has-terrain-sets? (not (empty? (or (:terrain-sets state) [])))
+        has-tilesets? (not (empty? (or (:tilesets state) [])))]
+    (if terrain-layer?
+      {:label "Change Terrain Set"
+       :action :layer/context-dummy
+       :disabled? (not has-terrain-sets?)
+       :payload {:command :terrain-set}}
+      {:label "Change Tileset"
+       :action :layer/context-dummy
+       :disabled? (not (and tile-layer? has-tilesets?))
+       :payload {:command :tileset}})))
+
+(defun layer-context-menu [state]
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Layer"
+            :action :layer/context-dummy
+            :payload {:command :rename}}
+           {:label "Duplicate Layer"
+            :action :layer/context-dummy
+            :payload {:command :duplicate}}
+           (layer-source-menu-item state)
+           :separator
+           {:label "Move Up"
+            :action :layer/context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :layer/context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Layer"
+            :action :layer/context-dummy
+            :payload {:command :delete}}]})
+
+(defcomponent layer-visibility-toggle
+  {:class :ui/list-item-hover
+   :style {:width 24
+           :height 22
+           :layout {:direction :row
+                    :align-items :center}}
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill
+                       :text {:align :center}}
+               :state {:value (ui/bind-state :visibility-label)}}]})
+
+(defcomponent layer-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height 26
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [layer (:layer state)
+                   visible? (layer-visible? (:hidden-layer-indices state)
+                                            (:index state))]
+               (assoc state
+                      :selected (contains? (:selected-indices state)
+                                           (:index state))
+                      :visible? visible?
+                      :visibility-label (if visible? "V" "-")
+                      :layer-name (:label layer)
+                      :tileset-label (layer-source-label state layer))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:index state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! (layer-context-menu state)
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :layer/context-command
+                                       {:index (:index state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'layer-visibility-toggle
+               :state {:index (ui/bind-state :index)
+                       :visibility-label (ui/bind-state :visibility-label)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :layer-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tileset-label)}}]})
+
+(defun layer-row-child [index layer]
+  {:mode 'layer-row
+   :state {:index index
+           :value index
+           :layer (ui/bind-state :layers index)
+           :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun layer-options [layers]
+  (for-indexed [index layer (or layers [])]
+    {:value index
+     :label (:label layer)}))
+
+(defun layer-list-height [layers]
+  (* layer-list-row-height
+     (max layer-list-min-visible-rows
+          (count (or layers [])))))
+
+(defun selected-layer-indices [state]
+  (if (nil? (:selected-layer-index state))
+    []
+    [(:selected-layer-index state)]))
+
+(defun layer-list-render-key [state]
+  {:options (layer-options (:layers state))
+   :selected-layer-index (:selected-layer-index state)
+   :hidden-layer-indices (:hidden-layer-indices state)})
+
+(defun layer-list-box-child [layers]
+  (let [layers (or layers [])]
+    (lb/make {:options (layer-options layers)
+              :style {:width :fill
+                      :height (layer-list-height layers)}
+              :row-height layer-list-row-height
+              :visible-rows (count layers)
+              :content-width 200
+              :disabled? (empty? layers)
+              :state {:layers (ui/bind-state :layers)
+                      :tilesets (ui/bind-state :tilesets)
+                      :terrain-sets (ui/bind-state :terrain-sets)
+                      :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
+              :item-state-keys [:layers :tilesets :terrain-sets :hidden-layer-indices]
+              :selected-indices (ui/bind-state :selected-indices)
+              :reorderable? true
+              :reorder-visual-strategy :placeholder
+              :force-selection? true
+              :item-child layer-row-child})))
+
+(defcomponent layer-list
+  {:style {:width :fill
+           :height :shrink}
+   :init (fn [state ctx]
+           (assoc state
+                  :render-key nil
+                  :selected-indices (selected-layer-indices state)))
+   :update (fn [state ctx]
+             (let [layers (or (:layers state) [])
+                   render-key (layer-list-render-key state)]
+               (do
+                 (when (not= render-key (:render-key state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (layer-list-box-child layers))))
+                 (assoc state
+                        :render-key render-key
+                        :selected-indices (selected-layer-indices state)))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :layer/select
+                                       (-> event :payload :value))
+                             state))
+        :list-box/reorder (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        :layer/reorder
+                                        (:payload event))
+                              state))}
+   :children [(merge {:id "list-box"}
+                     (layer-list-box-child []))]})
+
+(defun make-layer-controls [opts]
+  (hp/make {:title (or (:title opts) "Layers")
+            :style (or (:style opts) {:width :fill})
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :layer/add)
+                                             state))}]
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state (merge {:selected-layer-index (ui/bind-state :selected-layer-index)
+                           :selected-layer-label (ui/bind-state :selected-layer-label)
+                           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                           :tilesets (ui/bind-state :tilesets)
+                           :terrain-sets (ui/bind-state :terrain-sets)
+                           :layers (ui/bind-state :layers)}
+                          (or (:state opts) {}))
+            :body-state (merge {:layers (ui/bind-state :layers)
+                                :tilesets (ui/bind-state :tilesets)
+                                :terrain-sets (ui/bind-state :terrain-sets)
+                                :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                :selected-layer-index (ui/bind-state :selected-layer-index)}
+                               (or (:body-state opts) {}))
+            :on (:on opts)
+            :children [{:mode 'layer-list
+                        :state {:layers (ui/bind-state :layers)
+                                :tilesets (ui/bind-state :tilesets)
+                                :terrain-sets (ui/bind-state :terrain-sets)
+                                :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))

@@ -23,10 +23,24 @@
               " "
               ch))))))
 
+(defun ensure-keyword [value]
+  (if (keyword? value)
+    value
+    (keyword value)))
+
 (defun brush-id-exists? [brushes id]
   (> (count (filter (or brushes [])
                     (fn [brush]
-                      (= (:id brush) (keyword id)))))
+                      (= (:id brush) (ensure-keyword id)))))
+     0))
+
+(defun brush-id-exists-except? [brushes id exclude-index]
+  (> (count (filter (for-indexed [index brush (or brushes [])]
+                      {:index index
+                       :id (:id brush)})
+                    (fn [entry]
+                      (and (= (:id entry) (ensure-keyword id))
+                           (not= (:index entry) exclude-index)))))
      0))
 
 (defun unique-id-from [brushes root suffix]
@@ -42,8 +56,43 @@
 (defun unique-brush-id [brushes]
   (unique-id-from (or brushes []) "brush" nil))
 
+(defun unique-id-from-except [items root exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)
+        id (keyword candidate)]
+    (if (brush-id-exists-except? items id exclude-index)
+      (unique-id-from-except items
+                             root
+                             exclude-index
+                             (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun id-from-text [text fallback-label]
+  (if (blank? text)
+    (keyword (kebab-case fallback-label))
+    (keyword (kebab-case (keyword-label text)))))
+
+(defun requested-id [items payload fallback-label exclude-index]
+  (let [id (id-from-text (:id payload) fallback-label)]
+    (if (brush-id-exists-except? items id exclude-index)
+      nil
+      id)))
+
 (defun brush-label-from-id [id]
   (capitalize (clean-name-separators (keyword-label id) 0 "")))
+
+(defun duplicate-label [items label label-key suffix]
+  (let [root (str (or label "Item") " Copy")
+        candidate (if suffix
+                    (str root " " suffix)
+                    root)]
+    (if (> (count (filter (or items [])
+                          (fn [item]
+                            (= (get item label-key) candidate))))
+           0)
+      (duplicate-label items label label-key (if suffix (inc suffix) 2))
+      candidate)))
 
 (defun make-pattern-brush [id label]
   {:id (keyword id)
@@ -96,24 +145,9 @@
     (when (> (count items) 0)
       (:id (nth items (or index 0))))))
 
-(defun first-tileset-id [tilesets]
-  (tileset-id tilesets 0))
-
 (defun selected-layer-profile [state]
   (data/layer-profile-by-id (:layer-profiles state)
                             (:selected-layer-profile-id state)))
-
-(defun first-profile-source-layer [state]
-  (head (filter (or (:layers (selected-layer-profile state)) [])
-                (fn [layer]
-                  (not= (:role layer) :derived)))))
-
-(defun first-profile-renderable-source-layer [state]
-  (head (filter (or (:layers (selected-layer-profile state)) [])
-                (fn [layer]
-                  (and (not= (:role layer) :derived)
-                       (or (:tileset layer)
-                           (:terrain-set layer)))))))
 
 (defun layer-target-for-tileset [state tileset]
   (data/target-layer-for-tileset (selected-layer-profile state) tileset))
@@ -124,26 +158,19 @@
 (defun source-layer-for-target [state target-layer]
   (data/layer-profile-layer-by-id (selected-layer-profile state) target-layer))
 
-(defun first-pattern-layer-tileset [state]
-  (or (:tileset (first-profile-renderable-source-layer state))
-      (first-tileset-id (:tilesets state))))
-
-(defun first-pattern-layer-target [state]
-  (:id (first-profile-renderable-source-layer state)))
-
-(defun first-pattern-source-layer [state]
-  (or (first-profile-renderable-source-layer state)
-      (when (first-tileset-id (:tilesets state))
-        {:data-kind :tile-ref
-         :tileset (first-tileset-id (:tilesets state))})))
-
-(defun pattern-layer-has-source? [state]
-  (not (nil? (first-pattern-source-layer state))))
-
 (defun pattern-layer-id-exists? [layers id]
   (> (count (filter (or layers [])
                     (fn [layer]
                       (= (:id layer) id))))
+     0))
+
+(defun pattern-layer-id-exists-except? [layers id exclude-index]
+  (> (count (filter (for-indexed [index layer (or layers [])]
+                      {:index index
+                       :id (:id layer)})
+                    (fn [entry]
+                      (and (= (:id entry) id)
+                           (not= (:index entry) exclude-index)))))
      0))
 
 (defun unique-pattern-layer-id-from [layers root suffix]
@@ -158,6 +185,64 @@
 
 (defun unique-pattern-layer-id [layers]
   (unique-pattern-layer-id-from layers "layer" nil))
+
+(defun unique-pattern-layer-id-except [layers root exclude-index suffix]
+  (let [candidate (keyword (if suffix
+                             (str root "-" suffix)
+                             root))]
+    (if (pattern-layer-id-exists-except? layers candidate exclude-index)
+      (unique-pattern-layer-id-except layers
+                                      root
+                                      exclude-index
+                                      (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun requested-pattern-layer-id [layers payload fallback-label exclude-index]
+  (let [id (id-from-text (:id payload) fallback-label)]
+    (if (pattern-layer-id-exists-except? layers id exclude-index)
+      nil
+      id)))
+
+(defun source-layer-options [state]
+  (let [profile-layers (or (:layers (selected-layer-profile state)) [])
+        layers (if (empty? profile-layers)
+                 (:layers state)
+                 profile-layers)]
+    (for-indexed [index layer (filter (or layers [])
+                                      (fn [layer]
+                                        (and (not= (:role layer) :derived)
+                                             (or (:tileset layer)
+                                                 (:terrain-set layer)))))]
+      {:value index
+       :label (or (:label layer) (str (:id layer)))
+       :layer layer})))
+
+(defun source-layer-option [state index]
+  (let [options (source-layer-options state)]
+    (when (> (count options) 0)
+      (nth options (min (or index 0) (dec (count options)))))))
+
+(defun first-pattern-source-layer [state]
+  (:layer (source-layer-option state 0)))
+
+(defun pattern-layer-has-source? [state]
+  (not (empty? (source-layer-options state))))
+
+(defun selected-source-layer-index [state layer]
+  (find-index (source-layer-options state)
+              (fn [option]
+                (= (:id (:layer option)) (:target-layer layer)))))
+
+(defun pattern-layer-from-source [layer source-layer]
+  (merge (dissoc (dissoc layer :tileset) :terrain-set)
+         {:target-layer (:id source-layer)
+          :data-kind (or (:data-kind source-layer) :tile-ref)}
+         (if (:tileset source-layer)
+           {:tileset (:tileset source-layer)}
+           {})
+         (if (:terrain-set source-layer)
+           {:terrain-set (:terrain-set source-layer)}
+           {})))
 
 (defun normalize-pattern-layer-target [state layer]
   (let [target-layer (:target-layer layer)
@@ -257,6 +342,19 @@
     (nth (-> brush :pattern :layers) selected-index)
     nil))
 
+(defun selected-pattern-layers [state]
+  (or (-> (selected-brush (:brushes state)
+                          (:selected-brush-index state))
+          :pattern
+          :layers)
+      []))
+
+(defun selected-pattern-layer-name [brush index]
+  (let [layer (selected-pattern-layer brush index)]
+    (if layer
+      (or (:label layer) (str (:id layer)))
+      "")))
+
 (defun selected-pattern-layer-indices [brush index]
   (if-let [selected-index (selected-pattern-layer-index brush index)]
     [selected-index]
@@ -285,6 +383,18 @@
     (if (= brush-index index)
       brush
       item)))
+
+(defun replace-selected-brush-layers [state layers]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)]
+    (if (and brush (= (:kind brush) :pattern))
+      (assoc state
+             :brushes (replace-selected-brush
+                       brushes
+                       brush-index
+                       (assoc-in brush [:pattern :layers] (or layers []))))
+      state)))
 
 (defun remove-pattern-layer-at [layers delete-index]
   (map (filter (for-indexed [index layer (or layers [])]
@@ -393,6 +503,81 @@
            :selected-brush-index index
            :selected-brush-layer-index (selected-pattern-layer-index brush nil))))
 
+(defun add-pattern-brush-with-identity [state payload]
+  (let [brushes (or (:brushes state) [])
+        label (:name payload)
+        id (requested-id brushes payload label nil)]
+    (if (and id (not (blank? label)))
+      (let [brush (make-pattern-brush-for-state state (keyword-label id) label)
+            index (count brushes)]
+        (assoc state
+               :brushes (concat brushes [brush])
+               :selected-brush-index index
+               :selected-brush-layer-index
+               (selected-pattern-layer-index brush nil)))
+      state)))
+
+(defun rename-selected-brush [state payload]
+  (let [brushes (or (:brushes state) [])
+        index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes index)
+        label (:name payload)
+        id (when (not (nil? index))
+             (requested-id brushes payload label index))]
+    (if (and brush id (not (blank? label)))
+      (assoc state :brushes (replace-selected-brush brushes
+                                                    index
+                                                    (assoc brush
+                                                           :id id
+                                                           :label label)))
+      state)))
+
+(defun insert-after [items index item]
+  (apply concat
+         (for-indexed [item-index current (or items [])]
+           (if (= item-index index)
+             [current item]
+             [current]))))
+
+(defun duplicate-selected-brush [state payload]
+  (let [brushes (or (:brushes state) [])
+        index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes index)
+        label (:name payload)
+        id (requested-id brushes payload label nil)]
+    (if (and brush id (not (blank? label)))
+      (let [duplicate (assoc brush :id id :label label)
+            duplicate-index (inc index)]
+        (assoc state
+               :brushes (insert-after brushes index duplicate)
+               :selected-brush-index duplicate-index
+               :selected-brush-layer-index
+               (selected-pattern-layer-index duplicate nil)))
+      state)))
+
+(defun remove-item-at-index [items remove-index]
+  (map (filter (for-indexed [index item (or items [])]
+                 {:index index
+                  :item item})
+               (fn [entry]
+                 (not= (:index entry) remove-index)))
+       :item))
+
+(defun delete-selected-brush [state]
+  (let [brushes (or (:brushes state) [])
+        index (selected-brush-index brushes (:selected-brush-index state))]
+    (if (and (not (nil? index)) (> (count brushes) 0))
+      (let [next-brushes (remove-item-at-index brushes index)
+            next-index (selected-brush-index next-brushes index)
+            brush (selected-brush next-brushes next-index)]
+        (assoc state
+               :brushes next-brushes
+               :selected-brush-index next-index
+               :selected-brush-layer-index
+               (selected-pattern-layer-index brush nil)
+               :brush-selected-tile nil))
+      state)))
+
 (defun add-pattern-layer! [state]
   (let [brushes (or (:brushes state) [])
         brush-index (selected-brush-index brushes (:selected-brush-index state))
@@ -410,6 +595,175 @@
                :brushes (replace-selected-brush brushes brush-index next-brush)
                :selected-brush-layer-index layer-index))
       state)))
+
+(defun add-pattern-layer-with-details [state payload]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        source-option (source-layer-option state (:source-layer-index payload))]
+    (if (and brush (= (:kind brush) :pattern) source-option)
+      (let [layers (or (-> brush :pattern :layers) [])
+            label (:name payload)
+            id (requested-pattern-layer-id layers payload label nil)]
+        (if (and id (not (blank? label)))
+          (let [layer (pattern-layer-from-source
+                       {:id id
+                        :label label
+                        :kind :tile
+                        :tiles (make-empty-pattern-tiles (pattern-width brush)
+                                                         (pattern-height brush))}
+                       (:layer source-option))
+                layer-index (count layers)
+                next-brush (assoc-in brush
+                                     [:pattern :layers]
+                                     (concat layers [layer]))]
+            (assoc state
+                   :brushes (replace-selected-brush brushes brush-index next-brush)
+                   :selected-brush-layer-index layer-index
+                   :brush-selected-tile nil))
+          state))
+      state)))
+
+(defun rename-selected-pattern-layer [state payload]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))
+        layers (or (-> brush :pattern :layers) [])
+        source-option (source-layer-option state (:source-layer-index payload))
+        label (:name payload)
+        id (when (not (nil? layer-index))
+             (requested-pattern-layer-id layers payload label layer-index))]
+    (if (and brush source-option id (not (blank? label)))
+      (let [layer (pattern-layer-from-source
+                   (assoc (nth layers layer-index)
+                          :id id
+                          :label label)
+                   (:layer source-option))
+            next-brush (assoc-in brush [:pattern :layers layer-index] layer)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :brush-selected-tile nil))
+      state)))
+
+(defun duplicate-selected-pattern-layer [state payload]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))
+        layers (or (-> brush :pattern :layers) [])
+        source-option (source-layer-option state (:source-layer-index payload))
+        label (:name payload)
+        id (requested-pattern-layer-id layers payload label nil)]
+    (if (and brush
+             (not (nil? layer-index))
+             source-option
+             id
+             (not (blank? label)))
+      (let [layer (pattern-layer-from-source
+                   (assoc (nth layers layer-index)
+                          :id id
+                          :label label)
+                   (:layer source-option))
+            next-layers (insert-after layers layer-index layer)
+            next-brush (assoc-in brush [:pattern :layers] next-layers)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :selected-brush-layer-index (inc layer-index)
+               :brush-selected-tile nil))
+      state)))
+
+(defun swap-index-value [index a b]
+  (cond
+    (= index a) b
+    (= index b) a
+    :default index))
+
+(defun swap-pattern-layer-indices [layers a b]
+  (for-indexed [index layer (or layers [])]
+    (cond
+      (= index a) (nth layers b)
+      (= index b) (nth layers a)
+      :default layer)))
+
+(defun insert-item-at-index [items insert-index item]
+  (let [items (or items [])]
+    (if (>= insert-index (count items))
+      (concat items [item])
+      (apply concat
+             (for-indexed [index existing items]
+               (if (= index insert-index)
+                 [item existing]
+                 [existing]))))))
+
+(defun reorder-items [items from-index to-index]
+  (let [items (or items [])]
+    (if (= from-index to-index)
+      items
+      (insert-item-at-index (remove-item-at-index items from-index)
+                            to-index
+                            (nth items from-index)))))
+
+(defun reorder-index-value [index from-index to-index]
+  (cond
+    (= index from-index) to-index
+    (and (< from-index index) (<= index to-index)) (dec index)
+    (and (> from-index index) (>= index to-index)) (inc index)
+    :default index))
+
+(defun layer-move-target-index [command index layer-count]
+  (case command
+    :move-up
+    (when (> index 0) (dec index))
+
+    :move-down
+    (when (< index (dec layer-count)) (inc index))
+
+    :default nil))
+
+(defun apply-pattern-layer-move-command [state payload]
+  (let [command (:command payload)
+        index (:index payload)
+        layers (selected-pattern-layers state)
+        target-index (layer-move-target-index command index (count layers))]
+    (if (nil? target-index)
+      state
+      (let [next-layers (swap-pattern-layer-indices layers index target-index)
+            next-index (swap-index-value (or (:selected-brush-layer-index state) 0)
+                                         index
+                                         target-index)]
+        (assoc (replace-selected-brush-layers state next-layers)
+               :selected-brush-layer-index next-index
+               :brush-selected-tile nil)))))
+
+(defun apply-pattern-layer-reorder [state payload]
+  (let [from-index (:from-index payload)
+        to-index (:to-index payload)
+        layers (selected-pattern-layers state)]
+    (if (and (not (nil? from-index))
+             (not (nil? to-index))
+             (>= from-index 0)
+             (< from-index (count layers))
+             (>= to-index 0)
+             (< to-index (count layers)))
+      (let [next-layers (reorder-items layers from-index to-index)
+            next-index (reorder-index-value
+                        (or (:selected-brush-layer-index state) 0)
+                        from-index
+                        to-index)]
+        (assoc (replace-selected-brush-layers state next-layers)
+               :selected-brush-layer-index next-index
+               :brush-selected-tile nil))
+      state)))
+
+(defun toggle-hidden-layer [hidden-layer-indices index]
+  (let [hidden-layer-indices (or hidden-layer-indices [])]
+    (if (contains? hidden-layer-indices index)
+      (filter hidden-layer-indices (fn [item]
+                                     (not= item index)))
+      (concat hidden-layer-indices [index]))))
 
 (defun clear-pattern-layer! [state]
   (let [brushes (or (:brushes state) [])
@@ -543,6 +897,23 @@
             next-brush (assoc-in brush
                                  [:pattern :layers layer-index]
                                  layer)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :brush-selected-tile nil))
+      state)))
+
+(defun set-pattern-layer-source! [state source-layer-index]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))
+        source-option (source-layer-option state source-layer-index)]
+    (if (and brush (not (nil? layer-index)) source-option)
+      (let [layer (pattern-layer-from-source
+                   (nth (-> brush :pattern :layers) layer-index)
+                   (:layer source-option))
+            next-brush (assoc-in brush [:pattern :layers layer-index] layer)]
         (assoc state
                :brushes (replace-selected-brush brushes brush-index next-brush)
                :brush-selected-tile nil))

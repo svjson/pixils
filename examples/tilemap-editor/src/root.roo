@@ -549,6 +549,8 @@
                                        :selected-brush-layer-index
                                        (ui/bind-state :selected-brush-layer-index)
                                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                                       :workbook-history
+                                       (ui/bind-state :workbook-history)
                                        :tilesets (ui/bind-state :tilesets)
                                        :terrain-sets (ui/bind-state :terrain-sets)
                                        :layer-profiles (ui/bind-state :layer-profiles)

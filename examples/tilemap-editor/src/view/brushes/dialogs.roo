@@ -1,0 +1,454 @@
+(ns tilemap-editor.view.brushes.dialogs
+  (:require pixils
+            [pixils.form :as form]
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.window :as w]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.brush-schemas :as brush-schemas]
+            [tilemap-editor.view.brushes.model :as model]))
+
+(def identity-layout
+  [[:id :name]])
+
+(def identity-text
+  {:id "Id"
+   :name "Name"})
+
+(def form-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
+(def form-row-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :start
+            :gap 8}})
+
+(def field-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 3}})
+
+(defcomponent source-layer-selector
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 3}}
+   :update (fn [state ctx]
+             (let [options (model/source-layer-options state)]
+               (assoc state
+                      :source-layer-options options
+                      :source-layer-disabled? (empty? options))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (assoc state
+                                   :source-layer-index
+                                   (-> event :payload :selected-index)))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Target Layer"}}
+              (cb/make {:options (ui/bind-state :source-layer-options)
+                        :selected-index (ui/bind-state :source-layer-index)
+                        :row-height 20
+                        :max-height 96
+                        :disabled? (ui/bind-state :source-layer-disabled?)
+                        :style {:width :fill
+                                :height 24}})]})
+
+(defcomponent brush-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :update (fn [state ctx]
+             (let [identity (:identity state)]
+               (assoc state
+                      :invalid?
+                      (or (blank? (:name identity))
+                          (blank? (:id identity))
+                          (model/brush-id-exists-except?
+                           (:brushes state)
+                           (model/id-from-text (:id identity) (:name identity))
+                           (if (= (:operation state) :edit)
+                             (:selected-brush-index state)
+                             nil))))))
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :brush-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label (ui/bind-state :confirm-label)
+                       :identity (ui/bind-state :identity)
+                       :operation (ui/bind-state :operation)
+                       :brushes (ui/bind-state :brushes)
+                       :selected-brush-index
+                       (ui/bind-state :selected-brush-index)
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         :brush-dialog/confirm
+                                         (:identity state)))
+                             state))}]})
+
+(defcomponent brush-dialog-body
+  {:class :ui/content
+   :style {:width 360
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 10}}
+   :children [(form/make {:schema brush-schemas/brush-identity-schema
+                          :text identity-text
+                          :layout identity-layout
+                          :style form-style
+                          :row-style form-row-style
+                          :field-style field-style
+                          :value (ui/bind-state :identity)})
+              {:mode 'brush-dialog-buttons
+               :state {:identity (ui/bind-state :identity)
+                       :operation (ui/bind-state :operation)
+                       :brushes (ui/bind-state :brushes)
+                       :selected-brush-index
+                       (ui/bind-state :selected-brush-index)
+                       :confirm-label (ui/bind-state :confirm-label)}}]})
+
+(defcomponent brush-layer-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :update (fn [state ctx]
+             (let [identity (:identity state)]
+               (assoc state
+                      :invalid?
+                      (or (blank? (:name identity))
+                          (blank? (:id identity))
+                          (nil? (:source-layer-index state))
+                          (model/pattern-layer-id-exists-except?
+                           (:layers state)
+                           (model/id-from-text (:id identity) (:name identity))
+                           (if (= (:operation state) :edit)
+                             (:selected-layer-index state)
+                             nil))))))
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :brush-layer-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label (ui/bind-state :confirm-label)
+                       :identity (ui/bind-state :identity)
+                       :operation (ui/bind-state :operation)
+                       :layers (ui/bind-state :layers)
+                       :selected-layer-index
+                       (ui/bind-state :selected-layer-index)
+                       :source-layer-index
+                       (ui/bind-state :source-layer-index)
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         :brush-layer-dialog/confirm
+                                         {:id (get-in state [:identity :id])
+                                          :name (get-in state [:identity :name])
+                                          :source-layer-index
+                                          (:source-layer-index state)}))
+                             state))}]})
+
+(defcomponent brush-layer-dialog-body
+  {:class :ui/content
+   :style {:width 420
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 10}}
+   :children [(form/make {:schema brush-schemas/brush-layer-identity-schema
+                          :text identity-text
+                          :layout identity-layout
+                          :style form-style
+                          :row-style form-row-style
+                          :field-style field-style
+                          :value (ui/bind-state :identity)})
+              {:mode 'source-layer-selector
+               :state {:layer-profiles (ui/bind-state :layer-profiles)
+                       :selected-layer-profile-id
+                       (ui/bind-state :selected-layer-profile-id)
+                       :layers (ui/bind-state :layers)
+                       :source-layer-index
+                       (ui/bind-state :source-layer-index)}}
+              {:mode 'brush-layer-dialog-buttons
+               :state {:identity (ui/bind-state :identity)
+                       :operation (ui/bind-state :operation)
+                       :layers (ui/bind-state :brush-layers)
+                       :selected-layer-index
+                       (ui/bind-state :selected-layer-index)
+                       :source-layer-index
+                       (ui/bind-state :source-layer-index)
+                       :confirm-label (ui/bind-state :confirm-label)}}]})
+
+(defun source-options-for-operation [state]
+  (case (:operation state)
+    :tileset (data/tileset-options (:tilesets state))
+    :terrain-set (data/terrain-set-options (:terrain-sets state))
+    :default []))
+
+(defun source-label-for-operation [operation]
+  (case operation
+    :tileset "Tileset"
+    :terrain-set "Terrain set"
+    :default "Source"))
+
+(defcomponent brush-layer-source-selector
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 3}}
+   :update (fn [state ctx]
+             (let [options (source-options-for-operation state)]
+               (assoc state
+                      :source-options options
+                      :source-label (source-label-for-operation (:operation state))
+                      :source-disabled? (empty? options))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (assoc state
+                                   :source-index
+                                   (-> event :payload :selected-index)))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :source-label)}}
+              (cb/make {:options (ui/bind-state :source-options)
+                        :selected-index (ui/bind-state :source-index)
+                        :row-height 20
+                        :max-height 96
+                        :disabled? (ui/bind-state :source-disabled?)
+                        :style {:width :fill
+                                :height 24}})]})
+
+(defcomponent brush-layer-source-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :update (fn [state ctx]
+             (assoc state :invalid? (nil? (:source-index state))))
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :brush-layer-source-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Save"
+                       :operation (ui/bind-state :operation)
+                       :source-index (ui/bind-state :source-index)
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         :brush-layer-source-dialog/confirm
+                                         {:operation (:operation state)
+                                          :source-index (:source-index state)}))
+                             state))}]})
+
+(defcomponent brush-layer-source-dialog-body
+  {:class :ui/content
+   :style {:width 320
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 10}}
+   :children [{:mode 'brush-layer-source-selector
+               :state {:operation (ui/bind-state :operation)
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)
+                       :source-index (ui/bind-state :source-index)}}
+              {:mode 'brush-layer-source-dialog-buttons
+               :state {:operation (ui/bind-state :operation)
+                       :source-index (ui/bind-state :source-index)}}]})
+
+(defmode brush-dialog-modal
+  {:on {:brush-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :operation (:operation state)})
+            state))
+        :brush-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! (merge {:type :confirm
+                               :operation (:operation state)}
+                              (:payload event)))
+            state))}
+   :compose {:render :pass}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :identity (ui/bind-state :identity)
+                               :confirm-label
+                               (ui/bind-state :confirm-label)
+                               :brushes (ui/bind-state :brushes)
+                               :selected-brush-index
+                               (ui/bind-state :selected-brush-index)}
+                       :body [{:mode 'brush-dialog-body
+                               :state {:identity (ui/bind-state :identity)
+                                       :operation (ui/bind-state :operation)
+                                       :brushes (ui/bind-state :brushes)
+                                       :selected-brush-index
+                                       (ui/bind-state :selected-brush-index)
+                                       :confirm-label
+                                       (ui/bind-state :confirm-label)}}]})]})
+
+(defmode brush-layer-dialog-modal
+  {:on {:brush-layer-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :operation (:operation state)})
+            state))
+        :brush-layer-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! (merge {:type :confirm
+                               :operation (:operation state)}
+                              (:payload event)))
+            state))}
+   :compose {:render :pass}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :identity (ui/bind-state :identity)
+                               :confirm-label
+                               (ui/bind-state :confirm-label)
+                               :layer-profiles (ui/bind-state :layer-profiles)
+                               :selected-layer-profile-id
+                               (ui/bind-state :selected-layer-profile-id)
+                               :layers (ui/bind-state :layers)
+                               :brush-layers (ui/bind-state :brush-layers)
+                               :selected-layer-index
+                               (ui/bind-state :selected-layer-index)
+                               :source-layer-index
+                               (ui/bind-state :source-layer-index)}
+                       :body [{:mode 'brush-layer-dialog-body
+                               :state {:identity (ui/bind-state :identity)
+                                       :confirm-label
+                                       (ui/bind-state :confirm-label)
+                                       :layer-profiles
+                                       (ui/bind-state :layer-profiles)
+                                       :selected-layer-profile-id
+                                       (ui/bind-state
+                                        :selected-layer-profile-id)
+                                       :layers (ui/bind-state :layers)
+                                       :brush-layers
+                                       (ui/bind-state :brush-layers)
+                                       :selected-layer-index
+                                       (ui/bind-state :selected-layer-index)
+                                       :source-layer-index
+                                       (ui/bind-state
+                                        :source-layer-index)}}]})]})
+
+(defmode brush-layer-source-dialog-modal
+  {:on {:brush-layer-source-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :operation (:operation state)})
+            state))
+        :brush-layer-source-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! (merge {:type :confirm}
+                              (:payload event)))
+            state))}
+   :compose {:render :pass}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :tilesets (ui/bind-state :tilesets)
+                               :terrain-sets (ui/bind-state :terrain-sets)
+                               :source-index (ui/bind-state :source-index)}
+                       :body [{:mode 'brush-layer-source-dialog-body
+                               :state {:operation (ui/bind-state :operation)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :terrain-sets
+                                       (ui/bind-state :terrain-sets)
+                                       :source-index
+                                       (ui/bind-state :source-index)}}]})]})
+
+(defun open-brush-dialog! [state ctx operation title identity confirm-label]
+  (do
+    (push-mode! 'brush-dialog-modal
+                {:title title
+                 :operation operation
+                 :identity identity
+                 :confirm-label confirm-label
+                 :brushes (:brushes state)
+                 :selected-brush-index (:selected-brush-index state)}
+                {:origin {:view (:view ctx)
+                          :event :brush/dialog-result}})
+    state))
+
+(defun open-brush-layer-dialog! [state ctx operation title identity source-layer-index confirm-label]
+  (do
+    (push-mode! 'brush-layer-dialog-modal
+                {:title title
+                 :operation operation
+                 :identity identity
+                 :confirm-label confirm-label
+                 :layer-profiles (:layer-profiles state)
+                 :selected-layer-profile-id (:selected-layer-profile-id state)
+                 :layers (:layers state)
+                 :brush-layers (or (-> (model/selected-brush
+                                         (:brushes state)
+                                         (:selected-brush-index state))
+                                        :pattern
+                                        :layers)
+                                   [])
+                 :selected-layer-index
+                 (:selected-brush-layer-index state)
+                 :source-layer-index source-layer-index}
+                {:origin {:view (:view ctx)
+                          :event :brush/layer-dialog-result}})
+    state))
+
+(defun open-brush-layer-source-dialog! [state ctx operation title source-index]
+  (do
+    (push-mode! 'brush-layer-source-dialog-modal
+                {:title title
+                 :operation operation
+                 :tilesets (:tilesets state)
+                 :terrain-sets (:terrain-sets state)
+                 :source-index source-index}
+                {:origin {:view (:view ctx)
+                          :event :brush/layer-source-dialog-result}})
+    state))

@@ -1,0 +1,13 @@
+(ns tilemap-editor.model.brush-schemas)
+
+(def brush-identity-schema
+  {:id {:type :keyword
+        :required true}
+   :name {:type :text
+          :required true}})
+
+(def brush-layer-identity-schema
+  {:id {:type :keyword
+        :required true}
+   :name {:type :text
+          :required true}})

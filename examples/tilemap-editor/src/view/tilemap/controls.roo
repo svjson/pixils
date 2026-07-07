@@ -5,7 +5,6 @@
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
-            [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.slider :as sl]
@@ -19,6 +18,7 @@
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.view.layers.controls :as layer-controls]
             [tilemap-editor.view.tilemap.dimensions-dialog :as dimensions-dialog]))
 
 
@@ -437,30 +437,7 @@
       (concat hidden-layer-indices [index]))))
 
 (defun layer-context-menu [state]
-  (let [terrain-layer? (= :terrain (-> state :layer :data-kind))
-        has-terrain-sets? (not (empty? (or (:terrain-sets state) [])))]
-    {:settings {:mnemonics {:enabled false}}
-     :items [{:label "Rename Layer"
-              :action :layer/context-dummy
-              :payload {:command :rename}}
-             {:label "Duplicate Layer"
-              :action :layer/context-dummy
-              :payload {:command :duplicate}}
-             {:label "Change Terrain Set"
-              :action :layer/context-dummy
-              :disabled? (not (and terrain-layer? has-terrain-sets?))
-              :payload {:command :terrain-set}}
-             :separator
-             {:label "Move Up"
-              :action :layer/context-dummy
-              :payload {:command :move-up}}
-             {:label "Move Down"
-              :action :layer/context-dummy
-              :payload {:command :move-down}}
-             :separator
-             {:label "Delete Layer"
-              :action :layer/context-dummy
-              :payload {:command :delete}}]}))
+  (layer-controls/layer-context-menu state))
 
 (defun terrain-set-label [terrain-sets terrain-set]
   (let [item (head (filter (or terrain-sets [])
@@ -1398,269 +1375,95 @@
 
 ;; Layer List
 
-(def layer-list-row-height 26)
-(def layer-list-min-visible-rows 3)
-
-(defcomponent layer-visibility-toggle
-  {:class :ui/list-item-hover
-   :style {:width 24
-           :height 22
-           :layout {:direction :row
-                    :align-items :center}}
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
-                    state))
-   :children [{:mode 'ui/text
-               :style {:width :fill
-                       :text {:align :center}}
-               :state {:value (ui/bind-state :visibility-label)}}]})
-
-(defcomponent layer-row
-  {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
-   :style {:width :fill
-           :height 26
-           :padding [3 6]
-           :layout {:direction :row
-                    :align-items :center
-                    :gap 6}}
-   :update (fn [state ctx]
-             (let [layer (:layer state)
-                   visible? (layer-visible? (:hidden-layer-indices state)
-                                            (:index state))]
-               (assoc state
-                      :selected (contains? (:selected-indices state)
-                                           (:index state))
-                      :visible? visible?
-                      :visibility-label (if visible? "V" "-")
-                      :layer-name (:label layer)
-                      :tileset-label (layer-source-label state layer))))
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:index state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! (layer-context-menu state)
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :layer/context-command
-                                       {:index (:index state)
-                                        :command (-> payload :payload :command)}))))
-                       state)}
-   :children [{:mode 'layer-visibility-toggle
-               :state {:index (ui/bind-state :index)
-                       :visibility-label (ui/bind-state :visibility-label)}}
-              {:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :layer-name)}}
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value (ui/bind-state :tileset-label)}}]})
-
-(defun layer-row-child [index layer]
-  {:mode 'layer-row
-   :state {:index index
-           :value index
-           :layer (ui/bind-state :layers index)
-           :tilesets (ui/bind-state :tilesets)
-           :terrain-sets (ui/bind-state :terrain-sets)
-           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-           :selected-indices (ui/bind-state :selected-indices)}})
-
 (defun layer-options [layers]
-  (for-indexed [index layer (or layers [])]
-    {:value index
-     :label (:label layer)}))
+  (layer-controls/layer-options layers))
 
 (defun layer-list-height [layers]
-  (* layer-list-row-height
-     (max layer-list-min-visible-rows
-          (count (or layers [])))))
+  (layer-controls/layer-list-height layers))
 
 (defun selected-layer-indices [state]
-  (if (nil? (:selected-layer-index state))
-    []
-    [(:selected-layer-index state)]))
+  (layer-controls/selected-layer-indices state))
 
 (defun layer-list-box-child [layers]
-  (let [layers (or layers [])]
-    (lb/make {:options (layer-options layers)
-              :style {:width :fill
-                      :height (layer-list-height layers)}
-              :row-height layer-list-row-height
-              :visible-rows (count layers)
-              :content-width 200
-              :disabled? (empty? layers)
-              :state {:layers (ui/bind-state :layers)
-                      :tilesets (ui/bind-state :tilesets)
-                      :terrain-sets (ui/bind-state :terrain-sets)
-                      :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
-              :item-state-keys [:layers :tilesets :terrain-sets :hidden-layer-indices]
-              :selected-indices (ui/bind-state :selected-indices)
-              :reorderable? true
-              :reorder-visual-strategy :placeholder
-              :force-selection? true
-              :item-child layer-row-child})))
-
-(defcomponent layer-list
-  {:style {:width :fill
-           :height :shrink}
-   :init (fn [state ctx]
-           (assoc state
-                  :row-count nil
-                  :selected-indices (selected-layer-indices state)))
-   :update (fn [state ctx]
-             (let [layers (or (:layers state) [])
-                   row-count (count layers)]
-               (do
-                 (when (not= row-count (:row-count state))
-                   (ui/replace-child! (:view ctx)
-                                      "list-box"
-                                      (merge {:id "list-box"}
-                                             (layer-list-box-child layers))))
-                 (assoc state
-                        :row-count row-count
-                        :selected-indices (selected-layer-indices state)))))
-   :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :layer/select
-                                       (-> event :payload :value))
-                             state))
-        :list-box/reorder (fn [state event ctx]
-                            (do
-                              (ui/stop-propagation! event)
-                              (ui/emit! (:view ctx)
-                                        :layer/reorder
-                                        (:payload event))
-                             state))}
-   :children [(merge {:id "list-box"}
-                     (layer-list-box-child []))]})
+  (layer-controls/layer-list-box-child layers))
 
 (defun make-layer-controls []
-  (hp/make {:title "Layers"
-            :style {:width :fill}
-            :header-style {:layout {:direction :row
-                                    :align-items :center
-                                    :gap 4}}
-            :header-children [{:mode 'ui/button
-                               :class :ui/toolbar-button
-                               :state {:label "+"}
-                               :on-click (fn [state event ctx]
-                                           (do
-                                             (ui/emit! (:view ctx)
-                                                       :layer/add)
-                                             state))}]
-            :body-style {:padding 8
-                         :layout {:direction :column
-                                  :gap 4}}
-            :state {:selected-layer-index (ui/bind-state :selected-layer-index)
-                    :selected-layer-label (ui/bind-state :selected-layer-label)
-                    :map-width (ui/bind-state :map-width)
-                    :map-height (ui/bind-state :map-height)
-                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                    :tilesets (ui/bind-state :tilesets)
-                    :terrain-sets (ui/bind-state :terrain-sets)
-                    :layers (ui/bind-state :layers)}
-            :body-state {:layers (ui/bind-state :layers)
-                         :map-width (ui/bind-state :map-width)
-                         :map-height (ui/bind-state :map-height)
-                         :tilesets (ui/bind-state :tilesets)
-                         :terrain-sets (ui/bind-state :terrain-sets)
-                         :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                         :selected-layer-index (ui/bind-state :selected-layer-index)}
-            :on {:layer/select (fn [state event ctx]
-                                  (assoc state :selected-layer-index (:payload event)))
-                 :layer/add (fn [state event ctx]
-                              (open-layer-add-dialog! state ctx))
-                 :layer/reorder (fn [state event ctx]
-                                  (apply-layer-reorder state (:payload event)))
-                 :layer/toggle-visible (fn [state event ctx]
-                                         (assoc state
-                                                :hidden-layer-indices
-                                                (toggle-hidden-layer (:hidden-layer-indices state)
-                                                                     (:payload event))))
-                 :layer/context-command (fn [state event ctx]
-                                          (let [payload (:payload event)
-                                                command (:command payload)
-                                                index (:index payload)
-                                                name (selected-layer-name (:layers state) index)]
-                                            (case command
-                                              :rename
-                                              (open-layer-name-dialog! state
-                                                                       ctx
-                                                                       :rename
-                                                                       index
-                                                                       "Rename Layer"
-                                                                       name
-                                                                       (keyword-label
-                                                                        (get-in state
-                                                                                [:layers index :id])))
+  (layer-controls/make-layer-controls
+   {:state {:map-width (ui/bind-state :map-width)
+            :map-height (ui/bind-state :map-height)}
+    :body-state {:map-width (ui/bind-state :map-width)
+                 :map-height (ui/bind-state :map-height)}
+    :on {:layer/select (fn [state event ctx]
+                         (assoc state :selected-layer-index (:payload event)))
+         :layer/add (fn [state event ctx]
+                      (open-layer-add-dialog! state ctx))
+         :layer/reorder (fn [state event ctx]
+                          (apply-layer-reorder state (:payload event)))
+         :layer/toggle-visible (fn [state event ctx]
+                                 (assoc state
+                                        :hidden-layer-indices
+                                        (toggle-hidden-layer (:hidden-layer-indices state)
+                                                             (:payload event))))
+         :layer/context-command (fn [state event ctx]
+                                  (let [payload (:payload event)
+                                        command (:command payload)
+                                        index (:index payload)
+                                        name (selected-layer-name (:layers state) index)]
+                                    (case command
+                                      :rename
+                                      (open-layer-name-dialog! state
+                                                               ctx
+                                                               :rename
+                                                               index
+                                                               "Rename Layer"
+                                                               name
+                                                               (keyword-label
+                                                                (get-in state
+                                                                        [:layers index :id])))
 
-                                              :duplicate
-                                              (open-layer-name-dialog! state
-                                                                       ctx
-                                                                       :duplicate
-                                                                       index
-                                                                       "Duplicate Layer"
-                                                                       (unique-layer-name-from
-                                                                       (:layers state)
-                                                                       name
-                                                                       nil
-                                                                       2)
-                                                                       (keyword-label
-                                                                        (unique-layer-id-from
-                                                                         (:layers state)
-                                                                         (kebab-case name)
-                                                                         nil
-                                                                         2)))
+                                      :duplicate
+                                      (open-layer-name-dialog! state
+                                                               ctx
+                                                               :duplicate
+                                                               index
+                                                               "Duplicate Layer"
+                                                               (unique-layer-name-from
+                                                                (:layers state)
+                                                                name
+                                                                nil
+                                                                2)
+                                                               (keyword-label
+                                                                (unique-layer-id-from
+                                                                 (:layers state)
+                                                                 (kebab-case name)
+                                                                 nil
+                                                                 2)))
 
-                                              :terrain-set
-                                              (open-layer-terrain-set-dialog! state
-                                                                              ctx
-                                                                              index)
+                                      :terrain-set
+                                      (open-layer-terrain-set-dialog! state
+                                                                      ctx
+                                                                      index)
 
-                                              :delete
-                                              (open-layer-confirm-dialog! state
-                                                                          ctx
-                                                                          :delete
-                                                                          index
-                                                                          "Delete Layer"
-                                                                          (str "Delete layer \"" name "\"?")
-                                                                          "Delete")
+                                      :tileset
+                                      (assoc state
+                                             :selected-layer-index index
+                                             :selected-tileset-index
+                                             (data/tileset-index
+                                              (:tilesets state)
+                                              (get-in state
+                                                      [:layers index :tileset])))
 
-                                              :default
-                                              state)))}
-            :children [{:mode 'layer-list
-                        :state {:layers (ui/bind-state :layers)
-                                :tilesets (ui/bind-state :tilesets)
-                                :terrain-sets (ui/bind-state :terrain-sets)
-                                :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                                :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))
+                                      :delete
+                                      (open-layer-confirm-dialog! state
+                                                                  ctx
+                                                                  :delete
+                                                                  index
+                                                                  "Delete Layer"
+                                                                  (str "Delete layer \"" name "\"?")
+                                                                  "Delete")
+
+                                      :default
+                                      state)))}}))
 
 
 

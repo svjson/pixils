@@ -2,7 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.brushes.model :as model]))
 
-(deftest brush-workspace-selects_first_available_brush
+(deftest brush-workspace-selects-first-available-brush
   (let [state (model/derive-brush-workspace-state
                {:brushes [{:id :brush
                            :label "Brush"}]
@@ -10,14 +10,14 @@
     (is (= 0 (:selected-brush-index state)))
     (is (= false (:brush-detail-panel-disabled? state)))))
 
-(deftest brush-workspace-disables_detail_without_brushes
+(deftest brush-workspace-disables-detail-without-brushes
   (let [state (model/derive-brush-workspace-state
                {:brushes []
                 :selected-brush-index 0})]
     (is (nil? (:selected-brush-index state)))
     (is (= true (:brush-detail-panel-disabled? state)))))
 
-(deftest brush-workspace-adds_default_pattern_layer_when_tilesets_appear
+(deftest brush-workspace-adds-default-pattern-layer-when-source-layer-appears
   (let [state (model/derive-brush-workspace-state
                {:brushes [{:id :brush
                            :label "Brush"
@@ -27,12 +27,18 @@
                                      :layers []}}]
                 :tilesets [{:id :terrain
                             :label "Terrain"}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default
                 :selected-brush-index 0
                 :selected-brush-layer-index nil})]
     (is (= 0 (:selected-brush-layer-index state)))
     (is (= :terrain (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
-(deftest brush-workspace-defaults_missing_layer_tileset
+(deftest brush-workspace-defaults-missing-layer-source-from-target-layer
   (let [state (model/derive-brush-workspace-state
                {:brushes [{:id :brush
                            :label "Brush"
@@ -40,16 +46,23 @@
                            :pattern {:size {:w 3 :h 3}
                                      :anchor {:x 1 :y 1}
                                      :layers [{:id :layer
+                                               :target-layer :scene/terrain
                                                :tiles [[nil nil nil]
                                                        [nil nil nil]
                                                        [nil nil nil]]}]}}]
                 :tilesets [{:id :terrain
                             :label "Terrain"}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default
                 :selected-brush-index 0
                 :selected-brush-layer-index 0})]
     (is (= :terrain (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
-(deftest brush-workspace-defaults_missing_target_layer_from_profile
+(deftest brush-workspace-defaults-missing-target-layer-from-profile
   (let [state (model/derive-brush-workspace-state
                {:brushes [{:id :brush
                            :label "Brush"
@@ -74,7 +87,7 @@
     (is (= :scene/terrain
            (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))))
 
-(deftest pattern-brush-creation-adds_selected_project_brush
+(deftest pattern-brush-creation-adds-selected-project-brush
   (let [state (model/add-pattern-brush! {:brushes []})]
     (is (= 0 (:selected-brush-index state)))
     (is (= :brush (get-in state [:brushes 0 :id])))
@@ -84,18 +97,26 @@
     (is (= {:x 1 :y 1} (get-in state [:brushes 0 :pattern :anchor])))
     (is (= [] (get-in state [:brushes 0 :pattern :layers])))))
 
-(deftest pattern-brush-creation-adds_initial_layer_when_tileset_exists
+(deftest pattern-brush-creation-adds-initial-layer-when-source-layer-exists
   (let [state (model/add-pattern-brush!
                {:brushes []
-                :tilesets [{:id :terrain}]})]
+                :tilesets [{:id :terrain}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default})]
     (is (= 0 (:selected-brush-layer-index state)))
+    (is (= :scene/terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))
     (is (= :terrain (get-in state [:brushes 0 :pattern :layers 0 :tileset])))
     (is (= [[nil nil nil]
             [nil nil nil]
             [nil nil nil]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))))
 
-(deftest pattern-brush-creation-targets_profile_layer
+(deftest pattern-brush-creation-targets-profile-layer
   (let [state (model/add-pattern-brush!
                {:brushes []
                 :tilesets [{:id :terrain}]
@@ -110,7 +131,7 @@
     (is (= :terrain
            (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
-(deftest pattern-brush-creation-targets_terrain_profile_layer
+(deftest pattern-brush-creation-targets-terrain-profile-layer
   (let [state (model/add-pattern-brush!
                {:brushes []
                 :terrain-sets [{:id :overworld}]
@@ -128,14 +149,14 @@
            (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
     (is (nil? (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
-(deftest pattern-brush-creation-deduplicates_ids
+(deftest pattern-brush-creation-deduplicates-ids
   (let [state (model/add-pattern-brush!
                {:brushes [{:id :brush
                            :label "Brush"}]})]
     (is (= :brush-2 (get-in state [:brushes 1 :id])))
     (is (= "Brush 2" (get-in state [:brushes 1 :label])))))
 
-(deftest pattern-layer-add-requires_tileset
+(deftest pattern-layer-add-requires-tileset
   (let [state (model/add-pattern-layer!
                {:selected-brush-index 0
                 :brushes [{:id :brush
@@ -146,7 +167,7 @@
                 :tilesets []})]
     (is (= [] (get-in state [:brushes 0 :pattern :layers])))))
 
-(deftest pattern-layer-add-allows_terrain_source_without_tileset
+(deftest pattern-layer-add-allows-terrain-source-without-tileset
   (let [state (model/add-pattern-layer!
                {:selected-brush-index 0
                 :brushes [{:id :brush
@@ -167,7 +188,7 @@
     (is (= :overworld
            (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))))
 
-(deftest pattern-layer-tileset-change-updates_target_layer
+(deftest pattern-layer-tileset-change-updates-target-layer
   (let [state (model/set-pattern-layer-tileset!
                {:selected-brush-index 0
                 :selected-brush-layer-index 0
@@ -197,7 +218,7 @@
     (is (= :scene/props
            (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))))
 
-(deftest pattern-layer-terrain-set-change-updates_selected_layer
+(deftest pattern-layer-terrain-set-change-updates-selected-layer
   (let [state (model/set-pattern-layer-terrain-set!
                {:selected-brush-index 0
                 :selected-brush-layer-index 0
@@ -217,7 +238,7 @@
     (is (= :dungeon
            (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))))
 
-(deftest pattern-size-update-resizes_existing_layers
+(deftest pattern-size-update-resizes-existing-layers
   (let [state (model/set-pattern-size!
                {:selected-brush-index 0
                 :selected-brush-layer-index 0
@@ -239,7 +260,7 @@
             [:g :h]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))))
 
-(deftest pattern-anchor-update-clamps_to_pattern_size
+(deftest pattern-anchor-update-clamps-to-pattern-size
   (let [state (model/set-pattern-anchor!
                {:selected-brush-index 0
                 :brushes [{:id :brush
@@ -253,7 +274,7 @@
     (is (= {:x 2 :y 0}
            (get-in state [:brushes 0 :pattern :anchor])))))
 
-(deftest pattern-size-update-clamps_existing_anchor
+(deftest pattern-size-update-clamps-existing-anchor
   (let [state (model/set-pattern-size!
                {:selected-brush-index 0
                 :brushes [{:id :brush
@@ -267,7 +288,7 @@
     (is (= {:x 1 :y 0}
            (get-in state [:brushes 0 :pattern :anchor])))))
 
-(deftest pattern-layer-clear-empties_selected_layer
+(deftest pattern-layer-clear-empties-selected-layer
   (let [state (model/clear-pattern-layer!
                {:selected-brush-index 0
                 :selected-brush-layer-index 1
@@ -290,7 +311,7 @@
             [nil nil]]
            (get-in state [:brushes 0 :pattern :layers 1 :tiles])))))
 
-(deftest pattern-layer-delete-removes_selected_layer_and_selects_neighbor
+(deftest pattern-layer-delete-removes-selected-layer-and-selects-neighbor
   (let [state (model/delete-pattern-layer!
                {:selected-brush-index 0
                 :selected-brush-layer-index 1
@@ -314,7 +335,7 @@
     (is (= 1 (:selected-brush-layer-index state)))
     (is (nil? (:brush-selected-tile state)))))
 
-(deftest pattern-layer-delete-keeps_last_layer
+(deftest pattern-layer-delete-keeps-last-layer
   (let [state (model/delete-pattern-layer!
                {:selected-brush-index 0
                 :selected-brush-layer-index 0
@@ -330,7 +351,7 @@
            (map (get-in state [:brushes 0 :pattern :layers]) :id)))
     (is (= 0 (:selected-brush-layer-index state)))))
 
-(deftest pattern-grid-paint-updates_selected_layer
+(deftest pattern-map-paint-updates-selected-layer
   (let [state (model/set-pattern-tile!
                {:selected-brush-index 0
                 :selected-brush-layer-index 0
@@ -348,3 +369,82 @@
     (is (= [[nil :grass]
             [nil nil]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))))
+
+(def source-layer-test-state
+  {:layer-profiles [{:id :default
+                     :layers [{:id :scene/terrain
+                               :label "Terrain"
+                               :role :source
+                               :data-kind :terrain
+                               :terrain-set :overworld}
+                              {:id :scene/objects
+                               :label "Objects"
+                               :role :source
+                               :data-kind :tile-ref
+                               :tileset :objects}]}]
+   :selected-layer-profile-id :default
+   :tilesets [{:id :objects}]
+   :terrain-sets [{:id :overworld}]})
+
+(deftest source-layer-options-include-tile-and-terrain-source-layers
+  (let [options (model/source-layer-options source-layer-test-state)]
+    (is (= ["Terrain" "Objects"] (map options :label)))
+    (is (= :scene/terrain (get-in options [0 :layer :id])))
+    (is (= :scene/objects (get-in options [1 :layer :id])))))
+
+(deftest add-pattern-layer-with-details-targets-selected-source-layer
+  (let [state (model/add-pattern-layer-with-details
+               (merge source-layer-test-state
+                      {:selected-brush-index 0
+                       :brushes [{:id :brush
+                                  :kind :pattern
+                                  :pattern {:size {:w 2 :h 1}
+                                            :anchor {:x 0 :y 0}
+                                            :layers []}}]})
+               {:id "hut"
+                :name "Hut"
+                :source-layer-index 1})]
+    (is (= :hut (get-in state [:brushes 0 :pattern :layers 0 :id])))
+    (is (= "Hut" (get-in state [:brushes 0 :pattern :layers 0 :label])))
+    (is (= :scene/objects
+           (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))
+    (is (= :objects
+           (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
+
+(deftest rename-selected-pattern-layer-can-switch-target-layer-kind
+  (let [state (model/rename-selected-pattern-layer
+               (merge source-layer-test-state
+                      {:selected-brush-index 0
+                       :selected-brush-layer-index 0
+                       :brushes [{:id :brush
+                                  :kind :pattern
+                                  :pattern {:size {:w 1 :h 1}
+                                            :anchor {:x 0 :y 0}
+                                            :layers [{:id :layer
+                                                      :label "Layer"
+                                                      :data-kind :tile-ref
+                                                      :target-layer :scene/objects
+                                                      :tileset :objects
+                                                      :tiles [[nil]]}]}}]})
+               {:id "terrain"
+                :name "Terrain"
+                :source-layer-index 0})]
+    (is (= :terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :data-kind])))
+    (is (= :scene/terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))
+    (is (= :overworld
+           (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
+    (is (nil? (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
+
+(deftest brush-identity-operations-add-rename-duplicate-and-delete
+  (let [state (model/add-pattern-brush-with-identity
+               {:brushes []}
+               {:id "hut" :name "Hut"})
+        state (model/rename-selected-brush state {:id "house" :name "House"})
+        state (model/duplicate-selected-brush state {:id "house-copy"
+                                                     :name "House Copy"})
+        state (model/delete-selected-brush state)]
+    (is (= [:house] (map (:brushes state) :id)))
+    (is (= "House" (get-in state [:brushes 0 :label])))
+    (is (= 0 (:selected-brush-index state)))))

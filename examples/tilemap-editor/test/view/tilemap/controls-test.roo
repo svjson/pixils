@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.tilemap.controls-test
   (:require proof.core
             [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.layers.controls :as layer-controls]
             [tilemap-editor.view.tilemap.controls :as controls]))
 
 (deftest empty-layer-list-keeps-minimum-height
@@ -76,6 +77,29 @@
 (deftest layer-list-is-reorderable
   (is (= true (:reorderable?
                (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
+
+(deftest shared-layer-list-render-key-changes-with-layer-identity
+  (let [first-key (layer-controls/layer-list-render-key
+                   {:layers [{:id :terrain
+                              :label "Terrain"}]
+                    :selected-layer-index 0})
+        second-key (layer-controls/layer-list-render-key
+                    {:layers [{:id :objects
+                               :label "Objects"}]
+                     :selected-layer-index 0})]
+    (is (not= first-key second-key))))
+
+(deftest shared-layer-source-menu-item-matches_layer_kind
+  (let [terrain-item (layer-controls/layer-source-menu-item
+                      {:layer {:data-kind :terrain}
+                       :terrain-sets [{:id :caves}]})
+        tile-item (layer-controls/layer-source-menu-item
+                   {:layer {:data-kind :tile-ref}
+                    :tilesets [{:id :props}]})]
+    (is (= "Change Terrain Set" (:label terrain-item)))
+    (is (= :terrain-set (-> terrain-item :payload :command)))
+    (is (= "Change Tileset" (:label tile-item)))
+    (is (= :tileset (-> tile-item :payload :command)))))
 
 (deftest layer-reorder-moves_layers_and_remaps_selected_and_hidden_indices
   (let [state (controls/apply-layer-reorder
@@ -335,18 +359,21 @@
           {:data-kind :terrain
            :terrain-set :caves}))))
 
-(deftest layer-context-menu-enables_terrain_set_for_terrain_layers
+(deftest layer-context-menu-uses_source_action_for_layer_kind
   (let [terrain-item (nth (:items (controls/layer-context-menu
                                    {:layer {:data-kind :terrain}
                                     :terrain-sets [{:id :caves}]}))
                          2)
         tile-item (nth (:items (controls/layer-context-menu
                                 {:layer {:data-kind :tile-ref}
-                                 :terrain-sets [{:id :caves}]}))
+                                 :tilesets [{:id :props}]}))
                        2)]
+    (is (= "Change Terrain Set" (:label terrain-item)))
     (is (= :terrain-set (-> terrain-item :payload :command)))
     (is (not= true (:disabled? terrain-item)))
-    (is (= true (:disabled? tile-item)))))
+    (is (= "Change Tileset" (:label tile-item)))
+    (is (= :tileset (-> tile-item :payload :command)))
+    (is (not= true (:disabled? tile-item)))))
 
 (deftest append-layer-deduplicates_layer_ids
   (let [state (controls/append-layer

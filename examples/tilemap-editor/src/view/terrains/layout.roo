@@ -811,6 +811,7 @@
     :same (terrain-rule-center-tile state)
     :not-same nil
     :other-terrain nil
+    :not-same-or-none nil
     :default (if-let [terrain-id (condition-terrain-id condition)]
                (terrain-rule-terrain-tile state terrain-id)
                nil)))
@@ -889,6 +890,8 @@
       (when (= condition :not-same)
         (draw-match-different-terrain!))
       (when (= condition :other-terrain)
+        (draw-match-different-terrain!))
+      (when (= condition :not-same-or-none)
         (draw-match-different-terrain!))
       (draw-rule-grid-cell-border! (cond
                                      (:center? state)
@@ -2777,7 +2780,12 @@
               :type :action
               :action :terrain/standard-opposing-menu
               :payload {:action :set-opposing
-                        :opposing :any-other}}]
+                        :opposing :any-other}}
+             {:label "Not same or empty"
+              :type :action
+              :action :terrain/standard-opposing-menu
+              :payload {:action :set-opposing
+                        :opposing :not-same-or-none}}]
             (map (filter (or (:terrains terrain-set) [])
                          (fn [terrain]
                            (not= (:id terrain) center-terrain-id)))

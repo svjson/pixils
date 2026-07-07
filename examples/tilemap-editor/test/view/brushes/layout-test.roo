@@ -2,40 +2,117 @@
   (:require proof.core
             [tilemap-editor.view.brushes.layout :as layout]))
 
-(deftest brush-list-panel-has_project_header_and_add_button
+(deftest brush-list-panel-has-project-header-and-add-action
   (let [panel (layout/make-brush-list-panel)
         header (head (:children panel))
-        add-button (nth (:children header) 1)]
+        header-children (:children header)
+        add-button (nth header-children 1)]
     (is (= "Project Brushes" (-> panel :state :title)))
+    (is (= 2 (count header-children)))
     (is (= 'ui/button (:mode add-button)))
     (is (= :ui/toolbar-button (:class add-button)))
     (is (= "+" (-> add-button :state :label)))))
 
-(deftest pattern-layer-tileset-combo-lists_tilesets
-  (let [combo (layout/pattern-layer-tileset-combo-child
-               [{:id :terrain
-                 :label "Terrain"}
-                {:id :decor
-                 :label "Decor"}]
-               1
-               false)]
-    (is (= [{:value 0 :label "Terrain"}
-            {:value 1 :label "Decor"}]
-           (-> combo :state :options)))
-    (is (= 1 (-> combo :state :selected-index)))
-    (is (= false (-> combo :state :disabled?)))))
+(deftest brush-list-actions-are-context-menu-items
+  (let [items (:items (layout/brush-context-menu))]
+    (is (= "Edit Brush" (-> items (nth 0) :label)))
+    (is (= :edit (-> items (nth 0) :payload :command)))
+    (is (= "Duplicate Brush" (-> items (nth 1) :label)))
+    (is (= :duplicate (-> items (nth 1) :payload :command)))
+    (is (= "Delete Brush" (-> items (nth 3) :label)))
+    (is (= :delete (-> items (nth 3) :payload :command)))))
 
-(deftest brush-palette-lists_terrain_values_for_terrain_layer
-  (let [child (layout/brush-tile-palette-list-child
-               {:data-kind :terrain
-                :terrain-set :overworld
-                :terrain-sets [{:id :overworld
-                                :terrains [{:id :grass
-                                            :label "Grass"}]}]}
-               :grass
-               false)]
-    (is (= [{:value :grass
-             :label "Grass"}]
-           (-> child :state :options)))
-    (is (= [0] (-> child :state :selected-indices)))
-    (is (not= true (-> child :state :disabled?)))))
+(deftest pattern-controls-layer-panel-binds-body-through-panel-state
+  (let [layer-panel (layout/pattern-layer-controls)]
+    (is (= 'ui/header-panel (:mode layer-panel)))
+    (is (= (get-in layer-panel [:state :layers])
+           (get-in layer-panel [:children 1 :state :layers])))))
+
+(deftest selected-brush-map-tile-size-uses_selected_layer_tileset
+  (let [state {:selected-brush-index 0
+               :selected-brush-layer-index 0
+               :tilesets [{:id :objects
+                           :tile-size {:w 32 :h 24}}]}
+        brush {:kind :pattern
+               :pattern {:layers [{:tileset :objects}]}}]
+    (is (= {:w 32 :h 24}
+           (layout/selected-brush-map-tile-size state brush)))))
+
+(deftest selected-brush-map-tile-size-uses_selected_terrain_set_tileset
+  (let [state {:selected-brush-index 0
+               :selected-brush-layer-index 0
+               :tilesets [{:id :terrain
+                           :tile-size 32}]
+               :terrain-sets [{:id :ground
+                               :tileset :terrain}]}
+        brush {:kind :pattern
+               :pattern {:layers [{:data-kind :terrain
+                                   :terrain-set :ground}]}}]
+    (is (= {:w 32 :h 32}
+           (layout/selected-brush-map-tile-size state brush)))))
+
+(deftest brush-map-editor-has_manual_zoom_control
+  (let [children (layout/brush-map-editor-children)]
+    (is (= 'map-area (-> children (nth 0) :mode)))
+    (is (= 'map-view-controls (-> children (nth 1) :mode)))))
+
+(deftest brush-map-editor-state-uses_source_tile_size_and_neutral_zoom
+  (let [state (layout/derive-brush-map-editor-state
+               {:selected-brush-index 0
+                :selected-brush-layer-index 0
+                :tilesets [{:id :objects
+                            :tile-size 32}]
+                :brushes [{:id :hut
+                           :kind :pattern
+                           :pattern {:size {:w 2 :h 2}
+                                     :layers [{:tileset :objects
+                                               :tiles [[nil nil]
+                                                       [nil nil]]}]}}]})]
+    (is (= {:w 32 :h 32} (:tile-size state)))
+    (is (= 1 (:zoom state)))))
+
+(deftest brush-map-editor-state-preserves_manual_zoom
+  (let [state (layout/derive-brush-map-editor-state
+               {:selected-brush-index 0
+                :selected-brush-layer-index 0
+                :zoom 3
+                :tilesets [{:id :objects
+                            :tile-size 32}]
+                :brushes [{:id :hut
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :layers [{:tileset :objects
+                                               :tiles [[nil]]}]}}]})]
+    (is (= 3 (:zoom state)))))
+
+(deftest brush-layer-source-result-changes-layer-tileset
+  (let [state (layout/apply-brush-layer-source-dialog-result
+               {:selected-brush-index 0
+                :selected-brush-layer-index 0
+                :tilesets [{:id :terrain}
+                           {:id :props}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}
+                                           {:id :scene/props
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :props}]}]
+                :selected-layer-profile-id :default
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :anchor {:x 0 :y 0}
+                                     :layers [{:id :layer
+                                               :target-layer :scene/terrain
+                                               :tileset :terrain
+                                               :tiles [[nil]]}]}}]}
+               {:type :confirm
+                :operation :tileset
+                :source-index 1})]
+    (is (= :props
+           (get-in state [:brushes 0 :pattern :layers 0 :tileset])))
+    (is (= :scene/props
+           (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))))

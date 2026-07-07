@@ -5,7 +5,6 @@
             [pixils.test.runtime :as runtime]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.model.tilemap :as tilemap]
-            [tilemap-editor.view.brushes.layout :as brush-layout]
             [tilemap-editor.view.brushes.model :as brush-model]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.terrains.model :as terrain-model]))
@@ -200,7 +199,7 @@
     (is (= true (:selected-terrain-rule-exclusive? workspace))))
   (cleanup-application-startup-test-files!))
 
-(deftest loaded-project-brush-workspace-uses-loaded-tilesets
+(deftest loaded-project-brush-workspace-requires-target-source-layers
   (cleanup-application-startup-test-files!)
   (io/spit-edn! BRUSH-PATH
                 {:format data/project-format
@@ -231,17 +230,9 @@
         layer (brush-model/selected-pattern-layer
                brush
                (:selected-brush-layer-index workspace))
-        selected-index (brush-model/tileset-index (:tilesets workspace)
-                                                  (:tileset layer))
-        combo (brush-layout/pattern-layer-tileset-combo-child
-               (:tilesets workspace)
-               selected-index
-               (:brush-layer-panel-disabled? workspace))]
-    (is (= :loaded (:tileset layer)))
-    (is (= [{:value 0 :label "Loaded"}]
-           (-> combo :state :options)))
-    (is (= 0 (-> combo :state :selected-index)))
-    (is (= false (-> combo :state :disabled?))))
+        source-options (brush-model/source-layer-options workspace)]
+    (is (nil? layer))
+    (is (= [] source-options)))
   (cleanup-application-startup-test-files!))
 
 (deftest loaded-project-resources-feed-resource-and-tileset-state
@@ -327,7 +318,7 @@
     (runtime/update! app)
     (is (= :preview (:terrain-rule-application (runtime/active-state app))))))
 
-(deftest edit-menu-enables_selection_commands_when_map_selection_exists
+(deftest edit-menu-enables-selection-commands-when-map-selection-exists
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -445,7 +436,7 @@
                                                  "Cave Depth")))))
   (cleanup-application-startup-test-files!))
 
-(deftest map-canvas-right-click-clears_active_tile_layer_cell
+(deftest map-canvas-right-click-clears-active-tile-layer-cell
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -546,7 +537,7 @@
       (is (= 1 (:selected-index (runtime/view-state terrain-unit-combo))))
       (is (= "2 x 2" (:selected-label (runtime/view-state terrain-unit-combo)))))))
 
-(deftest masks-tab-renders_mask_sets_from_state
+(deftest masks-tab-renders-mask-sets-from-state
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -567,7 +558,7 @@
                                                   "ui/list-box"
                                                   ":soft-edge"))))))
 
-(deftest masks-tab-renders_selected_mask_palette_and_canvas
+(deftest masks-tab-renders-selected-mask-palette-and-canvas
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -613,7 +604,7 @@
              (:selected-mask-tile-items
               (runtime/view-state composition-canvas)))))))
 
-(deftest masks-tab-source_tileset_selection_stores_tileset_id
+(deftest masks-tab-source-tileset-selection-stores-tileset-id
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -661,7 +652,7 @@
       (is (= 1 (:selected-tileset-index
                 (runtime/view-state tileset-selector)))))))
 
-(deftest masks-tab-clicking_composed_tile_selects_it
+(deftest masks-tab-clicking-composed-tile-selects-it
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
@@ -699,7 +690,7 @@
       (is (= 0 (:selected-mask-tile-item-index
                 (runtime/view-state canvas)))))))
 
-(deftest masks-tab-context_menu_can_remove_composed_tile
+(deftest masks-tab-context-menu-can-remove-composed-tile
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)

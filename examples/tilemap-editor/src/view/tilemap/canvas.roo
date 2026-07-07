@@ -744,6 +744,7 @@
                        :map-hover-cell (ui/bind-state :map-hover-cell)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
+                       :workbook-history (ui/bind-state :workbook-history)
                        :layers (ui/bind-state :layers)
                        :terrain-rule-application
                        (ui/bind-state :terrain-rule-application)
