@@ -224,8 +224,9 @@
             (not (text-input-has-selection? state)))
       state
       (do
-        (clipboard/set-text! (text-input-selected-text state))
-        (text-input-delete-selection state ctx)))
+        (if (clipboard/set-text! (text-input-selected-text state))
+          (text-input-delete-selection state ctx)
+          state)))
 
     (key-matches? event :key/V :key/v)
     (if (text-input-read-only? state)

@@ -72,11 +72,17 @@ namespace
   {
    public:
     std::string text;
+    bool set_succeeds = true;
 
     std::string get_text() override { return text; }
     bool has_text() override { return !text.empty(); }
-    bool set_text(const std::string& next_text, std::string*) override
+    bool set_text(const std::string& next_text, std::string* error) override
     {
+      if (!set_succeeds)
+      {
+        if (error) *error = "test clipboard failure";
+        return false;
+      }
       text = next_text;
       return true;
     }
@@ -816,6 +822,55 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
   EXPECT_EQ(text->to_string(), "\"xy\"");
   EXPECT_EQ(last_change->to_string(), "{:value \"xy\"}");
   EXPECT_EQ(cursor_index->num().get_int(), 2);
+}
+
+TEST_F(TextInputTest, text_input_cut_does_not_delete_when_clipboard_write_fails)
+{
+  ScopedClipboardBackend clipboard;
+  clipboard.backend.text = "sentinel";
+  clipboard.backend.set_succeeds = false;
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "abcd"
+                              :last-change nil})
+       :children [{:mode 'ui/text-input
+                   :style {:width 80 :height 22}
+                   :state {:value (pixils.ui/bind-state :text)
+                           :auto-focus? true}}]
+       :on {:text-input/change (fn [state event ctx]
+                                 (-> state
+                                     (assoc :text (-> event :payload :value))
+                                     (assoc :last-change (:payload event))))}})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_A);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_C);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_X);
+
+  auto text = get_keyword(session.active_mode->state, "text");
+  auto last_change = get_keyword(session.active_mode->state, "last-change");
+  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  ASSERT_NE(text, nullptr);
+  ASSERT_NE(last_change, nullptr);
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(selection_start, nullptr);
+  ASSERT_NE(selection_end, nullptr);
+  EXPECT_EQ(text->to_string(), "\"abcd\"");
+  EXPECT_EQ(last_change->type, Roo::Value::Type::NIL);
+  EXPECT_EQ(cursor_index->num().get_int(), 4);
+  EXPECT_EQ(selection_start->num().get_int(), 0);
+  EXPECT_EQ(selection_end->num().get_int(), 4);
+  EXPECT_EQ(clipboard.backend.text, "sentinel");
 }
 
 TEST_F(TextInputTest, read_only_text_input_shortcuts_copy_without_cutting_or_pasting)

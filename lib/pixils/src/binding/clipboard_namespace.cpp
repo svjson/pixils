@@ -33,7 +33,7 @@ namespace Pixils::Clipboard
 
       bool set_text(const std::string& text, std::string* error) override
       {
-        if (SDL_SetClipboardText(text.c_str()) == 0) return true;
+        if (SDL_SetClipboardText(text.c_str())) return true;
         if (error) *error = SDL_GetError();
         return false;
       }
@@ -86,8 +86,7 @@ namespace Pixils::Script
       std::string error;
       if (!Clipboard::backend().set_text(args[0]->str(), &error))
       {
-        throw Roo::InvocationException(std::string("Could not set clipboard text: ") +
-                                       error);
+        return Roo::Constant::BOOL_FALSE;
       }
 
       return Roo::Constant::BOOL_TRUE;
