@@ -40,6 +40,60 @@
     (is (= true (:valid? result)))
     (is (= {} (:errors result)))))
 
+(deftest validate-rejects-values-outside-fixed-valid-values
+  (let [role-schema {:field/role {:type :keyword
+                                  :valid-values
+                                  [:role/stable-lad
+                                   :role/stable-master]}}
+        result (schema/validate role-schema
+                                {:field/role :role/smith})]
+    (is (= false (:valid? result)))
+    (is (= [{:rule :valid-values
+             :allowed [:role/stable-lad
+                       :role/stable-master]
+             :actual :role/smith}]
+           (get-in result [:errors :field/role])))))
+
+(deftest validate-with-context-resolves-source-backed-valid-values
+  (let [schema {:field/place {:type :keyword
+                              :valid-values
+                              {:from [:vocabularies :places]
+                               :value-path [:id]
+                               :label-path [:label]}}}
+        context {:vocabularies
+                 {:places [{:id :place/dawnkeep-stables
+                            :label "Dawnkeep Stables"}
+                           {:id :place/dawnkeep-smithy
+                            :label "Dawnkeep Smithy"}]}}
+        valid-result (schema/validate-with-context
+                      schema
+                      {:field/place :place/dawnkeep-stables}
+                      context)
+        invalid-result (schema/validate-with-context
+                        schema
+                        {:field/place :place/dawnkeep-market}
+                        context)]
+    (is (= true (:valid? valid-result)))
+    (is (= false (:valid? invalid-result)))
+    (is (= [{:rule :valid-values
+             :allowed [:place/dawnkeep-stables
+                       :place/dawnkeep-smithy]
+             :actual :place/dawnkeep-market}]
+           (get-in invalid-result [:errors :field/place])))))
+
+(deftest valid-value-options-resolve-labels-and-values
+  (let [field-schema {:type :keyword
+                      :valid-values
+                      {:from [:vocabularies :places]
+                       :value-path [:id]
+                       :label-path [:label]}}
+        context {:vocabularies
+                 {:places [{:id :place/dawnkeep-stables
+                            :label "Dawnkeep Stables"}]}}]
+    (is (= [{:value :place/dawnkeep-stables
+             :label "Dawnkeep Stables"}]
+           (schema/valid-value-options context field-schema)))))
+
 (deftest form-projection-selects-current-collection-item
   (let [state (form/projection-state
                {:items [{:name "Ada"}
@@ -292,6 +346,48 @@
     (is (= 'pixils/form-keyword-input (:mode control)))
     (is (contains? (:state control) :value))
     (is (= true (get-in control [:state :auto-focus?])))))
+
+(deftest make-renders-valid-values-fields-with-select-control
+  (let [view (form/make {:schema {:field/role
+                                  {:type :keyword
+                                   :valid-values
+                                   [:role/stable-lad
+                                    :role/stable-master]}}
+                         :text {:field/role "Role"}
+                         :layout [:field/role]
+                         :value {:field/role :role/stable-lad}})
+        field-view (head (:children view))
+        control (nth (:children field-view) 1)]
+    (is (= 'pixils/form-select-control (:mode control)))
+    (is (= [{:value nil
+             :label ""}
+            {:value :role/stable-lad
+             :label "role/stable-lad"}
+            {:value :role/stable-master
+             :label "role/stable-master"}]
+           (get-in control [:state :options])))))
+
+(deftest make-renders-context-backed-valid-values-fields-with-select-control
+  (let [view (form/make {:schema {:field/place
+                                  {:type :keyword
+                                   :required true
+                                   :valid-values
+                                   {:from [:vocabularies :places]
+                                    :value-path [:id]
+                                    :label-path [:label]}}}
+                         :context {:vocabularies
+                                   {:places
+                                    [{:id :place/dawnkeep-stables
+                                      :label "Dawnkeep Stables"}]}}
+                         :layout [:field/place]
+                         :value {:field/place
+                                 :place/dawnkeep-stables}})
+        field-view (head (:children view))
+        control (nth (:children field-view) 1)]
+    (is (= 'pixils/form-select-control (:mode control)))
+    (is (= [{:value :place/dawnkeep-stables
+             :label "Dawnkeep Stables"}]
+           (get-in control [:state :options])))))
 
 (deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make

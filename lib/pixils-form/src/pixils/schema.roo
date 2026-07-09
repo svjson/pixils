@@ -46,24 +46,129 @@
        :max max-value
        :actual value})))
 
-(defun validate-field [schema value field-id]
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun valid-values-map [valid-values]
+  (if (= (type-of valid-values) "map")
+    valid-values
+    {}))
+
+(defun valid-values-items [context valid-values]
+  (cond
+    (nil? valid-values)
+    []
+
+    (= (type-of valid-values) "vector")
+    valid-values
+
+    (= (type-of valid-values) "map")
+    (if (contains? valid-values :from)
+      (or (get-in (or context {}) (:from valid-values)) [])
+      (or (:values valid-values) []))
+
+    :default []))
+
+(defun option-value [item valid-values]
+  (let [spec (valid-values-map valid-values)
+        value-path (:value-path spec)]
+    (cond
+      value-path
+      (get-in item value-path)
+
+      (= (type-of item) "map")
+      (if (contains? item :value)
+        (:value item)
+        (:id item))
+
+      :default item)))
+
+(defun option-label [item valid-values value]
+  (let [spec (valid-values-map valid-values)
+        label-path (:label-path spec)]
+    (cond
+      label-path
+      (str (get-in item label-path))
+
+      (= (type-of item) "map")
+      (str (or (:label item)
+               (:name item)
+               (:id item)
+               (:value item)
+               value))
+
+      :default
+      (keyword-label value))))
+
+(defun valid-value-option [valid-values item]
+  (let [value (option-value item valid-values)]
+    {:value value
+     :label (option-label item valid-values value)}))
+
+(defun valid-value-options [context field-schema]
+  (let [valid-values (:valid-values field-schema)]
+    (map (valid-values-items context valid-values)
+         (fn [item]
+           (valid-value-option valid-values item)))))
+
+(defun valid-value-values [context field-schema]
+  (map (valid-value-options context field-schema)
+       (fn [option]
+         (:value option))))
+
+(defun value-in? [values value]
+  (reduce (or values [])
+          false
+          (fn [found item]
+            (or found (= item value)))))
+
+(defun valid-value-error [context value field-schema]
+  (let [valid-values (:valid-values field-schema)
+        allowed (valid-value-values context field-schema)]
+    (when (and valid-values
+               (not (blank-value? value))
+               (not (value-in? allowed value)))
+      {:rule :valid-values
+       :allowed allowed
+       :actual value})))
+
+(defun validate-field-with-context [schema value field-id context]
   (let [field-schema (get (or schema {}) field-id)
         value (field-value value field-id field-schema)
         errors (append-error [] (required-error value field-schema))
         errors (append-error errors (min-error value field-schema))
-        errors (append-error errors (max-error value field-schema))]
+        errors (append-error errors (max-error value field-schema))
+        errors (append-error errors
+                             (valid-value-error context
+                                                value
+                                                field-schema))]
     errors))
 
-(defun validation-errors [schema value]
+(defun validate-field [schema value field-id]
+  (validate-field-with-context schema value field-id {}))
+
+(defun validation-errors-with-context [schema value context]
   (reduce-kv (or schema {})
              {}
              (fn [errors field-id field-schema]
-               (let [field-errors (validate-field schema value field-id)]
+               (let [field-errors (validate-field-with-context schema
+                                                               value
+                                                               field-id
+                                                               context)]
                  (if (empty? field-errors)
                    errors
                    (assoc errors field-id field-errors))))))
 
-(defun validate [schema value]
-  (let [errors (validation-errors schema value)]
+(defun validation-errors [schema value]
+  (validation-errors-with-context schema value {}))
+
+(defun validate-with-context [schema value context]
+  (let [errors (validation-errors-with-context schema value context)]
     {:valid? (empty? (keys errors))
      :errors errors}))
+
+(defun validate [schema value]
+  (validate-with-context schema value {}))
