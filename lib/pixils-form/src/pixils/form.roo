@@ -69,6 +69,12 @@
    :layout {:direction :column
             :gap 8}})
 
+(def default-object-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
 (def default-action-style
   {:width 96
    :height 24})
@@ -581,6 +587,24 @@
 (defun display-control [field-id field-schema field-label opts]
   (field-value-text field-id field-schema))
 
+(defcomponent pixils/form-object-control
+  {})
+
+(defun object-schema [field-schema opts]
+  (model-schema/schema-document-with-root (:schema opts) field-schema))
+
+(defun object-control [field-id field-schema field-label opts]
+  (let [schema (object-schema field-schema opts)
+        object-opts (assoc opts :schema schema)
+        children (map (or (:layout field-schema)
+                          (default-layout schema))
+                      (fn [item]
+                        (layout-item-view item object-opts)))]
+    {:mode 'pixils/form-object-control
+     :style (or (:object-style opts) default-object-style)
+     :state {:value (field-binding field-id field-schema)}
+     :children children}))
+
 (defun select-option-index-from [options value index]
   (cond
     (>= index (count options))
@@ -640,6 +664,7 @@
   {:text text-control
    :string text-control
    :select select-control
+   :object object-control
    :keyword keyword-control
    :integer number-control
    :number number-control

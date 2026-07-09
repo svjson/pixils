@@ -152,6 +152,47 @@
              :actual :role/smith}]
            (get-in result [:errors :field/role])))))
 
+(deftest schema-field-ids-use-object-root-fields
+  (let [schema-doc {:schema {:type :object
+                             :fields {:relation {:type :keyword}
+                                      :place-id {:type :keyword}}}}]
+    (is (= [:relation :place-id]
+           (schema/schema-field-ids schema-doc)))))
+
+(deftest validate-validates-object-root-fields
+  (let [schema-doc {:schema {:type :object
+                             :fields {:relation
+                                      {:type :keyword
+                                       :required true}
+                                      :priority
+                                      {:type :integer
+                                       :min 1}}}}
+        result (schema/validate schema-doc
+                                {:relation ""
+                                 :priority 0})]
+    (is (= false (:valid? result)))
+    (is (= [{:rule :required}]
+           (get-in result [:errors :relation])))
+    (is (= [{:rule :min
+             :min 1
+             :actual 0}]
+           (get-in result [:errors :priority])))))
+
+(deftest validate-validates-nested-object-fields
+  (let [schema-doc {:field/location
+                    {:type :object
+                     :fields {:place-id {:type :keyword
+                                         :required true}
+                              :anchor {:type :keyword}}}}
+        result (schema/validate schema-doc
+                                {:field/location
+                                 {:place-id ""
+                                  :anchor :stable/aisle}})]
+    (is (= false (:valid? result)))
+    (is (= [{:rule :object
+             :errors {:place-id [{:rule :required}]}}]
+           (get-in result [:errors :field/location])))))
+
 (deftest form-projection-selects-current-collection-item
   (let [state (form/projection-state
                {:items [{:name "Ada"}
@@ -469,6 +510,50 @@
             {:value :role/stable-master
              :label "role/stable-master"}]
            (get-in control [:state :options])))))
+
+(deftest make-renders-object-root-fields-without-explicit-layout
+  (let [view (form/make {:schema {:type :object
+                                  :fields {:relation
+                                           {:type :keyword
+                                            :valid-values
+                                            [:place-relation/works-at]}
+                                           :priority
+                                           {:type :integer
+                                            :min 1}}}
+                         :value {:relation :place-relation/works-at
+                                 :priority 10}})
+        relation-view (head (:children view))
+        relation-control (nth (:children relation-view) 1)
+        priority-view (nth (:children view) 1)
+        priority-control (nth (:children priority-view) 1)]
+    (is (= 2 (count (:children view))))
+    (is (= 'pixils/form-select-control (:mode relation-control)))
+    (is (= 'ui/number-input (:mode priority-control)))))
+
+(deftest make-renders-nested-object-fields
+  (let [view (form/make {:schema {:field/location
+                                  {:type :object
+                                   :fields {:place-id
+                                            {:type :keyword
+                                             :valid-values
+                                             [:place/dawnkeep-stables]}
+                                            :anchor
+                                            {:type :keyword}}}}
+                         :layout [:field/location]
+                         :value {:field/location
+                                 {:place-id
+                                  :place/dawnkeep-stables
+                                  :anchor :stable/aisle}}})
+        location-view (head (:children view))
+        object-control (nth (:children location-view) 1)
+        place-view (head (:children object-control))
+        place-control (nth (:children place-view) 1)
+        anchor-view (nth (:children object-control) 1)
+        anchor-control (nth (:children anchor-view) 1)]
+    (is (= 'pixils/form-object-control (:mode object-control)))
+    (is (= 2 (count (:children object-control))))
+    (is (= 'pixils/form-select-control (:mode place-control)))
+    (is (= 'pixils/form-keyword-input (:mode anchor-control)))))
 
 (deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make
