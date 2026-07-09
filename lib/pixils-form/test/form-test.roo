@@ -94,6 +94,64 @@
              :label "Dawnkeep Stables"}]
            (schema/valid-value-options context field-schema)))))
 
+(deftest schema-resolves-named-field-definition-references
+  (let [schema-doc {:definitions
+                    {:stable-role
+                     {:type :keyword
+                      :valid-values [:role/stable-lad
+                                     :role/stable-master]}}
+                    :schema
+                    {:field/role {:ref :stable-role
+                                  :required true}}}]
+    (is (= {:type :keyword
+            :valid-values [:role/stable-lad
+                           :role/stable-master]
+            :required true}
+           (schema/resolved-field-schema schema-doc :field/role)))))
+
+(deftest schema-resolves-nested-definition-references
+  (let [schema-doc {:definitions
+                    {:place-relation
+                     {:type :object
+                      :fields {:relation {:type :keyword}
+                               :place-id {:ref :place-id}}}
+                     :place-id
+                     {:type :keyword
+                      :valid-values
+                      {:from [:vocabularies :places]
+                       :value-path [:id]
+                       :label-path [:label]}}}
+                    :schema
+                    {:type :array
+                     :items {:ref :place-relation}}}]
+    (is (= {:type :array
+            :items {:type :object
+                    :fields {:relation {:type :keyword}
+                             :place-id
+                             {:type :keyword
+                              :valid-values
+                              {:from [:vocabularies :places]
+                               :value-path [:id]
+                               :label-path [:label]}}}}}
+           (schema/resolved-root-schema schema-doc)))))
+
+(deftest validate-resolves-field-definition-references
+  (let [schema-doc {:definitions
+                    {:stable-role
+                     {:type :keyword
+                      :valid-values [:role/stable-lad
+                                     :role/stable-master]}}
+                    :schema
+                    {:field/role {:ref :stable-role}}}
+        result (schema/validate schema-doc
+                                {:field/role :role/smith})]
+    (is (= false (:valid? result)))
+    (is (= [{:rule :valid-values
+             :allowed [:role/stable-lad
+                       :role/stable-master]
+             :actual :role/smith}]
+           (get-in result [:errors :field/role])))))
+
 (deftest form-projection-selects-current-collection-item
   (let [state (form/projection-state
                {:items [{:name "Ada"}
@@ -387,6 +445,29 @@
     (is (= 'pixils/form-select-control (:mode control)))
     (is (= [{:value :place/dawnkeep-stables
              :label "Dawnkeep Stables"}]
+           (get-in control [:state :options])))))
+
+(deftest make-renders-fields-through-named-definition-references
+  (let [view (form/make {:schema {:definitions
+                                  {:stable-role
+                                   {:type :keyword
+                                    :valid-values
+                                    [:role/stable-lad
+                                     :role/stable-master]}}
+                                  :schema
+                                  {:field/role {:ref :stable-role}}}
+                         :text {:field/role "Role"}
+                         :layout [:field/role]
+                         :value {:field/role :role/stable-lad}})
+        field-view (head (:children view))
+        control (nth (:children field-view) 1)]
+    (is (= 'pixils/form-select-control (:mode control)))
+    (is (= [{:value nil
+             :label ""}
+            {:value :role/stable-lad
+             :label "role/stable-lad"}
+            {:value :role/stable-master
+             :label "role/stable-master"}]
            (get-in control [:state :options])))))
 
 (deftest make-supports-hierarchical-model-projection-layout

@@ -661,7 +661,7 @@
 (defun field-view [field-id opts]
   (let [schema (or (:schema opts) {})
         text (:text opts)
-        field-schema (get schema field-id)
+        field-schema (model-schema/resolved-field-schema schema field-id)
         field-label (label-for field-id text)]
     (if field-schema
       {:style (or (:field-style opts) default-field-style)
@@ -745,7 +745,7 @@
       :default (field-view item opts))))
 
 (defun default-layout [schema]
-  (keys (or schema {})))
+  (model-schema/schema-field-ids schema))
 
 (defcomponent pixils/form-selection
   {:update (fn [state ctx]
