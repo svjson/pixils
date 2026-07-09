@@ -116,6 +116,104 @@
     (is (= false (:new? state)))
     (is (= nil (:new-value state)))))
 
+(deftest form-owned-delete-removes-selected-item-and-selects-next
+  (let [state (form/delete-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}
+                        {:name "Katherine"}]
+                :selected-index 1
+                :projected-index 1
+                :projected-item {:name "Grace"}})]
+    (is (= [{:name "Ada"}
+            {:name "Katherine"}]
+           (:items state)))
+    (is (= 1
+           (:selected-index state)))
+    (is (= nil
+           (:projected-index state)))
+    (is (= nil
+           (:projected-item state)))))
+
+(deftest form-owned-delete-selects-previous-when-last-item-is-removed
+  (let [state (form/delete-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}]
+                :selected-index 1})]
+    (is (= [{:name "Ada"}]
+           (:items state)))
+    (is (= 0
+           (:selected-index state)))))
+
+(deftest form-owned-delete-clears-selection-when-collection-becomes-empty
+  (let [state (form/delete-state
+               {:items [{:name "Ada"}]
+                :selected-index 0})]
+    (is (= []
+           (:items state)))
+    (is (= nil
+           (:selected-index state)))))
+
+(deftest form-owned-delete-without-valid-selection-is-no-op
+  (let [state {:items [{:name "Ada"}]
+               :selected-index nil}]
+    (is (= state
+           (form/delete-state state))))
+  (let [state {:items [{:name "Ada"}]
+               :selected-index 2}]
+    (is (= state
+           (form/delete-state state)))))
+
+(deftest form-owned-move-up-swaps-selected-item-with-previous
+  (let [state (form/move-up-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}
+                        {:name "Katherine"}]
+                :selected-index 2
+                :projected-index 2
+                :projected-item {:name "Katherine"}})]
+    (is (= [{:name "Ada"}
+            {:name "Katherine"}
+            {:name "Grace"}]
+           (:items state)))
+    (is (= 1
+           (:selected-index state)))
+    (is (= nil
+           (:projected-index state)))))
+
+(deftest form-owned-move-down-swaps-selected-item-with-next
+  (let [state (form/move-down-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}
+                        {:name "Katherine"}]
+                :selected-index 0})]
+    (is (= [{:name "Grace"}
+            {:name "Ada"}
+            {:name "Katherine"}]
+           (:items state)))
+    (is (= 1
+           (:selected-index state)))))
+
+(deftest form-owned-move-at-boundary-or-during-new-session-is-no-op
+  (let [state {:items [{:name "Ada"}
+                       {:name "Grace"}]
+               :selected-index 0}]
+    (is (= state
+           (form/move-up-state state))))
+  (let [state {:items [{:name "Ada"}
+                       {:name "Grace"}]
+               :selected-index 1}]
+    (is (= state
+           (form/move-down-state state))))
+  (let [state {:items [{:name "Ada"}]
+               :selected-index nil}]
+    (is (= state
+           (form/move-down-state state))))
+  (let [state {:items [{:name "Ada"}]
+               :selected-index 0
+               :new? true}]
+    (is (= state
+           (form/move-down-state state)))))
+
 (deftest form-owned-cancel-new-restores-previous-selection
   (let [state (form/cancel-new-state
                {:selected-index nil

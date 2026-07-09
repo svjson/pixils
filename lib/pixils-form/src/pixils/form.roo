@@ -409,6 +409,70 @@
              :projected-item value)
       state)))
 
+(defun remove-item-at-index [items index]
+  (let [items (or items [])]
+    (if (empty? items)
+      []
+      (reduce (range 0 (dec (count items)))
+              []
+              (fn [result item-index]
+                (if (= item-index index)
+                  result
+                  (concat result [(nth items item-index)])))))))
+
+(defun delete-state [state]
+  (let [items (or (:items state) [])
+        selected-index (:selected-index state)]
+    (if (and (not (nil? selected-index))
+             (>= selected-index 0)
+             (< selected-index (count items)))
+      (let [next-items (remove-item-at-index items selected-index)
+            next-index (cond
+                         (empty? next-items) nil
+                         (< selected-index (count next-items)) selected-index
+                         :default (dec (count next-items)))]
+        (assoc state
+               :items next-items
+               :selected-index next-index
+               :new? false
+               :new-value nil
+               :previous-selected-index nil
+               :projected-new? false
+               :projected-index nil
+               :projected-item nil))
+      state)))
+
+(defun swap-item-indexes [items left-index right-index]
+  (assoc (assoc items
+                left-index
+                (nth items right-index))
+         right-index
+         (nth items left-index)))
+
+(defun move-selected-state [state offset]
+  (let [items (or (:items state) [])
+        selected-index (:selected-index state)
+        next-index (when (not (nil? selected-index))
+                     (+ selected-index offset))]
+    (if (and (not (:new? state))
+             (not (nil? selected-index))
+             (>= selected-index 0)
+             (< selected-index (count items))
+             (>= next-index 0)
+             (< next-index (count items)))
+      (assoc state
+             :items (swap-item-indexes items selected-index next-index)
+             :selected-index next-index
+             :projected-index nil
+             :projected-item nil)
+      state)))
+
+(defun move-up-state [state]
+  (move-selected-state state -1))
+
+(defun move-down-state [state]
+  (move-selected-state state 1))
+
 (defun cancel-new-state [state]
   (assoc state
          :selected-index (:previous-selected-index state)
@@ -669,7 +733,16 @@
                            (save-new-state state)))
         :form/cancel-new (fn [state event ctx]
                            (let [stopped (ui/stop-propagation! event)]
-                             (cancel-new-state state)))}})
+                             (cancel-new-state state)))
+        :form/delete (fn [state event ctx]
+                       (let [stopped (ui/stop-propagation! event)]
+                         (delete-state state)))
+        :form/move-up (fn [state event ctx]
+                        (let [stopped (ui/stop-propagation! event)]
+                          (move-up-state state)))
+        :form/move-down (fn [state event ctx]
+                          (let [stopped (ui/stop-propagation! event)]
+                            (move-down-state state)))}})
 
 (defun selection-view [selection]
   (when selection
