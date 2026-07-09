@@ -413,6 +413,64 @@
     (is (= false (:new? state)))
     (is (= nil (:new-value state)))))
 
+(deftest selection-options-support-data-driven-item-labels
+  (let [options (form/selection-options
+                 [{:place-id :place/dawnkeep-stables}
+                  {:place-id :place/dawnkeep-smithy}]
+                 {:path [:place-id]})]
+    (is (= [{:value 0
+             :label ":place/dawnkeep-stables"}
+            {:value 1
+             :label ":place/dawnkeep-smithy"}]
+           options))))
+
+(deftest array-dialog-result-state-appends-and-replaces-items
+  (let [state {:items [{:name "Ada"}
+                       {:name "Grace"}]
+               :selected-index 0}
+        appended (form/array-dialog-result-state
+                  state
+                  {:type :confirm
+                   :new? true
+                   :value {:name "Katherine"}})
+        replaced (form/array-dialog-result-state
+                  state
+                  {:type :confirm
+                   :new? false
+                   :index 1
+                   :value {:name "Margaret"}})]
+    (is (= [{:name "Ada"}
+            {:name "Grace"}
+            {:name "Katherine"}]
+           (:items appended)))
+    (is (= 2 (:selected-index appended)))
+    (is (= [{:name "Ada"}
+            {:name "Margaret"}]
+           (:items replaced)))
+    (is (= 1 (:selected-index replaced)))))
+
+(deftest move-item-state-reorders-items-and-selected-index
+  (let [state (form/move-item-state
+               {:items [:a :b :c]
+                :selected-index 0}
+               0
+               2)]
+    (is (= [:b :c :a] (:items state)))
+    (is (= 2 (:selected-index state)))))
+
+(deftest array-item-dialog-body-renders-form-and-buttons
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:relation {:type :keyword}
+                        :priority {:type :integer}}}
+              {})
+        item-form (head (:children body))
+        button-row (nth (:children body) 1)]
+    (is (= 'ui/dialog-body (:mode body)))
+    (is (= 'pixils/form (:mode item-form)))
+    (is (= 'ui/dialog-button-row (:mode button-row)))
+    (is (= 2 (count (:children button-row))))))
+
 (deftest make-normalizes-combined-model-projection
   (let [view (form/make {:model :person
                          :models {:person
@@ -593,6 +651,11 @@
 
 (deftest make-renders-root-array-editor-for-object-items
   (let [view (form/make {:schema {:type :array
+                                  :item-label {:path [:relation]}
+                                  :item-summary [{:label "Relation"
+                                                  :path [:relation]}
+                                                 {:label "Priority"
+                                                  :path [:priority]}]
                                   :items {:type :object
                                           :fields {:relation
                                                    {:type :keyword
@@ -603,16 +666,28 @@
                          :value [{:relation :place-relation/works-at
                                   :priority 10}]})
         array-control (head (:children view))
-        selection-view (head (:children array-control))
-        item-form (nth (:children array-control) 1)
-        action-row (nth (:children array-control) 2)
-        relation-view (head (:children item-form))
-        relation-control (nth (:children relation-view) 1)]
+        content-row (head (:children array-control))
+        selection-view (head (:children content-row))
+        list-box (head (:children selection-view))
+        summary-view (nth (:children content-row) 1)
+        action-row (nth (:children array-control) 1)]
     (is (= 'pixils/form-array-control (:mode array-control)))
+    (is (= 2 (count (:children array-control))))
     (is (= 'pixils/form-selection (:mode selection-view)))
-    (is (= 'pixils/form (:mode item-form)))
-    (is (= 'pixils/form-select-control (:mode relation-control)))
-    (is (= 6 (count (:children action-row))))))
+    (is (= {:path [:relation]}
+           (-> selection-view :state :item-label)))
+    (is (= 5 (-> list-box :state :visible-rows)))
+    (is (= true (-> list-box :state :fixed-visible-rows?)))
+    (is (= {:height :fill
+            :width :fill}
+           (:style list-box)))
+    (is (= 'pixils/form-array-summary (:mode summary-view)))
+    (is (= [{:label "Relation"
+             :path [:relation]}
+            {:label "Priority"
+             :path [:priority]}]
+           (-> summary-view :state :specs)))
+    (is (= 3 (count (:children action-row))))))
 
 (deftest make-renders-nested-array-field-editor
   (let [view (form/make {:schema {:field/relations
@@ -631,12 +706,21 @@
                                    :anchor :stable/aisle}]}})
         relations-view (head (:children view))
         array-control (nth (:children relations-view) 1)
-        item-form (nth (:children array-control) 1)
-        place-view (head (:children item-form))
-        place-control (nth (:children place-view) 1)]
+        content-row (head (:children array-control))
+        selection-view (head (:children content-row))
+        summary-view (nth (:children content-row) 1)
+        action-row (nth (:children array-control) 1)]
     (is (= 'pixils/form-array-control (:mode array-control)))
-    (is (= 'pixils/form (:mode item-form)))
-    (is (= 'pixils/form-select-control (:mode place-control)))))
+    (is (= 'pixils/form-selection (:mode selection-view)))
+    (is (= :form/edit-item
+           (-> selection-view :state :activate-event)))
+    (is (= 'pixils/form-array-summary (:mode summary-view)))
+    (is (= [{:label ":place-id"
+             :path [:place-id]}
+            {:label ":anchor"
+             :path [:anchor]}]
+           (-> summary-view :state :specs)))
+    (is (= 3 (count (:children action-row))))))
 
 (deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make

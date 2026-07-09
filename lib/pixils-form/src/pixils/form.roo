@@ -5,6 +5,7 @@
             pixils.ui.button
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.combo-box :as combo-box]
+            [pixils.ui.dialog :as dialog]
             [pixils.ui.list-box :as list-box]
             [pixils.ui.number-input :as number-input]))
 
@@ -80,6 +81,64 @@
    :height :shrink
    :layout {:direction :column
             :gap 8}})
+
+(def default-array-content-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :start
+            :gap 8}})
+
+(def default-array-list-style
+  {:width 220
+   :height 100})
+
+(def default-array-list-box-style
+  {:width :fill
+   :height :fill})
+
+(def default-array-summary-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def default-array-toolbar-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :center
+            :gap 6}})
+
+(def default-array-summary-row-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :start
+            :gap 6}})
+
+(def default-array-summary-label-style
+  {:width 90})
+
+(def default-array-summary-value-style
+  {:width :fill})
+
+(def default-array-dialog-style
+  {:width 440
+   :height :shrink})
+
+(def default-array-dialog-body-style
+  {:width :fill
+   :height :shrink
+   :padding 12
+   :layout {:direction :column
+            :gap 10}})
+
+(def default-array-dialog-button-row-style
+  {:width :fill
+   :height 24
+   :layout {:direction :row
+            :gap :space-between}})
 
 (def default-action-style
   {:width 96
@@ -363,13 +422,41 @@
   (or (:label item)
       (:name item)
       (:id item)
-      (str item)))
+      (str "Item " (inc index))))
+
+(defun path-value [item path]
+  (cond
+    (nil? path) item
+    (= (type-of path) "vector") (get-in item path)
+    :default (get item path)))
+
+(defun value-text [value empty-text]
+  (if (or (nil? value)
+          (and (= (type-of value) "string")
+               (= (count value) 0)))
+    (or empty-text "")
+    (str value)))
+
+(defun configured-item-label [item index item-label]
+  (cond
+    (nil? item-label)
+    (default-item-label item index)
+
+    (= (type-of item-label) "vector")
+    (value-text (path-value item item-label)
+                (default-item-label item index))
+
+    (= (type-of item-label) "map")
+    (value-text (path-value item (:path item-label))
+                (or (:empty item-label)
+                    (default-item-label item index)))
+
+    :default
+    (item-label item index)))
 
 (defun selection-option [item index item-label]
   {:value index
-   :label (if item-label
-            (item-label item index)
-            (default-item-label item index))})
+   :label (configured-item-label item index item-label)})
 
 (defun selection-options [items item-label]
   (for-indexed [index item (or items [])]
@@ -489,6 +576,40 @@
 
 (defun move-down-state [state]
   (move-selected-state state 1))
+
+(defun insert-item-at-index [items index item]
+  (let [items (or items [])
+        item-count (count items)
+        index (max 0 (min item-count index))]
+    (if (= index item-count)
+      (concat items [item])
+      (reduce (range 0 (dec item-count))
+              []
+              (fn [result item-index]
+                (let [result (if (= item-index index)
+                               (concat result [item])
+                               result)]
+                  (concat result [(nth items item-index)])))))))
+
+(defun move-item-state [state from-index to-index]
+  (let [items (or (:items state) [])
+        item-count (count items)]
+    (if (and (>= from-index 0)
+             (< from-index item-count)
+             (>= to-index 0)
+             (< to-index item-count)
+             (not= from-index to-index))
+      (let [item (nth items from-index)
+            next-items (insert-item-at-index
+                        (remove-item-at-index items from-index)
+                        to-index
+                        item)]
+        (assoc state
+               :items next-items
+               :selected-index to-index
+               :projected-index nil
+               :projected-item nil))
+      state)))
 
 (defun cancel-new-state [state]
   (assoc state
@@ -641,6 +762,113 @@
     (assoc state :selected-index 0)
     state))
 
+(defun array-editor-option [editor key default-value]
+  (if (contains? (or editor {}) key)
+    (get editor key)
+    default-value))
+
+(defun array-editor-mode [editor]
+  (or (:edit-mode editor) :dialog))
+
+(defun array-editor-dialog? [editor]
+  (= (array-editor-mode editor) :dialog))
+
+(defun array-actions-state [state]
+  (let [editor (:array-editor state)
+        read-only? (:read-only? state)
+        can-select? (selected-array-index? state)
+        dialog? (array-editor-dialog? editor)
+        allow-add? (array-editor-option editor :allow-add? true)
+        allow-edit? (array-editor-option editor :allow-edit? true)
+        allow-delete? (array-editor-option editor :allow-delete? true)
+        allow-reorder? (array-editor-option editor :allow-reorder? true)]
+    (assoc state
+           :can-add? (and (not read-only?)
+                          dialog?
+                          allow-add?)
+           :can-edit? (and (not read-only?)
+                           dialog?
+                           allow-edit?
+                           can-select?)
+           :can-delete? (and (not read-only?)
+                             allow-delete?
+                             can-select?)
+           :reorderable? (and (not read-only?)
+                              allow-reorder?))))
+
+(defun summary-spec-path [item-schema field-id]
+  (model-schema/field-path field-id
+                           (model-schema/resolved-field-schema item-schema
+                                                               field-id)))
+
+(defun summary-field-spec [item-schema field-id]
+  {:label (str field-id)
+   :path (summary-spec-path item-schema field-id)})
+
+(defun inferred-summary-specs [item-schema]
+  (let [root (model-schema/resolved-root-schema item-schema)]
+    (if (= (:type root) :object)
+      (map (model-schema/schema-field-ids item-schema)
+           (fn [field-id]
+             (summary-field-spec item-schema field-id)))
+      [{:label "Value"}])))
+
+(defun array-summary-specs [field-schema item-schema]
+  (or (:item-summary field-schema)
+      (inferred-summary-specs item-schema)))
+
+(defun summary-entry-value [item spec]
+  (value-text (path-value item (:path spec))
+              (or (:empty spec) "")))
+
+(defun summary-entry [item spec selected?]
+  (if selected?
+    {:label (:label spec)
+     :value (summary-entry-value item spec)}
+    {:label ""
+     :value ""}))
+
+(defun empty-summary-values [specs]
+  (let [entry-count (max 1 (count specs))]
+    (concat [{:label ""
+              :value "No item selected"}]
+            (map (range 1 (dec entry-count))
+                 (fn [index]
+                   {:label ""
+                    :value ""})))))
+
+(defun selected-summary-values [item specs]
+  (let [selected? (not (nil? item))
+        specs (or specs [])]
+    (if selected?
+      (map specs (fn [spec] (summary-entry item spec true)))
+      (empty-summary-values specs))))
+
+(defun summary-row-view [index]
+  {:style default-array-summary-row-style
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style default-array-summary-label-style
+               :state {:value (ui/bind-state :summary index :label)}}
+              {:mode 'ui/text
+               :style default-array-summary-value-style
+               :state {:value (ui/bind-state :summary index :value)}}]})
+
+(defcomponent pixils/form-array-summary
+  {:update (fn [state ctx]
+             (assoc state
+                    :summary
+                    (selected-summary-values (:item state)
+                                             (:specs state))))})
+
+(defun array-summary-view [summary-specs]
+  {:mode 'pixils/form-array-summary
+   :style default-array-summary-style
+   :state {:item (ui/bind-state :value)
+           :specs summary-specs}
+   :children (map (range 0 (dec (max 1 (count summary-specs))))
+                  summary-row-view)})
+
 (defun array-validation-state [state]
   (let [validation (model-schema/validate-with-context
                    (:item-schema state)
@@ -654,35 +882,20 @@
   (let [state (ensure-array-selection-state state)
         state (projection-state state)
         state (array-validation-state state)]
-    (assoc state
-           :can-delete? (and (not (:new? state))
-                             (selected-array-index? state))
-           :can-move-up? (and (not (:new? state))
-                              (selected-array-index-above-first? state))
-           :can-move-down? (and (not (:new? state))
-                                (selected-array-index-below-last? state)))))
+    (array-actions-state state)))
 
-(defun array-action-row []
-  {:style default-row-style
+(defun array-toolbar []
+  {:style default-array-toolbar-style
    :state (ui/bind-state)
-   :children [(action-view {:id :form/new
-                            :label "New"
-                            :disabled-when :new?})
-              (action-view {:id :form/save-new
-                            :label "Save"
-                            :enabled-when [:and :new? :valid?]})
-              (action-view {:id :form/cancel-new
-                            :label "Cancel"
-                            :enabled-when :new?})
+   :children [(action-view {:id :form/add-item
+                            :label "Add"
+                            :enabled-when :can-add?})
+              (action-view {:id :form/edit-item
+                            :label "Edit"
+                            :enabled-when :can-edit?})
               (action-view {:id :form/delete
                             :label "Delete"
-                            :enabled-when :can-delete?})
-              (action-view {:id :form/move-up
-                            :label "Up"
-                            :enabled-when :can-move-up?})
-              (action-view {:id :form/move-down
-                            :label "Down"
-                            :enabled-when :can-move-down?})]})
+                            :enabled-when :can-delete?})]})
 
 (defun array-item-form-view [item-schema opts]
   (let [item-opts (assoc opts :schema item-schema)
@@ -693,33 +906,97 @@
      :style default-fields-style
      :state {:value (ui/bind-state :value)
              :schema item-schema
-             :context (:context opts)}
+             :context (:context opts)
+             :valid? (ui/bind-state :valid?)
+             :errors (ui/bind-state :errors)}
      :children children}))
+
+(defun array-item-dialog-result [state event ctx]
+  (let [choice (-> event :payload :choice)]
+    (if (= choice :dialog/ok)
+      {:type :confirm
+       :index (:index state)
+       :new? (:new? state)
+       :value (:value state)}
+      {:type :cancel})))
+
+(defun array-item-dialog-body [item-schema context]
+  (dialog/make-dialog-body
+   {:body [(array-item-form-view item-schema
+                                 {:context context})]
+    :buttons [:dialog/ok :dialog/cancel]
+    :body-style default-array-dialog-body-style
+    :button-row-style default-array-dialog-button-row-style}))
+
+(defun open-array-item-dialog! [state ctx new?]
+  (let [index (:selected-index state)
+        value (if new?
+                (new-form-value state)
+                (:value state))]
+    (dialog/open-dialog! ctx
+                         {:title (if new? "Add Item" "Edit Item")
+                          :style default-array-dialog-style
+                          :result-event :form/array-item-dialog-result
+                          :state {:value value
+                                  :index index
+                                  :new? new?}
+                          :body (array-item-dialog-body (:item-schema state)
+                                                        (:context state))
+                          :results {:dialog/button
+                                    array-item-dialog-result}})))
+
+(defun array-dialog-result-state [state payload]
+  (if (= (:type payload) :confirm)
+    (let [items (or (:items state) [])
+          value (:value payload)
+          index (:index payload)]
+      (if (:new? payload)
+        (assoc state
+               :items (concat items [value])
+               :selected-index (count items)
+               :projected-index nil
+               :projected-item nil)
+        (assoc state
+               :items (update-selected-item items index value)
+               :selected-index index
+               :projected-index nil
+               :projected-item nil)))
+    state))
 
 (defcomponent pixils/form-array-control
   {:update (fn [state ctx]
              (array-control-state state))
-   :on {:form/new (fn [state event ctx]
-                    (let [stopped (ui/stop-propagation! event)]
-                      (begin-new-state state)))
-        :form/save-new (fn [state event ctx]
-                         (let [stopped (ui/stop-propagation! event)]
-                           (save-new-state state)))
-        :form/cancel-new (fn [state event ctx]
-                           (let [stopped (ui/stop-propagation! event)]
-                             (cancel-new-state state)))
+   :on {:form/add-item (fn [state event ctx]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (:can-add? state)
+                             (open-array-item-dialog! state ctx true))
+                           state))
+        :form/edit-item (fn [state event ctx]
+                          (do
+                            (ui/stop-propagation! event)
+                            (when (:can-edit? state)
+                              (open-array-item-dialog! state ctx false))
+                            state))
+        :form/array-item-dialog-result (fn [state event ctx]
+                                         (do
+                                           (ui/stop-propagation! event)
+                                           (array-dialog-result-state
+                                            state
+                                            (:payload event))))
         :form/delete (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
                          (delete-state state)))
-        :form/move-up (fn [state event ctx]
-                        (let [stopped (ui/stop-propagation! event)]
-                          (move-up-state state)))
-        :form/move-down (fn [state event ctx]
-                          (let [stopped (ui/stop-propagation! event)]
-                            (move-down-state state)))}})
+        :form/reorder (fn [state event ctx]
+                        (do
+                          (ui/stop-propagation! event)
+                          (move-item-state state
+                                           (-> event :payload :from-index)
+                                           (-> event :payload :to-index))))}})
 
 (defun array-control-view [field-schema opts items-binding]
-  (let [item-schema (array-item-schema field-schema opts)]
+  (let [item-schema (array-item-schema field-schema opts)
+        summary-specs (array-summary-specs field-schema item-schema)]
     {:mode 'pixils/form-array-control
      :style (or (:array-style opts) default-array-style)
      :state {:items items-binding
@@ -728,10 +1005,21 @@
              :new-template (or (:new-template field-schema)
                                (:new-value field-schema)
                                {})
-             :item-label (:item-label field-schema)}
-     :children [(selection-control-view {:item-label (:item-label field-schema)})
-                (array-item-form-view item-schema opts)
-                (array-action-row)]}))
+             :item-label (:item-label field-schema)
+             :array-editor (:array-editor field-schema)
+             :read-only? (:read-only? field-schema)}
+     :children [{:style default-array-content-style
+                 :state (ui/bind-state)
+                 :children [(selection-control-view
+                             {:item-label (:item-label field-schema)
+                              :style default-array-list-style
+                              :list-style default-array-list-box-style
+                              :visible-rows 5
+                              :fixed-visible-rows? true
+                              :reorderable? (ui/bind-state :reorderable?)
+                              :activate-event :form/edit-item})
+                            (array-summary-view summary-specs)]}
+                (array-toolbar)]}))
 
 (defun array-control [field-id field-schema field-label opts]
   (array-control-view field-schema
@@ -920,12 +1208,22 @@
                              (assoc state
                                     :new? false
                                     :selected-index
-                                    (-> event :payload :value))))}
-   :children [(list-box/make {:options (ui/bind-state :options)
-                              :selected-indices
-                              (ui/bind-state :selected-indices)
-                              :force-selection? false
-                              :style default-selection-list-style})]})
+                                    (-> event :payload :value))))
+        :list-box/activate (fn [state event ctx]
+                             (do
+                               (ui/stop-propagation! event)
+                               (when (:activate-event state)
+                                 (ui/emit! (:view ctx)
+                                           (:activate-event state)
+                                           (:payload event)))
+                               state))
+        :list-box/reorder (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        :form/reorder
+                                        (:payload event))
+                              state))}})
 
 (defcomponent pixils/form-action
   {:update (fn [state ctx]
@@ -979,7 +1277,19 @@
             :state {:items (ui/bind-state :items)
                     :selected-index (ui/bind-state :selected-index)
                     :new? (ui/bind-state :new?)
-                    :item-label (:item-label selection)}}
+                    :item-label (:item-label selection)
+                    :reorderable? (:reorderable? selection)
+                    :activate-event (:activate-event selection)}
+            :children [(list-box/make
+                        {:options (ui/bind-state :options)
+                         :selected-indices
+                         (ui/bind-state :selected-indices)
+                         :force-selection? false
+                         :visible-rows (:visible-rows selection)
+                         :fixed-visible-rows? (:fixed-visible-rows? selection)
+                         :reorderable? (ui/bind-state :reorderable?)
+                         :style (or (:list-style selection)
+                                    default-selection-list-style)})]}
            (style-map (defaultable-style (:style selection)
                                          (:class selection)
                                          default-selection-style))
