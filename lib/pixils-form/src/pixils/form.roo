@@ -75,6 +75,12 @@
    :layout {:direction :column
             :gap 8}})
 
+(def default-array-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
 (def default-action-style
   {:width 96
    :height 24})
@@ -605,6 +611,133 @@
      :state {:value (field-binding field-id field-schema)}
      :children children}))
 
+(defun array-schema [field-schema opts]
+  (model-schema/schema-document-with-root (:schema opts) field-schema))
+
+(defun array-item-schema [field-schema opts]
+  (model-schema/schema-document-with-root (:schema opts)
+                                         (:items field-schema)))
+
+(defun selected-array-index? [state]
+  (let [items (or (:items state) [])
+        index (:selected-index state)]
+    (and (not (nil? index))
+         (>= index 0)
+         (< index (count items)))))
+
+(defun selected-array-index-above-first? [state]
+  (and (selected-array-index? state)
+       (> (:selected-index state) 0)))
+
+(defun selected-array-index-below-last? [state]
+  (let [items (or (:items state) [])]
+    (and (selected-array-index? state)
+         (< (:selected-index state) (dec (count items))))))
+
+(defun ensure-array-selection-state [state]
+  (if (and (not (:new? state))
+           (nil? (:selected-index state))
+           (not (empty? (or (:items state) []))))
+    (assoc state :selected-index 0)
+    state))
+
+(defun array-validation-state [state]
+  (let [validation (model-schema/validate-with-context
+                   (:item-schema state)
+                   (:value state)
+                   (:context state))]
+    (assoc state
+           :valid? (:valid? validation)
+           :errors (:errors validation))))
+
+(defun array-control-state [state]
+  (let [state (ensure-array-selection-state state)
+        state (projection-state state)
+        state (array-validation-state state)]
+    (assoc state
+           :can-delete? (and (not (:new? state))
+                             (selected-array-index? state))
+           :can-move-up? (and (not (:new? state))
+                              (selected-array-index-above-first? state))
+           :can-move-down? (and (not (:new? state))
+                                (selected-array-index-below-last? state)))))
+
+(defun array-action-row []
+  {:style default-row-style
+   :state (ui/bind-state)
+   :children [(action-view {:id :form/new
+                            :label "New"
+                            :disabled-when :new?})
+              (action-view {:id :form/save-new
+                            :label "Save"
+                            :enabled-when [:and :new? :valid?]})
+              (action-view {:id :form/cancel-new
+                            :label "Cancel"
+                            :enabled-when :new?})
+              (action-view {:id :form/delete
+                            :label "Delete"
+                            :enabled-when :can-delete?})
+              (action-view {:id :form/move-up
+                            :label "Up"
+                            :enabled-when :can-move-up?})
+              (action-view {:id :form/move-down
+                            :label "Down"
+                            :enabled-when :can-move-down?})]})
+
+(defun array-item-form-view [item-schema opts]
+  (let [item-opts (assoc opts :schema item-schema)
+        children (map (default-layout item-schema)
+                      (fn [item]
+                        (layout-item-view item item-opts)))]
+    {:mode 'pixils/form
+     :style default-fields-style
+     :state {:value (ui/bind-state :value)
+             :schema item-schema
+             :context (:context opts)}
+     :children children}))
+
+(defcomponent pixils/form-array-control
+  {:update (fn [state ctx]
+             (array-control-state state))
+   :on {:form/new (fn [state event ctx]
+                    (let [stopped (ui/stop-propagation! event)]
+                      (begin-new-state state)))
+        :form/save-new (fn [state event ctx]
+                         (let [stopped (ui/stop-propagation! event)]
+                           (save-new-state state)))
+        :form/cancel-new (fn [state event ctx]
+                           (let [stopped (ui/stop-propagation! event)]
+                             (cancel-new-state state)))
+        :form/delete (fn [state event ctx]
+                       (let [stopped (ui/stop-propagation! event)]
+                         (delete-state state)))
+        :form/move-up (fn [state event ctx]
+                        (let [stopped (ui/stop-propagation! event)]
+                          (move-up-state state)))
+        :form/move-down (fn [state event ctx]
+                          (let [stopped (ui/stop-propagation! event)]
+                            (move-down-state state)))}})
+
+(defun array-control-view [field-schema opts items-binding]
+  (let [item-schema (array-item-schema field-schema opts)]
+    {:mode 'pixils/form-array-control
+     :style (or (:array-style opts) default-array-style)
+     :state {:items items-binding
+             :item-schema item-schema
+             :context (:context opts)
+             :new-template (or (:new-template field-schema)
+                               (:new-value field-schema)
+                               {})
+             :item-label (:item-label field-schema)}
+     :children [(selection-control-view {:item-label (:item-label field-schema)})
+                (array-item-form-view item-schema opts)
+                (array-action-row)]}))
+
+(defun array-control [field-id field-schema field-label opts]
+  (array-control-view field-schema
+                      opts
+                      (field-binding field-id field-schema)))
+
 (defun select-option-index-from [options value index]
   (cond
     (>= index (count options))
@@ -665,6 +798,7 @@
    :string text-control
    :select select-control
    :object object-control
+   :array array-control
    :keyword keyword-control
    :integer number-control
    :number number-control
@@ -738,7 +872,9 @@
 (defun selection-layout-view [item opts]
   (let [projection (projection-entry (:models opts)
                                      (:projection item))]
-    (selection-view (normalized-selection (:models opts) item projection))))
+    (selection-control-view (normalized-selection (:models opts)
+                                                 item
+                                                 projection))))
 
 (defun row-layout-view [item opts]
   (merge {:state (ui/bind-state)
@@ -837,7 +973,7 @@
                           (let [stopped (ui/stop-propagation! event)]
                             (move-down-state state)))}})
 
-(defun selection-view [selection]
+(defun selection-control-view [selection]
   (when selection
     (merge {:mode 'pixils/form-selection
             :state {:items (ui/bind-state :items)
@@ -869,19 +1005,29 @@
    :state form-state-binding
    :children children})
 
+(defun root-array-schema? [schema]
+  (= (:type (model-schema/resolved-root-schema schema)) :array))
+
+(defun root-array-view [schema opts]
+  (array-control-view (model-schema/resolved-root-schema schema)
+                      opts
+                      (ui/bind-state :value)))
+
 (defun form-children [layout schema opts selection]
-  (let [children (map (or layout (default-layout schema))
-                      (fn [item]
-                        (layout-item-view item opts)))]
-    (cond
-      (nil? selection)
-      children
+  (if (root-array-schema? schema)
+    [(root-array-view schema opts)]
+    (let [children (map (or layout (default-layout schema))
+                        (fn [item]
+                          (layout-item-view item opts)))]
+      (cond
+        (nil? selection)
+        children
 
-      (= (:placement selection) :right)
-      [(fields-view children) (selection-view selection)]
+        (= (:placement selection) :right)
+        [(fields-view children) (selection-control-view selection)]
 
-      :default
-      (concat [(selection-view selection)] children))))
+        :default
+        (concat [(selection-control-view selection)] children)))))
 
 (defun layout-item-projection [item]
   (let [item (normalize-layout-item item)]

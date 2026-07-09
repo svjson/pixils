@@ -193,6 +193,42 @@
              :errors {:place-id [{:rule :required}]}}]
            (get-in result [:errors :field/location])))))
 
+(deftest validate-validates-root-array-items
+  (let [schema-doc {:schema {:type :array
+                             :items {:type :object
+                                     :fields {:relation
+                                              {:type :keyword
+                                               :required true}
+                                              :priority
+                                              {:type :integer
+                                               :min 1}}}}}
+        result (schema/validate schema-doc
+                                [{:relation ""
+                                  :priority 0}])]
+    (is (= false (:valid? result)))
+    (is (= {:value
+            [{:rule :array
+              :errors {0 {:relation [{:rule :required}]
+                          :priority [{:rule :min
+                                      :min 1
+                                      :actual 0}]}}}]}
+           (:errors result)))))
+
+(deftest validate-validates-nested-array-items
+  (let [schema-doc {:field/relations
+                    {:type :array
+                     :items {:type :object
+                             :fields {:place-id {:type :keyword
+                                                 :required true}}}}}
+        result (schema/validate schema-doc
+                                {:field/relations
+                                 [{:place-id :place/dawnkeep-stables}
+                                  {:place-id ""}]})]
+    (is (= false (:valid? result)))
+    (is (= [{:rule :array
+             :errors {1 {:place-id [{:rule :required}]}}}]
+           (get-in result [:errors :field/relations])))))
+
 (deftest form-projection-selects-current-collection-item
   (let [state (form/projection-state
                {:items [{:name "Ada"}
@@ -554,6 +590,53 @@
     (is (= 2 (count (:children object-control))))
     (is (= 'pixils/form-select-control (:mode place-control)))
     (is (= 'pixils/form-keyword-input (:mode anchor-control)))))
+
+(deftest make-renders-root-array-editor-for-object-items
+  (let [view (form/make {:schema {:type :array
+                                  :items {:type :object
+                                          :fields {:relation
+                                                   {:type :keyword
+                                                    :valid-values
+                                                    [:place-relation/works-at]}
+                                                   :priority
+                                                   {:type :integer}}}}
+                         :value [{:relation :place-relation/works-at
+                                  :priority 10}]})
+        array-control (head (:children view))
+        selection-view (head (:children array-control))
+        item-form (nth (:children array-control) 1)
+        action-row (nth (:children array-control) 2)
+        relation-view (head (:children item-form))
+        relation-control (nth (:children relation-view) 1)]
+    (is (= 'pixils/form-array-control (:mode array-control)))
+    (is (= 'pixils/form-selection (:mode selection-view)))
+    (is (= 'pixils/form (:mode item-form)))
+    (is (= 'pixils/form-select-control (:mode relation-control)))
+    (is (= 6 (count (:children action-row))))))
+
+(deftest make-renders-nested-array-field-editor
+  (let [view (form/make {:schema {:field/relations
+                                  {:type :array
+                                   :items {:type :object
+                                           :fields {:place-id
+                                                    {:type :keyword
+                                                     :valid-values
+                                                     [:place/dawnkeep-stables]}
+                                                    :anchor
+                                                    {:type :keyword}}}}}
+                         :layout [:field/relations]
+                         :value {:field/relations
+                                 [{:place-id
+                                   :place/dawnkeep-stables
+                                   :anchor :stable/aisle}]}})
+        relations-view (head (:children view))
+        array-control (nth (:children relations-view) 1)
+        item-form (nth (:children array-control) 1)
+        place-view (head (:children item-form))
+        place-control (nth (:children place-view) 1)]
+    (is (= 'pixils/form-array-control (:mode array-control)))
+    (is (= 'pixils/form (:mode item-form)))
+    (is (= 'pixils/form-select-control (:mode place-control)))))
 
 (deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make
