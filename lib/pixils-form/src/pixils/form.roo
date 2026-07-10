@@ -737,7 +737,10 @@
                       :max (:max field-schema)
                       :step (:step field-schema)
                       :allow-negative? (:allow-negative? field-schema)
-                      :allow-fractions? (:allow-fractions? field-schema)
+                      :allow-fractions? (if (contains? field-schema
+                                                        :allow-fractions?)
+                                          (:allow-fractions? field-schema)
+                                          (= (:type field-schema) :number))
                       :disabled? (:read-only? field-schema)
                       :auto-focus? (:auto-focus? field-schema)}))
 

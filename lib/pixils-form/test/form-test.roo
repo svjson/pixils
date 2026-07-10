@@ -811,6 +811,18 @@
     (is (= 'pixils/form-select-control (:mode relation-control)))
     (is (= 'ui/number-input (:mode priority-control)))))
 
+(deftest make-renders-number-fields-with-fractional-input-enabled
+  (let [number-view (form/make {:schema {:distance {:type :number}}
+                                :value {:distance 0.1}})
+        integer-view (form/make {:schema {:count {:type :integer}}
+                                 :value {:count 1}})
+        number-control (nth (:children (head (:children number-view))) 1)
+        integer-control (nth (:children (head (:children integer-view))) 1)]
+    (is (= 'ui/number-input (:mode number-control)))
+    (is (= true (get-in number-control [:state :allow-fractions?])))
+    (is (= 'ui/number-input (:mode integer-control)))
+    (is (= false (get-in integer-control [:state :allow-fractions?])))))
+
 (deftest make-renders-nested-object-fields
   (let [view (form/make {:schema {:field/location
                                   {:type :object
