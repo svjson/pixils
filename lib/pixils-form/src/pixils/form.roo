@@ -920,13 +920,26 @@
        :value (:value state)}
       {:type :cancel})))
 
+(defun array-item-dialog-button-handler [state event ctx]
+  (do
+    (ui/stop-propagation! event)
+    (pop-mode! (array-item-dialog-result state event ctx))
+    state))
+
 (defun array-item-dialog-body [item-schema context]
-  (dialog/make-dialog-body
-   {:body [(array-item-form-view item-schema
-                                 {:context context})]
-    :buttons [:dialog/ok :dialog/cancel]
-    :body-style default-array-dialog-body-style
-    :button-row-style default-array-dialog-button-row-style}))
+  (assoc
+   (dialog/make-dialog-body
+    {:body [(array-item-form-view item-schema
+                                  {:context context})]
+     :buttons [:dialog/ok :dialog/cancel]
+     :state {:value (ui/bind-state :value)
+             :index (ui/bind-state :index)
+             :new? (ui/bind-state :new?)
+             :valid? (ui/bind-state :valid?)
+             :errors (ui/bind-state :errors)}
+     :body-style default-array-dialog-body-style
+     :button-row-style default-array-dialog-button-row-style})
+   :on {:dialog/button array-item-dialog-button-handler}))
 
 (defun open-array-item-dialog! [state ctx new?]
   (let [index (:selected-index state)
@@ -941,9 +954,7 @@
                                   :index index
                                   :new? new?}
                           :body (array-item-dialog-body (:item-schema state)
-                                                        (:context state))
-                          :results {:dialog/button
-                                    array-item-dialog-result}})))
+                                                        (:context state))})))
 
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
@@ -1040,6 +1051,12 @@
 (defun select-option-index [options value]
   (select-option-index-from (or options []) value 0))
 
+(defun select-control-state [state]
+  (assoc state
+         :selected-index
+         (select-option-index (:options state)
+                              (:value state))))
+
 (defun select-options [field-schema opts]
   (let [options (model-schema/valid-value-options (:context opts)
                                                   field-schema)]
@@ -1050,11 +1067,10 @@
               options))))
 
 (defcomponent pixils/form-select-control
-  {:update (fn [state ctx]
-             (assoc state
-                    :selected-index
-                    (select-option-index (:options state)
-                                         (:value state))))
+  {:init (fn [state ctx]
+           (select-control-state state))
+   :update (fn [state ctx]
+             (select-control-state state))
    :on {:combo-box/change (fn [state event ctx]
                             (let [payload (:payload event)]
                               (ui/stop-propagation! event)

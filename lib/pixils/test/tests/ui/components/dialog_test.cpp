@@ -362,3 +362,45 @@ TEST_F(DialogTest, open_dialog_wraps_custom_result_event_handlers)
   EXPECT_EQ(get_key(result, "type")->str(), "ship");
   EXPECT_EQ(get_key(result, "source")->str(), "form-button");
 }
+
+TEST_F(DialogTest, open_dialog_make_dialog_body_without_results_uses_default_button_result)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.dialog/open-dialog!
+                  ctx
+                  {:title "Default Result"
+                   :body (pixils.ui.dialog/make-dialog-body
+                          {:body "Proceed?"
+                           :buttons [:dialog/ok]})
+                   :result-event :component/dialog-result})
+                 {:result nil}))
+       :on {:component/dialog-result (fn [state event ctx]
+                                       (assoc state :result (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  session.render_mode();
+
+  auto ok_button = find_button_with_label(session.active_mode, "OK");
+  ASSERT_NE(ok_button, nullptr);
+  input().mouse_down({ok_button->bounds.x + (ok_button->bounds.w / 2),
+                      ok_button->bounds.y + (ok_button->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  input().mouse_up({ok_button->bounds.x + (ok_button->bounds.w / 2),
+                    ok_button->bounds.y + (ok_button->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  auto result = get_key(session.active_mode->state, "result");
+  ASSERT_NE(result, nullptr);
+  auto choice = get_key(result, "choice");
+  ASSERT_NE(choice, nullptr);
+  EXPECT_EQ(choice->str(), "dialog/ok");
+}

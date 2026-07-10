@@ -94,6 +94,17 @@
              :label "Dawnkeep Stables"}]
            (schema/valid-value-options context field-schema)))))
 
+(deftest select-control-state-preselects-current-value
+  (let [state (form/select-control-state
+               {:options [{:value nil
+                           :label ""}
+                          {:value :sit
+                           :label "sit"}
+                          {:value :stand
+                           :label "stand"}]
+                :value :stand})]
+    (is (= 2 (:selected-index state)))))
+
 (deftest schema-resolves-named-field-definition-references
   (let [schema-doc {:definitions
                     {:stable-role
@@ -449,6 +460,30 @@
            (:items replaced)))
     (is (= 1 (:selected-index replaced)))))
 
+(deftest array-dialog-result-state-replaces-existing-empty-item
+  (let [state {:items [{}]
+               :selected-index 0
+               :projected-index 0
+               :projected-item {}
+               :value {}}
+        replaced (form/array-dialog-result-state
+                  state
+                  {:type :confirm
+                   :new? false
+                   :index 0
+                   :value {:relation :place-relation/works-at
+                           :place-id :workstation/stable-hand-post
+                           :anchor :stand}})
+        projected (form/projection-state replaced)]
+    (is (= [{:relation :place-relation/works-at
+             :place-id :workstation/stable-hand-post
+             :anchor :stand}]
+           (:items replaced)))
+    (is (= {:relation :place-relation/works-at
+            :place-id :workstation/stable-hand-post
+            :anchor :stand}
+           (:value projected)))))
+
 (deftest move-item-state-reorders-items-and-selected-index
   (let [state (form/move-item-state
                {:items [:a :b :c]
@@ -467,6 +502,10 @@
         item-form (head (:children body))
         button-row (nth (:children body) 1)]
     (is (= 'ui/dialog-body (:mode body)))
+    (is (contains? (:state body) :value))
+    (is (contains? (:state body) :index))
+    (is (contains? (:state body) :new?))
+    (is (contains? (:on body) :dialog/button))
     (is (= 'pixils/form (:mode item-form)))
     (is (= 'ui/dialog-button-row (:mode button-row)))
     (is (= 2 (count (:children button-row))))))

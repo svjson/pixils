@@ -58,6 +58,36 @@ TEST_F(ProgressBarTest, progress_bar_make_creates_bound_value_state)
   EXPECT_EQ(value->num().get_int(), 40);
 }
 
+TEST_F(ProgressBarTest, progress_bar_make_creates_bound_value_and_max_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:load-progress 4
+                              :load-max 8})
+       :children [(pixils.ui.progress-bar/make
+                   {:style {:width 100 :height 12}
+                    :value (pixils.ui/bind-state :load-progress)
+                    :max (pixils.ui/bind-state :load-max)})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto progress = session.active_mode->children[0];
+  ASSERT_NE(progress, nullptr);
+  EXPECT_EQ(progress->mode->name, "ui/progress-bar");
+
+  auto value = get_state_key(progress, "value");
+  auto max = get_state_key(progress, "max");
+  ASSERT_NE(value, nullptr);
+  ASSERT_NE(max, nullptr);
+  EXPECT_EQ(value->num().get_int(), 4);
+  EXPECT_EQ(max->num().get_int(), 8);
+}
+
 TEST_F(ProgressBarTest, progress_bar_renders_horizontal_fill_from_value_ratio)
 {
   runtime.eval(R"(
