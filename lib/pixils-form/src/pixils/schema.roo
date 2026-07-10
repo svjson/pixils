@@ -18,6 +18,12 @@
 (defun field-value [value field-id field-schema]
   (get-in (or value {}) (field-path field-id field-schema)))
 
+(defun path-value [value path]
+  (cond
+    (nil? path) value
+    (= (type-of path) "vector") (get-in (or value {}) path)
+    :default (get (or value {}) path)))
+
 (defun schema-root [schema]
   (if (and (= (type-of schema) "map")
            (contains? schema :schema))
@@ -35,6 +41,31 @@
 
 (defun ref-overrides [schema]
   (dissoc (or schema {}) :ref))
+
+(defun merge-schema-nodes [base extension]
+  (let [fields (merge (or (:fields base) {})
+                      (or (:fields extension) {}))
+        merged (merge base (dissoc extension :fields))]
+    (if (empty? fields)
+      merged
+      (assoc merged :fields fields))))
+
+(defun extension-base-schema [schema schema-node seen]
+  (let [extension (:extends schema-node)
+        base-node (if (keyword? extension)
+                    {:ref extension}
+                    extension)]
+    (resolve-schema-with-seen schema base-node seen)))
+
+(defun resolve-variants-with-seen [schema variants seen]
+  (reduce-kv (or variants {})
+             {}
+             (fn [resolved variant-key variant-schema]
+               (assoc resolved
+                      variant-key
+                      (resolve-schema-with-seen schema
+                                                variant-schema
+                                                seen)))))
 
 (defun resolve-fields-with-seen [schema fields seen]
   (reduce-kv (or fields {})
@@ -61,6 +92,13 @@
            :items
            (resolve-schema-with-seen schema (:items resolved) seen))
 
+    (= (:type resolved) :union)
+    (assoc resolved
+           :base
+           (resolve-schema-with-seen schema (:base resolved) seen)
+           :variants
+           (resolve-variants-with-seen schema (:variants resolved) seen))
+
     :default resolved))
 
 (defun resolve-schema-with-seen [schema schema-node seen]
@@ -82,6 +120,14 @@
                 (ref-overrides schema-node))
          seen)))
 
+    (contains? schema-node :extends)
+    (resolve-nested-schema-with-seen
+     schema
+     (merge-schema-nodes
+      (extension-base-schema schema schema-node seen)
+      (dissoc schema-node :extends))
+     seen)
+
     :default
     (resolve-nested-schema-with-seen schema schema-node seen)))
 
@@ -93,8 +139,14 @@
 
 (defun schema-fields [schema]
   (let [root (resolved-root-schema schema)]
-    (if (= (:type root) :object)
+    (cond
+      (= (:type root) :object)
       (or (:fields root) {})
+
+      (= (:type root) :union)
+      (union-fields schema root)
+
+      :default
       (or root {}))))
 
 (defun resolved-field-schema [schema field-id]
@@ -103,6 +155,48 @@
 
 (defun schema-field-ids [schema]
   (keys (schema-fields schema)))
+
+(defun union-fields [schema union-schema]
+  (reduce-kv (or (:variants union-schema) {})
+             (schema-fields (schema-document-with-root
+                             schema
+                             (:base union-schema)))
+             (fn [fields variant-key variant-schema]
+               (merge fields
+                      (schema-fields
+                       (schema-document-with-root schema variant-schema))))))
+
+(defun union-discriminator-value [union-schema value]
+  (path-value value (:discriminator union-schema)))
+
+(defun union-variant-schema [union-schema value]
+  (get (or (:variants union-schema) {})
+       (union-discriminator-value union-schema value)))
+
+(defun active-schema-fields [schema value]
+  (let [root (resolved-root-schema schema)]
+    (cond
+      (= (:type root) :object)
+      (or (:fields root) {})
+
+      (= (:type root) :union)
+      (let [base-fields (schema-fields
+                         (schema-document-with-root schema (:base root)))
+            variant (union-variant-schema root value)]
+        (if variant
+          (merge base-fields
+                 (schema-fields
+                  (schema-document-with-root schema variant)))
+          base-fields))
+
+      :default
+      (schema-fields schema))))
+
+(defun active-schema-field-ids [schema value]
+  (keys (active-schema-fields schema value)))
+
+(defun field-visible? [schema field-id value]
+  (contains? (active-schema-fields schema value) field-id))
 
 (defun schema-document-with-root [schema root]
   (if (empty? (schema-definitions schema))
@@ -149,7 +243,25 @@
     valid-values
     {}))
 
-(defun valid-values-items [context valid-values]
+(defun source-field-value [value source]
+  (path-value value (or (:field source)
+                        (:path source))))
+
+(defun valid-values-source-items [context value source]
+  (cond
+    (= (type-of source) "vector")
+    (or (get-in (or context {}) source) [])
+
+    (= (type-of source) "map")
+    (let [source-key (source-field-value value source)
+          source-path (get (or (:sources source) {}) source-key)]
+      (if source-path
+        (or (get-in (or context {}) source-path) [])
+        []))
+
+    :default []))
+
+(defun valid-values-items [context valid-values value]
   (cond
     (nil? valid-values)
     []
@@ -159,7 +271,7 @@
 
     (= (type-of valid-values) "map")
     (if (contains? valid-values :from)
-      (or (get-in (or context {}) (:from valid-values)) [])
+      (valid-values-source-items context value (:from valid-values))
       (or (:values valid-values) []))
 
     :default []))
@@ -200,14 +312,17 @@
     {:value value
      :label (option-label item valid-values value)}))
 
-(defun valid-value-options [context field-schema]
+(defun valid-value-options-for-value [context field-schema value]
   (let [valid-values (:valid-values field-schema)]
-    (map (valid-values-items context valid-values)
+    (map (valid-values-items context valid-values value)
          (fn [item]
            (valid-value-option valid-values item)))))
 
-(defun valid-value-values [context field-schema]
-  (map (valid-value-options context field-schema)
+(defun valid-value-options [context field-schema]
+  (valid-value-options-for-value context field-schema nil))
+
+(defun valid-value-values [context field-schema value]
+  (map (valid-value-options-for-value context field-schema value)
        (fn [option]
          (:value option))))
 
@@ -217,9 +332,9 @@
           (fn [found item]
             (or found (= item value)))))
 
-(defun valid-value-error [context value field-schema]
+(defun valid-value-error [context parent-value value field-schema]
   (let [valid-values (:valid-values field-schema)
-        allowed (valid-value-values context field-schema)]
+        allowed (valid-value-values context field-schema parent-value)]
     (when (and valid-values
                (not (blank-value? value))
                (not (value-in? allowed value)))
@@ -266,23 +381,24 @@
 
 (defun validate-field-with-context [schema value field-id context]
   (let [field-schema (resolved-field-schema schema field-id)
-        value (field-value value field-id field-schema)
-        errors (append-error [] (required-error value field-schema))
-        errors (append-error errors (min-error value field-schema))
-        errors (append-error errors (max-error value field-schema))
+        field-value (field-value value field-id field-schema)
+        errors (append-error [] (required-error field-value field-schema))
+        errors (append-error errors (min-error field-value field-schema))
+        errors (append-error errors (max-error field-value field-schema))
         errors (append-error errors
                              (valid-value-error context
                                                 value
+                                                field-value
                                                 field-schema))
         errors (append-error errors
                              (object-field-error schema
                                                  context
-                                                 value
+                                                 field-value
                                                  field-schema))
         errors (append-error errors
                              (array-value-error schema
                                                 context
-                                                value
+                                                field-value
                                                  field-schema))]
     errors))
 
@@ -294,7 +410,7 @@
     (if (= (:type root) :array)
       (let [error (array-value-error schema context value root)]
         (if error {:value [error]} {}))
-      (reduce-kv (schema-fields schema)
+      (reduce-kv (active-schema-fields schema value)
                  {}
                  (fn [errors field-id field-schema]
                    (let [field-errors (validate-field-with-context schema

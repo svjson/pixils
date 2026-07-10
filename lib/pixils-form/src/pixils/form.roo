@@ -658,6 +658,11 @@
 (defun field-binding [field-id field-schema]
   (apply ui/bind-state (concat [:value] (field-path field-id field-schema))))
 
+(defun form-value-with-field-value [state value]
+  (assoc-in (or (:form-value state) {})
+            (:field-path state)
+            value))
+
 (defun label-for [field-id text]
   (or (get (or text {}) field-id)
       (str field-id)))
@@ -666,6 +671,37 @@
   {:mode 'ui/text
    :style default-display-style
    :state {:value (field-binding field-id field-schema)}})
+
+(defun form-field-visible? [state]
+  (model-schema/field-visible? (:schema state)
+                               (:field-id state)
+                               (:value state)))
+
+(defun form-field-style [base-style visible?]
+  (assoc (or base-style {})
+         :visibility (if visible?
+                       :visible
+                       :none)))
+
+(defun sync-form-field-style! [state ctx]
+  (ui/style! (:view ctx)
+             (form-field-style (:base-style state)
+                               (:visible? state))))
+
+(defcomponent pixils/form-field
+  {:init (fn [state ctx]
+           (let [state (assoc state
+                              :form-value (:value state)
+                              :visible?
+                              (form-field-visible? state))]
+             (sync-form-field-style! state ctx)
+             state))
+   :update (fn [state ctx]
+             (let [state (assoc state :form-value (:value state))
+                   visible? (form-field-visible? state)
+                   state (assoc state :visible? visible?)]
+               (sync-form-field-style! state ctx)
+               state))})
 
 (defun text-control [field-id field-schema field-label opts]
   {:mode 'ui/text-input
@@ -1051,20 +1087,33 @@
 (defun select-option-index [options value]
   (select-option-index-from (or options []) value 0))
 
-(defun select-control-state [state]
-  (assoc state
-         :selected-index
-         (select-option-index (:options state)
-                              (:value state))))
+(defun select-control-options [state]
+  (if (:field-schema state)
+    (select-options-for-value (:field-schema state)
+                              {:context (:context state)}
+                              (:form-value state))
+    (:options state)))
 
-(defun select-options [field-schema opts]
-  (let [options (model-schema/valid-value-options (:context opts)
-                                                  field-schema)]
+(defun select-options-for-value [field-schema opts value]
+  (let [options (model-schema/valid-value-options-for-value (:context opts)
+                                                            field-schema
+                                                            value)]
     (if (= true (:required field-schema))
       options
       (concat [{:value nil
                 :label ""}]
               options))))
+
+(defun select-options [field-schema opts]
+  (select-options-for-value field-schema opts (:value opts)))
+
+(defun select-control-state [state]
+  (let [options (select-control-options state)]
+    (assoc (assoc state
+                  :options options)
+           :selected-index
+           (select-option-index options
+                                (:value state)))))
 
 (defcomponent pixils/form-select-control
   {:init (fn [state ctx]
@@ -1074,10 +1123,14 @@
    :on {:combo-box/change (fn [state event ctx]
                             (let [payload (:payload event)]
                               (ui/stop-propagation! event)
-                              (assoc (assoc state
-                                            :value (:value payload))
-                                     :selected-index
-                                     (:selected-index payload))))}
+                              (-> state
+                                  (assoc :value (:value payload))
+                                  (assoc :form-value
+                                         (form-value-with-field-value
+                                          state
+                                          (:value payload)))
+                                  (assoc :selected-index
+                                         (:selected-index payload)))))}
    :children [(combo-box/make {:options (ui/bind-state :options)
                                :selected-index
                                (ui/bind-state :selected-index)
@@ -1092,7 +1145,11 @@
   {:mode 'pixils/form-select-control
    :style (or (:control-style opts) default-control-style)
    :state {:value (field-binding field-id field-schema)
+           :form-value (ui/bind-state :form-value)
            :options (select-options field-schema opts)
+           :field-path (field-path field-id field-schema)
+           :field-schema field-schema
+           :context (:context opts)
            :row-height (:row-height field-schema)
            :max-height (:max-height field-schema)
            :disabled? (:read-only? field-schema)}})
@@ -1125,10 +1182,20 @@
   (let [schema (or (:schema opts) {})
         text (:text opts)
         field-schema (model-schema/resolved-field-schema schema field-id)
-        field-label (label-for field-id text)]
+        field-label (label-for field-id text)
+        base-style (or (:field-style opts) default-field-style)
+        initial-visible? (model-schema/field-visible? schema
+                                                      field-id
+                                                      (:value opts))]
     (if field-schema
-      {:style (or (:field-style opts) default-field-style)
-       :state form-state-binding
+      {:mode 'pixils/form-field
+       :style (form-field-style base-style initial-visible?)
+       :state {:value (ui/bind-state :value)
+               :schema schema
+               :field-id field-id
+               :field-schema field-schema
+               :base-style base-style
+               :visible? initial-visible?}
        :children [{:mode 'ui/text
                    :class :ui/muted
                    :style (or (:field-label-style opts)

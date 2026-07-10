@@ -94,6 +94,82 @@
              :label "Dawnkeep Stables"}]
            (schema/valid-value-options context field-schema)))))
 
+(deftest valid-value-options-can-depend-on-sibling-field-values
+  (let [field-schema {:type :keyword
+                      :valid-values
+                      {:from {:field [:source]
+                              :sources {:landmarks [:landmarks]
+                                        :terrain [:terrain]}}
+                       :value-path [:value]
+                       :label-path [:label]}}
+        context {:landmarks [{:value :dawnkeep
+                              :label "Dawnkeep"}]
+                 :terrain [{:value :blackmere
+                            :label "Blackmere"}]}]
+    (is (= [{:value :blackmere
+             :label "Blackmere"}]
+           (schema/valid-value-options-for-value
+            context
+            field-schema
+            {:source :terrain})))))
+
+(deftest schema-resolves-object-definition-extensions
+  (let [schema-doc {:definitions
+                    {:base-rule
+                     {:type :object
+                      :fields {:type {:type :keyword}
+                               :id {:type :keyword}}}
+                     :point-rule
+                     {:extends :base-rule
+                      :fields {:point {:type :number}}}}
+                    :schema {:ref :point-rule}}]
+    (is (= [:type :id :point]
+           (schema/schema-field-ids schema-doc)))))
+
+(deftest validation-uses-active-discriminated-union-variant
+  (let [schema-doc {:definitions
+                    {:rule-base
+                     {:type :object
+                      :fields {:type {:type :keyword
+                                      :required true
+                                      :valid-values [:preferred-position
+                                                     :edge]}}}
+                     :preferred-position-rule
+                     {:extends :rule-base
+                      :fields {:point {:type :number
+                                       :required true}}}
+                     :edge-rule
+                     {:extends :rule-base
+                      :fields {:target {:type :keyword
+                                        :required true}}}}
+                    :schema {:type :union
+                             :discriminator :type
+                             :base {:ref :rule-base}
+                             :variants
+                             {:preferred-position
+                              {:ref :preferred-position-rule}
+                              :edge {:ref :edge-rule}}}}]
+    (is (= true
+           (:valid? (schema/validate
+                     schema-doc
+                     {:type :preferred-position
+                      :point 10}))))
+    (is (= true
+           (:valid? (schema/validate
+                     schema-doc
+                     {:type :edge
+                      :target :forest}))))
+    (is (= {:target [{:rule :required}]}
+           (:errors (schema/validate
+                     schema-doc
+                     {:type :edge}))))
+    (is (= {:type [{:rule :valid-values
+                    :allowed [:preferred-position :edge]
+                    :actual :unknown}]}
+           (:errors (schema/validate
+                     schema-doc
+                     {:type :unknown}))))))
+
 (deftest select-control-state-preselects-current-value
   (let [state (form/select-control-state
                {:options [{:value nil
@@ -104,6 +180,15 @@
                            :label "stand"}]
                 :value :stand})]
     (is (= 2 (:selected-index state)))))
+
+(deftest form-value-with-field-value-updates-nested-field-path
+  (is (= {:target {:source :terrain
+                   :id :dawnkeep}}
+         (form/form-value-with-field-value
+          {:form-value {:target {:source :landmarks
+                                 :id :dawnkeep}}
+           :field-path [:target :source]}
+          :terrain))))
 
 (deftest schema-resolves-named-field-definition-references
   (let [schema-doc {:definitions
@@ -620,6 +705,69 @@
     (is (= [{:value :place/dawnkeep-stables
              :label "Dawnkeep Stables"}]
            (get-in control [:state :options])))))
+
+(deftest make-renders-dependent-valid-values-with-current-form-value
+  (let [view (form/make {:schema {:source
+                                  {:type :keyword
+                                   :required true
+                                   :valid-values [:landmarks
+                                                  :terrain]}
+                                  :id
+                                  {:type :keyword
+                                   :required true
+                                   :valid-values
+                                   {:from {:field [:source]
+                                           :sources
+                                           {:landmarks [:landmarks]
+                                            :terrain [:terrain]}}
+                                    :value-path [:value]
+                                    :label-path [:label]}}}
+                         :context {:landmarks [{:value :dawnkeep
+                                                :label "Dawnkeep"}]
+                                   :terrain [{:value :blackmere
+                                              :label "Blackmere"}]}
+                         :layout [:source :id]
+                         :value {:source :terrain
+                                 :id :blackmere}})
+        id-view (nth (:children view) 1)
+        control (nth (:children id-view) 1)]
+    (is (= 'pixils/form-select-control (:mode control)))
+    (is (= [:id] (get-in control [:state :field-path])))
+    (is (= [{:value :blackmere
+             :label "Blackmere"}]
+           (filter (get-in control [:state :options])
+                   (fn [option]
+                     (= :blackmere (:value option))))))))
+
+(deftest make-renders-active-discriminated-union-fields
+  (let [view (form/make {:schema
+                         {:definitions
+                          {:rule-base
+                           {:type :object
+                            :fields {:type {:type :keyword
+                                            :valid-values
+                                            [:preferred-position :edge]}}}
+                           :preferred-position-rule
+                           {:extends :rule-base
+                            :fields {:point {:type :number}}}
+                           :edge-rule
+                           {:extends :rule-base
+                            :fields {:target {:type :keyword}}}}
+                          :schema {:type :union
+                                   :discriminator :type
+                                   :base {:ref :rule-base}
+                                   :variants
+                                   {:preferred-position
+                                    {:ref :preferred-position-rule}
+                                    :edge {:ref :edge-rule}}}}
+                         :value {:type :preferred-position
+                                 :point 3}})
+        point-view (nth (:children view) 1)
+        target-view (nth (:children view) 2)]
+    (is (= 'pixils/form-field (:mode point-view)))
+    (is (not (contains? (:state point-view) :form-value)))
+    (is (= :visible (get-in point-view [:style :visibility])))
+    (is (= :none (get-in target-view [:style :visibility])))))
 
 (deftest make-renders-fields-through-named-definition-references
   (let [view (form/make {:schema {:definitions
