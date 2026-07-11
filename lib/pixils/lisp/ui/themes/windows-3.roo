@@ -646,12 +646,23 @@
             {:background (var :focus-bg)
              :text {:color (var :focus-text)}}
 
+            [:ui/list-item-hover:hover 'ui/tree-view-disclosure]
+            {:text {:color (var :focus-text)}}
+
             '(:ui/list-item {:selected true})
             {:background (var :focus-bg)
              :text {:color (var :focus-text)}}
 
+            ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+            {:text {:color (var :focus-text)}}
+
             'ui/list-box {:background (var :field-bg)
                           :border (var :solid-border-style)}
+
+            'ui/tree-view {:background (var :field-bg)
+                           :border (var :solid-border-style)}
+
+            'ui/tree-view-disclosure {:text {:color (var :field-text)}}
 
             'ui/combo-box {:background (var :field-bg)
                            :border (var :solid-border-style)}

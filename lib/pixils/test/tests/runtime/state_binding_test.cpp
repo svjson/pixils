@@ -57,6 +57,32 @@ TEST_F(StateBindingTest, map_binding_overlays_bound_keys_from_parent_into_child_
   EXPECT_EQ(child->state->to_string(), "{:board {:x 7}}");
 }
 
+TEST_F(StateBindingTest, nested_map_binding_overlays_bound_keys_from_parent_into_child_state)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {})
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:expanded [:project] :selected :src})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:content-state {:expanded-ids (pixils.ui/bind-state :expanded)
+                                          :selected-id (pixils.ui/bind-state :selected)}
+                          :literal {:kept? true}}}]
+    })
+  )");
+
+  // When
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // Then - nested bind-state values inside literal maps are resolved.
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->state, nullptr);
+  EXPECT_EQ(child->state->to_string(),
+            "{:content-state {:expanded-ids [:project] :selected-id :src} "
+            ":literal {:kept? true}}");
+}
+
 /**
  * Map-binding merge-back: when the child's update hook mutates :board,
  * the change must be written back to the parent's :board path.

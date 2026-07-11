@@ -293,13 +293,28 @@
     :ui/list-item-hover:hover
     {:background {:r 0x33 :g 0x3b :b 0x48}}
 
+    [:ui/list-item-hover:hover 'ui/tree-view-disclosure]
+    {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
     '(:ui/list-item {:selected true})
     {:background (var :selection-bg)}
+
+    ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+    {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
     'ui/list-box {:background (var :content-bg)
                   :border (var :content-border-style)}
 
+    'ui/tree-view {:background (var :content-bg)
+                   :border (var :content-border-style)}
+
+    'ui/tree-view-disclosure {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
     'ui/list-box:disabled
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
+
+    'ui/tree-view:disabled
     {:background (var :disabled-bg)
      :border (var :disabled-inset-border-style)}
 
@@ -307,6 +322,12 @@
     {:background (var :disabled-bg)}
 
     ['ui/list-box:disabled 'ui/scroll-pane-viewport]
+    {:background (var :disabled-bg)}
+
+    ['ui/tree-view:disabled 'ui/scroll-pane]
+    {:background (var :disabled-bg)}
+
+    ['ui/tree-view:disabled 'ui/scroll-pane-viewport]
     {:background (var :disabled-bg)}
 
     'ui/combo-box {:background (var :button-bg)

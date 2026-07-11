@@ -247,12 +247,23 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
+    [:ui/list-item-hover:hover 'ui/tree-view-disclosure]
+    {:text {:color (var :selection-text)}}
+
     '(:ui/list-item {:selected true})
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
+    ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+    {:text {:color (var :selection-text)}}
+
     'ui/list-box {:background (var :field-bg)
                   :border (var :inset-border-style)}
+
+    'ui/tree-view {:background (var :field-bg)
+                   :border (var :inset-border-style)}
+
+    'ui/tree-view-disclosure {:text {:color (var :text)}}
 
     'ui/combo-box {:background (var :field-bg)
                    :border (var :inset-border-style)}
@@ -508,6 +519,10 @@
      :background (var :disabled-bg)}
 
     'ui/combo-box:disabled
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
+
+    'ui/tree-view:disabled
     {:background (var :disabled-bg)
      :border (var :disabled-inset-border-style)}
 

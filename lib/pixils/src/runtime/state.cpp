@@ -8,6 +8,81 @@
 
 namespace Pixils::Runtime
 {
+  namespace
+  {
+    bool is_bind_state(const Roo::sptr_val& val)
+    {
+      return val && Pixils::Script::HostType::BIND_STATE.is_type_of(*val);
+    }
+
+    bool contains_state_binding(const Roo::sptr_val& val)
+    {
+      if (is_bind_state(val)) return true;
+      if (!val || val->type != Roo::Value::Type::MAP) return false;
+
+      for (const auto& key : Roo::Dict::map_sptr_keys(val))
+      {
+        if (contains_state_binding(Roo::Dict::get_property(val, key))) return true;
+      }
+      return false;
+    }
+
+    Roo::sptr_val literal_state_value(const Roo::sptr_val& val)
+    {
+      if (!contains_state_binding(val)) return val;
+      if (!val || val->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+
+      auto literal = Roo::map({});
+      for (const auto& key : Roo::Dict::map_sptr_keys(val))
+      {
+        auto child = Roo::Dict::get_property(val, key);
+        if (!contains_state_binding(child))
+        {
+          Roo::Dict::set_property(literal, key, child);
+        }
+        else if (child && child->type == Roo::Value::Type::MAP)
+        {
+          Roo::Dict::set_property(literal, key, literal_state_value(child));
+        }
+      }
+      return literal;
+    }
+
+    Roo::sptr_val resolve_state_binding_value(const Roo::sptr_val& parent,
+                                              const Roo::sptr_val& current,
+                                              const Roo::sptr_val& binding)
+    {
+      if (is_bind_state(binding))
+      {
+        const auto& path = Pixils::Runtime::bind_state_path(binding);
+        if (path.empty()) return parent;
+        return Roo::Dict::get_property_path(parent, path);
+      }
+
+      if (!binding || binding->type != Roo::Value::Type::MAP)
+      {
+        return current;
+      }
+
+      auto result = (current && current->type == Roo::Value::Type::MAP)
+                      ? Roo::Dict::shallow_copy(current)
+                      : Roo::map({});
+      for (const auto& key : Roo::Dict::map_sptr_keys(binding))
+      {
+        auto val = Roo::Dict::get_property(binding, key);
+        if (contains_state_binding(val))
+        {
+          Roo::Dict::set_property(
+            result,
+            key,
+            resolve_state_binding_value(parent, Roo::Dict::get_property(result, key), val));
+        }
+      }
+      return result;
+    }
+
+  } // namespace
+
   BindState::BindState(Roo::sptr_val_v p)
     : path(std::move(p))
   {
@@ -24,7 +99,7 @@ namespace Pixils::Runtime
       return view.initial_state;
     }
 
-    if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))
+    if (is_bind_state(binding))
     {
       const auto& path = Pixils::Runtime::bind_state_path(binding);
       if (path.empty()) return parent;
@@ -38,12 +113,12 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(binding))
     {
       auto val = Roo::Dict::get_property(binding, key);
-      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val))
+      if (contains_state_binding(val))
       {
         Roo::Dict::set_property(
           result,
           key,
-          Roo::Dict::get_property_path(parent, Pixils::Runtime::bind_state_path(val)));
+          resolve_state_binding_value(parent, Roo::Dict::get_property(result, key), val));
       }
     }
     return result;
@@ -60,7 +135,7 @@ namespace Pixils::Runtime
       return parent;
     }
 
-    if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))
+    if (is_bind_state(binding))
     {
       const auto& path = Pixils::Runtime::bind_state_path(binding);
       if (path.empty()) return child_state;
@@ -73,8 +148,7 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(binding))
     {
       auto val = Roo::Dict::get_property(binding, key);
-      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val) &&
-          Pixils::Runtime::bind_state_path(val).empty())
+      if (is_bind_state(val) && Pixils::Runtime::bind_state_path(val).empty())
       {
         auto child_val = Roo::Dict::get_property(child_state, key);
         if (child_val) result = child_val;
@@ -84,7 +158,7 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(binding))
     {
       auto val = Roo::Dict::get_property(binding, key);
-      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val))
+      if (is_bind_state(val))
       {
         const auto& path = Pixils::Runtime::bind_state_path(val);
         if (path.empty()) continue;
@@ -115,9 +189,13 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(state_val))
     {
       auto val = Roo::Dict::get_property(state_val, key);
-      if (val && Script::HostType::BIND_STATE.is_type_of(*val))
+      if (contains_state_binding(val))
       {
         has_binding = true;
+        if (val && val->type == Roo::Value::Type::MAP)
+        {
+          Roo::Dict::set_property(literal, key, literal_state_value(val));
+        }
       }
       else
       {

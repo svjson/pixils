@@ -54,8 +54,37 @@
     (is (= 4 (count (:rows state))))
     (is (= [:project :src :readme :assets]
            (map (:rows state) (fn [row] (:id row)))))
+    (is (= ["-" "+" "" "+"]
+           (map (:rows state) (fn [row] (:disclosure-glyph row)))))
     (is (= :src (:selected-id state)))
     (is (= 18 (:computed-row-height state)))))
+
+(deftest tree-node-synced-state-carries-disclosure-glyph
+  (let [state (tree-view/tree-node-synced-state
+               {:node (head sample-tree)
+                :adapter nil
+                :depth 0
+                :parent-id nil
+                :expanded-ids [:project]
+                :selected-id nil})]
+    (is (= true (:expanded? state)))
+    (is (= "-" (:disclosure-glyph state)))
+    (is (= "-" (-> state :row :disclosure-glyph)))))
+
+(deftest tree-view-render-key-ignores-derived-content-width
+  (let [base {:roots sample-tree
+              :row-height 12
+              :computed-row-height 12
+              :content-width nil
+              :computed-content-width 80
+              :stretch-items? false
+              :disabled? false
+              :item-child nil}
+        expanded (assoc base
+                        :expanded-ids [:project :src]
+                        :computed-content-width 160)]
+    (is (= (tree-view/tree-view-render-key base)
+           (tree-view/tree-view-render-key expanded)))))
 
 (defun settle-layout! [app]
   (runtime/update! app)
@@ -108,6 +137,99 @@
                    :visible-rows 3
                    :content-width 120})]})")
 
+(defun tree-view-themed-disclosure-source []
+  "(ns pixils.test.tree-view-themed-disclosure-probe
+     (:require pixils
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def tree
+     [{:id :project
+       :label \"Project\"
+       :children [{:id :src
+                   :label \"src\"
+                   :children [{:id :main
+                               :label \"main.roo\"}]}
+                  {:id :readme
+                   :label \"README.md\"}]}
+      {:id :assets
+       :label \"Assets\"
+       :children [{:id :logo
+                   :label \"logo.png\"}]}])
+
+   (pixils/defmode root-mode
+     {:theme 'pixils/windows-3
+      :children [(tree-view/make
+                  {:roots tree
+                   :expanded-ids [:project]
+                   :row-height 12
+                   :visible-rows 4
+                   :content-width 120})]})")
+
+(defun tree-view-nested-expansion-source []
+  "(ns pixils.test.tree-view-nested-expansion-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def tree
+     [{:id :project
+       :label \"Project\"
+       :children [{:id :src
+                   :label \"src\"
+                   :children [{:id :main
+                               :label \"main.roo\"}]}
+                  {:id :readme
+                   :label \"README.md\"}]}
+      {:id :assets
+       :label \"Assets\"
+       :children [{:id :logo
+                   :label \"logo.png\"}]}])
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:focused? false})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (ui/focus! (head (ui/children ctx))))
+                  (assoc state :focused? true)))
+      :children [(tree-view/make
+                  {:roots tree
+                   :expanded-ids [:project :src]
+                   :row-height 12
+                   :visible-rows 6
+                   :content-width 120})]})")
+
+(defun tree-view-bound-initial-expansion-source []
+  "(ns pixils.test.tree-view-bound-initial-expansion-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def tree
+     [{:id :project
+       :label \"Project\"
+       :children [{:id :src
+                   :label \"src\"
+                   :children [{:id :main
+                               :label \"main.roo\"}]}
+                  {:id :readme
+                   :label \"README.md\"}]}
+      {:id :assets
+       :label \"Assets\"
+       :children [{:id :logo
+                   :label \"logo.png\"}]}])
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:expanded [:project :src]})
+      :children [(tree-view/make
+                  {:roots tree
+                   :expanded-ids (ui/bind-state :expanded)
+                   :row-height 12
+                   :visible-rows 6
+                   :content-width 120})]})")
+
 (deftest tree-view-keyboard-expands-and-selects-visible-rows
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 180
@@ -132,3 +254,92 @@
       (is (= :project (-> root-state :last-expand :id)))
       (is (= [:project] (:expanded-ids tree-state)))
       (is (= 3 (count (:rows tree-state)))))))
+
+(deftest tree-view-disclosure-glyphs-follow-theme-and-expanded-state
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-themed-disclosure-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [items (runtime/find-views app "ui/tree-view-item")
+          disclosures (runtime/find-views app "ui/tree-view-disclosure")]
+      (is (= ["-" "+" "" "+"]
+             (map items
+                  (fn [view]
+                    (-> (runtime/view-state view) :row :disclosure-glyph)))))
+      (is (= ["-" "+" "" "+"]
+             (map items
+                  (fn [view]
+                    (:disclosure-glyph (runtime/view-state view))))))
+      (is (= [true false false false]
+             (map disclosures
+                  (fn [view]
+                    (-> (runtime/view-state view) :row :expanded?)))))
+      (is (= [true true false true]
+             (map disclosures
+                  (fn [view]
+                    (:expandable? (runtime/view-state view))))))
+      (is (= ["-" "+" "" "+"]
+             (map disclosures
+                  (fn [view]
+                    (-> (runtime/view-state view) :row :disclosure-glyph))))))))
+
+(deftest tree-view-renders-nested-expanded-node-without-empty-visual-space
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 140
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-nested-expansion-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (settle-layout! app)
+    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+          node-states (map (runtime/find-views app "ui/tree-view-node")
+                           (fn [view]
+                             (:id (runtime/view-state view))))
+          item-ids (map (runtime/find-views app "ui/tree-view-item")
+                        (fn [view]
+                          (-> (runtime/view-state view) :row :id)))
+          item-expanded (map (runtime/find-views app "ui/tree-view-item")
+                             (fn [view]
+                               (-> (runtime/view-state view) :row :expanded?)))]
+      (is (= [:project :src] (:expanded-ids tree-state)))
+      (is (= [:project :src :main :readme :assets]
+             (map (:rows tree-state) (fn [row] (:id row)))))
+      (is (= [:project :src :main :readme :assets] node-states))
+      (is (= [true true false false false] item-expanded))
+      (is (= [:project :src :main :readme :assets]
+             item-ids)))))
+
+(deftest tree-view-renders-bound-initial-expanded-state
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 140
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-bound-initial-expansion-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (settle-layout! app)
+    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+          scroll-state (runtime/view-state (runtime/find-view app "ui/scroll-pane"))
+          content-state (runtime/view-state (runtime/find-view app "ui/scroll-pane-content"))
+          root-state (runtime/view-state (runtime/find-view app "ui/tree-view-root"))
+          item-ids (map (runtime/find-views app "ui/tree-view-item")
+                        (fn [view]
+                          (-> (runtime/view-state view) :row :id)))
+          item-glyphs (map (runtime/find-views app "ui/tree-view-item")
+                           (fn [view]
+                             (-> (runtime/view-state view) :row :disclosure-glyph)))]
+      (is (= [:project :src] (:expanded-ids tree-state)))
+      (is (= [:project :src] (-> tree-state :content-state :expanded-ids)))
+      (is (= [:project :src] (-> scroll-state :content-state :expanded-ids)))
+      (is (= [:project :src] (:expanded-ids content-state)))
+      (is (= [:project :src] (:expanded-ids root-state)))
+      (is (= [:project :src :main :readme :assets]
+             (map (:rows tree-state) (fn [row] (:id row)))))
+      (is (= [:project :src :main :readme :assets]
+             item-ids))
+      (is (= ["-" "-" "" "" "+"]
+             item-glyphs)))))
