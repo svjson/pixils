@@ -761,7 +761,11 @@
 
 (defun object-control [field-id field-schema field-label opts]
   (let [schema (object-schema field-schema opts)
-        object-opts (assoc opts :schema schema)
+        object-opts (assoc opts
+                           :schema schema
+                           :value (field-value (:value opts)
+                                               field-id
+                                               field-schema))
         children (map (or (:layout field-schema)
                           (default-layout schema))
                       (fn [item]
@@ -1162,6 +1166,7 @@
    :string text-control
    :select select-control
    :object object-control
+   :union object-control
    :array array-control
    :keyword keyword-control
    :integer number-control

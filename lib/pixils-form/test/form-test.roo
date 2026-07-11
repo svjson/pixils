@@ -769,6 +769,45 @@
     (is (= :visible (get-in point-view [:style :visibility])))
     (is (= :none (get-in target-view [:style :visibility])))))
 
+(deftest make-renders-nested-discriminated-union-field
+  (let [view (form/make {:schema
+                         {:definitions
+                          {:effect-base
+                           {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values
+                                            [:move :wait]}}}
+                           :move-effect
+                           {:extends :effect-base
+                            :fields {:distance {:type :number}}}
+                           :wait-effect
+                           {:extends :effect-base
+                            :fields {:duration {:type :integer}}}
+                           :effect
+                           {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}
+                                       :wait {:ref :wait-effect}}}}
+                          :schema {:field/effect {:ref :effect}}}
+                         :layout [:field/effect]
+                         :value {:field/effect {:kind :move
+                                                :distance 1.5}}})
+        effect-view (head (:children view))
+        union-control (nth (:children effect-view) 1)
+        kind-view (head (:children union-control))
+        kind-control (nth (:children kind-view) 1)
+        distance-view (nth (:children union-control) 1)
+        distance-control (nth (:children distance-view) 1)
+        duration-view (nth (:children union-control) 2)]
+    (is (= 'pixils/form-object-control (:mode union-control)))
+    (is (= 3 (count (:children union-control))))
+    (is (= 'pixils/form-select-control (:mode kind-control)))
+    (is (= 'ui/number-input (:mode distance-control)))
+    (is (= :visible (get-in kind-view [:style :visibility])))
+    (is (= :visible (get-in distance-view [:style :visibility])))
+    (is (= :none (get-in duration-view [:style :visibility])))))
+
 (deftest make-renders-fields-through-named-definition-references
   (let [view (form/make {:schema {:definitions
                                   {:stable-role
