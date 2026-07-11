@@ -2,6 +2,7 @@
   (:require [pixils.ui :as ui]
             [pixils.ui.list-box :as list-box]
             [pixils.ui.scroll-pane :as scroll-pane]
+            [pixils.ui.tree-view :as tree-view]
             [widget-showcase.state :as showcase-state]
             [widget-showcase.style :as style]))
 
@@ -34,6 +35,19 @@
                                             :visible-rows 5
                                             :content-width 180
                                             :item-child list-item-child})]}])
+              (style/state-section
+               "Tree View"
+               [{:style {:width :fill
+                         :height :shrink
+                         :layout {:direction :row
+                                  :gap 10}}
+                 :state (showcase-state/bindings)
+                 :children [(tree-view/make
+                             {:roots showcase-state/tree-items
+                              :expanded-ids (ui/bind-state :tree-expanded)
+                              :selected-id (ui/bind-state :tree-selected)
+                              :visible-rows 7
+                              :content-width 260})]}])
               (style/state-section
                "Scroll Pane"
                [(scroll-pane/make

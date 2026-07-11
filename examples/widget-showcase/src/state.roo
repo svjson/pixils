@@ -76,6 +76,32 @@
     :label "Themes"
     :position {:x 360 :y 8}}])
 
+(def tree-items
+  [{:id :workspace
+    :label "Workspace"
+    :children [{:id :src
+                :label "src"
+                :children [{:id :core
+                            :label "core.roo"}
+                           {:id :widgets
+                            :label "widgets.roo"}]}
+               {:id :assets
+                :label "assets"
+                :children [{:id :icons
+                            :label "icons.png"}
+                           {:id :theme
+                            :label "theme.edn"}]}
+               {:id :readme
+                :label "README.md"}]}
+   {:id :packages
+    :label "Packages"
+    :children [{:id :pixils
+                :label "pixils"}
+               {:id :pixils-form
+                :label "pixils-form"}
+               {:id :pixils-runner
+                :label "pixils-runner"}]}])
+
 (defun bindings []
   {:selected-tab (ui/bind-state :selected-tab)
    :checked? (ui/bind-state :checked?)
@@ -95,6 +121,8 @@
    :read-only-value (ui/bind-state :read-only-value)
    :scrollbar-x (ui/bind-state :scrollbar-x)
    :scrollbar-y (ui/bind-state :scrollbar-y)
+   :tree-expanded (ui/bind-state :tree-expanded)
+   :tree-selected (ui/bind-state :tree-selected)
    :desktop-selected-id (ui/bind-state :desktop-selected-id)
    :message (ui/bind-state :message)
    :theme-label (ui/bind-state :theme-label)})
@@ -118,6 +146,8 @@
    :read-only-value "Read-only text can be focused and selected."
    :scrollbar-x 24
    :scrollbar-y 40
+   :tree-expanded [:workspace]
+   :tree-selected :src
    :desktop-selected-id :controls
    :message "Widget showcase ready."
    :theme-label "Windows 3"})

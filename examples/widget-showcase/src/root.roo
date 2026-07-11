@@ -8,6 +8,16 @@
             [widget-showcase.state :as showcase-state]
             [widget-showcase.style :as style]))
 
+(defun remove-tree-expanded-id [expanded id]
+  (filter (or expanded [])
+          (fn [item]
+            (not= item id))))
+
+(defun add-tree-expanded-id [expanded id]
+  (if (contains? (or expanded []) id)
+    (or expanded [])
+    (concat (or expanded []) [id])))
+
 (defmode main-mode
   {:class :ui/app
    :style {:width :fill
@@ -88,6 +98,36 @@
                                 (assoc state
                                        :list-reorder-options reordered
                                        :message "List row reordered."))))
+        :tree-view/change (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :tree-selected (-> event :payload :id)
+                                     :message "Tree selection changed.")))
+        :tree-view/expand (fn [state event ctx]
+                            (let [id (-> event :payload :id)]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :tree-expanded
+                                       (add-tree-expanded-id (:tree-expanded state)
+                                                             id)
+                                       :message "Tree node expanded."))))
+        :tree-view/collapse (fn [state event ctx]
+                              (let [id (-> event :payload :id)]
+                                (do
+                                  (ui/stop-propagation! event)
+                                  (assoc state
+                                         :tree-expanded
+                                         (remove-tree-expanded-id
+                                          (:tree-expanded state)
+                                          id)
+                                         :message "Tree node collapsed."))))
+        :tree-view/activate (fn [state event ctx]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :message "Tree node activated.")))
         :slider/change (fn [state event ctx]
                          (do
                            (ui/stop-propagation! event)

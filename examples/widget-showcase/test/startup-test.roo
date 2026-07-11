@@ -431,3 +431,25 @@
                                                          ":value :four")]
           (is (= true
                  (:selected (runtime/view-state selected-row)))))))))
+
+(deftest lists-tab-renders-tree-view
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [lists-tab (runtime/find-view-containing app
+                                                  "ui/tab"
+                                                  ":tab-id :lists")]
+      (runtime/click! app lists-tab)
+      (settle-layout! app)
+      (let [tree (runtime/find-view app "ui/tree-view")
+            state (runtime/view-state tree)]
+        (is (not (nil? tree)))
+        (is (= [:workspace] (:tree-expanded (runtime/active-state app))))
+        (is (= :src (:tree-selected (runtime/active-state app))))
+        (is (= [:workspace :src :assets :readme :packages]
+               (map (:rows state)
+                    (fn [row]
+                      (:id row)))))))))
