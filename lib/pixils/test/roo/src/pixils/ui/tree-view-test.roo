@@ -1,0 +1,134 @@
+(ns pixils.ui.tree-view-test
+  (:require proof.core
+            [pixils.ui.tree-view :as tree-view]
+            [pixils.test.runtime :as runtime]))
+
+(def sample-tree
+  [{:id :project
+    :label "Project"
+    :children [{:id :src
+                :label "src"
+                :children [{:id :main
+                            :label "main.roo"}]}
+               {:id :readme
+                :label "README.md"}]}
+   {:id :assets
+    :label "Assets"
+    :children [{:id :logo
+                :label "logo.png"}]}])
+
+(deftest visible-tree-rows-only-reads-children-for-expanded-nodes
+  (let [collapsed-adapter {:id (fn [node] (:id node))
+                           :label (fn [node] (:label node))
+                           :expandable? (fn [node]
+                                          (contains? [:project :src :assets]
+                                                     (:id node)))
+                           :children (fn [node]
+                                       (unexpected-collapsed-child-read))}
+        adapter {:id (fn [node] (:id node))
+                 :label (fn [node] (:label node))
+                 :expandable? (fn [node]
+                                (contains? [:project :src :assets]
+                                           (:id node)))
+                 :children (fn [node]
+                             (or (:children node) []))}
+        collapsed (tree-view/visible-tree-rows collapsed-adapter sample-tree [])
+        project-open (tree-view/visible-tree-rows adapter sample-tree [:project])
+        src-open (tree-view/visible-tree-rows adapter sample-tree [:project :src])]
+    (is (= [:project :assets]
+           (map collapsed (fn [row] (:id row)))))
+    (is (= [:project :src :readme :assets]
+           (map project-open (fn [row] (:id row)))))
+    (is (= [:project :src :main :readme :assets]
+           (map src-open (fn [row] (:id row)))))))
+
+(deftest make-composes-tree-view-with-visible-rows
+  (let [view (tree-view/make {:roots sample-tree
+                              :expanded-ids [:project]
+                              :selected-id :src
+                              :row-height 18
+                              :visible-rows 4
+                              :content-width 180})
+        state (:state view)]
+    (is (= 'ui/tree-view (:mode view)))
+    (is (= 4 (count (:rows state))))
+    (is (= [:project :src :readme :assets]
+           (map (:rows state) (fn [row] (:id row)))))
+    (is (= :src (:selected-id state)))
+    (is (= 18 (:computed-row-height state)))))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun tree-view-probe-source []
+  "(ns pixils.test.tree-view-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def tree
+     [{:id :project
+       :label \"Project\"
+       :children [{:id :src
+                   :label \"src\"}
+                  {:id :readme
+                   :label \"README.md\"}]}])
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:expanded []
+               :selected nil
+               :focused? false
+               :last-change nil
+               :last-expand nil})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (ui/focus! (head (ui/children ctx))))
+                  (assoc state :focused? true)))
+      :on {:tree-view/change
+           (fn [state event ctx]
+             (assoc state
+                    :selected (-> event :payload :id)
+                    :last-change (:payload event)))
+           :tree-view/expand
+           (fn [state event ctx]
+             (assoc state
+                    :expanded [:project]
+                    :last-expand (:payload event)))}
+      :children [(tree-view/make
+                  {:roots tree
+                   :expanded-ids (ui/bind-state :expanded)
+                   :selected-id (ui/bind-state :selected)
+                   :row-height 12
+                   :visible-rows 3
+                   :content-width 120})]})")
+
+(deftest tree-view-keyboard-expands-and-selects-visible-rows
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (runtime/key-down! app :down)
+    (runtime/update! app)
+    (runtime/key-up! app :down)
+    (runtime/update! app)
+    (runtime/key-down! app :right)
+    (runtime/update! app)
+    (runtime/key-up! app :right)
+    (runtime/update! app)
+    (settle-layout! app)
+    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+          root-state (runtime/active-state app)]
+      (is (= :project (:selected root-state)))
+      (is (= :project (-> root-state :last-change :id)))
+      (is (= :project (-> root-state :last-expand :id)))
+      (is (= [:project] (:expanded-ids tree-state)))
+      (is (= 3 (count (:rows tree-state)))))))
