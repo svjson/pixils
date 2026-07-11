@@ -511,6 +511,30 @@ namespace Pixils::Script
 
   NATIVE_SUB_ADAPTER_IMPL(MouseEventAdapter,
                           MouseEvent,
+                          (MouseWheelEventAdapter, MouseWheelEvent),
+                          &HostType::MOUSE_WHEEL_EVENT,
+                          (delta),
+                          (x),
+                          (y))
+
+  NOBJ_PROP_GET(MouseWheelEventAdapter, delta)
+  {
+    const Point& point = get_self_object().delta;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(MouseWheelEventAdapter, x)
+  {
+    return Roo::number(get_self_object().delta.x);
+  }
+
+  NOBJ_PROP_GET(MouseWheelEventAdapter, y)
+  {
+    return Roo::number(get_self_object().delta.y);
+  }
+
+  NATIVE_SUB_ADAPTER_IMPL(MouseEventAdapter,
+                          MouseEvent,
                           (MouseButtonEventAdapter, MouseButtonEvent),
                           &HostType::MOUSE_EVENT,
                           (button),

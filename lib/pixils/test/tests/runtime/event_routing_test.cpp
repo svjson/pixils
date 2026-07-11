@@ -275,6 +275,89 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   EXPECT_EQ(panel_mode.state->to_string(), "{:left-count 1}");
 }
 
+TEST_F(EventRoutingTest, on_mouse_wheel_fires_on_hovered_view_with_delta_and_position)
+{
+  runtime.eval(R"(
+    (pixils/defmode wheel-panel
+      {:init (fn [state ctx]
+               {:wheel-count 0
+                :delta nil
+                :x nil
+                :y nil
+                :position nil
+                :ctx-wheel nil})
+       :on-mouse-wheel (fn [state event ctx]
+                         (assoc state
+                                :wheel-count (+ (:wheel-count state) 1)
+                                :delta (:delta event)
+                                :x (:x event)
+                                :y (:y event)
+                                :position (:position event)
+                                :ctx-wheel (:mouse-wheel ctx)))})
+
+    (pixils/defmode container-mode {:children [{:mode 'wheel-panel :id "panel"}]})
+  )");
+  session.push_mode("container-mode", Roo::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_wheel({50, 50}, 2.0f, -3.0f);
+  update_cycle();
+
+  auto& panel_mode = *session.active_mode->children[0];
+  EXPECT_EQ(panel_mode.state->to_string(),
+            "{:wheel-count 1 :delta {:x 2 :y -3} :x 2 :y -3 :position {:x 30 :y 30} "
+            ":ctx-wheel {:x 2 :y -3}}");
+}
+
+TEST_F(EventRoutingTest, on_mouse_wheel_bubbles_and_can_stop_propagation)
+{
+  runtime.eval(R"(
+    (pixils/defmode wheel-child
+      {:init (fn [state ctx] {:wheel-count 0})
+       :on-mouse-wheel (fn [state event ctx]
+                         (do
+                           (pixils.ui/stop-propagation! event)
+                           (assoc state :wheel-count (+ (:wheel-count state) 1))))})
+
+    (pixils/defmode wheel-parent
+      {:init (fn [state ctx] {:wheel-count 0})
+       :on-mouse-wheel (fn [state event ctx]
+                         (assoc state :wheel-count (+ (:wheel-count state) 1)))
+       :children [{:mode 'wheel-child :id "child"}]})
+  )");
+  session.push_mode("wheel-parent", Roo::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_wheel({50, 50}, 0.0f, 1.0f);
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:wheel-count 0}");
+  auto& child_mode = *session.active_mode->children[0];
+  EXPECT_EQ(child_mode.state->to_string(), "{:wheel-count 1}");
+}
+
+TEST_F(EventRoutingTest, on_mouse_wheel_does_not_fire_mouse_motion)
+{
+  runtime.eval(R"(
+    (pixils/defmode wheel-panel
+      {:init (fn [state ctx] {:wheel-count 0 :motion-count 0})
+       :on-mouse-wheel (fn [state event ctx]
+                         (assoc state :wheel-count (+ (:wheel-count state) 1)))
+       :on-mouse-motion (fn [state event ctx]
+                          (assoc state :motion-count (+ (:motion-count state) 1)))})
+  )");
+  session.push_mode("wheel-panel", Roo::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 100};
+
+  input().mouse_wheel({50, 50}, 0.0f, 1.0f);
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:wheel-count 1 :motion-count 0}");
+}
+
 TEST_F(EventRoutingTest, drag_hooks_fire_on_pressed_view_chain_after_motion)
 {
   runtime.eval(R"(

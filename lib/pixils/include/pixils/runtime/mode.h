@@ -106,6 +106,7 @@ namespace Pixils::Runtime
     Roo::sptr_val on_mouse_enter = Roo::Constant::NIL;
     Roo::sptr_val on_mouse_leave = Roo::Constant::NIL;
     Roo::sptr_val on_mouse_motion = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_wheel = Roo::Constant::NIL;
     Roo::sptr_val on_drag_start = Roo::Constant::NIL;
     Roo::sptr_val on_drag = Roo::Constant::NIL;
     Roo::sptr_val on_drag_end = Roo::Constant::NIL;

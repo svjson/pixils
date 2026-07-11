@@ -54,6 +54,16 @@ namespace Pixils
   };
 
   /**
+   * Mouse wheel event. `delta` carries the frame's accumulated wheel movement:
+   * x is horizontal scroll, y is vertical scroll. Positive values follow SDL's
+   * wheel convention: right horizontally, away from the user vertically.
+   */
+  struct MouseWheelEvent : MouseEvent
+  {
+    Point delta;
+  };
+
+  /**
    * Mouse drag event routed to the view chain that received the initiating
    * mouse-down. `delta` is movement since the previous drag lifecycle event for
    * this button, while `total_delta` is movement since the initiating press.

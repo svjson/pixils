@@ -51,6 +51,9 @@ namespace Pixils::Script
                      (MouseEventAdapter, MouseEvent),
                      (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
+                     (MouseWheelEventAdapter, MouseWheelEvent),
+                     (delta, x, y));
+  NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
                      (button, click_count));
   NATIVE_SUB_ADAPTER(MouseButtonEventAdapter,

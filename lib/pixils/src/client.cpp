@@ -182,6 +182,15 @@ namespace Pixils
           events.do_mouse_button_up(event.button);
           break;
         }
+        case SDL_EVENT_MOUSE_WHEEL:
+        {
+          Point pos = ctx.window_to_buffer_point(program->get_display(),
+                                                 event.wheel.mouse_x,
+                                                 event.wheel.mouse_y);
+          events.set_mouse_position(pos.round_x(), pos.round_y());
+          events.do_mouse_wheel(event.wheel);
+          break;
+        }
         }
       }
       frame++;

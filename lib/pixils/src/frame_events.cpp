@@ -32,6 +32,7 @@ namespace Pixils
     : mouse_pos(Script::PointAdapter::make_unique(0.0f, 0.0f))
     , mouse_button_down(Roo::Constant::NIL)
     , mouse_button_up(Roo::Constant::NIL)
+    , mouse_wheel(Roo::Constant::NIL)
   {
   }
 
@@ -46,15 +47,21 @@ namespace Pixils
     clear_keyboard_transients();
     mouse_button_down = Roo::Constant::NIL;
     mouse_button_up = Roo::Constant::NIL;
+    mouse_wheel = Roo::Constant::NIL;
     mouse_button_down_clicks = 1;
     mouse_button_up_clicks = 1;
     mouse_moved = false;
   }
 
-  void FrameEvents::do_mouse_motion(int x, int y)
+  void FrameEvents::set_mouse_position(int x, int y)
   {
     mouse_pos =
       Script::PointAdapter::make_unique(static_cast<float>(x), static_cast<float>(y));
+  }
+
+  void FrameEvents::do_mouse_motion(int x, int y)
+  {
+    set_mouse_position(x, y);
     mouse_moved = true;
   }
 
@@ -78,6 +85,19 @@ namespace Pixils
                              children.end(),
                              [btn](const Roo::sptr_val& hbtn) { return *btn == *hbtn; });
     if (it != children.end()) children.erase(it);
+  }
+
+  void FrameEvents::do_mouse_wheel(const SDL_MouseWheelEvent& event)
+  {
+    if (mouse_wheel && mouse_wheel->type != Roo::Value::Type::NIL)
+    {
+      const Point& current = Roo::obj<Point>(*mouse_wheel);
+      mouse_wheel =
+        Script::PointAdapter::make_unique(current.x + event.x, current.y + event.y);
+      return;
+    }
+
+    mouse_wheel = Script::PointAdapter::make_unique(event.x, event.y);
   }
 
   void FrameEvents::do_key_down(const SDL_KeyboardEvent& event)

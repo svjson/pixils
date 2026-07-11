@@ -1322,6 +1322,30 @@ namespace Pixils::UI
         rt);
     }
 
+    void handle_mouse_wheel(MouseState& mouse_state,
+                            FrameEvents& events,
+                            Runtime::HookArguments& hook_args,
+                            Roo::Runtime& rt)
+    {
+      auto chain = lock_chain(mouse_state.hovered_chain);
+      if (chain.empty()) return;
+
+      const Point& gp = Roo::obj<Point>(*events.mouse_pos);
+      const Point& wheel_delta = Roo::obj<Point>(*events.mouse_wheel);
+      MouseWheelEvent ev;
+      ev.global_pos = gp;
+      ev.delta = wheel_delta;
+      auto ev_ref = Script::MouseWheelEventAdapter::make_ref(ev);
+      bubble_hook(
+        chain,
+        &Runtime::Mode::on_mouse_wheel,
+        ev_ref,
+        ev.propagation_stopped,
+        [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
+        hook_args,
+        rt);
+    }
+
     void handle_drag_motion(MouseState& mouse_state,
                             FrameEvents& events,
                             Runtime::HookArguments& hook_args,
@@ -1493,6 +1517,11 @@ namespace Pixils::UI
     {
       handle_mouse_motion(mouse_state, events, hook_args, runtime);
       handle_drag_motion(mouse_state, events, hook_args, runtime);
+    }
+
+    if (events.mouse_wheel && events.mouse_wheel->type != Roo::Value::Type::NIL)
+    {
+      handle_mouse_wheel(mouse_state, events, hook_args, runtime);
     }
 
     if (mouse_state.has_pressed() &&

@@ -353,6 +353,7 @@ namespace Pixils::Script
                                           {"on-mouse-enter", &Roo::Type::ANY},
                                           {"on-mouse-leave", &Roo::Type::ANY},
                                           {"on-mouse-motion", &Roo::Type::ANY},
+                                          {"on-mouse-wheel", &Roo::Type::ANY},
                                           {"on-drag-start", &Roo::Type::ANY},
                                           {"on-drag", &Roo::Type::ANY},
                                           {"on-drag-end", &Roo::Type::ANY},
@@ -424,6 +425,7 @@ namespace Pixils::Script
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
     apply_hook(mode.on_mouse_motion, "on-mouse-motion");
+    apply_hook(mode.on_mouse_wheel, "on-mouse-wheel");
     apply_hook(mode.on_drag_start, "on-drag-start");
     apply_hook(mode.on_drag, "on-drag");
     apply_hook(mode.on_drag_end, "on-drag-end");

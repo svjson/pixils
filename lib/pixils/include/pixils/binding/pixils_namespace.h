@@ -140,6 +140,7 @@ namespace Pixils::Script
                   mouse_pos,
                   mouse_button_down,
                   mouse_button_up,
+                  mouse_wheel,
                   mouse_held,
                   pixel_size,
                   buffer_dim,
@@ -164,6 +165,7 @@ namespace Pixils::Script
                   effective_style,
                   on_mouse_down,
                   on_mouse_up,
+                  on_mouse_wheel,
                   on_click,
                   on_double_click));
   /*! @brief ModeAdapter - A Roo HostObject Adapter for Mode */

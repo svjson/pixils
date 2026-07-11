@@ -44,6 +44,23 @@ void InputSimulator::mouse_up(Coord position, Uint8 button, Uint8 clicks)
   mouse_up(button, clicks);
 }
 
+void InputSimulator::mouse_wheel(float x, float y)
+{
+  SDL_MouseWheelEvent mouse_wheel_event{};
+  mouse_wheel_event.x = x;
+  mouse_wheel_event.y = y;
+  mouse_wheel_event.mouse_x = static_cast<float>(_mouse_pos.first);
+  mouse_wheel_event.mouse_y = static_cast<float>(_mouse_pos.second);
+  _events.do_mouse_wheel(mouse_wheel_event);
+}
+
+void InputSimulator::mouse_wheel(Coord position, float x, float y)
+{
+  _mouse_pos = position;
+  _events.set_mouse_position(position.first, position.second);
+  mouse_wheel(x, y);
+}
+
 void InputSimulator::key_down(SDL_Keycode key)
 {
   SDL_KeyboardEvent key_event{};

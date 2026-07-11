@@ -633,6 +633,7 @@ with standard map lookup.
 | `:mouse-pos`          | Current cursor position as a point (`{:x N :y N}`)                                      |
 | `:mouse-button-down`  | Keyword for the button pressed this frame (`:left`, `:right`, `:middle`), or `nil`      |
 | `:mouse-button-up`    | Keyword for the button released this frame (`:left`, `:right`, `:middle`), or `nil`     |
+| `:mouse-wheel`        | Wheel delta for this frame as a point (`{:x N :y N}`), or `nil` when no wheel event occurred |
 | `:mouse-held`         | Set of mouse buttons currently held                                                      |
 | `:view`               | The current view (see below)                                                             |
 
@@ -1256,6 +1257,8 @@ child slot override map.
                      (assoc state :pressing true))
    :on-mouse-up    (fn [state event ctx]
                      (assoc state :pressing false))
+   :on-mouse-wheel (fn [state event ctx]
+                     (update state :scroll-y + (:y event)))
    :on-mouse-enter (fn [state event ctx] ...)
    :on-mouse-leave (fn [state event ctx] ...)
    :render (fn [state ctx] ...)})
@@ -1266,10 +1269,11 @@ child slot override map.
 | Hook              | When it fires                                                              |
 |-------------------|----------------------------------------------------------------------------|
 | `:on-mouse-down`  | Mouse button pressed within bounds                                         |
-| `:on-mouse-up`    | Mouse button released (fires on the component that received the down)      |
+| `:on-mouse-up`    | Mouse button released over the component                                   |
 | `:on-click`       | Button pressed and released within the same component                      |
 | `:on-mouse-enter` | Cursor enters the component's bounds                                       |
 | `:on-mouse-leave` | Cursor leaves the component's bounds                                       |
+| `:on-mouse-wheel` | Mouse wheel scrolled over the component                                    |
 | `:on-drag-start`  | Pressed button begins dragging after moving, routed to the press chain     |
 | `:on-drag`        | Cursor moves while an active drag is in progress, routed to the press chain |
 | `:on-drag-end`    | Active drag ends when the initiating button is released                    |
@@ -1287,6 +1291,13 @@ Modes can opt into explicit drag policy with `:drag`:
 The payload is evaluated once when the drag operation starts, then delivered on
 `:on-drag-start`, `:on-drag`, `:on-drag-end`, and `:on-drop`.
 
+Wheel events are routed to the view under the cursor and then bubble through
+that view's ancestors. If SDL reports multiple wheel ticks before the next
+Pixils update, Pixils accumulates them into one `:on-mouse-wheel` event for the
+frame. `(:x event)` is horizontal wheel movement, positive to the right.
+`(:y event)` is vertical wheel movement, positive away from the user and
+negative toward the user.
+
 **Event object fields**
 
 | Field        | Description                                                     |
@@ -1294,9 +1305,11 @@ The payload is evaluated once when the drag operation starts, then delivered on
 | `:button`            | Which button (`:left`, `:right`, `:middle`) - mouse-down, mouse-up, click, drag |
 | `:position`          | Cursor position relative to the current component                            |
 | `:global-position`   | Cursor position in buffer coordinates                                        |
+| `:x`                 | Horizontal wheel delta - wheel hooks only                                   |
+| `:y`                 | Vertical wheel delta - wheel hooks only                                     |
 | `:start-position`    | Drag start position relative to the current component - drag hooks only      |
 | `:start-global-position` | Drag start position in buffer coordinates - drag hooks only            |
-| `:delta`             | Movement since the previous drag lifecycle event - drag hooks only           |
+| `:delta`             | Wheel delta as a point for wheel hooks; movement since the previous drag lifecycle event for drag hooks |
 | `:total-delta`       | Movement since the initiating mouse-down - drag hooks only                   |
 | `:payload`           | Source-defined drag data - drag and drop hooks only                         |
 

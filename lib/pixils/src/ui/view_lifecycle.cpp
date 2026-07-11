@@ -132,6 +132,7 @@ namespace
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
     apply_hook(mode.on_mouse_motion, "on-mouse-motion");
+    apply_hook(mode.on_mouse_wheel, "on-mouse-wheel");
     apply_hook(mode.on_drag_start, "on-drag-start");
     apply_hook(mode.on_drag, "on-drag");
     apply_hook(mode.on_drag_end, "on-drag-end");

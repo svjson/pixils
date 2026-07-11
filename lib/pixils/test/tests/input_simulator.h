@@ -20,6 +20,8 @@ class InputSimulator
   void mouse_down(Coord position, Uint8 button = SDL_BUTTON_LEFT, Uint8 clicks = 1);
   void mouse_up(Uint8 button = SDL_BUTTON_LEFT, Uint8 clicks = 1);
   void mouse_up(Coord position, Uint8 button = SDL_BUTTON_LEFT, Uint8 clicks = 1);
+  void mouse_wheel(float x, float y);
+  void mouse_wheel(Coord position, float x, float y);
   void key_down(SDL_Keycode key);
   void key_up(SDL_Keycode key);
 

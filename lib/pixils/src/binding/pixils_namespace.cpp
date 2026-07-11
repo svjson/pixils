@@ -941,6 +941,7 @@ namespace Pixils::Script
                       ("mouse-pos", mouse_pos),
                       ("mouse-button-down", mouse_button_down),
                       ("mouse-button-up", mouse_button_up),
+                      ("mouse-wheel", mouse_wheel),
                       ("mouse-held", mouse_held),
                       ("pixel-size", pixel_size),
                       ("buffer-size", buffer_dim),
@@ -971,6 +972,11 @@ namespace Pixils::Script
   NOBJ_PROP_GET(HookContextAdapter, mouse_button_up)
   {
     return object->get_object().events->mouse_button_up;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, mouse_wheel)
+  {
+    return object->get_object().events->mouse_wheel;
   }
 
   NOBJ_PROP_GET(HookContextAdapter, mouse_held)
@@ -1045,7 +1051,8 @@ namespace Pixils::Script
                       ("on-click", on_click),
                       ("on-double-click", on_double_click),
                       ("on-mouse-down", on_mouse_down),
-                      ("on-mouse-up", on_mouse_up));
+                      ("on-mouse-up", on_mouse_up),
+                      ("on-mouse-wheel", on_mouse_wheel));
 
   NOBJ_PROP_GET__FIELD(ViewAdapter, id);
   NOBJ_PROP_GET(ViewAdapter, state)
@@ -1122,6 +1129,14 @@ namespace Pixils::Script
     return v.owned_mode && *v.owned_mode->on_mouse_down != *Roo::Constant::NIL
              ? v.owned_mode->on_mouse_down
              : v.mode->on_mouse_down;
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, on_mouse_wheel)
+  {
+    const Runtime::View& v = object->get_object();
+    return v.owned_mode && *v.owned_mode->on_mouse_wheel != *Roo::Constant::NIL
+             ? v.owned_mode->on_mouse_wheel
+             : v.mode->on_mouse_wheel;
   }
 
   /* RenderContextAdapter */
