@@ -1,0 +1,132 @@
+(ns tilemap-editor.view.tileset.tile-duplicate-test
+  (:require proof.core
+            [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.tileset.dialogs :as dialogs]
+            [tilemap-editor.view.tileset.layout :as layout]
+            [tilemap-editor.view.tileset.model :as model]
+            [tilemap-editor.view.tileset.panels :as panels]))
+
+(deftest tile-context-menu-includes-single-tile-duplicate-action
+  (let [items (:items (panels/tile-context-menu
+                       {:selected-tileset-definition-index 0
+                        :selected-tileset-tile-index 0
+                        :selected-tileset-tile-indices [0]
+                        :tilesets [{:id :terrain
+                                    :tiles [{:id :grass}]}]}))]
+    (is (= "Duplicate" (-> items (nth 1) :label)))
+    (is (= :duplicate (-> items (nth 1) :payload :command)))
+    (is (= false (-> items (nth 1) :disabled?)))))
+
+(deftest tile-context-menu-disables-duplicate-for-multi-selection
+  (let [items (:items (panels/tile-context-menu
+                       {:selected-tileset-definition-index 0
+                        :selected-tileset-tile-index 0
+                        :selected-tileset-tile-indices [0 1]
+                        :tilesets [{:id :terrain
+                                    :tiles [{:id :grass}
+                                            {:id :water}]}]}))]
+    (is (= true (-> items (nth 1) :disabled?)))))
+
+(deftest tile-duplicate-dialog-defaults-use-source-id-and-name
+  (is (= {:id "wall-2"
+          :name "Wall"}
+         (dialogs/tile-duplicate-identity
+          [{:id :wall
+            :name "Wall"}
+           {:id :floor
+            :name "Floor"}]
+          {:id :wall
+           :name "Wall"}))))
+
+(deftest duplicate-tile-preserves-stored-explicit-data
+  (let [state (model/duplicate-tile-definition!
+               {:property-sets [{:id :movement
+                                 :properties [{:id :blocks
+                                               :type :any
+                                               :default false}
+                                              {:id :cost
+                                               :type :number
+                                               :default 1}]}]
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 0
+                :tilesets [{:id :terrain
+                            :property-sets [:movement]
+                            :properties {:blocks true
+                                         :cost 1}
+                            :tiles [{:id :wall
+                                     :name "Wall"
+                                     :char "#"
+                                     :type :sprite
+                                     :image :project/sheet
+                                     :source {:x 32 :y 16 :w 16 :h 16}
+                                     :properties {:cost 5}
+                                     :substitution
+                                     {:seed 7
+                                      :algorithm :weighted-random
+                                      :choices [{:tile :wall
+                                                 :weight 3}
+                                                {:tile :cracked-wall
+                                                 :weight 1}]}}
+                                    {:id :cracked-wall
+                                     :name "Cracked Wall"}]}]}
+               {:type :confirm
+                :tile-index 0
+                :tile-id "wall copy"
+                :tile-name "Wall Copy"})]
+    (is (= [:wall :wall-copy :cracked-wall]
+           (map (get-in state [:tilesets 0 :tiles]) :id)))
+    (is (= {:id :wall-copy
+            :name "Wall Copy"
+            :char "#"
+            :type :sprite
+            :image :project/sheet
+            :source {:x 32 :y 16 :w 16 :h 16}
+            :properties {:cost 5}
+            :substitution {:seed 7
+                           :algorithm :weighted-random
+                           :choices [{:tile :wall-copy
+                                      :weight 3}
+                                     {:tile :cracked-wall
+                                      :weight 1}]}}
+           (get-in state [:tilesets 0 :tiles 1])))
+    (is (= 1 (:selected-tileset-tile-index state)))
+    (is (= [1] (:selected-tileset-tile-indices state)))))
+
+(deftest duplicate-tile-does-not-materialize-inherited-properties
+  (let [state (model/duplicate-tile-definition!
+               {:property-sets [{:id :movement
+                                 :properties [{:id :blocks
+                                               :type :any
+                                               :default false}]}]
+                :selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :property-sets [:movement]
+                            :properties {:blocks true}
+                            :tiles [{:id :floor
+                                     :name "Floor"
+                                     :type :color
+                                     :color {:r 16 :g 16 :b 16}}]}]}
+               {:type :confirm
+                :tile-index 0
+                :tile-id "floor copy"
+                :tile-name "Floor Copy"})]
+    (is (= nil
+           (get-in state [:tilesets 0 :tiles 1 :properties])))))
+
+(deftest duplicate-tile-result-records-workbook-change
+  (let [state (layout/apply-tile-duplicate-dialog-result
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :tiles [{:id :floor
+                                     :name "Floor"}]}]}
+               {:type :confirm
+                :tile-index 0
+                :tile-id "floor copy"
+                :tile-name "Floor Copy"})
+        undone (editor-workbook/undo state)]
+    (is (= true (editor-workbook/can-undo? state)))
+    (is (= "Duplicate tile" (editor-workbook/undo-label state)))
+    (is (= [:floor :floor-copy]
+           (map (get-in state [:tilesets 0 :tiles]) :id)))
+    (is (= [:floor]
+           (map (get-in undone [:tilesets 0 :tiles]) :id)))))

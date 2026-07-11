@@ -30,14 +30,19 @@
 	            :action :tileset/context-dummy
 	            :payload {:command :duplicate}}]})
 
-(def tile-context-menu
-  {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Rename"
-            :action :tile/context-dummy
-            :payload {:command :rename}}
-           {:label "Delete"
-            :action :tile/context-dummy
-            :payload {:command :delete}}]})
+(defun tile-context-menu [state]
+  (let [single-selection? (= (count (selected-tileset-tile-selection state)) 1)]
+    {:settings {:mnemonics {:enabled false}}
+     :items [{:label "Rename"
+              :action :tile/context-dummy
+              :payload {:command :rename}}
+             {:label "Duplicate"
+              :action :tile/context-dummy
+              :disabled? (not single-selection?)
+              :payload {:command :duplicate}}
+             {:label "Delete"
+              :action :tile/context-dummy
+              :payload {:command :delete}}]}))
 
 (defun point-minus [position offset]
   (let [pos (or position {:x 0 :y 0})
@@ -350,7 +355,7 @@
                     (ui/stop-propagation! event)
                     (when (and (= (:button event) :right)
                                (not (empty? (selected-tileset-tile-selection state))))
-                      (menu/open-context-menu! tile-context-menu
+                      (menu/open-context-menu! (tile-context-menu state)
                                                (:global-position event)
                                                state
                                                ctx))

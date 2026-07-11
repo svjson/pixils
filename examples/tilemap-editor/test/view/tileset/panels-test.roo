@@ -159,9 +159,15 @@
     (is (= "Duplicate" (:label duplicate-item)))
     (is (= :duplicate (-> duplicate-item :payload :command)))))
 
-(deftest tile-context-menu-includes-rename-command
-  (let [rename-item (head (:items panels/tile-context-menu))
-        delete-item (nth (:items panels/tile-context-menu) 1)]
+(deftest tile-context-menu-includes-rename-and-delete-commands
+  (let [items (:items (panels/tile-context-menu
+                       {:selected-tileset-definition-index 0
+                        :selected-tileset-tile-index 0
+                        :selected-tileset-tile-indices [0]
+                        :tilesets [{:id :terrain
+                                    :tiles [{:id :grass}]}]}))
+        rename-item (head items)
+        delete-item (nth items 2)]
     (is (= "Rename" (:label rename-item)))
     (is (= :rename (-> rename-item :payload :command)))
     (is (= "Delete" (:label delete-item)))

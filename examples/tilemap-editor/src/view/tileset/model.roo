@@ -1397,6 +1397,46 @@
                                                     new-id))))
       state)))
 
+(defun duplicate-tile-definition! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)
+        index (:tile-index payload)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (nil? index))
+             (< index (count (or (:tiles tileset) [])))
+             (not (blank? (:tile-id payload)))
+             (not (blank? (:tile-name payload))))
+      (let [tiles (or (:tiles tileset) [])
+            source (nth tiles index)
+            old-id (:id source)
+            new-id (keyword (unique-id-from tiles
+                                            (kebab-case (:tile-id payload))
+                                            nil))
+            duplicate (assoc source
+                             :id new-id
+                             :name (:tile-name payload))
+            duplicate (if (:substitution duplicate)
+                        (assoc duplicate
+                               :substitution
+                               (rename-tile-refs-in-tile-substitution
+                                (:substitution duplicate)
+                                old-id
+                                new-id))
+                        duplicate)
+            duplicate-index (inc index)]
+        (assoc-in (assoc state
+                         :selected-tileset-tile-index duplicate-index
+                         :selected-tileset-tile-indices [duplicate-index])
+                  [:tilesets tileset-index :tiles]
+                  (apply concat
+                         (for-indexed [tile-index tile tiles]
+                           (if (= tile-index index)
+                             [tile duplicate]
+                             [tile])))))
+      state)))
+
 (defun batch-tile-rename-tile-name [payload ordinal]
   (let [root (or (:tile-name-root payload) "")]
     (if (= (:numbered? payload) false)

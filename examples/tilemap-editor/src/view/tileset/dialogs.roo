@@ -2,6 +2,7 @@
   (:require pixils
             [roo.io :as io]
             [pixils.image :as img]
+            [pixils.form :as form]
             [pixils.render :as r]
             [pixils.resource :as res]
             [pixils.ui :as ui]
@@ -14,6 +15,7 @@
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.tile-schemas :as tile-schemas]
             [tilemap-editor.view.image-panel :as ip]
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
@@ -309,6 +311,32 @@
                :selected-tileset-tile-indices [index]))
 
       :default
+      state)))
+
+(defun tile-duplicate-identity [tiles tile]
+  {:id (unique-id-from tiles (keyword-label (:id tile)) nil)
+   :name (or (:name tile) (label-from-id (:id tile)))})
+
+(defun open-tile-duplicate-dialog! [state ctx tile-indices]
+  (let [tiles (selected-tileset-tiles state)
+        indices (valid-tile-indices
+                 (or tile-indices (selected-tileset-tile-selection state))
+                 (count tiles))
+        index (when (= (count indices) 1) (head indices))
+        tile (when (and (not (nil? index))
+                        (< index (count tiles)))
+               (nth tiles index))]
+    (if tile
+      (let [identity (tile-duplicate-identity tiles tile)]
+        (do
+          (push-mode! 'tile-duplicate-dialog-modal
+                      {:tile-index index
+                       :identity identity}
+                      {:origin {:view (:view ctx)
+                                :event :tile/duplicate-dialog-result}})
+          (assoc state
+                 :selected-tileset-tile-index index
+                 :selected-tileset-tile-indices [index])))
       state)))
 
 (defun open-color-range-dialog! [state ctx]
@@ -907,6 +935,65 @@
                        :confirm-label
                        (ui/bind-state :confirm-label)}}]})
 
+(defcomponent tile-duplicate-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [identity (:identity state)]
+               (assoc state
+                      :invalid? (or (blank? (:id identity))
+                                    (blank? (:name identity))))))
+   :children [(form/make {:schema tile-schemas/tile-identity-schema
+                          :text {:id "Id"
+                                 :name "Name"}
+                          :layout [[:id :name]]
+                          :style {:width :fill
+                                  :height :shrink
+                                  :layout {:direction :column
+                                           :gap 8}}
+                          :row-style {:width :fill
+                                      :height :shrink
+                                      :layout {:direction :row
+                                               :align-items :start
+                                               :gap 8}}
+                          :field-style {:width :fill
+                                        :height :shrink
+                                        :layout {:direction :column
+                                                 :gap 3}}
+                          :value (ui/bind-state :identity)})
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :gap :space-between}}
+               :state {:identity (ui/bind-state :identity)
+                       :invalid? (ui/bind-state :invalid?)}
+               :children [{:mode 'ui/button
+                           :style {:width 78
+                                   :height 24}
+                           :state {:label "Cancel"}
+                           :on-click (fn [state event ctx]
+                                       (do
+                                         (ui/emit! (:view ctx)
+                                                   :tile-duplicate-dialog/cancel)
+                                         state))}
+                          {:mode 'ui/button
+                           :style {:width 78
+                                   :height 24}
+                           :state {:label "Duplicate"
+                                   :identity (ui/bind-state :identity)
+                                   :disabled? (ui/bind-state :invalid?)}
+                           :on-click (fn [state event ctx]
+                                       (do
+                                         (when (not (:disabled? state))
+                                           (ui/emit! (:view ctx)
+                                                     :tile-duplicate-dialog/confirm
+                                                     (:identity state)))
+                                         state))}]}]})
+
 (defmode tile-create-dialog-modal
   {:on {:tile-create-dialog/cancel
         (fn [state event ctx]
@@ -975,6 +1062,33 @@
                                        :tile-char (ui/bind-state :tile-char)
                                        :confirm-label
                                        (ui/bind-state :confirm-label)}}]})]})
+
+(defmode tile-duplicate-dialog-modal
+  {:on {:tile-duplicate-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tile-duplicate-dialog/confirm
+        (fn [state event ctx]
+          (let [identity (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (if (or (blank? (:id identity))
+                      (blank? (:name identity)))
+                state
+                (do
+                  (pop-mode! {:type :confirm
+                              :tile-index (:tile-index state)
+                              :tile-id (:id identity)
+                              :tile-name (:name identity)})
+                  state)))))}
+   :compose {:render :pass}
+   :children [(w/make {:title-bar {:title "Duplicate Tile"}
+                       :state {:identity (ui/bind-state :identity)}
+                       :body [{:mode 'tile-duplicate-dialog-body
+                               :state {:identity (ui/bind-state :identity)}}]})]})
 
 (defmode tile-batch-rename-dialog-modal
   {:on {:tile-create-dialog/cancel

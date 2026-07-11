@@ -2,6 +2,7 @@
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
+            [tilemap-editor.model.workbook :as editor-workbook]
             tilemap-editor.view.tileset.model
             tilemap-editor.view.tileset.panels
             tilemap-editor.view.tileset.dialogs))
@@ -48,6 +49,12 @@
                                 :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                 :tilesets (ui/bind-state :tilesets)}}]}))
 
+(defun apply-tile-duplicate-dialog-result [state payload]
+  (editor-workbook/change-to
+   state
+   "Duplicate tile"
+   (duplicate-tile-definition! state payload)))
+
 (defcomponent tileset-definition-workspace
   {:style {:width :fill
            :height :fill
@@ -92,6 +99,9 @@
             :rename (open-tile-rename-dialog! state
                                               ctx
                                               (-> event :payload :tile-indices))
+            :duplicate (open-tile-duplicate-dialog! state
+                                                    ctx
+                                                    (-> event :payload :tile-indices))
             :delete (open-tile-delete-confirm-dialog! state
                                                       ctx
                                                       (-> event :payload :tile-indices))
@@ -102,6 +112,9 @@
         :tile/rename-dialog-result
         (fn [state event ctx]
           (rename-tile-definition! state (:payload event)))
+        :tile/duplicate-dialog-result
+        (fn [state event ctx]
+          (apply-tile-duplicate-dialog-result state (:payload event)))
         :tile/batch-rename-dialog-result
         (fn [state event ctx]
           (rename-tile-definitions! state (:payload event)))

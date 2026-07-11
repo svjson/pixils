@@ -1,0 +1,7 @@
+(ns tilemap-editor.model.tile-schemas)
+
+(def tile-identity-schema
+  {:id {:type :keyword
+        :required true}
+   :name {:type :text
+          :required true}})
