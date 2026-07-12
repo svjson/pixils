@@ -49,7 +49,12 @@
                               :row-height 18
                               :visible-rows 4
                               :content-width 180})
-        state (:state view)]
+        state (:state view)
+        scroll-pane (-> view :children (nth 0))
+        row (-> scroll-pane :children (nth 0))
+        viewport (-> row :children (nth 0))
+        content (-> viewport :children (nth 0))
+        tree-root (-> content :children (nth 0))]
     (is (= 'ui/tree-view (:mode view)))
     (is (= 4 (count (:rows state))))
     (is (= [:project :src :readme :assets]
@@ -57,7 +62,11 @@
     (is (= ["-" "+" "" "+"]
            (map (:rows state) (fn [row] (:disclosure-glyph row)))))
     (is (= :src (:selected-id state)))
-    (is (= 18 (:computed-row-height state)))))
+    (is (= 18 (:computed-row-height state)))
+    (is (= [:project :assets]
+           (map (:children tree-root)
+                (fn [node]
+                  (-> node :state :node :id)))))))
 
 (defun settle-layout! [app]
   (runtime/update! app)
@@ -65,6 +74,9 @@
   (runtime/update! app)
   (runtime/layout! app)
   app)
+
+(defun view-center-y [view]
+  (int (/ (:h (:bounds view)) 2)))
 
 (defun tree-view-probe-source []
   "(ns pixils.test.tree-view-probe
@@ -244,6 +256,43 @@
                    :visible-rows 4
                    :content-width 120})]})")
 
+(defun tree-view-scroll-offset-probe-source []
+  "(ns pixils.test.tree-view-scroll-offset-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def tree
+     [{:id :project
+       :label \"Project\"
+       :children [{:id :src
+                   :label \"src\"
+                   :children [{:id :main
+                               :label \"main.roo\"}]}
+                  {:id :readme
+                   :label \"README.md\"}]}
+      {:id :assets
+       :label \"Assets\"
+       :children [{:id :logo
+                   :label \"logo.png\"}]}])
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:focused? false})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (ui/focus! (head (ui/children ctx))))
+                  (assoc state :focused? true)))
+      :children [(tree-view/make
+                  {:roots tree
+                   :expanded-ids [:project :src]
+                   :selected-id :assets
+                   :row-height 12
+                   :visible-rows 3
+                   :content-width 120
+                   :state {:offset {:x 0 :y 12}}})]})")
+
 (deftest tree-view-keyboard-expands-and-selects-visible-rows
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 180
@@ -268,6 +317,54 @@
       (is (= :project (-> root-state :last-expand :id)))
       (is (= [:project] (:expanded-ids tree-state)))
       (is (= 3 (count (:rows tree-state)))))))
+
+(deftest tree-view-mouse-disclosure-expands-bound-tree
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [item (runtime/find-view app "ui/tree-view-item")]
+      (runtime/mouse-down-in! app item 2 (view-center-y item))
+      (runtime/update! app)
+      (runtime/mouse-up-in! app item 2 (view-center-y item))
+      (runtime/update! app)
+      (settle-layout! app)
+      (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+            root-state (runtime/active-state app)]
+        (is (= :project (-> root-state :last-expand :id)))
+        (is (= [:project] (:expanded-ids tree-state)))
+        (is (= 3 (count (:rows tree-state))))))))
+
+(deftest tree-view-expansion-preserves-scroll-pane-offset
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-scroll-offset-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [before-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+          before-scroll-state (runtime/view-state
+                               (runtime/find-view app "ui/scroll-pane"))]
+      (is (= {:x 0 :y 12} (:offset before-state)))
+      (is (= {:x 0 :y 12} (:offset before-scroll-state)))
+      (is (= [:project :src] (:expanded-ids before-state)))
+      (is (= 5 (count (:rows before-state))))
+      (runtime/key-down! app :right)
+      (runtime/update! app)
+      (runtime/key-up! app :right)
+      (runtime/update! app)
+      (settle-layout! app)
+      (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+            scroll-state (runtime/view-state
+                          (runtime/find-view app "ui/scroll-pane"))]
+        (is (= [:project :src :assets] (:expanded-ids tree-state)))
+        (is (= 6 (count (:rows tree-state))))
+        (is (= {:x 0 :y 12} (:offset tree-state)))
+        (is (= {:x 0 :y 12} (:offset scroll-state)))))))
 
 (deftest tree-view-disclosure-glyphs-follow-theme-and-expanded-state
   (let [app (runtime/make-app {:package-root "../.."

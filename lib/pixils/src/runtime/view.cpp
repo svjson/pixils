@@ -90,4 +90,9 @@ namespace Pixils::Runtime
     pending_child_replacements.push_back(
       QueuedChildReplacement{child_id, std::move(child_slot)});
   }
+
+  void View::queue_append_child(ChildSlot child_slot)
+  {
+    pending_child_appends.push_back(QueuedChildAppend{std::move(child_slot)});
+  }
 } // namespace Pixils::Runtime

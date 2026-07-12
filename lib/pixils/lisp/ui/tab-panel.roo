@@ -26,6 +26,14 @@
                 (fn [tab]
                   (= (tab-id tab) id)))))
 
+(defun tab-render-signature [tab]
+  {:id (tab-id tab)
+   :label (tab-label tab)
+   :disabled? (tab-disabled? tab)})
+
+(defun tabs-render-signature [tabs]
+  (map (or tabs []) tab-render-signature))
+
 (defun tab-index-by-id [tabs id]
   (find-index (or tabs [])
               (fn [tab]
@@ -92,39 +100,51 @@
    :state (or body-state (ui/bind-state))
    :children [(tab-body-child (selected-tab tabs selected-tab))]})
 
+(defun replacement-body-state []
+  (ui/bind-state))
+
+(defun rendered-body-state-marker [body-state]
+  (if (nil? body-state)
+    nil
+    (merge {} body-state)))
+
 (defcomponent ui/tab-panel
   {:class :ui/tab-panel
    :init (fn [state ctx]
            (let [tabs (or (:tabs state) [])
                  selected (selected-tab-id tabs (:selected-tab state))]
-             (assoc (assoc state
-                           :selected-tab selected)
-                    :rendered-tab selected)))
+             (assoc (assoc (assoc (assoc state
+                                          :selected-tab selected)
+                                   :rendered-tab selected)
+                            :rendered-tabs-signature
+                            (tabs-render-signature tabs))
+                    :rendered-body-state
+                    (rendered-body-state-marker state))))
    :update (fn [state ctx]
              (let [tabs (or (:tabs state) [])
+                   tabs-signature (tabs-render-signature tabs)
                    selected (selected-tab-id tabs (:selected-tab state))
-                   body-state (:body-state state)]
+                   body-replaced? (not= selected (:rendered-tab state))]
                (do
-                 (when (not= tabs (:rendered-tabs state))
+                 (when body-replaced?
                    (ui/replace-child! (:view ctx)
                                       "tab-strip"
                                       (tab-strip-child tabs selected)))
-                 (when (and (not= selected (:rendered-tab state))
-                            (= tabs (:rendered-tabs state)))
-                   (ui/replace-child! (:view ctx)
-                                      "tab-strip"
-                                      (tab-strip-child tabs selected)))
-                 (when (or (not= selected (:rendered-tab state))
-                           (not= tabs (:rendered-tabs state))
-                           (not= body-state (:rendered-body-state state)))
+                 (when body-replaced?
                    (ui/replace-child! (:view ctx)
                                       "body"
-                                      (body-child tabs selected body-state)))
+                                      (body-child tabs
+                                                  selected
+                                                  (replacement-body-state))))
                  (assoc (assoc (assoc state
                                        :selected-tab selected)
                                 :rendered-tab selected)
                         :rendered-tabs tabs
-                        :rendered-body-state body-state))))
+                        :rendered-tabs-signature tabs-signature
+                        :rendered-body-state (if body-replaced?
+                                               (rendered-body-state-marker
+                                                state)
+                                               (:rendered-body-state state))))))
    :on {:tab-panel/select (fn [state event ctx]
                             (let [payload (:payload event)
                                   tabs (or (:tabs state) [])
@@ -138,7 +158,7 @@
                                                      "body"
                                                      (body-child tabs
                                                                  selected
-                                                                 (:body-state state)))
+                                                                 (replacement-body-state)))
                                   (ui/emit! (:view ctx)
                                             :tab-panel/change
                                             {:tab selected
@@ -155,7 +175,6 @@
      :style (or style {})
      :state (merge (or state {})
                    {:tabs tabs
-                    :body-state state
                     :selected-tab initial-selected})
      :children [(tab-strip-child tabs (selected-tab-id tabs initial-selected))
                 (body-child tabs (selected-tab-id tabs initial-selected) state)]}))

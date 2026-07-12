@@ -21,6 +21,11 @@ namespace Pixils::Runtime
     ChildSlot child_slot;
   };
 
+  struct QueuedChildAppend
+  {
+    ChildSlot child_slot;
+  };
+
   /**
    * Live instance of a mode. Serves as the runtime companion for any mode -
    * whether active at the top of the mode stack, participating in composition
@@ -79,6 +84,7 @@ namespace Pixils::Runtime
     std::vector<std::shared_ptr<View>> children;
     std::vector<CustomEvent> emitted_events;
     std::vector<QueuedChildReplacement> pending_child_replacements;
+    std::vector<QueuedChildAppend> pending_child_appends;
 
     void set_parent(View* parent);
     void touch_subtree_generation();
@@ -90,6 +96,7 @@ namespace Pixils::Runtime
     void emit_event(const CustomEvent& event);
     void drain_events(std::vector<CustomEvent>& collected);
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);
+    void queue_append_child(ChildSlot child_slot);
   };
 
 } // namespace Pixils::Runtime

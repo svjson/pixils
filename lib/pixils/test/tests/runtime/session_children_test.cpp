@@ -1442,6 +1442,40 @@ TEST_F(SessionStateTreeTest,
   EXPECT_EQ(session.active_mode->state->to_string(), "{:game {:value 42} :swapped? true}");
 }
 
+TEST_F(SessionStateTreeTest, append_child_bang_adds_direct_child_against_post_hook_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:item {:value 1} :appended? false})
+       :update (fn [state ctx]
+                 (if (:appended? state)
+                   state
+                   (do (pixils.ui/append-child! (:view ctx)
+                                                {:mode 'child-mode
+                                                 :id "item"
+                                                 :state (pixils.ui/bind-state :item)})
+                       (-> state
+                           (assoc :item {:value 42})
+                           (assoc :appended? true)))))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 0u);
+
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->id, "item");
+  EXPECT_EQ(child->mode->name, "child-mode");
+  EXPECT_EQ(child->state->to_string(), "{:value 42}");
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:item {:value 42} :appended? true}");
+}
+
 TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
 {
   runtime.eval(R"(

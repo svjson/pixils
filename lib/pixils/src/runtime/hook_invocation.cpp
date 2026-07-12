@@ -17,12 +17,18 @@ namespace Pixils::Runtime
 {
   namespace
   {
-    Roo::sptr_val apply_pending_child_replacements(Roo::Runtime& runtime,
-                                                      const std::shared_ptr<View>& view,
-                                                      const Roo::sptr_val& hook_ctx,
-                                                      const Roo::sptr_val& base_state)
+    bool has_pending_child_mutations(const std::shared_ptr<View>& view)
     {
-      if (view->pending_child_replacements.empty())
+      return !view->pending_child_replacements.empty() ||
+             !view->pending_child_appends.empty();
+    }
+
+    Roo::sptr_val apply_pending_child_mutations(Roo::Runtime& runtime,
+                                                const std::shared_ptr<View>& view,
+                                                const Roo::sptr_val& hook_ctx,
+                                                const Roo::sptr_val& base_state)
+    {
+      if (!has_pending_child_mutations(view))
       {
         return base_state;
       }
@@ -38,7 +44,9 @@ namespace Pixils::Runtime
 
       auto parent_state = base_state;
       auto replacements = std::move(view->pending_child_replacements);
+      auto appends = std::move(view->pending_child_appends);
       view->pending_child_replacements.clear();
+      view->pending_child_appends.clear();
 
       for (auto& replacement : replacements)
       {
@@ -56,6 +64,16 @@ namespace Pixils::Runtime
         parent_state =
           UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
         *child_it = std::move(new_child);
+        view->mark_children_changed();
+      }
+
+      for (auto& append : appends)
+      {
+        auto new_child = UI::build_view_tree(append.child_slot, modes, runtime);
+        UI::attach_style_view_tree(new_child, view.get());
+        parent_state =
+          UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+        view->children.push_back(std::move(new_child));
         view->mark_children_changed();
       }
 
@@ -81,6 +99,6 @@ namespace Pixils::Runtime
     auto result = fn->exec().execute(exec_ctx, args);
     auto next_state =
       (result && result->type != Roo::Value::Type::NIL) ? result : fallback;
-    return apply_pending_child_replacements(runtime, view, args.back(), next_state);
+    return apply_pending_child_mutations(runtime, view, args.back(), next_state);
   }
 } // namespace Pixils::Runtime

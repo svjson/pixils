@@ -382,6 +382,33 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
+    /** AppendChildBangFunction - append-child! */
+    FUNC_IMPL(AppendChildBangFunction,
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Type::MAP_OR_STRING)),
+                   EXEC_DISPATCH(&AppendChildBangFunction::exec_append_child))));
+
+    EXEC_BODY(AppendChildBangFunction, exec_append_child)
+    {
+      auto target = resolve_view_target(args[0], "ui/append-child!");
+      if (!target || target->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      auto child_entries = Roo::vector({args[1]});
+      auto slots = parse_child_slots(ctx, child_entries);
+      auto slot = std::move(slots.front());
+      if (slot.anonymous_mode && slot.anonymous_mode->selector_modes.empty() &&
+          !slot.id.empty())
+      {
+        slot.anonymous_mode->name = slot.id;
+      }
+      view.queue_append_child(std::move(slot));
+
+      return Roo::Constant::NIL;
+    }
+
     /** StyleBangFunction - style! */
     FUNC_IMPL(StyleBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
@@ -617,6 +644,7 @@ namespace Pixils::Script
   {
     values.emplace("bind-state", Function::BindStateFn::make());
     values.emplace(FN__PIXILS__UI__BLUR_BANG, Function::BlurBangFunction::make());
+    values.emplace("append-child!", Function::AppendChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__CHILDREN, Function::ChildrenFunction::make());
     values.emplace("emit!", Function::EmitBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
