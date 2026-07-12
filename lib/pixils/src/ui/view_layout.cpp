@@ -208,22 +208,25 @@ namespace Pixils::UI
     bool layout_cache_matches(const Pixils::Runtime::View::LayoutCache& cache,
                               const Rect& requested_bounds,
                               std::uint64_t style_generation,
-                              size_t dependency_signature)
+                              std::uint64_t subtree_generation,
+                              std::uint64_t font_generation)
     {
       return cache.valid && rect_equals(cache.requested_bounds, requested_bounds) &&
              cache.style_generation == style_generation &&
-             cache.dependency_signature == dependency_signature;
+             cache.subtree_generation == subtree_generation &&
+             cache.font_generation == font_generation;
     }
 
     void remember_layout(Pixils::Runtime::View& view,
                          const Rect& requested_bounds,
                          std::uint64_t style_generation,
-                         size_t dependency_signature)
+                         std::uint64_t font_generation)
     {
       view.layout_cache.valid = true;
       view.layout_cache.requested_bounds = requested_bounds;
       view.layout_cache.style_generation = style_generation;
-      view.layout_cache.dependency_signature = dependency_signature;
+      view.layout_cache.subtree_generation = view.subtree_generation;
+      view.layout_cache.font_generation = font_generation;
     }
 
     void refresh_visual_geometry(
@@ -1159,12 +1162,11 @@ namespace Pixils::UI
                                   inherited_theme,
                                   selector_path);
       const auto style_generation = view->style_view.generation();
-      const auto dependency_signature =
-        natural_size_dependency_signature(view, pass.font_generation);
       if (layout_cache_matches(view->layout_cache,
                                bounds,
                                style_generation,
-                               dependency_signature))
+                               view->subtree_generation,
+                               pass.font_generation))
       {
         PIXILS_BENCHMARK_COUNT(layout_dirty_cache_hits);
         PIXILS_BENCHMARK_ADD(layout_skipped_clean_subtrees, 1);
@@ -1218,12 +1220,12 @@ namespace Pixils::UI
       const Style& style = view->effective_style;
       if (removes_layout(style))
       {
-        remember_layout(*view, bounds, style_generation, dependency_signature);
+        remember_layout(*view, bounds, style_generation, pass.font_generation);
         return;
       }
       if (view->children.empty())
       {
-        remember_layout(*view, bounds, style_generation, dependency_signature);
+        remember_layout(*view, bounds, style_generation, pass.font_generation);
         return;
       }
 
@@ -1281,9 +1283,7 @@ namespace Pixils::UI
                               child_selector_path);
       }
 
-      const auto resolved_dependency_signature =
-        natural_size_dependency_signature(view, pass.font_generation);
-      remember_layout(*view, bounds, style_generation, resolved_dependency_signature);
+      remember_layout(*view, bounds, style_generation, pass.font_generation);
     }
 
     std::vector<Rect> layout_children_with_selector_path(

@@ -78,7 +78,8 @@ namespace Pixils::Runtime
       bool valid = false;
       Rect requested_bounds = {0, 0, 0, 0};
       std::uint64_t style_generation = 0;
-      std::size_t dependency_signature = 0;
+      std::uint64_t subtree_generation = 0;
+      std::uint64_t font_generation = 0;
     };
     LayoutCache layout_cache;
     std::vector<std::shared_ptr<View>> children;

@@ -311,6 +311,7 @@ TEST_F(StyleThemeBenchmark, clinical_style_theme_leaf_invalidation_layout)
       [&]()
       {
         leaf->style_view.invalidate();
+        leaf->mark_style_changed();
         Pixils::UI::layout_view_tree(root, bounds, runtime, hook_ctx_val);
         Pixils::Benchmark::consume(
           leaf->effective_style.padding ? leaf->effective_style.padding->l : 0);
@@ -335,6 +336,7 @@ TEST_F(StyleThemeBenchmark, clinical_style_theme_hover_toggle_layout)
       {
         hovered_cell = !hovered_cell;
         leaf->interaction.hovered = hovered_cell;
+        leaf->mark_interaction_changed();
         Pixils::UI::layout_view_tree(root, bounds, runtime, hook_ctx_val);
         Pixils::Benchmark::consume(
           leaf->effective_style.margin ? leaf->effective_style.margin->t : 0);
