@@ -16,6 +16,7 @@ set(PIXILS_BENCHMARK_APPFIXTURE_SOURCES
 add_executable(benchmarkpixils EXCLUDE_FROM_ALL
   ${PIXILS_BENCHMARK_SOURCES}
   ${PIXILS_BENCHMARK_APPFIXTURE_SOURCES}
+  $<TARGET_OBJECTS:pixils_clipper2>
 )
 add_dependencies(benchmarkpixils pixils_roo_native)
 

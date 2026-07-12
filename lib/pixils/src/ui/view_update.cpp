@@ -1,5 +1,6 @@
 #include "pixils/ui/view_update.h"
 
+#include "pixils/benchmark/counters.h"
 #include "pixils/runtime/hook_arguments.h"
 #include "pixils/runtime/hook_invocation.h"
 #include "pixils/runtime/state.h"
@@ -32,6 +33,9 @@ namespace Pixils::UI
                          Roo::Runtime& rt)
     {
       if (!has_hook(view->mode->update)) return;
+
+      PIXILS_BENCHMARK_COUNT(update_hook_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(update_hook_time_ns);
 
       Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Roo::sptr_val_v args = {view->state, hook_args.update_args[1]};
@@ -66,6 +70,8 @@ namespace Pixils::UI
                             const MouseState& mouse_state,
                             const FocusState& focus_state)
     {
+      PIXILS_BENCHMARK_COUNT(update_interaction_checks);
+
       auto next_interaction = view.interaction;
       next_interaction.hovered = false;
       for (auto& weak_v : mouse_state.hovered_chain)
@@ -114,6 +120,7 @@ namespace Pixils::UI
       {
         view.interaction = std::move(next_interaction);
         view.mark_interaction_changed();
+        PIXILS_BENCHMARK_COUNT(update_interaction_changes);
       }
     }
 
@@ -127,9 +134,12 @@ namespace Pixils::UI
                              Roo::Runtime& rt)
     {
       auto& view = *view_ptr;
+      PIXILS_BENCHMARK_COUNT(update_view_tree_nodes);
 
       if (parent_state && has_state_binding(view))
       {
+        PIXILS_BENCHMARK_COUNT(update_state_extract_calls);
+        PIXILS_BENCHMARK_TIME_BLOCK(update_state_extract_time_ns);
         view.set_state_if_changed(Runtime::extract_state(*parent_state, view));
       }
 
@@ -156,6 +166,8 @@ namespace Pixils::UI
 
       if (parent_state && has_state_binding(view))
       {
+        PIXILS_BENCHMARK_COUNT(update_state_merge_calls);
+        PIXILS_BENCHMARK_TIME_BLOCK(update_state_merge_time_ns);
         auto merged = Runtime::merge_state(*parent_state, view, view.state);
         if (parent_view)
         {
@@ -263,6 +275,7 @@ namespace Pixils::UI
                         Runtime::HookArguments& hook_args,
                         Roo::Runtime& runtime)
   {
+    PIXILS_BENCHMARK_COUNT(update_view_tree_calls);
     update_view_subtree(root,
                         mouse_state,
                         focus_state,

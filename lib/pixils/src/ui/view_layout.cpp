@@ -489,6 +489,9 @@ namespace Pixils::UI
       if (!hook_ctx || hook_ctx->type == Roo::Value::Type::NIL) return false;
       if (!has_after_layout_hook(view)) return false;
 
+      PIXILS_BENCHMARK_COUNT(layout_after_layout_hook_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(layout_after_layout_hook_time_ns);
+
       HookContext& native_hook_ctx = Roo::obj<HookContext>(*hook_ctx);
       auto previous_view = native_hook_ctx.current_view;
       auto previous_width = native_hook_ctx.available_width;
@@ -510,6 +513,11 @@ namespace Pixils::UI
       native_hook_ctx.current_view = previous_view;
       native_hook_ctx.available_width = previous_width;
       native_hook_ctx.available_height = previous_height;
+
+      if (view->subtree_generation != previous_generation)
+      {
+        PIXILS_BENCHMARK_COUNT(layout_after_layout_hook_state_changes);
+      }
 
       return view->subtree_generation != previous_generation;
     }
@@ -1778,6 +1786,7 @@ namespace Pixils::UI
     constexpr int MAX_AFTER_LAYOUT_PASSES = 4;
     for (int pass_index = 0; pass_index < MAX_AFTER_LAYOUT_PASSES; pass_index++)
     {
+      PIXILS_BENCHMARK_COUNT(layout_passes);
       LayoutPass pass{.runtime = runtime,
                       .hook_ctx = hook_ctx,
                       .font_generation = current_font_generation(hook_ctx),

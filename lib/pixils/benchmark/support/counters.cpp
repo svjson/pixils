@@ -95,6 +95,21 @@ namespace Pixils::Benchmark
       {MetricId::text_renderer_size_calls, "text_renderer_size_calls"},
       {MetricId::text_renderer_glyphs_measured, "text_renderer_glyphs_measured"},
       {MetricId::text_renderer_glyphs_rendered, "text_renderer_glyphs_rendered"},
+      {MetricId::update_view_tree_calls, "update_view_tree_calls"},
+      {MetricId::update_view_tree_nodes, "update_view_tree_nodes"},
+      {MetricId::update_hook_calls, "update_hook_calls"},
+      {MetricId::update_hook_time_ns, "update_hook_time_ns"},
+      {MetricId::update_state_extract_calls, "update_state_extract_calls"},
+      {MetricId::update_state_extract_time_ns, "update_state_extract_time_ns"},
+      {MetricId::update_state_merge_calls, "update_state_merge_calls"},
+      {MetricId::update_state_merge_time_ns, "update_state_merge_time_ns"},
+      {MetricId::update_interaction_checks, "update_interaction_checks"},
+      {MetricId::update_interaction_changes, "update_interaction_changes"},
+      {MetricId::layout_after_layout_hook_calls, "layout_after_layout_hook_calls"},
+      {MetricId::layout_after_layout_hook_time_ns, "layout_after_layout_hook_time_ns"},
+      {MetricId::layout_after_layout_hook_state_changes,
+       "layout_after_layout_hook_state_changes"},
+      {MetricId::layout_passes, "layout_passes"},
     }};
 
     constexpr std::size_t metric_index(MetricId id)
