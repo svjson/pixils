@@ -110,6 +110,52 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
   EXPECT_EQ(session.active_mode->state->to_string(), "{:board {:x 99}}");
 }
 
+TEST_F(StateBindingTest, map_projection_does_not_propagate_child_state_changes_back_to_parent)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx] (assoc state :label "Changed"))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:name "Original"})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:label (pixils.ui/project-state :name)}}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - projected state is read-only from the parent perspective.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:name \"Original\"}");
+}
+
+TEST_F(StateBindingTest, whole_path_projection_does_not_replace_parent_state)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx] (assoc state :x 99))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:data {:x 1} :other 2})
+      :children [{:mode 'child-mode :id "child"
+                  :state (pixils.ui/project-state :data)}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - a whole-path projection extracts but never merges.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:data {:x 1} :other 2}");
+}
+
 TEST_F(StateBindingTest, nested_map_binding_propagates_child_state_changes_back_to_parent)
 {
   // Given
@@ -138,6 +184,35 @@ TEST_F(StateBindingTest, nested_map_binding_propagates_child_state_changes_back_
   ASSERT_NE(session.active_mode->state, nullptr);
   EXPECT_EQ(session.active_mode->state->to_string(),
             "{:expanded [:project :src] :selected :main}");
+}
+
+TEST_F(StateBindingTest, nested_map_projection_does_not_propagate_child_state_changes_back_to_parent)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx]
+                (assoc state :content-state
+                       (assoc (:content-state state)
+                              :expanded-ids [:project :src]
+                              :selected-id :main)))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:expanded [:project] :selected :src})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:content-state {:expanded-ids (pixils.ui/project-state :expanded)
+                                          :selected-id (pixils.ui/project-state :selected)}}}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - nested projections are read-only.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:expanded [:project] :selected :src}");
 }
 
 TEST_F(StateBindingTest, map_binding_can_propagate_whole_parent_state_back)

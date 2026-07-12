@@ -14,8 +14,9 @@ namespace Pixils::Runtime
   struct BindState
   {
     Roo::sptr_val_v path;
+    bool writable = true;
     BindState() = default;
-    explicit BindState(Roo::sptr_val_v p);
+    explicit BindState(Roo::sptr_val_v p, bool w = true);
   };
 
   struct StateBinding
@@ -45,6 +46,7 @@ namespace Pixils::Runtime
                                const Roo::sptr_val& child_state);
 
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
+  bool bind_state_writable(const Roo::sptr_val& val);
 
   /**
    * Parse a raw :state value from a child slot entry into its binding and

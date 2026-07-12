@@ -31,6 +31,7 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC(BindStateFn, bind_state);
+    FUNC(ProjectStateFn, project_state);
     FUNC(AppendChildBangFunction, append_child);
     FUNC(BlurBangFunction, blur);
     FUNC(ChildrenFunction, children);

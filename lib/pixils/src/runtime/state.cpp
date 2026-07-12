@@ -98,6 +98,8 @@ namespace Pixils::Runtime
     {
       if (is_bind_state(binding))
       {
+        if (!Pixils::Runtime::bind_state_writable(binding)) return result;
+
         const auto& path = Pixils::Runtime::bind_state_path(binding);
         if (path.empty())
         {
@@ -131,8 +133,9 @@ namespace Pixils::Runtime
 
   } // namespace
 
-  BindState::BindState(Roo::sptr_val_v p)
+  BindState::BindState(Roo::sptr_val_v p, bool w)
     : path(std::move(p))
+    , writable(w)
   {
   }
 
@@ -185,6 +188,8 @@ namespace Pixils::Runtime
 
     if (is_bind_state(binding))
     {
+      if (!Pixils::Runtime::bind_state_writable(binding)) return parent;
+
       const auto& path = Pixils::Runtime::bind_state_path(binding);
       if (path.empty()) return child_state;
       return Roo::Dict::assoc_in(parent,
@@ -200,6 +205,11 @@ namespace Pixils::Runtime
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val)
   {
     return Roo::obj<Runtime::BindState>(*val).path;
+  }
+
+  bool bind_state_writable(const Roo::sptr_val& val)
+  {
+    return Roo::obj<Runtime::BindState>(*val).writable;
   }
 
   StateBinding parse_state_binding(const Roo::sptr_val& state_val)
