@@ -82,11 +82,15 @@ namespace Pixils::Test::AppFixture::TilemapEditor
   AppManifest layered_plain_overflow_layer_list_manifest();
   AppManifest layered_content_overflow_layer_list_manifest();
   AppManifest layered_clipped_layer_list_manifest();
+  AppManifest benchmark_808e9fd_manifest();
   AppManifest current_manifest();
   std::string main_namespace();
   std::vector<std::string> entry_files();
   std::vector<std::string> layered_entry_files();
+  std::vector<std::string> benchmark_808e9fd_entry_files();
   std::filesystem::path spritesheet_asset_path();
+  std::filesystem::path benchmark_808e9fd_spritesheet_asset_path();
+  std::filesystem::path benchmark_808e9fd_example_map_path();
 } // namespace Pixils::Test::AppFixture::TilemapEditor
 
 #endif

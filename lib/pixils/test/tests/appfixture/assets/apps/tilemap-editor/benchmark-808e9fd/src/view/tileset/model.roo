@@ -1,0 +1,572 @@
+(ns tilemap-editor.view.tileset.model
+  (:require pixils
+            [roo.io :as io]
+            [tilemap-editor.model.data :as data]))
+
+(def tile-grid-cell-size data/tile-size)
+
+(def tile-grid-gap 0)
+
+(def tile-type-options
+  [{:value :color
+    :label "Color"}
+   {:value :sprite
+    :label "Sprite"}])
+
+(def default-tile-color {:r 0x00 :g 0x00 :b 0x00})
+
+(def default-tile-image :editor-assets/spritesheet)
+
+(def default-import-bundle :project-assets)
+
+(defun clean-name-separators [value index out]
+  (if (>= index (count value))
+    (trim out)
+    (let [ch (substr value index 1)]
+      (clean-name-separators
+       value
+       (inc index)
+       (str out
+            (if (or (= ch "-") (= ch "_"))
+              " "
+              ch))))))
+
+(defun label-from-id [id]
+  (capitalize (clean-name-separators id 0 "")))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun item-id-exists? [items id]
+  (> (count (filter (or items [])
+                    (fn [item]
+                      (= (:id item) (keyword id)))))
+     0))
+
+(defun unique-id-from [items root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)]
+    (if (item-id-exists? items candidate)
+      (unique-id-from items
+                      root
+                      (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun unique-tileset-id [tilesets]
+  (unique-id-from (or tilesets []) "tile-set" nil))
+
+(defun unique-tile-id [tiles]
+  (unique-id-from (or tiles []) "tile" nil))
+
+(defun unique-color-tile-id [tiles]
+  (unique-id-from (or tiles []) "color" nil))
+
+(defun default-tile-char [id]
+  (if (> (count id) 0)
+    (substr id 0 1)
+    ""))
+
+(defun file-stem [path]
+  (let [name (io/basename path)
+        extension (io/extension name)]
+    (if (blank? extension)
+      name
+      (substr name 0 (- (count name) (count extension))))))
+
+(defun default-resource-id [path]
+  (kebab-case (file-stem path)))
+
+(defun default-resource-name [path]
+  (label-from-id (default-resource-id path)))
+
+(defun image-resource-key [bundle-id resource-id]
+  (keyword (str (keyword-label bundle-id)
+                "/"
+                (keyword-label resource-id))))
+
+(defun project-bundle-entries [resources]
+  (let [bundles (or (:bundles resources) {})]
+    (map (keys bundles)
+         (fn [bundle-id]
+           {:id bundle-id
+            :bundle (get bundles bundle-id)}))))
+
+(defun static-project-bundle-id? [bundle-id]
+  (= bundle-id :editor-assets))
+
+(defun dynamic-bundle-entry? [entry]
+  (not (static-project-bundle-id? (:id entry))))
+
+(defun dynamic-project-bundle-entries [resources]
+  (filter (project-bundle-entries resources) dynamic-bundle-entry?))
+
+(defun first-dynamic-bundle-id [resources]
+  (if-let [entry (head (dynamic-project-bundle-entries resources))]
+    (:id entry)
+    nil))
+
+(defun bundle-options [resources]
+  (for-indexed [index entry (dynamic-project-bundle-entries resources)]
+    {:value (:id entry)
+     :id (:id entry)
+     :label (keyword-label (:id entry))}))
+
+(defun bundle-index-by-id [options id]
+  (find-index (or options [])
+              (fn [option]
+                (= (:id option) id))))
+
+(defun bundle-id-at-index [options index]
+  (when (and (not (nil? index))
+             (< index (count (or options []))))
+    (:id (nth options index))))
+
+(defun image-resource-entries-for-bundle [resources bundle-id]
+  (let [images (or (get-in resources [:bundles bundle-id :images]) {})]
+    (map (keys images)
+         (fn [resource-id]
+           (let [dependency (get images resource-id)]
+             {:id resource-id
+              :bundle-id bundle-id
+              :key (image-resource-key bundle-id resource-id)
+              :name (or (:name dependency)
+                        (keyword-label resource-id))
+              :file-name (:file-name dependency)})))))
+
+(defun image-resource-entries [resources]
+  (reduce (dynamic-project-bundle-entries resources)
+          []
+          (fn [out entry]
+            (concat out
+                    (image-resource-entries-for-bundle resources (:id entry))))))
+
+(defun has-project-image-resources? [resources]
+  (not (empty? (image-resource-entries resources))))
+
+(defun image-resource-options [resources bundle-id]
+  (for-indexed [index resource (image-resource-entries-for-bundle resources
+                                                                  bundle-id)]
+    (merge resource
+           {:value index
+            :label (str (:key resource) "  " (:name resource))})))
+
+(defun resource-index-by-key [options key]
+  (find-index (or options [])
+              (fn [option]
+                (= (:key option) key))))
+
+(defun selected-resource-option [state]
+  (let [options (:resource-options state)
+        index (:selected-resource-index state)]
+    (when (and (not (nil? index))
+               (< index (count (or options []))))
+      (nth options index))))
+
+(defun default-tile-source [tile-size]
+  {:x 0 :y 0 :w tile-size :h tile-size})
+
+(defun tile-grid-stride []
+  (+ tile-grid-cell-size tile-grid-gap))
+
+(defun clamp-index [index item-count]
+  (if (<= item-count 0)
+    nil
+    (max 0 (min (or index 0) (dec item-count)))))
+
+(defun tile-grid-columns [bounds]
+  (max 1 (int (/ (+ (max 1 (:w bounds)) tile-grid-gap)
+                 (tile-grid-stride)))))
+
+(defun tile-grid-index-at-position [position bounds item-count]
+  (let [stride (tile-grid-stride)
+        col (int (/ (:x position) stride))
+        row (int (/ (:y position) stride))
+        index (+ col (* row (tile-grid-columns bounds)))]
+    (if (and (>= (:x position) 0)
+             (>= (:y position) 0)
+             (< (mod (:x position) stride) tile-grid-cell-size)
+             (< (mod (:y position) stride) tile-grid-cell-size)
+             (< index item-count))
+      index
+      nil)))
+
+(defun move-tile-grid-index [index item-count columns delta]
+  (clamp-index (+ (or index 0) delta) item-count))
+
+(defun selected-tileset-definition [state]
+  (let [tilesets (or (:tilesets state) [])]
+    (when (> (count tilesets) 0)
+      (nth tilesets
+           (min (or (:selected-tileset-definition-index state) 0)
+                (dec (count tilesets)))))))
+
+(defun selected-tileset-tiles [state]
+  (or (:tiles (selected-tileset-definition state)) []))
+
+(defun selected-tileset-tile-size [state]
+  (or (:tile-size (selected-tileset-definition state))
+      data/tile-size))
+
+(defun selected-tileset-tile [state]
+  (let [tiles (selected-tileset-tiles state)
+        index (:selected-tileset-tile-index state)]
+    (when (and (not (nil? index))
+               (> (count tiles) 0))
+      (nth tiles (min index (dec (count tiles)))))))
+
+(defun selected-tile-path [state]
+  (let [tilesets (or (:tilesets state) [])
+        tileset-index (:selected-tileset-definition-index state)
+        tile-index (:selected-tileset-tile-index state)]
+    (when (and (not (nil? tileset-index))
+               (not (nil? tile-index))
+               (< tileset-index (count tilesets))
+               (< tile-index (count (or (:tiles (nth tilesets tileset-index)) []))))
+      [:tilesets tileset-index :tiles tile-index])))
+
+(defun update-selected-tile [state update-fn]
+  (if-let [path (selected-tile-path state)]
+    (assoc-in state path (update-fn (get-in state path)))
+    state))
+
+(defun tile-type-index [tile]
+  (let [match (find-index tile-type-options
+                          (fn [option]
+                            (= (:value option) (:type tile))))]
+    (or match 0)))
+
+(defun tile-with-type [tile type tile-size]
+  (case type
+    :color
+    (assoc tile
+           :type :color
+           :color (or (:color tile) default-tile-color))
+
+    :sprite
+    (assoc tile
+           :type :sprite
+           :image (or (:image tile) default-tile-image)
+           :source (assoc (merge (default-tile-source tile-size)
+                                 (or (:source tile) {}))
+                          :w tile-size
+                          :h tile-size))
+
+    :default
+    (assoc tile :type type)))
+
+(defun make-tileset-definition [id label tile-size]
+  {:id (keyword id)
+   :label label
+   :tile-size tile-size
+   :tiles []})
+
+(defun make-tile-definition [id name ch type tile-size]
+  (tile-with-type {:id (keyword id)
+                   :name name
+                   :char ch}
+                  type
+                  tile-size))
+
+(defun make-color-tile-definition [id name ch color]
+  {:id (keyword id)
+   :name name
+   :char ch
+   :type :color
+   :color color})
+
+(defun lerp-channel [from to index steps]
+  (if (<= steps 0)
+    from
+    (int (+ from
+            (/ (* (- to from) index)
+               steps)))))
+
+(defun lerp-color [from to index count]
+  (let [steps (dec count)]
+    {:r (lerp-channel (:r from) (:r to) index steps)
+     :g (lerp-channel (:g from) (:g to) index steps)
+     :b (lerp-channel (:b from) (:b to) index steps)}))
+
+(defun add-tileset-definition! [state payload]
+  (if (and (= (:type payload) :confirm)
+           (not (blank? (:tileset-id payload)))
+           (not (blank? (:tileset-label payload))))
+    (let [tilesets (or (:tilesets state) [])
+          id (unique-id-from tilesets (kebab-case (:tileset-id payload)) nil)
+          index (count tilesets)
+          tileset (make-tileset-definition id
+                                           (:tileset-label payload)
+                                           (or (:tile-size payload)
+                                               data/tile-size))]
+      (assoc state
+             :tilesets (concat tilesets [tileset])
+             :selected-tileset-definition-index index
+             :selected-tileset-tile-index nil))
+    state))
+
+(defun add-tile-definition! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (blank? (:tile-id payload)))
+             (not (blank? (:tile-name payload))))
+      (let [tiles (or (:tiles tileset) [])
+            id (unique-id-from tiles (kebab-case (:tile-id payload)) nil)
+            index (count tiles)
+            tile (make-tile-definition id
+                                       (:tile-name payload)
+                                       (or (:tile-char payload) "")
+                                       (or (:tile-type payload) :color)
+                                       (or (:tile-size tileset)
+                                           data/tile-size))]
+        (assoc-in (assoc state :selected-tileset-tile-index index)
+                  [:tilesets tileset-index :tiles]
+                  (concat tiles [tile])))
+      state)))
+
+(defun add-imported-sprite-tiles! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)
+        resource (:resource payload)
+        sources (or (:sources payload) [])]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             resource
+             (not (empty? sources)))
+      (let [existing (or (:tiles tileset) [])
+            root (tile-id-root-for-resource resource)
+            name-root (tile-name-root-for-resource resource)
+            added (reduce (for-indexed [index source sources]
+                            {:index (inc index)
+                             :source source})
+                          []
+                          (fn [out entry]
+                            (let [id (unique-id-from (concat existing out)
+                                                     (str root "-" (:index entry))
+                                                     nil)]
+                              (concat out
+                                      [(make-imported-sprite-tile
+                                        resource
+                                        (:source entry)
+                                        id
+                                        (str name-root " " (:index entry)))]))))
+            first-index (count existing)]
+        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                  [:tilesets tileset-index :tiles]
+                  (concat existing added)))
+      state)))
+
+(defun add-imported-single-sprite-tiles! [state resources]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)]
+    (if (and (not (nil? tileset-index))
+             tileset
+             (not (empty? (or resources []))))
+      (let [existing (or (:tiles tileset) [])
+            tile-size (or (:tile-size tileset) data/tile-size)
+            added (reduce (or resources [])
+                          []
+                          (fn [out resource]
+                            (let [root (tile-id-root-for-resource resource)
+                                  name-root (tile-name-root-for-resource resource)
+                                  id (unique-id-from (concat existing out)
+                                                     root
+                                                     nil)]
+                              (concat out
+                                      [(make-imported-sprite-tile
+                                        resource
+                                        (default-tile-source tile-size)
+                                        id
+                                        name-root)]))))
+            first-index (count existing)]
+        (dissoc
+         (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                   [:tilesets tileset-index :tiles]
+                   (concat existing added))
+         :last-imported-image-resources))
+      state)))
+
+(defun add-color-tile-range! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)
+        count (or (:count payload) 8)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (blank? (:tile-id payload)))
+             (not (blank? (:tile-name payload))))
+      (let [existing (or (:tiles tileset) [])
+            root (kebab-case (:tile-id payload))
+            name-root (:tile-name payload)
+            from-color (or (:from-color payload) default-tile-color)
+            to-color (or (:to-color payload) default-tile-color)
+            added (reduce (range 0 (dec count))
+                          []
+                          (fn [out index]
+                            (let [id (unique-id-from (concat existing out)
+                                                     (str root "-" (inc index))
+                                                     nil)]
+                              (concat out
+                                      [(make-color-tile-definition
+                                        id
+                                        (str name-root " " (inc index))
+                                        (default-tile-char id)
+                                        (lerp-color from-color
+                                                    to-color
+                                                    index
+                                                    count))]))))
+            first-index (count existing)]
+        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                  [:tilesets tileset-index :tiles]
+                  (concat existing added)))
+      state)))
+
+(defun set-selected-tile-type [state type]
+  (update-selected-tile state
+                        (fn [tile]
+                          (tile-with-type tile
+                                          type
+                                          (selected-tileset-tile-size state)))))
+
+(defun set-selected-tile-color-channel [state channel value]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile (tile-with-type tile
+                                                     :color
+                                                     (selected-tileset-tile-size state))]
+                            (assoc tile
+                                   :color (assoc (or (:color tile)
+                                                     default-tile-color)
+                                                 channel
+                                                 value))))))
+
+(defun clamp-source-coordinate [value max-value tile-size]
+  (* tile-size
+     (int (/ (max 0
+                 (min value
+                      (max 0 (- max-value tile-size))))
+             tile-size))))
+
+(defun source-with-position [source x y tile-size dim]
+  {:x (clamp-source-coordinate x (:w dim) tile-size)
+   :y (clamp-source-coordinate y (:h dim) tile-size)
+   :w tile-size
+   :h tile-size})
+
+(defun source-grid-columns [dim tile-size]
+  (max 1 (int (/ (:w dim) tile-size))))
+
+(defun source-grid-rows [dim tile-size]
+  (max 1 (int (/ (:h dim) tile-size))))
+
+(defun source-grid-count [dim tile-size]
+  (* (source-grid-columns dim tile-size)
+     (source-grid-rows dim tile-size)))
+
+(defun source-index-rect [index dim tile-size]
+  (let [columns (source-grid-columns dim tile-size)]
+    {:x (* (mod index columns) tile-size)
+     :y (* (int (/ index columns)) tile-size)
+     :w tile-size
+     :h tile-size}))
+
+(defun same-source? [a b]
+  (and (= (:x a) (:x b))
+       (= (:y a) (:y b))
+       (= (:w a) (:w b))
+       (= (:h a) (:h b))))
+
+(defun sprite-tile-uses-source? [tile image source]
+  (and (= (:type tile) :sprite)
+       (= (:image tile) image)
+       (same-source? (:source tile) source)))
+
+(defun tileset-uses-source? [tileset image source]
+  (> (count (filter (or (:tiles tileset) [])
+                    (fn [tile]
+                      (sprite-tile-uses-source? tile image source))))
+     0))
+
+(defun project-uses-source? [tilesets image source]
+  (> (count (filter (or tilesets [])
+                    (fn [tileset]
+                      (tileset-uses-source? tileset image source))))
+     0))
+
+(defun selected-source-indices [state dim]
+  (if (:select-all? state)
+    (range 0 (dec (source-grid-count dim (:tile-size state))))
+    (or (:selected-source-indices state) [])))
+
+(defun import-source-included? [state image source]
+  (let [tileset (selected-tileset-definition state)
+        same? (tileset-uses-source? tileset image source)
+        project? (project-uses-source? (:tilesets state) image source)]
+    (not (or (and (:exclude-same-tileset? state) same?)
+             (and (:exclude-project? state) project?)))))
+
+(defun import-source-rects [state image dim]
+  (let [tile-size (:tile-size state)]
+    (filter (map (selected-source-indices state dim)
+                 (fn [index]
+                   (source-index-rect index dim tile-size)))
+            (fn [source]
+              (import-source-included? state image source)))))
+
+(defun tile-id-root-for-resource [resource]
+  (kebab-case (or (:name resource)
+                  (keyword-label (:id resource))
+                  "tile")))
+
+(defun tile-name-root-for-resource [resource]
+  (label-from-id (tile-id-root-for-resource resource)))
+
+(defun make-imported-sprite-tile [resource source id name]
+  {:id (keyword id)
+   :name name
+   :char (default-tile-char id)
+   :type :sprite
+   :image (:key resource)
+   :source source})
+
+(defun set-selected-tile-source-position [state x y dim]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile-size (selected-tileset-tile-size state)
+                                tile (tile-with-type tile :sprite tile-size)]
+                            (assoc tile
+                                   :source (source-with-position (:source tile)
+                                                                 x
+                                                                 y
+                                                                 tile-size
+                                                                 dim))))))
+
+(defun set-selected-tile-source [state source]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile-size (selected-tileset-tile-size state)
+                                tile (tile-with-type tile :sprite tile-size)]
+                            (assoc tile
+                                   :source (assoc source
+                                                  :w tile-size
+                                                  :h tile-size))))))
+
+(defun selected-tileset-definition-indices [state]
+  (if (nil? (:selected-tileset-definition-index state))
+    []
+    [(:selected-tileset-definition-index state)]))
+
+(defun derive-tileset-workspace-state [state]
+  (assoc state
+         :tile-set-panel-disabled? (nil? (:selected-tileset-definition-index state))
+         :has-project-image-resources? (has-project-image-resources?
+                                        (:resources state))
+         :tile-definition-panel-disabled? (or (nil? (:selected-tileset-definition-index state))
+                                              (nil? (:selected-tileset-tile-index state)))))

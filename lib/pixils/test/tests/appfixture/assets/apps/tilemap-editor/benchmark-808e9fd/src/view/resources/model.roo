@@ -1,0 +1,473 @@
+(ns tilemap-editor.view.resources.model
+  (:require pixils
+            [roo.io :as io]
+            [pixils.resource :as res]))
+
+(defun file-stem [path]
+  (let [name (io/basename path)
+        extension (io/extension name)]
+    (if (blank? extension)
+      name
+      (substr name 0 (- (count name) (count extension))))))
+
+(defun clean-resource-name-separators [value index out]
+  (if (>= index (count value))
+    (trim out)
+    (let [ch (substr value index 1)]
+      (clean-resource-name-separators
+       value
+       (inc index)
+       (str out
+            (if (or (= ch "-") (= ch "_"))
+              " "
+              ch))))))
+
+(defun default-resource-id [path]
+  (kebab-case (file-stem path)))
+
+(defun default-resource-name [path]
+  (capitalize (clean-resource-name-separators (default-resource-id path)
+                                             0
+                                             "")))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun image-resource-key [bundle-id resource-id]
+  (keyword (str (keyword-label bundle-id)
+                "/"
+                (keyword-label resource-id))))
+
+(defun project-bundle-entries [resources]
+  (let [bundles (or (:bundles resources) {})]
+    (map (keys bundles)
+         (fn [bundle-id]
+           {:id bundle-id
+            :bundle (get bundles bundle-id)}))))
+
+(defun static-project-bundle-id? [bundle-id]
+  (= bundle-id :editor-assets))
+
+(defun dynamic-bundle-entry? [entry]
+  (not (static-project-bundle-id? (:id entry))))
+
+(defun dynamic-project-bundle-entries [resources]
+  (filter (project-bundle-entries resources) dynamic-bundle-entry?))
+
+(defun bundle-options [resources]
+  (map (dynamic-project-bundle-entries resources)
+       (fn [entry]
+         {:value (:id entry)
+          :id (:id entry)
+          :label (keyword-label (:id entry))})))
+
+(defun selected-bundle-index [resources selected-id]
+  (when selected-id
+    (find-index (dynamic-project-bundle-entries resources)
+                (fn [entry]
+                  (= (:id entry) selected-id)))))
+
+(defun selected-bundle-indices [resources selected-id]
+  (if-let [index (selected-bundle-index resources selected-id)]
+    [index]
+    []))
+
+(defun first-bundle-id [resources]
+  (if-let [entry (head (dynamic-project-bundle-entries resources))]
+    (:id entry)
+    nil))
+
+(defun add-resource-bundle! [state payload]
+  (let [bundle-id (keyword (:bundle-id payload))]
+    (do
+      (res/create-bundle! bundle-id)
+      (assoc (assoc-in state
+                       [:resources :bundles bundle-id]
+                       (merge {:images {}}
+                              (or (get-in state
+                                          [:resources :bundles bundle-id])
+                                  {})))
+             :selected-resource-bundle bundle-id
+             :selected-image-resource nil))))
+
+(defun resource-key-in-bundle? [bundle-id value]
+  (and (keyword? value)
+       (= (str ":" (keyword-label bundle-id) "/")
+          (substr (str value) 0 (+ (count (keyword-label bundle-id)) 2)))))
+
+(defun replace-resource-key-bundle [value old-bundle-id new-bundle-id]
+  (if (resource-key-in-bundle? old-bundle-id value)
+    (let [old-prefix (str ":" (keyword-label old-bundle-id) "/")
+          raw (str value)
+          resource-id (substr raw (count old-prefix))]
+      (keyword (str (keyword-label new-bundle-id) "/" resource-id)))
+    value))
+
+(defun replace-resource-key-bundle-in [value old-bundle-id new-bundle-id]
+  (case (type-of value)
+    "keyword" (replace-resource-key-bundle value old-bundle-id new-bundle-id)
+    "vector" (map value
+                  (fn [item]
+                    (replace-resource-key-bundle-in item
+                                                    old-bundle-id
+                                                    new-bundle-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (replace-resource-key-bundle-in item
+                                                              old-bundle-id
+                                                              new-bundle-id))))
+    :default value))
+
+(defun replace-resource-key [value old-key new-key]
+  (if (= value old-key)
+    new-key
+    value))
+
+(defun replace-resource-key-in [value old-key new-key]
+  (case (type-of value)
+    "keyword" (replace-resource-key value old-key new-key)
+    "vector" (map value
+                  (fn [item]
+                    (replace-resource-key-in item old-key new-key)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              (replace-resource-key-in key old-key new-key)
+                              (replace-resource-key-in item old-key new-key))))
+    :default value))
+
+(defun rename-bundle-in-tile [tile old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in tile old-bundle-id new-bundle-id))
+
+(defun rename-bundle-in-tileset [tileset old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in tileset old-bundle-id new-bundle-id))
+
+(defun rename-bundle-in-tilesets [tilesets old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in (or tilesets [])
+                                  old-bundle-id
+                                  new-bundle-id))
+
+(defun rename-bundle-in-layers [layers old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in (or layers [])
+                                  old-bundle-id
+                                  new-bundle-id))
+
+(defun rename-resource-in-tilesets [tilesets bundle-id old-resource-id new-resource-id]
+  (replace-resource-key-in (or tilesets [])
+                           (image-resource-key bundle-id old-resource-id)
+                           (image-resource-key bundle-id new-resource-id)))
+
+(defun rename-resource-in-layers [layers bundle-id old-resource-id new-resource-id]
+  (replace-resource-key-in (or layers [])
+                           (image-resource-key bundle-id old-resource-id)
+                           (image-resource-key bundle-id new-resource-id)))
+
+(defun rename-resource-bundle! [state payload]
+  (let [old-bundle-id (:previous-bundle-id payload)
+        new-bundle-id (keyword (:bundle-id payload))
+        bundle (get-in state [:resources :bundles old-bundle-id])]
+    (if (and old-bundle-id
+             new-bundle-id
+             bundle
+             (not (blank? (:bundle-id payload))))
+      (if (= old-bundle-id new-bundle-id)
+        state
+        (do
+          (res/create-bundle! new-bundle-id)
+          (for [resource (res/list-images old-bundle-id)]
+            (res/remove-image! (:id resource)))
+          (assoc (assoc-in state
+                           [:resources :bundles]
+                           (assoc (dissoc (or (-> state :resources :bundles) {})
+                                          old-bundle-id)
+                                  new-bundle-id
+                                  bundle))
+                 :tilesets (rename-bundle-in-tilesets (:tilesets state)
+                                                       old-bundle-id
+                                                       new-bundle-id)
+                 :layers (rename-bundle-in-layers (:layers state)
+                                                   old-bundle-id
+                                                   new-bundle-id)
+                 :selected-resource-bundle new-bundle-id)))
+      state)))
+
+(defun apply-resource-bundle-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (case (:operation payload)
+      :add (add-resource-bundle! state payload)
+      :edit (rename-resource-bundle! state payload)
+      :default state)
+    state))
+
+(defun bundle-images [resources bundle-id]
+  (or (get-in resources [:bundles bundle-id :images]) {}))
+
+(defun project-image-resource-entries [resources bundle-id]
+  (let [images (bundle-images resources bundle-id)]
+    (map (keys images)
+         (fn [resource-id]
+           {:id resource-id
+            :bundle-id bundle-id
+            :dependency (get images resource-id)}))))
+
+(defun first-image-resource-id [resources bundle-id]
+  (if-let [entry (head (project-image-resource-entries resources bundle-id))]
+    (:id entry)
+    nil))
+
+(defun runtime-image-dependency [dependency]
+  (select-keys (or dependency {}) [:file-name :transparency-color]))
+
+(defun project-image-resources [resources bundle-id]
+  (map (project-image-resource-entries resources bundle-id)
+       (fn [entry]
+         (let [id (:id entry)
+               dependency (:dependency entry)]
+           {:id id
+            :bundle-id bundle-id
+            :key (image-resource-key bundle-id id)
+            :name (or (:name dependency)
+                      (keyword-label id))
+            :file-name (:file-name dependency)}))))
+
+(defun all-project-image-resources [resources]
+  (reduce (dynamic-project-bundle-entries resources)
+          []
+          (fn [out entry]
+            (concat out
+                    (project-image-resources resources (:id entry))))))
+
+(defun replacement-image-resource-options [resources current-key]
+  (map (filter (all-project-image-resources resources)
+               (fn [resource]
+                 (not= (:key resource) current-key)))
+       (fn [resource]
+         {:value (:key resource)
+          :label (str (:key resource) "  " (:name resource))
+          :key (:key resource)})))
+
+(defun first-replacement-image-key [resources current-key]
+  (if-let [option (head (replacement-image-resource-options resources
+                                                           current-key))]
+    (:key option)
+    nil))
+
+(defun tile-uses-image-resource? [tile resource-key]
+  (and (= (:type tile) :sprite)
+       (= (:image tile) resource-key)))
+
+(defun tileset-resource-usage-count [tileset resource-key]
+  (count (filter (or (:tiles tileset) [])
+                 (fn [tile]
+                   (tile-uses-image-resource? tile resource-key)))))
+
+(defun resource-usage-by-tileset [tilesets resource-key]
+  (map (or tilesets [])
+       (fn [tileset]
+         {:tileset-id (:id tileset)
+          :label (or (:label tileset)
+                     (str (:id tileset)))
+          :count (tileset-resource-usage-count tileset
+                                               resource-key)})))
+
+(defun resource-usage-total [usage]
+  (reduce (or usage [])
+          0
+          (fn [total item]
+            (+ total (:count item)))))
+
+(defun remove-resource-tiles-from-tileset [tileset resource-key]
+  (assoc tileset
+         :tiles
+         (filter (or (:tiles tileset) [])
+                 (fn [tile]
+                   (not (tile-uses-image-resource? tile resource-key))))))
+
+(defun remove-resource-tiles-from-tilesets [tilesets resource-key]
+  (map (or tilesets [])
+       (fn [tileset]
+         (remove-resource-tiles-from-tileset tileset resource-key))))
+
+(defun runtime-bundle-dependencies [bundle]
+  {:images (reduce-kv (or (:images bundle) {})
+                      {}
+                      (fn [result image-id dependency]
+                        (assoc result image-id (runtime-image-dependency dependency))))})
+
+(defun sync-project-resources! [resources]
+  (do
+    (for [entry (dynamic-project-bundle-entries resources)]
+      (do
+        (res/create-bundle! (:id entry))
+        (for [resource (res/list-images (:id entry))]
+          (res/remove-image! (:id resource)))
+        (res/create-bundle! (:id entry)
+                            (runtime-bundle-dependencies (:bundle entry)))))
+    resources))
+
+(defun image-resource-options [resources]
+  (map (or resources [])
+       (fn [resource]
+         {:value (:id resource)
+          :bundle-id (:bundle-id resource)
+          :key-label (str (:key resource))
+          :name (:name resource)
+          :label (str (:key resource))})))
+
+(defun selected-resource-index [resources selected-id]
+  (when selected-id
+    (find-index (or resources [])
+                (fn [resource]
+                  (= (:id resource) selected-id)))))
+
+(defun selected-resource [resources selected-id]
+  (if-let [index (selected-resource-index resources selected-id)]
+    (nth resources index)
+    nil))
+
+(defun selected-resource-indices [resources selected-id]
+  (if-let [index (selected-resource-index resources selected-id)]
+    [index]
+    []))
+
+(defun selected-bundle-id [resources selected-id]
+  (if (nil? (selected-bundle-index resources selected-id))
+    nil
+    selected-id))
+
+(defun selected-image-resource-id [resources bundle-id selected-id]
+  (if (nil? (selected-resource-index (project-image-resources resources bundle-id)
+                                     selected-id))
+    nil
+    selected-id))
+
+(defun derive-resource-workspace-state [state]
+  (let [resources (:resources state)
+        bundle-id (selected-bundle-id resources
+                                      (:selected-resource-bundle state))
+        image-id (selected-image-resource-id resources
+                                             bundle-id
+                                             (:selected-image-resource state))]
+    (assoc state
+           :selected-resource-bundle bundle-id
+           :selected-image-resource image-id
+           :image-resource-panel-disabled? (nil? bundle-id)
+           :image-resource-add-disabled? (nil? bundle-id)
+           :image-resource-detail-disabled? (nil? image-id))))
+
+(defun resource-dependency [payload]
+  {:file-name (:file-name payload)
+   :name (:resource-name payload)})
+
+(defun add-image-resource! [state payload]
+  (let [bundle-id (:bundle-id payload)
+        resource-id (keyword (:resource-id payload))]
+    (if (and bundle-id
+             (not (blank? (:resource-id payload)))
+             (not (blank? (:file-name payload))))
+      (do
+        (res/add-image! (image-resource-key bundle-id resource-id)
+                        (runtime-image-dependency (resource-dependency payload)))
+        (assoc (assoc-in state
+                         [:resources :bundles bundle-id :images resource-id]
+                         (resource-dependency payload))
+               :selected-image-resource resource-id))
+      state)))
+
+(defun edit-image-resource! [state payload]
+  (let [bundle-id (:bundle-id payload)
+        previous-id (:previous-resource-id payload)
+        resource-id (keyword (:resource-id payload))
+        dependency (resource-dependency payload)
+        images (dissoc (bundle-images (:resources state) bundle-id) previous-id)]
+    (if (and bundle-id
+             previous-id
+             (not (blank? (:resource-id payload)))
+             (not (blank? (:file-name payload))))
+      (do
+        (when (not= previous-id resource-id)
+          (res/remove-image! (image-resource-key bundle-id previous-id)))
+        (res/add-image! (image-resource-key bundle-id resource-id)
+                        (runtime-image-dependency dependency))
+        (let [state (assoc (assoc-in state
+                                     [:resources :bundles bundle-id :images]
+                                     (assoc images resource-id dependency))
+                           :selected-image-resource resource-id)]
+          (if (= previous-id resource-id)
+            state
+            (assoc state
+                   :tilesets (rename-resource-in-tilesets (:tilesets state)
+                                                          bundle-id
+                                                          previous-id
+                                                          resource-id)
+                   :layers (rename-resource-in-layers (:layers state)
+                                                      bundle-id
+                                                      previous-id
+                                                      resource-id)))))
+      state)))
+
+(defun apply-image-metadata-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (case (:operation payload)
+      :add (add-image-resource! state payload)
+      :edit (edit-image-resource! state payload)
+      :default state)
+    state))
+
+(defun remove-image-resource! [state bundle-id resource-id action replacement-key]
+  (let [resource-key (image-resource-key bundle-id resource-id)]
+    (if (and bundle-id resource-id)
+      (let [next-resources (update-in (:resources state)
+                                      [:bundles bundle-id :images]
+                                      (fn [images]
+                                        (dissoc (or images {}) resource-id)))]
+        (res/remove-image! (image-resource-key bundle-id resource-id))
+        (let [state (assoc state
+                           :resources next-resources
+                           :selected-image-resource
+                           (first-image-resource-id next-resources
+                                                    bundle-id))]
+          (case action
+            :resource-delete/replace-resource
+            (if replacement-key
+              (assoc state
+                     :tilesets (replace-resource-key-in (:tilesets state)
+                                                        resource-key
+                                                        replacement-key)
+                     :layers (replace-resource-key-in (:layers state)
+                                                      resource-key
+                                                      replacement-key))
+              state)
+
+            :resource-delete/delete-tiles
+            (assoc state
+                   :tilesets (remove-resource-tiles-from-tilesets
+                              (:tilesets state)
+                              resource-key))
+
+            :default state)))
+      state)))
+
+(defun remove-resource-bundle! [state bundle-id]
+  (if bundle-id
+    (let [next-resources (assoc-in (:resources state)
+                                   [:bundles]
+                                   (dissoc (or (-> state :resources :bundles) {})
+                                           bundle-id))
+          next-bundle-id (first-bundle-id next-resources)]
+      (do
+        (for [resource (res/list-images bundle-id)]
+          (res/remove-image! (:id resource)))
+        (assoc state
+               :resources next-resources
+               :selected-resource-bundle next-bundle-id
+               :selected-image-resource (first-image-resource-id next-resources
+                                                                  next-bundle-id))))
+    state))

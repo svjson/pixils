@@ -1,0 +1,210 @@
+(ns tilemap-editor.root
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.tab-panel :as tabs]
+            [tilemap-editor.view.tilemap.controls :as controls]
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.view.resources.model :as resource-model]
+            tilemap-editor.view.resources.layout
+            tilemap-editor.view.tilemap.layout
+            tilemap-editor.view.tileset.layout))
+
+
+
+;; Root mode
+
+(defmode main-mode
+ {:class :ui/app
+  :style {:layout {:direction :column
+                   :gap 8}}
+  :init (fn [state ctx]
+          {:selected-tile nil
+           :selected-tileset-index nil
+           :selected-tileset-definition-index nil
+           :selected-tileset-tile-index nil
+           :tilesets []
+           :tileset nil
+           :selected-layer-index nil
+           :selected-layer-label ""
+           :layers []
+           :hidden-layer-indices []
+           :selected-label ""
+           :project-path nil
+           :project-directory nil
+           :project-filename "tilemap-project.edn"
+           :resources data/project-resources
+           :synced-resources nil
+           :selected-resource-bundle nil
+           :selected-image-resource nil
+           :project-history-path project-io/default-recent-projects-path
+           :recent-projects (project-io/load-recent-projects
+                             project-io/default-recent-projects-path)
+           :zoom 1
+           :zoom-label "Zoom 1x"
+           :show-grid? true
+           :map-offset {:x 0 :y 0}
+           :workspace-tab :map})
+  :update (fn [state ctx]
+            (let [resources (:resources state)
+                  state (if (not= resources (:synced-resources state))
+                          (do
+                            (resource-model/sync-project-resources! resources)
+                            (assoc state :synced-resources resources))
+                          state)
+                  layers (or (:layers state) [])
+                  layer-index (or (:selected-layer-index state) 0)
+                  layer (when (> (count layers) 0)
+                          (nth layers (min layer-index (dec (count layers)))))
+                  tileset (:tileset layer)
+                  tilesets (or (:tilesets state) [])
+                  tileset-definition-index (when (> (count tilesets) 0)
+                                             (min (or (:selected-tileset-definition-index state)
+                                                      0)
+                                                  (dec (count tilesets))))
+                  tileset-definition (when (not (nil? tileset-definition-index))
+                                       (nth tilesets tileset-definition-index))
+                  tileset-tile-count (count (or (:tiles tileset-definition) []))
+                  tileset-tile-index (when (> tileset-tile-count 0)
+                                       (min (or (:selected-tileset-tile-index state) 0)
+                                            (dec tileset-tile-count)))
+                  selected-tile (data/tile-id-in-definitions tilesets
+                                                             tileset
+                                                             (:selected-tile state))
+                  zoom (or (:zoom state) 1)]
+              (assoc state
+                     :tileset tileset
+                     :selected-tileset-index (when tileset
+                                               (data/tileset-index-in tilesets
+                                                                      tileset))
+                     :selected-tileset-definition-index tileset-definition-index
+                     :selected-tileset-tile-index tileset-tile-index
+                     :selected-tile selected-tile
+                     :selected-label (data/tile-label-in-definitions tilesets
+                                                                      tileset
+                                                                      selected-tile)
+                     :zoom-label (str "Zoom " zoom "x")
+                     :selected-layer-label (or (:label layer) ""))))
+  :children [{:mode 'toolbar
+              :state {:recent-projects (ui/bind-state :recent-projects)}}
+             (tabs/make
+              {:selected-tab (ui/bind-state :workspace-tab)
+               :style {:width :fill
+                       :height :fill}
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-label (ui/bind-state :selected-label)
+                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                       :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                       :tilesets (ui/bind-state :tilesets)
+                       :tileset (ui/bind-state :tileset)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)
+                       :show-grid? (ui/bind-state :show-grid?)
+                       :map-offset (ui/bind-state :map-offset)
+                       :resources (ui/bind-state :resources)
+                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                       :selected-image-resource (ui/bind-state :selected-image-resource)}
+               :tabs [{:id :map
+                       :label "Map"
+                       :child {:mode 'workspace
+                               :style {:padding {:l 8
+                                                 :r 8
+                                                 :b 8}}
+                               :state {:selected-tile (ui/bind-state :selected-tile)
+                                       :selected-label (ui/bind-state :selected-label)
+                                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :tileset (ui/bind-state :tileset)
+                                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                                       :selected-layer-label (ui/bind-state :selected-layer-label)
+                                       :layers (ui/bind-state :layers)
+                                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                       :zoom (ui/bind-state :zoom)
+                                       :zoom-label (ui/bind-state :zoom-label)
+                                       :show-grid? (ui/bind-state :show-grid?)
+                                       :map-offset (ui/bind-state :map-offset)}}}
+                      {:id :tilesets
+                       :label "Tilesets"
+                       :child {:mode 'tileset-definition-workspace
+                               :style {:padding 8}
+                               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                       :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                       :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :tileset (ui/bind-state :tileset)
+                                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                                       :layers (ui/bind-state :layers)
+                                       :project-directory (ui/bind-state :project-directory)
+                                       :resources (ui/bind-state :resources)
+                                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}
+                      {:id :resources
+                       :label "Resources"
+                       :child {:mode 'resource-explorer-workspace
+                               :style {:padding 8}
+                               :state {:project-directory (ui/bind-state :project-directory)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :layers (ui/bind-state :layers)
+                                       :resources (ui/bind-state :resources)
+                                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]
+  :on {:palette/select (fn [state event ctx]
+                         (assoc state :selected-tile (:payload event)))
+       :tab-panel/change (fn [state event ctx]
+                           (assoc state :workspace-tab (-> event :payload :tab)))
+       :layer/name-dialog-result (fn [state event ctx]
+                                   (controls/apply-layer-name-dialog-result
+                                    state
+                                    (:payload event)))
+       :layer/confirm-dialog-result (fn [state event ctx]
+                                      (controls/apply-delete-layer-result
+                                       state
+                                       (:payload event)))
+       :layer/context-command (fn [state event ctx]
+                                (controls/apply-layer-move-command
+                                 state
+                                 (:payload event)))
+       :project/open (fn [state event ctx]
+                       (project-io/open-project-file-dialog! state
+                                                             ctx
+                                                             :file-dialog/open
+                                                             "Open Project"))
+       :project/open-recent (fn [state event ctx]
+                              (project-io/open-recent-project! state
+                                                               (:payload event)))
+       :project/save-as (fn [state event ctx]
+                          (project-io/open-project-file-dialog! state
+                                                                ctx
+                                                                :file-dialog/save
+                                                                "Save Project As"))
+       :project/save (fn [state event ctx]
+                       (if (:project-path state)
+                         (project-io/apply-project-file-dialog-result
+                          state
+                          {:type :confirm
+                           :mode :file-dialog/save
+                           :path (:project-path state)
+                           :directory (:project-directory state)
+                           :filename (:project-filename state)})
+                         (project-io/open-project-file-dialog! state
+                                                               ctx
+                                                               :file-dialog/save
+                                                               "Save Project")))
+              :project/file-dialog-result (fn [state event ctx]
+                                            (project-io/apply-project-file-dialog-result
+                                             state
+                                             (:payload event)))
+              :project/resources-change
+              (fn [state event ctx]
+                (let [payload (:payload event)]
+                  (assoc state
+                         :resources (:resources payload)
+                         :selected-resource-bundle (:selected-resource-bundle payload)
+                         :selected-image-resource (:selected-image-resource payload))))
+              :app/quit (fn [state event ctx]
+                          (quit!))}})

@@ -1,0 +1,162 @@
+(ns tilemap-editor.io.project
+  (:require [roo.io :as io]
+            [pixils.ui.file-dialog :as file-dialog]
+            [tilemap-editor.model.data :as data]))
+
+(def project-file-filters
+  [{:label "Pixils project files (*.edn)"
+    :extensions [".edn"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(def default-recent-projects-path "examples/tilemap-editor/.recent-projects.edn")
+(def max-recent-projects 10)
+
+(defun save-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/save)
+       (not (nil? (:path payload)))))
+
+(defun open-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
+(defun save-project! [state payload]
+  (do
+    (io/spit-edn! (:path payload) (data/project-document state))
+    payload))
+
+(defun recent-project-entry [payload]
+  {:path (:path payload)
+   :directory (:directory payload)
+   :filename (or (:filename payload) (:path payload))})
+
+(defun recent-project-document [projects]
+  {:projects (or projects [])})
+
+(defun recent-projects-from-document [document]
+  (or (:projects document)
+      document
+      []))
+
+(defun load-recent-projects [path]
+  (if (and path (io/exists? path))
+    (recent-projects-from-document (io/slurp-edn! path))
+    []))
+
+(defun first-recent-projects [projects max-count]
+  (map (filter (for-indexed [index project (or projects [])]
+                 {:index index
+                  :project project})
+               (fn [entry]
+                 (< (:index entry) max-count)))
+       :project))
+
+(defun promote-recent-project [projects entry]
+  (if (nil? (:path entry))
+    (or projects [])
+    (first-recent-projects
+     (concat [entry]
+             (filter (or projects [])
+                     (fn [project]
+                       (not= (:path project) (:path entry)))))
+     max-recent-projects)))
+
+(defun write-recent-projects! [path projects]
+  (do
+    (when path
+      (io/spit-edn! path (recent-project-document projects)))
+    projects))
+
+(defun remember-project! [state payload]
+  (let [projects (promote-recent-project (:recent-projects state)
+                                         (recent-project-entry payload))]
+    (do
+      (write-recent-projects! (:project-history-path state) projects)
+      (assoc state :recent-projects projects))))
+
+(defun valid-project-document? [project]
+  (= (:format project) data/project-format))
+
+(defun project-layers [project]
+  (data/normalize-layers (-> project :tilemap :layers)))
+
+(defun project-tilesets [project layers]
+  (if (nil? (get-in project [:tilesets 0 :id]))
+    (if (nil? (get-in layers [0 :tileset]))
+      []
+      (data/project-tileset-definitions))
+    (:tilesets project)))
+
+(defun first-layer-tileset [layers]
+  (:tileset (head layers)))
+
+(defun open-project! [state payload]
+  (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
+        layers (project-layers project)
+        tileset (first-layer-tileset layers)
+        tilesets (project-tilesets project layers)]
+    (if (valid-project-document? project)
+      (remember-project!
+       (assoc state
+              :tilesets tilesets
+              :layers layers
+              :selected-layer-index (when (> (count layers) 0) 0)
+              :selected-layer-label (or (:label (head layers)) "")
+              :hidden-layer-indices []
+              :tileset tileset
+              :selected-tileset-index (when tileset
+                                        (data/tileset-index-in tilesets
+                                                               tileset))
+              :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
+              :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
+              :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
+              :resources (data/normalize-project-resources
+                          (or (:resources project) data/project-resources))
+              :selected-resource-bundle nil
+              :selected-image-resource nil
+              :last-project-open-result payload
+              :last-opened-project project)
+       payload)
+      (assoc state :last-project-open-error {:reason :invalid-format
+                                             :path (:path payload)}))))
+
+(defun open-recent-project! [state payload]
+  (open-project! (assoc state
+                        :project-path (:path payload)
+                        :project-directory (:directory payload)
+                        :project-filename (:filename payload)
+                        :last-project-file-dialog-result payload)
+                 (assoc payload
+                        :type :confirm
+                        :mode :file-dialog/open)))
+
+(defun open-project-file-dialog! [state ctx mode title]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title title
+      :mode mode
+      :path (or (:project-directory state) file-dialog/default-path)
+      :filename (or (:project-filename state) "tilemap-project.edn")
+      :filters project-file-filters
+      :result-event :project/file-dialog-result})
+    state))
+
+(defun apply-project-file-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (let [next-state (assoc state
+                            :project-path (:path payload)
+                            :project-directory (:directory payload)
+                            :project-filename (:filename payload)
+                            :last-project-file-dialog-result payload)]
+      (if (save-project-result? payload)
+        (do
+          (save-project! next-state payload)
+          (remember-project! (assoc next-state :last-project-save-result payload)
+                             payload))
+        (if (open-project-result? payload)
+          (open-project! next-state payload)
+          next-state)))
+    state))

@@ -217,6 +217,135 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     return manifest;
   }
 
+  AppManifest benchmark_808e9fd_manifest()
+  {
+    AppManifest manifest;
+
+    auto add_unit_file = [&](const std::string& unit_id,
+                             const std::filesystem::path& source_path,
+                             const std::string& file_id,
+                             const std::filesystem::path& disk_path,
+                             const std::string& namespace_name)
+    {
+      manifest.upsert_unit(load_unit(unit_id,
+                                     std::filesystem::path(
+                                       "apps/tilemap-editor/benchmark-808e9fd/src") /
+                                       source_path));
+      manifest.add_file(ManifestFile{.id = file_id,
+                                     .disk_path = disk_path,
+                                     .namespace_name = namespace_name,
+                                     .unit_ids = {unit_id}});
+    };
+
+    add_unit_file("tilemap-editor/benchmark-808e9fd/core",
+                  "core.roo",
+                  "tilemap-editor/benchmark-808e9fd/core",
+                  "tilemap-editor/main.roo",
+                  main_namespace());
+    add_unit_file("tilemap-editor/benchmark-808e9fd/assets",
+                  "assets.roo",
+                  "tilemap-editor/benchmark-808e9fd/assets",
+                  "tilemap-editor/assets.roo",
+                  "tilemap-editor.assets");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/root",
+                  "root.roo",
+                  "tilemap-editor/benchmark-808e9fd/root",
+                  "tilemap-editor/root.roo",
+                  "tilemap-editor.root");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/io/project",
+                  "io/project.roo",
+                  "tilemap-editor/benchmark-808e9fd/io/project",
+                  "tilemap-editor/io/project.roo",
+                  "tilemap-editor.io.project");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/model/data",
+                  "model/data.roo",
+                  "tilemap-editor/benchmark-808e9fd/model/data",
+                  "tilemap-editor/model/data.roo",
+                  "tilemap-editor.model.data");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/model/tilemap",
+                  "model/tilemap.roo",
+                  "tilemap-editor/benchmark-808e9fd/model/tilemap",
+                  "tilemap-editor/model/tilemap.roo",
+                  "tilemap-editor.model.tilemap");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/theme",
+                  "view/theme.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/theme",
+                  "tilemap-editor/view/theme.roo",
+                  "tilemap-editor.view.theme");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/resources/model",
+                  "view/resources/model.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/resources/model",
+                  "tilemap-editor/view/resources/model.roo",
+                  "tilemap-editor.view.resources.model");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/resources/dialogs",
+                  "view/resources/dialogs.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/resources/dialogs",
+                  "tilemap-editor/view/resources/dialogs.roo",
+                  "tilemap-editor.view.resources.dialogs");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/resources/panels",
+                  "view/resources/panels.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/resources/panels",
+                  "tilemap-editor/view/resources/panels.roo",
+                  "tilemap-editor.view.resources.panels");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/resources/layout",
+                  "view/resources/layout.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/resources/layout",
+                  "tilemap-editor/view/resources/layout.roo",
+                  "tilemap-editor.view.resources.layout");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/renderer",
+                  "view/tilemap/renderer.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/renderer",
+                  "tilemap-editor/view/tilemap/renderer.roo",
+                  "tilemap-editor.view.tilemap.renderer");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/canvas",
+                  "view/tilemap/canvas.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/canvas",
+                  "tilemap-editor/view/tilemap/canvas.roo",
+                  "tilemap-editor.view.tilemap.canvas");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/inspector",
+                  "view/tilemap/inspector.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/inspector",
+                  "tilemap-editor/view/tilemap/inspector.roo",
+                  "tilemap-editor.view.tilemap.inspector");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/palette",
+                  "view/tilemap/palette.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/palette",
+                  "tilemap-editor/view/tilemap/palette.roo",
+                  "tilemap-editor.view.tilemap.palette");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/controls",
+                  "view/tilemap/controls.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/controls",
+                  "tilemap-editor/view/tilemap/controls.roo",
+                  "tilemap-editor.view.tilemap.controls");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tilemap/layout",
+                  "view/tilemap/layout.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tilemap/layout",
+                  "tilemap-editor/view/tilemap/layout.roo",
+                  "tilemap-editor.view.tilemap.layout");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tileset/model",
+                  "view/tileset/model.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tileset/model",
+                  "tilemap-editor/view/tileset/model.roo",
+                  "tilemap-editor.view.tileset.model");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tileset/panels",
+                  "view/tileset/panels.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tileset/panels",
+                  "tilemap-editor/view/tileset/panels.roo",
+                  "tilemap-editor.view.tileset.panels");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tileset/dialogs",
+                  "view/tileset/dialogs.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tileset/dialogs",
+                  "tilemap-editor/view/tileset/dialogs.roo",
+                  "tilemap-editor.view.tileset.dialogs");
+    add_unit_file("tilemap-editor/benchmark-808e9fd/view/tileset/layout",
+                  "view/tileset/layout.roo",
+                  "tilemap-editor/benchmark-808e9fd/view/tileset/layout",
+                  "tilemap-editor/view/tileset/layout.roo",
+                  "tilemap-editor.view.tileset.layout");
+
+    return manifest;
+  }
+
   static AppManifest build_layered_manifest(std::string_view layer_list_unit_id)
   {
     auto manifest = Pixils::Test::AppFixture::TilemapEditor::manifest();
@@ -412,8 +541,25 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     return entry_files();
   }
 
+  std::vector<std::string> benchmark_808e9fd_entry_files()
+  {
+    return entry_files();
+  }
+
   std::filesystem::path spritesheet_asset_path()
   {
     return assets_dir() / "apps" / "tilemap-editor" / "assets" / "simples_pimples.png";
+  }
+
+  std::filesystem::path benchmark_808e9fd_spritesheet_asset_path()
+  {
+    return assets_dir() / "apps" / "tilemap-editor" / "benchmark-808e9fd" /
+           "assets" / "simples_pimples.png";
+  }
+
+  std::filesystem::path benchmark_808e9fd_example_map_path()
+  {
+    return assets_dir() / "apps" / "tilemap-editor" / "benchmark-808e9fd" /
+           "example-maps" / "map1.edn";
   }
 } // namespace Pixils::Test::AppFixture::TilemapEditor

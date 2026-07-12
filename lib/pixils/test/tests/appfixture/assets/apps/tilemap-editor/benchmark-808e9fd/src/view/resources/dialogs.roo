@@ -1,0 +1,557 @@
+(ns tilemap-editor.view.resources.dialogs
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.dialog :as dialog]
+            [pixils.ui.file-dialog :as file-dialog]
+            [pixils.ui.window :as w]
+            tilemap-editor.view.resources.model))
+
+(def image-delete-action-options
+  [{:value :resource-delete/delete-tiles
+    :label "Also delete all tiles using it"}
+   {:value :resource-delete/replace-resource
+    :label "Select a replacement resource for all tiles using it"}])
+
+(def image-file-filters
+  [{:label "Image files (*.png, *.jpg, *.jpeg, *.bmp)"
+    :extensions [".png" ".jpg" ".jpeg" ".bmp"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(defun open-resource-bundle-dialog! [state ctx operation opts]
+  (do
+    (push-mode! 'resource-bundle-dialog-modal
+                {:operation operation
+                 :title (if (= operation :edit)
+                          "Edit Resource Bundle"
+                          "New Resource Bundle")
+                 :button-label (if (= operation :edit) "Update" "Create")
+                 :previous-bundle-id (:previous-bundle-id opts)
+                 :bundle-id (:bundle-id opts)}
+                {:origin {:view (:view ctx)
+                          :event :resource/bundle-dialog-result}})
+    state))
+
+(defun open-image-file-dialog! [state ctx]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title "Add Image Resource"
+      :mode :file-dialog/open
+      :path (or (:project-directory state) file-dialog/default-path)
+      :filters image-file-filters
+      :result-event :resource/file-dialog-result})
+    state))
+
+(defun open-image-metadata-dialog! [state ctx operation opts]
+  (do
+    (push-mode! 'image-resource-metadata-dialog-modal
+                {:operation operation
+                 :title (if (= operation :edit)
+                          "Edit Image Resource"
+                          "Add Image Resource")
+                 :button-label (if (= operation :edit) "Update" "Add")
+                 :bundle-id (:bundle-id opts)
+                 :previous-resource-id (:previous-resource-id opts)
+                 :resource-id (:resource-id opts)
+                 :resource-name (:resource-name opts)
+                 :file-name (:file-name opts)}
+                {:origin {:view (:view ctx)
+                          :event :resource/metadata-dialog-result}})
+    state))
+
+(defun image-file-dialog-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
+(defun open-selected-image-metadata-dialog! [state ctx]
+  (let [resource (selected-resource (project-image-resources
+                                     (:resources state)
+                                     (:selected-resource-bundle state))
+                                    (:selected-image-resource state))]
+    (if resource
+      (open-image-metadata-dialog!
+       state
+       ctx
+       :edit
+       {:bundle-id (:selected-resource-bundle state)
+        :previous-resource-id (:id resource)
+        :resource-id (keyword-label (:id resource))
+        :resource-name (:name resource)
+        :file-name (:file-name resource)})
+      state)))
+
+(defun open-selected-bundle-dialog! [state ctx bundle-id]
+  (if bundle-id
+    (open-resource-bundle-dialog!
+     state
+     ctx
+     :edit
+     {:previous-bundle-id bundle-id
+      :bundle-id (keyword-label bundle-id)})
+    state))
+
+(defun open-resource-confirm-dialog! [state ctx opts]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title (:title opts)
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (:message opts)}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label (or (:confirm-label opts) "Delete")}]
+      :result-event :resource/confirm-dialog-result
+      :payload (:payload opts)})
+    state))
+
+(defun delete-action-index [action]
+  (or (find-index image-delete-action-options
+                  (fn [option]
+                    (= (:value option) action)))
+      0))
+
+(defun replacement-index [options key]
+  (find-index (or options [])
+              (fn [option]
+                (= (:value option) key))))
+
+(defun usage-row-child [usage]
+  {:mode 'resource-delete-usage-row
+   :state {:label (:label usage)
+           :count (:count usage)}})
+
+(defun resource-delete-dialog-body-child []
+  {:mode 'resource-delete-dialog-body
+   :state {:usage (ui/bind-state :usage)
+           :delete-action (ui/bind-state :delete-action)
+           :delete-action-index (ui/bind-state :delete-action-index)
+           :replacement-options (ui/bind-state :replacement-options)
+           :replacement-key (ui/bind-state :replacement-key)
+           :replacement-index (ui/bind-state :replacement-index)
+           :replacement-disabled? (ui/bind-state :replacement-disabled?)
+           :invalid? (ui/bind-state :invalid?)}
+   :children (concat
+              [{:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Tiles using this resource"}}
+               {:mode 'resource-delete-usage-list
+                :state {:usage (ui/bind-state :usage)}}
+               {:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Delete behavior"}}
+               (cb/make {:options image-delete-action-options
+                         :selected-index (ui/bind-state :delete-action-index)})
+               {:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Replacement resource"}}
+               (cb/make {:options (ui/bind-state :replacement-options)
+                         :selected-index (ui/bind-state :replacement-index)
+                         :disabled? (ui/bind-state :replacement-disabled?)})]
+              [{:mode 'resource-delete-dialog-buttons
+                :state {:invalid? (ui/bind-state :invalid?)}}])})
+
+(defun open-image-delete-resolution-dialog! [state ctx bundle-id resource-id usage]
+  (let [resource-key (image-resource-key bundle-id resource-id)
+        replacement-options (replacement-image-resource-options (:resources state)
+                                                               resource-key)
+        replacement-key (first-replacement-image-key (:resources state)
+                                                    resource-key)]
+    (do
+      (push-mode! 'image-resource-delete-dialog-modal
+                  {:title "Delete Image Resource"
+                   :bundle-id bundle-id
+                   :resource-id resource-id
+                   :resource-key resource-key
+                   :usage usage
+                   :delete-action :resource-delete/delete-tiles
+                   :delete-action-index 0
+                   :replacement-options replacement-options
+                   :replacement-key replacement-key
+                   :replacement-index (or (replacement-index replacement-options
+                                                             replacement-key)
+                                          0)}
+                  {:origin {:view (:view ctx)
+                            :event :resource/delete-dialog-result}})
+      state)))
+
+(defun open-image-delete-confirm-dialog! [state ctx bundle-id resource-id]
+  (if (and bundle-id resource-id)
+    (let [usage (resource-usage-by-tileset
+                 (:tilesets state)
+                 (image-resource-key bundle-id resource-id))]
+      (if (> (resource-usage-total usage) 0)
+        (open-image-delete-resolution-dialog! state
+                                              ctx
+                                              bundle-id
+                                              resource-id
+                                              usage)
+        (open-resource-confirm-dialog!
+         state
+         ctx
+         {:title "Delete Image Resource"
+          :message (str "Delete image resource "
+                        (image-resource-key bundle-id resource-id)
+                        "?")
+          :confirm-label "Delete"
+          :payload {:operation :delete-image
+                    :bundle-id bundle-id
+                    :resource-id resource-id
+                    :delete-action :resource-delete/delete-tiles}})))
+    state))
+
+(defun open-bundle-delete-confirm-dialog! [state ctx bundle-id]
+  (if bundle-id
+    (open-resource-confirm-dialog!
+     state
+     ctx
+     {:title "Delete Resource Bundle"
+      :message (str "Delete resource bundle " bundle-id "?")
+      :confirm-label "Delete"
+      :payload {:operation :delete-bundle
+                :bundle-id bundle-id}})
+    state))
+
+(defun apply-resource-confirm-dialog-result [state payload]
+  (if (= (:choice payload) :dialog/ok)
+    (let [details (:payload payload)]
+      (case (:operation details)
+        :delete-image (remove-image-resource! state
+                                              (:bundle-id details)
+                                              (:resource-id details)
+                                              (:delete-action details)
+                                              (:replacement-key details))
+        :delete-bundle (remove-resource-bundle! state (:bundle-id details))
+        :default state))
+    state))
+
+(defcomponent resource-delete-usage-row
+  {:style {:width :fill
+           :height 20
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :style {:width 58
+                       :text {:align :right}}
+               :state {:value (ui/bind-state :count)}}]})
+
+(defun resource-delete-usage-rows-child [usage]
+  {:id "rows"
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 2}}
+   :children (map (or usage []) usage-row-child)})
+
+(defcomponent resource-delete-usage-list
+  {:style {:width :fill
+           :height :shrink}
+   :init (fn [state ctx]
+           (assoc state :rendered-usage nil))
+   :update (fn [state ctx]
+             (let [usage (or (:usage state) [])]
+               (do
+                 (when (not= usage (:rendered-usage state))
+                   (ui/replace-child! (:view ctx)
+                                      "rows"
+                                      (resource-delete-usage-rows-child usage)))
+                 (assoc state :rendered-usage usage))))
+   :children [(resource-delete-usage-rows-child [])]})
+
+(defcomponent resource-delete-dialog-body
+  {:class :ui/content
+   :style {:width 430
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [replace? (= (:delete-action state)
+                               :resource-delete/replace-resource)]
+               (assoc state
+                      :replacement-disabled? (not replace?)
+                      :invalid? (and replace?
+                                     (nil? (:replacement-key state))))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                value (:value payload)]
+            (case value
+              :resource-delete/delete-tiles
+              (assoc state
+                     :delete-action value
+                     :delete-action-index (:selected-index payload))
+
+              :resource-delete/replace-resource
+              (assoc state
+                     :delete-action value
+                     :delete-action-index (:selected-index payload))
+
+              :default
+              (assoc state
+                     :replacement-key value
+                     :replacement-index (:selected-index payload)))))}})
+
+(defcomponent resource-delete-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-delete-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Delete"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-delete-dialog/confirm)
+                             state))}]})
+
+(defmode image-resource-delete-dialog-modal
+  {:on {:resource-delete-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :resource-delete-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (:invalid? state)
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :operation :delete-image
+                            :bundle-id (:bundle-id state)
+                            :resource-id (:resource-id state)
+                            :delete-action (:delete-action state)
+                            :replacement-key (:replacement-key state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 200 :y 120}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :bundle-id (ui/bind-state :bundle-id)
+                               :resource-id (ui/bind-state :resource-id)
+                               :delete-action (ui/bind-state :delete-action)
+                                       :delete-action-index (ui/bind-state :delete-action-index)
+                                       :usage (ui/bind-state :usage)
+                                       :replacement-options (ui/bind-state :replacement-options)
+                                       :replacement-key (ui/bind-state :replacement-key)
+                                       :replacement-index (ui/bind-state :replacement-index)
+                                       :replacement-disabled? (ui/bind-state :replacement-disabled?)
+                                       :invalid? (ui/bind-state :invalid?)}
+                               :body [(resource-delete-dialog-body-child)]})]})
+
+(defcomponent resource-bundle-dialog-body
+  {:class :ui/content
+   :style {:width 260
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state :invalid? (blank? (:bundle-id state))))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Bundle id"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :bundle-id)
+                       :auto-focus? true}}
+             {:mode 'resource-bundle-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)
+                       :button-label (ui/bind-state :button-label)}}]})
+
+(defcomponent resource-bundle-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-bundle-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label (ui/bind-state :button-label)
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-bundle-dialog/confirm)
+                             state))}]})
+
+(defmode resource-bundle-dialog-modal
+  {:on {:resource-bundle-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :resource-bundle-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (blank? (:bundle-id state))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :operation (:operation state)
+                            :previous-bundle-id (:previous-bundle-id state)
+                            :bundle-id (:bundle-id state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :previous-bundle-id (ui/bind-state :previous-bundle-id)
+                               :bundle-id (ui/bind-state :bundle-id)
+                               :button-label (ui/bind-state :button-label)}
+                       :body [{:mode 'resource-bundle-dialog-body
+                               :state {:bundle-id (ui/bind-state :bundle-id)
+                                       :button-label (ui/bind-state :button-label)}}]})]})
+
+(defcomponent image-resource-metadata-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :invalid? (or (blank? (:resource-id state))
+                                  (blank? (:resource-name state)))
+                    :bundle-prefix (if (:bundle-id state)
+                                     (str (:bundle-id state) "/")
+                                     "")))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id"}}
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 4}}
+               :state {:bundle-prefix (ui/bind-state :bundle-prefix)
+                       :resource-id (ui/bind-state :resource-id)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width :shrink}
+                           :state {:value (ui/bind-state :bundle-prefix)}}
+                          {:mode 'ui/text-input
+                           :style {:width :fill
+                                   :height 24}
+                           :state {:value (ui/bind-state :resource-id)
+                                   :auto-focus? true}}]}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :resource-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "File"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :file-name)}}
+              {:mode 'image-resource-metadata-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)
+                       :button-label (ui/bind-state :button-label)}}]})
+
+(defcomponent image-resource-metadata-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :image-resource-metadata-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label (ui/bind-state :button-label)
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :image-resource-metadata-dialog/confirm)
+                             state))}]})
+
+(defmode image-resource-metadata-dialog-modal
+  {:on {:image-resource-metadata-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :operation (:operation state)})
+            state))
+        :image-resource-metadata-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:resource-id state))
+                    (blank? (:resource-name state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :operation (:operation state)
+                            :bundle-id (:bundle-id state)
+                            :previous-resource-id (:previous-resource-id state)
+                            :resource-id (:resource-id state)
+                            :resource-name (:resource-name state)
+                            :file-name (:file-name state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :bundle-id (ui/bind-state :bundle-id)
+                               :previous-resource-id (ui/bind-state :previous-resource-id)
+                               :resource-id (ui/bind-state :resource-id)
+                               :resource-name (ui/bind-state :resource-name)
+                               :file-name (ui/bind-state :file-name)
+                               :button-label (ui/bind-state :button-label)}
+                       :body [{:mode 'image-resource-metadata-dialog-body
+                               :state {:resource-id (ui/bind-state :resource-id)
+                                       :bundle-id (ui/bind-state :bundle-id)
+                                       :resource-name (ui/bind-state :resource-name)
+                                       :file-name (ui/bind-state :file-name)
+                                       :button-label (ui/bind-state :button-label)}}]})]})

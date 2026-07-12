@@ -1,5 +1,6 @@
 #include "../support/benchmark.h"
-#include "render_fixture.h"
+#include "appfixture/composable_app_session_fixture.h"
+#include "appfixture/tilemap_editor_app_manifest.h"
 #include <pixils/runtime/view.h>
 
 #include <SDL3/SDL_keycode.h>
@@ -19,6 +20,8 @@
 
 namespace
 {
+  namespace TilemapEditor = Pixils::Test::AppFixture::TilemapEditor;
+
   using View = Pixils::Runtime::View;
 
   std::string lisp_string(const std::string& value)
@@ -57,34 +60,10 @@ namespace
     }
   }
 
-  void read_tilemap_editor_sources(Roo::Runtime& runtime)
-  {
-    runtime.read_file("examples/tilemap-editor/src/assets.roo");
-    runtime.read_file("examples/tilemap-editor/src/model/data.roo");
-    runtime.read_file("examples/tilemap-editor/src/model/tilemap.roo");
-    runtime.read_file("examples/tilemap-editor/src/io/project.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/model.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/dialogs.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/panels.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/layout.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/model.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/panels.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/dialogs.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.roo");
-    runtime.read_file("examples/tilemap-editor/src/view/theme.roo");
-    runtime.read_file("examples/tilemap-editor/src/root.roo");
-  }
-
-  class ExampleTilemapEditorBenchmark : public RenderFixture
+  class ExampleTilemapEditorBenchmark : public ComposableAppSessionFixture
   {
    protected:
-    ExampleTilemapEditorBenchmark() { render_ctx.buffer_dim = {800, 600}; }
+    ExampleTilemapEditorBenchmark() { set_frame_size({800, 600}); }
 
     void TearDown() override
     {
@@ -93,7 +72,7 @@ namespace
       {
         std::filesystem::remove(path, ec);
       }
-      RenderFixture::TearDown();
+      ComposableAppSessionFixture::TearDown();
     }
 
     void load_example_map_project()
@@ -106,8 +85,9 @@ namespace
 
       load_main_mode();
       set_project_history_path(history_path);
-      simulate_open_project_file("examples/tilemap-editor/example-maps/map1.edn",
-                                 "examples/tilemap-editor/example-maps",
+      const auto project_path = app_root_dir() / "example-maps" / "map1.edn";
+      simulate_open_project_file(project_path.string(),
+                                 project_path.parent_path().string(),
                                  "map1.edn");
     }
 
@@ -125,6 +105,7 @@ namespace
       std::filesystem::remove(project_path, ec);
 
       {
+        const auto spritesheet_path = app_root_dir() / "assets" / "simples_pimples.png";
         std::ofstream out(project_path);
         out << R"({:format :pixils.tilemap-editor/project
  :version 1
@@ -133,7 +114,7 @@ namespace
                                  {:file-name "assets/simples_pimples.png"}}}
                        :project-assets
                        {:images {:spritesheet
-                                 {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
+                                 {:file-name )" << lisp_string(spritesheet_path.string()) << R"(
                                   :name "Spritesheet"}}}}}
  :tilesets [{:id :loaded
              :label "Loaded"
@@ -182,7 +163,7 @@ namespace
           {
             workload();
             Pixils::Benchmark::consume(
-              session.active_mode ? session.active_mode->children.size() : 0);
+              session().active_mode ? session().active_mode->children.size() : 0);
             clear_render_ops();
           });
     }
@@ -191,24 +172,24 @@ namespace
 
     std::shared_ptr<View> first_mode(const std::string& mode_name)
     {
-      return find_first_mode(session.active_mode, mode_name);
+      return find_first_mode(session().active_mode, mode_name);
     }
 
     std::vector<std::shared_ptr<View>> descendant_modes(const std::string& mode_name)
     {
       std::vector<std::shared_ptr<View>> matches;
-      find_descendant_modes(session.active_mode, mode_name, matches);
+      find_descendant_modes(session().active_mode, mode_name, matches);
       return matches;
     }
 
     std::shared_ptr<View> tab_at(std::size_t index)
     {
-      if (!session.active_mode || session.active_mode->children.size() < 2)
+      if (!session().active_mode || session().active_mode->children.size() < 2)
       {
         ADD_FAILURE() << "Tilemap editor main mode has no tab panel";
         return nullptr;
       }
-      const auto& tab_panel = session.active_mode->children[1];
+      const auto& tab_panel = session().active_mode->children[1];
       if (!tab_panel || tab_panel->children.empty())
       {
         ADD_FAILURE() << "Tilemap editor tab panel has no tab strip";
@@ -245,7 +226,7 @@ namespace
 
     void select_context_menu_action(const std::string& payload)
     {
-      session.pop_mode(runtime.eval(payload));
+      session().pop_mode(eval(payload));
       frame_cycle();
       frame_cycle();
     }
@@ -255,19 +236,25 @@ namespace
 
     void load_main_mode()
     {
-      read_tilemap_editor_sources(runtime);
-      session.push_mode("main-mode", Roo::Constant::NIL);
+      load_app(TilemapEditor::benchmark_808e9fd_manifest(),
+               TilemapEditor::main_namespace(),
+               TilemapEditor::benchmark_808e9fd_entry_files(),
+               {{TilemapEditor::benchmark_808e9fd_spritesheet_asset_path(),
+                 "assets/simples_pimples.png"},
+                {TilemapEditor::benchmark_808e9fd_example_map_path(),
+                 "example-maps/map1.edn"}});
+      load_program();
       frame_cycle();
       clear_render_ops();
     }
 
     void set_project_history_path(const std::filesystem::path& history_path)
     {
-      ASSERT_NE(session.active_mode, nullptr);
-      Roo::Dict::set_property(session.active_mode->state,
+      ASSERT_NE(session().active_mode, nullptr);
+      Roo::Dict::set_property(session().active_mode->state,
                                  Roo::keyword("project-history-path"),
                                  Roo::string(history_path.string()));
-      Roo::Dict::set_property(session.active_mode->state,
+      Roo::Dict::set_property(session().active_mode->state,
                                  Roo::keyword("recent-projects"),
                                  Roo::vector({}));
     }
@@ -277,12 +264,13 @@ namespace
                                     const std::string& filename)
     {
       auto origin = Roo::map({Roo::keyword("view"),
-                                 Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                                 Pixils::Script::ViewAdapter::make_ref(
+                                   *session().active_mode),
                                  Roo::keyword("event"),
                                  Roo::keyword("project/file-dialog-result")});
       auto overrides = Roo::map({Roo::keyword("origin"), origin});
-      session.push_mode("ui/tab-panel-empty", Roo::Constant::NIL, overrides);
-      session.pop_mode(runtime.eval(R"({:type :confirm
+      session().push_mode("ui/tab-panel-empty", Roo::Constant::NIL, overrides);
+      session().pop_mode(eval(R"({:type :confirm
                                       :mode :file-dialog/open
                                       :path )" +
                                     lisp_string(path) +

@@ -1,0 +1,57 @@
+(ns tilemap-editor.model.tilemap
+  (:require [tilemap-editor.model.data :as data]))
+
+
+
+;; Tilemap operations
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun scaled-tile-size [zoom]
+  (* data/tile-size (or zoom 1)))
+
+(defun max-scroll-x [state ctx]
+  (max 0 (- (* data/map-width (scaled-tile-size (:zoom state)))
+            (-> ctx :view :bounds :w))))
+
+(defun max-scroll-y [state ctx]
+  (max 0 (- (* data/map-height (scaled-tile-size (:zoom state)))
+            (-> ctx :view :bounds :h))))
+
+(defun pan-map [state ctx dx dy]
+  (let [offset (or (:offset state) {:x 0 :y 0})]
+    (assoc state :offset {:x (clamp (+ (:x offset) dx) 0 (max-scroll-x state ctx))
+                          :y (clamp (+ (:y offset) dy) 0 (max-scroll-y state ctx))})))
+
+(defun clamp-map-offset [state ctx]
+  (let [offset (or (:offset state) {:x 0 :y 0})]
+    (assoc state :offset {:x (clamp (:x offset) 0 (max-scroll-x state ctx))
+                          :y (clamp (:y offset) 0 (max-scroll-y state ctx))})))
+
+(defun paint-map-at [state event]
+  (let [offset (or (:offset state) {:x 0 :y 0})
+        pos (:position event)
+        size (scaled-tile-size (:zoom state))
+        tile-x (int (/ (+ (:x pos) (:x offset)) size))
+        tile-y (int (/ (+ (:y pos) (:y offset)) size))
+        layer-index (or (:selected-layer-index state) 0)
+        layers (or (:layers state) [])]
+    (if (and (>= tile-x 0)
+             (< tile-x data/map-width)
+             (>= tile-y 0)
+             (< tile-y data/map-height)
+             (> (count layers) 0)
+             (< layer-index (count layers)))
+      (cond
+        (= (:button event) :left)
+        (assoc-in state
+                  [:layers layer-index :tiles tile-y tile-x]
+                  (:selected-tile state))
+
+        (= (:button event) :right)
+        (assoc-in state [:layers layer-index :tiles tile-y tile-x] nil)
+
+        :default
+        state)
+      state)))

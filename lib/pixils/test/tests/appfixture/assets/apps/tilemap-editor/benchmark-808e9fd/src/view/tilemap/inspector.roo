@@ -1,0 +1,44 @@
+(ns tilemap-editor.view.tilemap.inspector
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]))
+
+
+
+;; Inspector
+
+(defcomponent spritesheet-preview
+  {:style {:height 110}
+   :render (fn [state ctx]
+             (do
+               (r/image! :editor-assets/spritesheet
+                         {:pos {:x 0 :y 2}
+                          :scale 0.08})
+               (r/text! "CC0 sprite sheet loaded"
+                        {:x 74 :y 4}
+                        {:color {:r 0xa7 :g 0xb0 :b 0xb8}})
+               (r/text! "Platformer cuts active"
+                        {:x 74 :y 18}
+                        {:color {:r 0xa7 :g 0xb0 :b 0xb8}})))})
+
+(defun make-inspector-panel []
+  (hp/make {:title "Inspector"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state {:selected-label (ui/bind-state :selected-label)
+                    :selected-layer-label (ui/bind-state :selected-layer-label)}
+            :body-state {:selected-label (ui/bind-state :selected-label)
+                         :selected-layer-label (ui/bind-state :selected-layer-label)}
+            :children [{:mode 'ui/text
+                        :state {:value (ui/bind-state :selected-label)}}
+                       {:mode 'ui/text
+                        :class :ui/muted
+                        :state {:value (ui/bind-state :selected-layer-label)}}
+                       {:mode 'ui/text
+                        :class :ui/muted
+                        :state {:value "Map canvas scrolls by offset, not by scroll-pane."}}
+                       {:mode 'spritesheet-preview}]}))

@@ -1,0 +1,157 @@
+(ns tilemap-editor.view.tileset.layout
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            tilemap-editor.view.tileset.model
+            tilemap-editor.view.tileset.panels
+            tilemap-editor.view.tileset.dialogs))
+
+(defun make-tileset-list-panel []
+  (hp/make {:title "Project Tile Sets"
+            :style {:width :shrink
+                    :height 160}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :tileset/add)
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                    :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                    :tilesets (ui/bind-state :tilesets)}
+            :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                         :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                         :tilesets (ui/bind-state :tilesets)}
+            :children [{:mode 'tileset-definition-list
+                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :tilesets (ui/bind-state :tilesets)}}]}))
+
+(defcomponent tileset-definition-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (derive-tileset-workspace-state state))
+   :on {:tileset/add (fn [state event ctx]
+                       (open-tileset-create-dialog! state ctx))
+        :tileset/add-tile (fn [state event ctx]
+                            (open-tile-create-dialog! state ctx))
+        :tileset/dialog-result (fn [state event ctx]
+                                 (add-tileset-definition! state
+                                                          (:payload event)))
+        :tile/dialog-result (fn [state event ctx]
+                              (add-tile-definition! state (:payload event)))
+        :tile/color-range-result (fn [state event ctx]
+                                   (add-color-tile-range! state
+                                                          (:payload event)))
+        :tile/import-result (fn [state event ctx]
+                              (add-imported-sprite-tiles! state
+                                                          (:payload event)))
+        :tile/file-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (image-file-dialog-result? payload)
+              (let [paths (or (:paths payload) [(:path payload)])
+                    multiple? (> (count paths) 1)
+                    state (if multiple?
+                            (import-file-resources! state paths)
+                            (import-file-resource! state payload))]
+                (do
+                  (ui/emit! (:view ctx)
+                            :project/resources-change
+                            {:resources (:resources state)
+                             :selected-resource-bundle (:selected-resource-bundle state)
+                             :selected-image-resource (:selected-image-resource state)})
+                  (if multiple?
+                    (add-imported-single-sprite-tiles!
+                     state
+                     (:last-imported-image-resources state))
+                    (open-tile-import-dialog!
+                     (dissoc state :last-imported-image-resources)
+                     ctx
+                     (:selected-resource-bundle state)
+                     (image-resource-key (:selected-resource-bundle state)
+                                         (:selected-image-resource state))))))
+              state)))
+        :tile/add-command
+        (fn [state event ctx]
+                  (case (-> event :payload :command)
+                    :from-resource (open-tile-import-dialog! state ctx nil nil)
+                    :from-file (open-add-from-file-dialog! state ctx false)
+                    :from-multiple-files (open-add-from-file-dialog! state ctx true)
+            :color (open-tile-create-dialog! state ctx)
+            :color-range (open-color-range-dialog! state ctx)
+            :default state))}
+   :children [(make-tileset-list-panel)
+              (hp/make {:title "Tile Set"
+                        :style {:width :fill
+                                :height :fill}
+                        :header-style {:layout {:direction :row
+                                                :align-items :center
+                                                :gap 4}}
+                        :header-children [{:mode 'tile-add-menu-button
+                                           :state {:label "+"
+                                                   :disabled? (ui/bind-state
+                                                               :tile-set-panel-disabled?)
+                                                   :tile-set-panel-disabled?
+                                                   (ui/bind-state
+                                                    :tile-set-panel-disabled?)
+                                                   :has-project-image-resources?
+                                                   (ui/bind-state
+                                                    :has-project-image-resources?)}}]
+                        :body-style {:padding 8
+                                     :height :fill
+                                     :layout {:direction :column
+                                              :gap 8}}
+                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :tilesets (ui/bind-state :tilesets)
+                                :has-project-image-resources?
+                                (ui/bind-state :has-project-image-resources?)
+                                :tile-set-panel-disabled?
+                                (ui/bind-state :tile-set-panel-disabled?)
+                                :disabled? (ui/bind-state :tile-set-panel-disabled?)}
+                        :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                     :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                     :tilesets (ui/bind-state :tilesets)}
+                        :children [{:mode 'tileset-definition-summary
+                                    :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :tilesets (ui/bind-state :tilesets)}}
+                                   {:mode 'tile-definition-row
+                                    :style {:width :fill
+                                            :height :fill
+                                            :layout {:direction :row
+                                                     :gap 8}}
+                                    :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :tilesets (ui/bind-state :tilesets)}
+                                    :children [{:mode 'tileset-tile-grid
+                                                :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                                        :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                                        :tilesets (ui/bind-state :tilesets)}}]}]})
+              (hp/make {:title "Tile Definition"
+                        :style {:width :shrink
+                                :height :shrink}
+                        :body-style {:padding 8
+                                     :height :shrink}
+                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :tilesets (ui/bind-state :tilesets)
+                                :disabled? (ui/bind-state :tile-definition-panel-disabled?)}
+                        :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                     :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                     :tilesets (ui/bind-state :tilesets)}
+                        :children [{:mode 'tile-definition-panel
+                                    :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :tilesets (ui/bind-state :tilesets)}}]})]})

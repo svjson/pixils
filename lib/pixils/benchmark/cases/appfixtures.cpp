@@ -386,14 +386,12 @@ TEST_F(AppFixtureBenchmark, tilemap_editor_delete_layer_dialog_frame_cycle)
   ASSERT_NO_THROW(load_tilemap_editor_current());
   render_cycle();
 
-  auto layer_rows = descendant_modes("layer-row");
-  ASSERT_FALSE(layer_rows.empty());
-  right_click_at(center_of(layer_rows.front()));
-  render_cycle();
-
-  auto menu_items = descendant_modes("ui/popup-menu-item");
-  ASSERT_FALSE(menu_items.empty());
-  click_at(center_of(menu_items.back()));
+  session().push_mode("layer-confirm-dialog-modal",
+                      eval("{:operation :delete "
+                           ":index 0 "
+                           ":title \"Delete Layer\" "
+                           ":message \"Delete layer \\\"Ground\\\"?\" "
+                           ":confirm-label \"Delete\"}"));
   frame_cycle();
   render_cycle();
 

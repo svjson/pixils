@@ -1,0 +1,93 @@
+(ns tilemap-editor.view.resources.layout
+  (:require pixils
+            tilemap-editor.view.resources.model
+            tilemap-editor.view.resources.dialogs
+            tilemap-editor.view.resources.panels))
+
+(defcomponent resource-explorer-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [state (derive-resource-workspace-state state)]
+               (if (not= (:resources state) (:synced-resources state))
+                 (do
+                   (sync-project-resources! (:resources state))
+                   (assoc state :synced-resources (:resources state)))
+                 state)))
+   :on {:resource/add-bundle (fn [state event ctx]
+                               (open-resource-bundle-dialog! state
+                                                             ctx
+                                                             :add
+                                                             {:bundle-id ""}))
+        :resource/add-image (fn [state event ctx]
+                              (if (:selected-resource-bundle state)
+                                (open-image-file-dialog! state ctx)
+                                state))
+        :resource/edit-image (fn [state event ctx]
+                               (open-selected-image-metadata-dialog! state ctx))
+        :resource/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (case (:kind payload)
+              :image
+              (case (:command payload)
+                :edit (open-selected-image-metadata-dialog!
+                       (assoc state
+                              :selected-resource-bundle (:bundle-id payload)
+                              :selected-image-resource (:resource-id payload))
+                       ctx)
+                :delete (open-image-delete-confirm-dialog! state
+                                                           ctx
+                                                           (:bundle-id payload)
+                                                           (:resource-id payload))
+                :default state)
+
+              :bundle
+              (case (:command payload)
+                :edit (open-selected-bundle-dialog! state
+                                                    ctx
+                                                    (:bundle-id payload))
+                :delete (open-bundle-delete-confirm-dialog! state
+                                                            ctx
+                                                            (:bundle-id payload))
+                :default state)
+
+              :default state)))
+        :resource/file-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (image-file-dialog-result? payload)
+              (open-image-metadata-dialog!
+               state
+               ctx
+               :add
+               {:bundle-id (:selected-resource-bundle state)
+                :resource-id (default-resource-id (:path payload))
+                :resource-name (default-resource-name (:path payload))
+                :file-name (:path payload)})
+              state)))
+        :resource/bundle-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (apply-resource-bundle-dialog-result state payload)))
+        :resource/metadata-dialog-result
+        (fn [state event ctx]
+          (apply-image-metadata-dialog-result state (:payload event)))
+                :resource/confirm-dialog-result
+                (fn [state event ctx]
+                  (apply-resource-confirm-dialog-result state (:payload event)))
+                :resource/delete-dialog-result
+                (fn [state event ctx]
+                  (let [payload (:payload event)]
+                    (if (= (:type payload) :confirm)
+                      (remove-image-resource! state
+                                              (:bundle-id payload)
+                                              (:resource-id payload)
+                                              (:delete-action payload)
+                                              (:replacement-key payload))
+                      state)))}
+   :children [(make-resource-bundle-list-panel)
+              (make-image-resource-list-panel)
+              (make-image-resource-detail-panel)]})
