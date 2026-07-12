@@ -33,24 +33,22 @@
                   node)))
 
 (defun node-value [adapter node]
-  (let [id (node-id adapter node)]
-    (call-adapter adapter
-                  :value
-                  node
-                  (if (and (= (type-of node) "map")
-                           (contains? node :value))
-                    (:value node)
-                    id))))
+  (call-adapter adapter
+                :value
+                node
+                (if (and (= (type-of node) "map")
+                         (contains? node :value))
+                  (:value node)
+                  (node-id adapter node))))
 
 (defun node-label [adapter node]
-  (let [id (node-id adapter node)]
-    (call-adapter adapter
-                  :label
-                  node
-                  (or (when (= (type-of node) "map")
-                        (or (:label node)
-                            (:name node)))
-                      (str id)))))
+  (call-adapter adapter
+                :label
+                node
+                (or (when (= (type-of node) "map")
+                      (or (:label node)
+                          (:name node)))
+                    (str (node-id adapter node)))))
 
 (defun node-children [adapter node]
   (call-adapter adapter
@@ -803,14 +801,13 @@
                                        state
                                        (toggle-expanded-state state row ctx)))))
         :tree-view/item-activate (fn [state event ctx]
-                                  (let [payload (:payload event)]
-                                    (do
-                                      (ui/stop-propagation! event)
-                                      (when (not (:disabled? state))
-                                        (ui/emit! (:view ctx)
-                                                  :tree-view/activate
-                                                  payload))
-                                      state)))}})
+                                  (do
+                                    (ui/stop-propagation! event)
+                                    (when (not (:disabled? state))
+                                      (ui/emit! (:view ctx)
+                                                :tree-view/activate
+                                                (:payload event)))
+                                    state))}})
 
 (defun make [{:keys [roots adapter style row-height visible-rows max-height fixed-visible-rows? content-width selected-id expanded-ids item-child state disabled? indent disclosure-width]}]
   (let [roots (or roots [])
