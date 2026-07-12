@@ -48,6 +48,7 @@
                               :expanded-ids (ui/bind-state :tree-expanded)
                               :selected-id (ui/bind-state :tree-selected)
                               :visible-rows 7
+                              :fixed-visible-rows? true
                               :content-width 260})]}])
               (style/state-section
                "File Tree"
@@ -56,6 +57,7 @@
                   :root-label "Project"
                   :expanded-ids (ui/bind-state :file-tree-expanded)
                   :visible-rows 7
+                  :fixed-visible-rows? true
                   :content-width 260})])
               (style/state-section
                "Scroll Pane"
