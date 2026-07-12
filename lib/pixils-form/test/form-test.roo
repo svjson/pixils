@@ -170,6 +170,81 @@
                      schema-doc
                      {:type :unknown}))))))
 
+(deftest cached-validation-state-reuses-existing-result-when-inputs-match
+  (let [value {:field/name ""
+               :field/age -1}
+        key (form/validation-input-key person-schema value {})
+        state (form/cached-validation-state
+               {:validation-key key
+                :valid? :cached
+                :errors :cached-errors}
+               person-schema
+               value
+               {}
+               :validation-key)]
+    (is (= :cached (:valid? state)))
+    (is (= :cached-errors (:errors state)))))
+
+(deftest cached-validation-state-validates-when-inputs-change
+  (let [old-value {:field/name "Ada"
+                   :field/age 36}
+        value {:field/name ""
+               :field/age -1}
+        state (form/cached-validation-state
+               {:validation-key (form/validation-input-key person-schema
+                                                           old-value
+                                                           {})
+                :valid? :stale
+                :errors :stale-errors}
+               person-schema
+               value
+               {}
+               :validation-key)]
+    (is (= false (:valid? state)))
+    (is (= [{:rule :required}]
+           (get-in state [:errors :field/name])))
+    (is (= [{:rule :min
+             :min 0
+             :actual -1}]
+           (get-in state [:errors :field/age])))))
+
+(deftest cached-form-field-state-reuses-visibility-when-inputs-match
+  (let [state {:schema person-schema
+               :field-id :field/name
+               :value {:field/name "Ada"
+                       :field/age 36}}
+        cached (form/cached-form-field-state state)
+        reused (form/cached-form-field-state
+                (assoc cached :visible? :cached))]
+    (is (= true (:visible? cached)))
+    (is (= :cached (:visible? reused)))))
+
+(deftest cached-form-field-state-recomputes-visibility-when-value-changes
+  (let [schema-doc {:definitions
+                    {:rule-base {:type :object
+                                 :fields {:type {:type :keyword}}}
+                     :a-rule {:extends :rule-base
+                              :fields {:a {:type :text}}}
+                     :b-rule {:extends :rule-base
+                              :fields {:b {:type :text}}}}
+                    :schema {:type :union
+                             :discriminator :type
+                             :base {:ref :rule-base}
+                             :variants {:a {:ref :a-rule}
+                                        :b {:ref :b-rule}}}}
+        cached (form/cached-form-field-state
+                {:schema schema-doc
+                 :field-id :a
+                 :value {:type :a
+                         :a "yes"}})
+        changed (form/cached-form-field-state
+                 (assoc cached
+                        :visible? :cached
+                        :value {:type :b
+                                :b "no"}))]
+    (is (= true (:visible? cached)))
+    (is (= false (:visible? changed)))))
+
 (deftest select-control-state-preselects-current-value
   (let [state (form/select-control-state
                {:options [{:value nil

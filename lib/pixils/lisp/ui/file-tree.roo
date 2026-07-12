@@ -1,0 +1,119 @@
+(ns pixils.ui.file-tree
+  (:require pixils
+            [roo.io :as io]
+            [pixils.ui.tree-view :as tree-view]))
+
+(def default-path (io/current-directory!))
+
+(defun accessible-directory? [path]
+  (and (not (nil? path))
+       (not (empty? path))
+       (io/directory? path)))
+
+(defun include-directories? [opts]
+  (not= (:directories? opts) false))
+
+(defun include-files? [opts]
+  (not= (:files? opts) false))
+
+(defun file-list-options [opts]
+  (let [filter (:filter opts)]
+    (if filter
+      {:directories? false
+       :filter filter}
+      {:directories? false})))
+
+(defun directory-list-options [opts]
+  {:files? false})
+
+(defun directory-entries [path opts]
+  (if (include-directories? opts)
+    (io/list-directory! path (directory-list-options opts))
+    []))
+
+(defun file-entries [path opts]
+  (if (include-files? opts)
+    (io/list-directory! path (file-list-options opts))
+    []))
+
+(defun list-directory [path opts]
+  (concat (directory-entries path opts)
+          (file-entries path opts)))
+
+(defun safe-list-directory [path opts]
+  (if (accessible-directory? path)
+    (list-directory path (or opts {}))
+    []))
+
+(defun join-path [path name]
+  (cond
+    (or (nil? name)
+        (empty? name))
+    path
+
+    :default
+    (io/join-path path name)))
+
+(defun path-label [path fallback]
+  (or fallback
+      (let [name (io/basename path)]
+        (if (empty? name)
+          path
+          name))
+      path))
+
+(defun path-node [path label]
+  {:id path
+   :path path
+   :name (path-label path label)
+   :label (path-label path label)
+   :type (if (accessible-directory? path)
+           :directory
+           :file)})
+
+(defun entry-path [parent entry]
+  (or (:path entry)
+      (join-path parent (:name entry))))
+
+(defun entry-node [parent entry]
+  (let [path (entry-path parent entry)
+        name (or (:name entry)
+                 (path-label path nil))]
+    (merge entry
+           {:id path
+            :path path
+            :name name
+            :label name})))
+
+(defun entry-nodes [parent entries]
+  (map entries
+       (fn [entry]
+         (entry-node parent entry))))
+
+(defun directory-node? [node]
+  (= (:type node) :directory))
+
+(defun node-children [node opts]
+  (entry-nodes (:path node)
+               (safe-list-directory (:path node) opts)))
+
+(defun file-system-adapter [opts]
+  {:id (fn [node] (:path node))
+   :value (fn [node] (:path node))
+   :label (fn [node] (:label node))
+   :expandable? (fn [node] (directory-node? node))
+   :children (fn [node] (node-children node (or opts {})))})
+
+(defun root-node [path opts]
+  (path-node path (:root-label opts)))
+
+(defun make-roots [opts]
+  (let [path (or (:path opts) default-path)]
+    [(root-node path opts)]))
+
+(defun make [{:keys [roots adapter] :as opts}]
+  (tree-view/make
+   (merge opts
+          {:roots (or roots (make-roots opts))
+           :adapter (or adapter
+                        (file-system-adapter opts))})))

@@ -110,6 +110,36 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
   EXPECT_EQ(session.active_mode->state->to_string(), "{:board {:x 99}}");
 }
 
+TEST_F(StateBindingTest, nested_map_binding_propagates_child_state_changes_back_to_parent)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx]
+                (assoc state :content-state
+                       (assoc (:content-state state)
+                              :expanded-ids [:project :src]
+                              :selected-id :main)))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:expanded [:project] :selected :src})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:content-state {:expanded-ids (pixils.ui/bind-state :expanded)
+                                          :selected-id (pixils.ui/bind-state :selected)}
+                          :literal {:kept? true}}}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - nested bind-state values inside literal maps merge back into parent.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:expanded [:project :src] :selected :main}");
+}
+
 TEST_F(StateBindingTest, map_binding_can_propagate_whole_parent_state_back)
 {
   // Given

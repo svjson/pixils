@@ -20,6 +20,8 @@
 (def scrollbar-arrow-left-dark :windows-3-theme/scrollbar-arrow-left-dark)
 (def scrollbar-arrow-right-dark :windows-3-theme/scrollbar-arrow-right-dark)
 (def submenu-chevron-highlighted :windows-3-theme/submenu-chevron-highlighted)
+(def tree-disclosure-collapsed :windows-3-theme/tree-disclosure-collapsed)
+(def tree-disclosure-expanded :windows-3-theme/tree-disclosure-expanded)
 (def dark-symbol-color {:r 0xdc :g 0xe0 :b 0xe4})
 
 (defun draw-menu-option-checkmark! []
@@ -159,6 +161,23 @@
 (defun draw-scrollbar-arrow-right-dark! []
   (draw-thick-full-arrow-with-color! :right dark-symbol-color))
 
+(defun draw-tree-disclosure-box! [collapsed?]
+  (do
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:fill true
+              :color c/WHITE})
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:color c/BLACK})
+    (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
+    (when collapsed?
+      (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK))))
+
+(defun draw-tree-disclosure-collapsed! []
+  (draw-tree-disclosure-box! true))
+
+(defun draw-tree-disclosure-expanded! []
+  (draw-tree-disclosure-box! false))
+
 (defun ensure-windows-3-theme-assets! []
   (theme-assets/ensure-generated-image! theme-bundle
                                         menu-option-checkmark
@@ -215,7 +234,15 @@
   (theme-assets/ensure-generated-image! theme-bundle
                                         scrollbar-arrow-right-dark
                                         {:size {:w 7 :h 7}}
-                                        draw-scrollbar-arrow-right-dark!))
+                                        draw-scrollbar-arrow-right-dark!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        tree-disclosure-collapsed
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-collapsed!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        tree-disclosure-expanded
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-expanded!))
 
 (ensure-windows-3-theme-assets!)
 
@@ -474,7 +501,9 @@
                   :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
                                              :down-image :windows-3-theme/scrollbar-arrow-down
                                              :left-image :windows-3-theme/scrollbar-arrow-left
-                                             :right-image :windows-3-theme/scrollbar-arrow-right}}
+                                             :right-image :windows-3-theme/scrollbar-arrow-right}
+                  :tree-view-disclosure {:collapsed-image :windows-3-theme/tree-disclosure-collapsed
+                                         :expanded-image :windows-3-theme/tree-disclosure-expanded}}
           :dark {:desktop-bg {:r 0x18 :g 0x28 :b 0x2a}
                  :panel-bg {:r 0x32 :g 0x35 :b 0x38}
                  :panel-shadow {:r 0x1b :g 0x1d :b 0x20}
@@ -525,7 +554,9 @@
                  :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up-dark
                                             :down-image :windows-3-theme/scrollbar-arrow-down-dark
                                             :left-image :windows-3-theme/scrollbar-arrow-left-dark
-                                            :right-image :windows-3-theme/scrollbar-arrow-right-dark}}}
+                                            :right-image :windows-3-theme/scrollbar-arrow-right-dark}
+                 :tree-view-disclosure {:collapsed-image :windows-3-theme/tree-disclosure-collapsed
+                                        :expanded-image :windows-3-theme/tree-disclosure-expanded}}}
    :defaults {:text {:font :font/win3-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}

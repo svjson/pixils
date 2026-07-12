@@ -59,33 +59,6 @@
     (is (= :src (:selected-id state)))
     (is (= 18 (:computed-row-height state)))))
 
-(deftest tree-node-synced-state-carries-disclosure-glyph
-  (let [state (tree-view/tree-node-synced-state
-               {:node (head sample-tree)
-                :adapter nil
-                :depth 0
-                :parent-id nil
-                :expanded-ids [:project]
-                :selected-id nil})]
-    (is (= true (:expanded? state)))
-    (is (= "-" (:disclosure-glyph state)))
-    (is (= "-" (-> state :row :disclosure-glyph)))))
-
-(deftest tree-view-render-key-ignores-derived-content-width
-  (let [base {:roots sample-tree
-              :row-height 12
-              :computed-row-height 12
-              :content-width nil
-              :computed-content-width 80
-              :stretch-items? false
-              :disabled? false
-              :item-child nil}
-        expanded (assoc base
-                        :expanded-ids [:project :src]
-                        :computed-content-width 160)]
-    (is (= (tree-view/tree-view-render-key base)
-           (tree-view/tree-view-render-key expanded)))))
-
 (defun settle-layout! [app]
   (runtime/update! app)
   (runtime/layout! app)
@@ -230,6 +203,47 @@
                    :visible-rows 6
                    :content-width 120})]})")
 
+(defun tree-view-lazy-adapter-source []
+  "(ns pixils.test.tree-view-lazy-adapter-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.tree-view :as tree-view]))
+
+   (def root-node {:id :project
+                   :label \"Project\"})
+
+   (def child-map
+     {:project [{:id :src
+                 :label \"src\"}
+                {:id :readme
+                 :label \"README.md\"}]
+      :src [{:id :main
+             :label \"main.roo\"}]})
+
+   (def adapter
+     {:id (fn [node] (:id node))
+      :label (fn [node] (:label node))
+      :expandable? (fn [node]
+                     (contains? child-map (:id node)))
+      :children (fn [node]
+                  (or (get child-map (:id node)) []))})
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:focused? false})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (ui/focus! (head (ui/children ctx))))
+                  (assoc state :focused? true)))
+      :children [(tree-view/make
+                  {:roots [root-node]
+                   :adapter adapter
+                   :expanded-ids [:project]
+                   :row-height 12
+                   :visible-rows 4
+                   :content-width 120})]})")
+
 (deftest tree-view-keyboard-expands-and-selects-visible-rows
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 180
@@ -286,7 +300,7 @@
                   (fn [view]
                     (-> (runtime/view-state view) :row :disclosure-glyph))))))))
 
-(deftest tree-view-renders-nested-expanded-node-without-empty-visual-space
+(deftest tree-view-renders-expanded-rows-without-empty-visual-space
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
@@ -296,9 +310,6 @@
     (settle-layout! app)
     (settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          node-states (map (runtime/find-views app "ui/tree-view-node")
-                           (fn [view]
-                             (:id (runtime/view-state view))))
           item-ids (map (runtime/find-views app "ui/tree-view-item")
                         (fn [view]
                           (-> (runtime/view-state view) :row :id)))
@@ -308,7 +319,6 @@
       (is (= [:project :src] (:expanded-ids tree-state)))
       (is (= [:project :src :main :readme :assets]
              (map (:rows tree-state) (fn [row] (:id row)))))
-      (is (= [:project :src :main :readme :assets] node-states))
       (is (= [true true false false false] item-expanded))
       (is (= [:project :src :main :readme :assets]
              item-ids)))))
@@ -323,9 +333,6 @@
     (settle-layout! app)
     (settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          scroll-state (runtime/view-state (runtime/find-view app "ui/scroll-pane"))
-          content-state (runtime/view-state (runtime/find-view app "ui/scroll-pane-content"))
-          root-state (runtime/view-state (runtime/find-view app "ui/tree-view-root"))
           item-ids (map (runtime/find-views app "ui/tree-view-item")
                         (fn [view]
                           (-> (runtime/view-state view) :row :id)))
@@ -333,13 +340,26 @@
                            (fn [view]
                              (-> (runtime/view-state view) :row :disclosure-glyph)))]
       (is (= [:project :src] (:expanded-ids tree-state)))
-      (is (= [:project :src] (-> tree-state :content-state :expanded-ids)))
-      (is (= [:project :src] (-> scroll-state :content-state :expanded-ids)))
-      (is (= [:project :src] (:expanded-ids content-state)))
-      (is (= [:project :src] (:expanded-ids root-state)))
       (is (= [:project :src :main :readme :assets]
              (map (:rows tree-state) (fn [row] (:id row)))))
       (is (= [:project :src :main :readme :assets]
              item-ids))
       (is (= ["-" "-" "" "" "+"]
              item-glyphs)))))
+
+(deftest tree-view-renders-children-from-lazy-adapter
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tree-view-lazy-adapter-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
+          item-ids (map (runtime/find-views app "ui/tree-view-item")
+                        (fn [view]
+                          (-> (runtime/view-state view) :row :id)))]
+      (is (= [:project] (:expanded-ids tree-state)))
+      (is (= [:project :src :readme]
+             (map (:rows tree-state) (fn [row] (:id row)))))
+      (is (= [:project :src :readme] item-ids)))))

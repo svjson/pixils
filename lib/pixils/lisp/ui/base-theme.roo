@@ -9,8 +9,12 @@
 (def scrollbar-arrow-down :base-theme/scrollbar-arrow-down)
 (def scrollbar-arrow-left :base-theme/scrollbar-arrow-left)
 (def scrollbar-arrow-right :base-theme/scrollbar-arrow-right)
+(def tree-disclosure-collapsed :base-theme/tree-disclosure-collapsed)
+(def tree-disclosure-expanded :base-theme/tree-disclosure-expanded)
 (def menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
 (def scrollbar-arrow-color {:r 0x00 :g 0x00 :b 0x00})
+(def tree-disclosure-bg {:r 0xff :g 0xff :b 0xff})
+(def tree-disclosure-fg {:r 0x00 :g 0x00 :b 0x00})
 
 (defun draw-menu-option-checkmark! []
  (let [color menu-option-checkmark-color]
@@ -56,6 +60,23 @@
   (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
                                 :rotation 1.57079633}))
 
+(defun draw-tree-disclosure-box! [collapsed?]
+  (do
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:fill true
+              :color tree-disclosure-bg})
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:color tree-disclosure-fg})
+    (r/line! {:x 2 :y 4} {:x 6 :y 4} tree-disclosure-fg)
+    (when collapsed?
+      (r/line! {:x 4 :y 2} {:x 4 :y 6} tree-disclosure-fg))))
+
+(defun draw-tree-disclosure-collapsed! []
+  (draw-tree-disclosure-box! true))
+
+(defun draw-tree-disclosure-expanded! []
+  (draw-tree-disclosure-box! false))
+
 (defun ensure-base-theme-assets! []
   (do
     (theme-assets/ensure-generated-image! theme-bundle
@@ -77,7 +98,15 @@
     (theme-assets/ensure-generated-image! theme-bundle
                                           scrollbar-arrow-right
                                           {:size {:w 9 :h 9}}
-                                          draw-scrollbar-arrow-right!)))
+                                          draw-scrollbar-arrow-right!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          tree-disclosure-collapsed
+                                          {:size {:w 9 :h 9}}
+                                          draw-tree-disclosure-collapsed!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          tree-disclosure-expanded
+                                          {:size {:w 9 :h 9}}
+                                          draw-tree-disclosure-expanded!)))
 
 (ensure-base-theme-assets!)
 
@@ -154,7 +183,9 @@
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up
                                             :down-image :base-theme/scrollbar-arrow-down
                                             :left-image :base-theme/scrollbar-arrow-left
-                                            :right-image :base-theme/scrollbar-arrow-right}}}
+                                            :right-image :base-theme/scrollbar-arrow-right}
+                 :tree-view-disclosure {:collapsed-image :base-theme/tree-disclosure-collapsed
+                                        :expanded-image :base-theme/tree-disclosure-expanded}}}
    :styles
    {:ui/app {:background (var :surface)
              :text {:color (var :text)}}

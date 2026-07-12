@@ -1,6 +1,7 @@
 (ns pixils.ui.tree-view
   (:require pixils
             pixils.ui.scroll-pane
+            [pixils.image :as img]
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
@@ -8,6 +9,7 @@
 (def default-visible-rows 8)
 (def default-indent 14)
 (def default-disclosure-width 14)
+(def default-disclosure-image-size {:w 9 :h 9})
 (def default-item-padding {:t 3
                            :r 5
                            :b 3
@@ -238,8 +240,7 @@
              :content-size (tree-view-scroll-content-size state)
              :content-height-explicit? (:explicit-row-height? state)
              :state {:offset (ui/bind-state :offset)
-                     :content-state (ui/bind-state :content-state)
-                     :content-size (ui/bind-state :scroll-content-size)}
+                     :content-state (ui/bind-state :content-state)}
              :scroll-x? false
              :scroll-y? :auto
              :step row-height
@@ -256,44 +257,82 @@
    :node (:node row)
    :row row})
 
-(defun row-disclosure-glyph [row]
-  (cond
-    (not (:expandable? row)) ""
-    (:expanded? row) "-"
-    :default "+"))
+(defun tree-view-disclosure-theme [ctx]
+  (ui/theme-var ctx :tree-view-disclosure {}))
 
-(defun rows-with-disclosure-glyphs [rows]
-  (map rows
-       (fn [row]
-         (assoc row :disclosure-glyph (row-disclosure-glyph row)))))
+(defun tree-view-disclosure-image [row ctx]
+  (let [theme (tree-view-disclosure-theme ctx)]
+    (cond
+      (not (:expandable? row)) nil
+      (:expanded? row) (:expanded-image theme)
+      :default (:collapsed-image theme))))
+
+(defun centered-image-pos [bounds dim]
+  {:x (max 0 (int (/ (- (or (:w bounds) 0)
+                       (or (:w dim) 0))
+                    2)))
+   :y (max 0 (int (/ (- (or (:h bounds) 0)
+                       (or (:h dim) 0))
+                    2)))})
+
+(defun render-tree-view-disclosure-image! [image bounds]
+  (let [dim (or (img/size image)
+                default-disclosure-image-size)]
+    (r/image! image {:pos (centered-image-pos bounds dim)})))
+
+(defun render-tree-view-disclosure-text! [glyph ctx bounds]
+  (let [style (or (-> ctx :view :effective-style)
+                  (-> ctx :view :style))
+        args (text-args style)
+        dim (r/text-size glyph args)
+        x (max 0 (int (/ (- (or (:w bounds) 0)
+                          (or (:w dim) 0))
+                       2)))]
+    (r/text! glyph {:x x :y 0} args)))
 
 (defun render-tree-view-disclosure! [state ctx]
-  (let [glyph (-> state :row :disclosure-glyph)]
-    (when (not (empty? glyph))
-      (let [style (or (-> ctx :view :effective-style)
-                      (-> ctx :view :style))
-            args (text-args style)
-            bounds (-> ctx :view :bounds)
-            dim (r/text-size glyph args)
-            x (max 0 (int (/ (- (or (:w bounds) 0)
-                                (or (:w dim) 0))
-                             2)))]
-        (r/text! glyph {:x x :y 0} args)))))
+  (let [row (:row state)
+        glyph (:disclosure-glyph row)
+        image (tree-view-disclosure-image row ctx)
+        bounds (-> ctx :view :bounds)]
+    (cond
+      image (render-tree-view-disclosure-image! image bounds)
+      (not (empty? glyph)) (render-tree-view-disclosure-text! glyph ctx bounds)
+      :default nil)))
 
 (defcomponent ui/tree-view-disclosure
   {:style {:width default-disclosure-width
            :height :fill
            :clip true}
    :render render-tree-view-disclosure!
-   :on-click (fn [state event ctx]
-               (do
-                 (ui/stop-propagation! event)
-                 (when (:expandable? state)
-                   (ui/emit! (:view ctx)
-                             :tree-view/item-toggle
-                             (tree-view-row-payload (:row state)
-                                                    (:index state))))
-                 state))})
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (when (:expandable? state)
+                        (ui/emit! (:view ctx)
+                                  :tree-view/item-toggle
+                                  (tree-view-row-payload (:row state)
+                                                         (:index state))))
+                      state))
+   :children [{:style {:width :fill
+                       :height :fill}}]})
+
+(defun tree-view-item-disclosure-hit? [state event]
+  (let [row (:row state)
+        pos (:position event)
+        indent (or (:indent state) default-indent)
+        disclosure-width (or (:disclosure-width state)
+                             default-disclosure-width)
+        depth (or (:depth row) 0)
+        x (or (:x pos) 0)]
+    (< x (+ (* depth indent)
+            disclosure-width))))
+
+(defun emit-row-toggle! [state ctx]
+  (ui/emit! (:view ctx)
+            :tree-view/item-toggle
+            (tree-view-row-payload (:row state)
+                                   (:index state))))
 
 (defcomponent ui/tree-view-item
   {:class [:ui/list-item :ui/list-item-hover :ui/tree-view-item]
@@ -305,6 +344,9 @@
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
+                      (when (and (:expandable? state)
+                                 (tree-view-item-disclosure-hit? state event))
+                        (emit-row-toggle! state ctx))
                       state))
    :on-click (fn [state event ctx]
                (do
@@ -321,7 +363,15 @@
                                     :tree-view/item-activate
                                     (tree-view-row-payload (:row state)
                                                            (:index state))))
-                        state))})
+                        state))
+   :children [{:mode 'ui/tree-view-disclosure
+               :state {:index (ui/bind-state :index)
+                       :row (ui/bind-state :row)
+                       :expandable? (ui/bind-state :expandable?)
+                       :glyph (ui/bind-state :disclosure-glyph)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
 
 (defun tree-view-stretches-items? [style]
   (let [width (:width (or style {}))]
@@ -335,19 +385,20 @@
          (merge (or (:style child) {})
                 {:width :fill})))
 
+(defun row-disclosure-glyph [row]
+  (cond
+    (not (:expandable? row)) ""
+    (:expanded? row) "-"
+    :default "+"))
+
+(defun rows-with-disclosure-glyphs [rows]
+  (map rows
+       (fn [row]
+         (assoc row :disclosure-glyph (row-disclosure-glyph row)))))
+
 (defun default-item-style [row row-height indent]
   {:height row-height
    :padding {:l (* (:depth row) indent)}})
-
-(defun default-tree-view-item-children [index row]
-  [{:mode 'ui/tree-view-disclosure
-    :state {:index index
-            :row row
-            :expandable? (:expandable? row)
-            :glyph (:disclosure-glyph row)}}
-   {:mode 'ui/text
-    :style {:width :fill}
-    :state {:value (:label row)}}])
 
 (defun make-item-child [item-child index row row-height selected-id indent stretch-items? parent-disabled?]
   (let [disabled? (= parent-disabled? true)
@@ -363,8 +414,7 @@
                          :selected (selected-row? selected-id row)
                          :expandable? (:expandable? row)
                          :expanded? (:expanded? row)
-                         :disclosure-glyph (:disclosure-glyph row)}
-                 :children (default-tree-view-item-children index row)})
+                         :disclosure-glyph (row-disclosure-glyph row)}})
         child (assoc child
                      :state
                      (merge (or (:state child) {})
@@ -376,216 +426,12 @@
                              :selected (selected-row? selected-id row)
                              :expandable? (:expandable? row)
                              :expanded? (:expanded? row)
-                             :disclosure-glyph (:disclosure-glyph row)}))]
+                             :indent indent
+                             :disclosure-width default-disclosure-width
+                             :disclosure-glyph (row-disclosure-glyph row)}))]
     (if stretch-items?
       (stretch-tree-view-item child)
       child)))
-
-(defcomponent ui/tree-view-children
-  {})
-
-(defun tree-node-content-state-binding []
-  {:expanded-ids (ui/bind-state :expanded-ids)
-   :selected-id (ui/bind-state :selected-id)
-   :disabled? (ui/bind-state :disabled?)})
-
-(defun tree-node-content-state [state]
-  {:expanded-ids (:expanded-ids state)
-   :selected-id (:selected-id state)
-   :disabled? (:disabled? state)})
-
-(defun tree-node-synced-state [state]
-  (let [row (rows-with-disclosure-glyphs
-             [(tree-row (:adapter state)
-                        (:node state)
-                        (:depth state)
-                        (:expanded-ids state)
-                        (:parent-id state))])
-        row (head row)]
-    (assoc state
-           :row row
-           :id (:id row)
-           :value (:value row)
-           :label (:label row)
-           :selected (selected-row? (:selected-id state) row)
-           :expandable? (:expandable? row)
-           :expanded? (:expanded? row)
-           :disclosure-glyph (:disclosure-glyph row))))
-
-(defun tree-node-row-child [state]
-  (assoc (make-item-child (:item-child state)
-                          nil
-                          (:row state)
-                          (or (:computed-row-height state)
-                              (:row-height state)
-                              default-row-height)
-                          (:selected-id state)
-                          (or (:indent state) default-indent)
-                          (:stretch-items? state)
-                          (:disabled? state))
-         :id "item"))
-
-(defun tree-node-view-state [node depth parent-id opts]
-  {:node node
-   :adapter (:adapter opts)
-   :depth depth
-   :parent-id parent-id
-   :expanded-ids (or (:expanded-ids opts)
-                     (ui/bind-state :expanded-ids))
-   :selected-id (or (:selected-id opts)
-                    (ui/bind-state :selected-id))
-   :disabled? (or (:disabled? opts)
-                  (ui/bind-state :disabled?))
-   :row-height (:row-height opts)
-   :computed-row-height (:computed-row-height opts)
-   :indent (:indent opts)
-   :item-child (:item-child opts)
-   :stretch-items? (:stretch-items? opts)})
-
-(defun tree-node-child-opts [state]
-  {:adapter (:adapter state)
-   :expanded-ids (ui/bind-state :expanded-ids)
-   :selected-id (ui/bind-state :selected-id)
-   :disabled? (ui/bind-state :disabled?)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-node-view-id [adapter node parent-id]
-  (str "node-" (or parent-id "root") "-" (node-id adapter node)))
-
-(defun tree-node-child-view [node depth parent-id opts]
-  (let [state (tree-node-synced-state
-               (tree-node-view-state node depth parent-id opts))]
-    {:mode 'ui/tree-view-node
-     :id (tree-node-view-id (:adapter opts) node parent-id)
-     :state state
-     :children [(tree-node-row-child state)
-                (tree-node-children-container state)]}))
-
-(defun tree-node-children [state]
-  (if (:expanded? state)
-    (map (node-children (:adapter state) (:node state))
-         (fn [child-node]
-           (tree-node-child-view child-node
-                                 (inc (:depth state))
-                                 (:id state)
-                                 (tree-node-child-opts state))))
-    []))
-
-(defun tree-node-children-container [state]
-  {:id "children"
-   :mode 'ui/tree-view-children
-   :style {:width :fill
-           :height :shrink
-           :layout {:direction :column}}
-   :state (tree-node-content-state-binding)
-   :children (tree-node-children state)})
-
-(defun tree-node-children-render-key [state]
-  {:node (:node state)
-   :expanded-ids (:expanded-ids state)
-   :expanded? (:expanded? state)
-   :adapter (:adapter state)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-node-item-render-key [state]
-  {:row (:row state)
-   :selected (:selected state)
-   :disabled? (:disabled? state)
-   :item-child (:item-child state)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-node-sync-rendered-view [state ctx]
-  (let [item-render-key (tree-node-item-render-key state)
-        children-render-key (tree-node-children-render-key state)]
-    (do
-      (when (not= item-render-key (:rendered-item-key state))
-        (ui/replace-child! (:view ctx)
-                           "item"
-                           (tree-node-row-child state)))
-      (when (not= children-render-key (:rendered-children-key state))
-        (ui/replace-child! (:view ctx)
-                           "children"
-                           (tree-node-children-container state)))
-      (assoc (assoc state :rendered-item-key item-render-key)
-             :rendered-children-key children-render-key))))
-
-(defcomponent ui/tree-view-node
-  {:style {:width :fill
-           :height :shrink
-           :layout {:direction :column}}
-   :init (fn [state ctx]
-           (tree-node-sync-rendered-view
-            (tree-node-synced-state state)
-            ctx))
-   :update (fn [state ctx]
-             (tree-node-sync-rendered-view
-              (tree-node-synced-state state)
-              ctx))})
-
-(defun tree-view-node-opts [state]
-  {:adapter (:adapter state)
-   :expanded-ids (ui/bind-state :expanded-ids)
-   :selected-id (ui/bind-state :selected-id)
-   :disabled? (ui/bind-state :disabled?)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-view-root-node-opts [state]
-  {:adapter (:adapter state)
-   :expanded-ids (:expanded-ids state)
-   :selected-id (:selected-id state)
-   :disabled? (:disabled? state)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-view-root-children [state]
-  (map (or (:roots state) [])
-       (fn [node]
-         (tree-node-child-view node
-                               0
-                               nil
-                               (tree-view-node-opts state)))))
-
-(defcomponent ui/tree-view-root
-  {})
-
-(defun tree-view-root-state [state]
-  {:roots (:roots state)
-   :adapter (:adapter state)
-   :expanded-ids (ui/bind-state :expanded-ids)
-   :selected-id (ui/bind-state :selected-id)
-   :disabled? (ui/bind-state :disabled?)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
-(defun tree-view-root-child [state]
-  {:id "tree-root"
-   :mode 'ui/tree-view-root
-   :style {:width :fill
-           :height :shrink
-           :layout {:direction :column}}
-   :state (tree-view-root-state state)
-   :children (tree-view-root-children (tree-view-root-state state))})
 
 (defun tree-view-item-children [state]
   (let [row-height (or (:computed-row-height state)
@@ -604,41 +450,28 @@
 
 (defun tree-view-render-key [state]
   {:roots (:roots state)
+   :expanded-ids (:expanded-ids state)
+   :selected-id (:selected-id state)
    :row-height (:row-height state)
    :computed-row-height (:computed-row-height state)
    :content-width (:content-width state)
+   :computed-content-width (:computed-content-width state)
    :stretch-items? (:stretch-items? state)
    :disabled? (:disabled? state)
    :item-child (:item-child state)})
 
-(defun tree-view-content-render-key [state]
-  {:expanded-ids (:expanded-ids state)
-   :selected-id (:selected-id state)
-   :disabled? (:disabled? state)
-   :computed-row-height (:computed-row-height state)
-   :indent (:indent state)
-   :item-child (:item-child state)
-   :stretch-items? (:stretch-items? state)})
-
 (defun tree-view-scroll-pane-for-state [state]
   (tree-view-scroll-pane-child state
-                               [(tree-view-root-child state)]))
+                               (tree-view-item-children state)))
 
 (defun tree-view-derived-rows [state]
-  (visible-tree-rows (:adapter state)
-                     (:roots state)
-                     (:expanded-ids state)))
+  (rows-with-disclosure-glyphs
+   (visible-tree-rows (:adapter state)
+                      (:roots state)
+                      (:expanded-ids state))))
 
-(defun tree-view-rendered-rows [state ctx]
-  (rows-with-disclosure-glyphs (tree-view-derived-rows state)))
-
-(defun tree-view-content-state [state]
-  {:expanded-ids (:expanded-ids state)
-   :selected-id (:selected-id state)
-   :disabled? (:disabled? state)})
-
-(defun tree-view-synced-state [state ctx]
-  (let [rows (tree-view-rendered-rows state ctx)
+(defun tree-view-sync-rendered-rows [state ctx]
+  (let [rows (tree-view-derived-rows state)
         state (assoc state :rows rows)
         computed-row-height (if (:auto-row-height? state)
                               (tree-view-measured-row-height ctx)
@@ -648,30 +481,13 @@
                                  (:content-width state))
         state (assoc state :computed-row-height computed-row-height)
         state (assoc state :computed-content-width computed-content-width)
-        state (assoc state
-                     :scroll-content-size
-                     (tree-view-scroll-content-size state))
-        state (assoc state
-                     :content-state
-                     (tree-view-content-state state))]
-    state))
-
-(defun tree-view-sync-rendered-rows [state ctx]
-  (let [state (tree-view-synced-state state ctx)
-        render-key (tree-view-render-key state)
-        content-render-key (tree-view-content-render-key state)]
+        render-key (tree-view-render-key state)]
     (do
       (when (not= render-key (:rendered-render-key state))
         (ui/replace-child! (:view ctx)
                            "scroll-pane"
                            (tree-view-scroll-pane-for-state state)))
-      (when (and (= render-key (:rendered-render-key state))
-                 (not= content-render-key (:rendered-content-render-key state)))
-        (ui/replace-child! (:view ctx)
-                           "scroll-pane"
-                           (tree-view-scroll-pane-for-state state)))
-      (assoc (assoc state :rendered-render-key render-key)
-             :rendered-content-render-key content-render-key))))
+      (assoc state :rendered-render-key render-key))))
 
 (defun row-at [rows index]
   (if (and (not (nil? index))
@@ -718,8 +534,6 @@
 (defun select-row [state row index ctx]
   (if row
     (let [changed? (not= (:selected-id state) (:id row))
-          index (or index
-                    (selected-row-index (:rows state) (:id row)))
           next-state (assoc state
                             :selected-id (:id row)
                             :selected-value (:value row)
@@ -803,13 +617,11 @@
    :class :ui/tree-view
    :content-size tree-view-content-size
    :init (fn [state ctx]
-           (let [state (tree-view-synced-state state ctx)
-                 render-key (tree-view-render-key state)]
-             (do
-               (ui/replace-child! (:view ctx)
-                                  "scroll-pane"
-                                  (tree-view-scroll-pane-for-state state))
-               (assoc state :rendered-render-key render-key))))
+           (tree-view-sync-rendered-rows
+            (assoc state
+                   :rows (tree-view-derived-rows state)
+                   :content-state {})
+            ctx))
    :update (fn [state ctx]
              (tree-view-sync-rendered-rows state ctx))
    :after-layout (fn [state ctx]
@@ -889,24 +701,9 @@
                                           default-disclosure-width)
                     :item-child item-child
                     :selected-id selected-id
-                    :expanded-ids expanded-ids
-                    :content-state {:expanded-ids expanded-ids
-                                    :selected-id selected-id
-                                    :disabled? disabled?}
-                    :scroll-content-size
-                    (tree-view-scroll-content-size
-                     {:rows rows
-                      :row-height row-height
-                      :computed-row-height computed-row-height
-                      :content-width content-width
-                      :computed-content-width computed-content-width
-                      :stretch-items? stretch-items?})})
+                    :expanded-ids expanded-ids})
      :children [(tree-view-scroll-pane-for-state
-                 {:roots roots
-                  :adapter adapter
-                  :expanded-ids expanded-ids
-                  :selected-id selected-id
-                  :rows rows
+                 {:rows rows
                   :row-height row-height
                   :computed-row-height computed-row-height
                   :explicit-row-height? explicit-row-height?
@@ -917,17 +714,6 @@
                   :fixed-visible-rows? fixed-visible-rows?
                   :stretch-items? stretch-items?
                   :disabled? disabled?
-                  :content-state {:expanded-ids expanded-ids
-                                  :selected-id selected-id
-                                  :disabled? disabled?}
-                  :scroll-content-size
-                  (tree-view-scroll-content-size
-                   {:rows rows
-                    :row-height row-height
-                    :computed-row-height computed-row-height
-                    :content-width content-width
-                    :computed-content-width computed-content-width
-                    :stretch-items? stretch-items?})
                   :indent (or indent default-indent)
                   :disclosure-width (or disclosure-width
                                         default-disclosure-width)

@@ -11,6 +11,8 @@
 (def scrollbar-arrow-left :windows-95-theme/scrollbar-arrow-left)
 (def scrollbar-arrow-right :windows-95-theme/scrollbar-arrow-right)
 (def submenu-chevron-highlighted :windows-95-theme/submenu-chevron-highlighted)
+(def tree-disclosure-collapsed :windows-95-theme/tree-disclosure-collapsed)
+(def tree-disclosure-expanded :windows-95-theme/tree-disclosure-expanded)
 
 (defun draw-menu-option-checkmark! []
   (let [color c/BLACK]
@@ -76,6 +78,23 @@
 (defun draw-scrollbar-arrow-right! []
   (draw-filled-arrow-with-color! :right c/BLACK))
 
+(defun draw-tree-disclosure-box! [collapsed?]
+  (do
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:fill true
+              :color c/WHITE})
+    (r/rect! {:x 0 :y 0 :w 9 :h 9}
+             {:color c/BLACK})
+    (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
+    (when collapsed?
+      (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK))))
+
+(defun draw-tree-disclosure-collapsed! []
+  (draw-tree-disclosure-box! true))
+
+(defun draw-tree-disclosure-expanded! []
+  (draw-tree-disclosure-box! false))
+
 (defun ensure-windows-95-theme-assets! []
   (do
     (theme-assets/ensure-generated-image! theme-bundle
@@ -101,7 +120,15 @@
     (theme-assets/ensure-generated-image! theme-bundle
                                           scrollbar-arrow-right
                                           {:size {:w 4 :h 7}}
-                                          draw-scrollbar-arrow-right!)))
+                                          draw-scrollbar-arrow-right!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          tree-disclosure-collapsed
+                                          {:size {:w 9 :h 9}}
+                                          draw-tree-disclosure-collapsed!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          tree-disclosure-expanded
+                                          {:size {:w 9 :h 9}}
+                                          draw-tree-disclosure-expanded!)))
 
 (ensure-windows-95-theme-assets!)
 
@@ -285,7 +312,9 @@
                   :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                              :down-image :windows-95-theme/scrollbar-arrow-down
                                              :left-image :windows-95-theme/scrollbar-arrow-left
-                                             :right-image :windows-95-theme/scrollbar-arrow-right}}
+                                             :right-image :windows-95-theme/scrollbar-arrow-right}
+                  :tree-view-disclosure {:collapsed-image :windows-95-theme/tree-disclosure-collapsed
+                                         :expanded-image :windows-95-theme/tree-disclosure-expanded}}
           :dark {:desktop-bg {:r 0x12 :g 0x2f :b 0x33}
                  :panel-bg {:r 0x33 :g 0x36 :b 0x39}
                  :panel-highlight {:r 0x58 :g 0x5d :b 0x63}
@@ -332,7 +361,9 @@
                  :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                             :down-image :windows-95-theme/scrollbar-arrow-down
                                             :left-image :windows-95-theme/scrollbar-arrow-left
-                                            :right-image :windows-95-theme/scrollbar-arrow-right}}}
+                                            :right-image :windows-95-theme/scrollbar-arrow-right}
+                 :tree-view-disclosure {:collapsed-image :windows-95-theme/tree-disclosure-collapsed
+                                        :expanded-image :windows-95-theme/tree-disclosure-expanded}}}
    :defaults {:text {:font :font/win95-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}

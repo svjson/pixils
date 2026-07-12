@@ -411,6 +411,23 @@
 (defun validate-with-context [schema value context]
   (model-schema/validate-with-context schema value context))
 
+(defun validation-input-key [schema value context]
+  {:schema schema
+   :value value
+   :context context})
+
+(defun cached-validation-state [state schema value context key-field]
+  (let [key (validation-input-key schema value context)]
+    (if (= key (get state key-field))
+      state
+      (let [validation (model-schema/validate-with-context schema
+                                                           value
+                                                           context)]
+        (assoc state
+               key-field key
+               :valid? (:valid? validation)
+               :errors (:errors validation))))))
+
 (defun selected-item [items index]
   (let [items (or items [])]
     (when (and (not (nil? index))
@@ -688,20 +705,37 @@
              (form-field-style (:base-style state)
                                (:visible? state))))
 
+(defun form-field-visibility-key [state]
+  {:schema (:schema state)
+   :field-id (:field-id state)
+   :value (:value state)})
+
+(defun cached-form-field-state [state]
+  (let [state (assoc state :form-value (:value state))
+        key (form-field-visibility-key state)]
+    (if (= key (:visibility-key state))
+      state
+      (assoc state
+             :visibility-key key
+             :visible? (form-field-visible? state)))))
+
+(defun sync-form-field-style-state! [state ctx]
+  (let [style-key {:base-style (:base-style state)
+                   :visible? (:visible? state)}]
+    (if (= style-key (:style-key state))
+      state
+      (let [synced (sync-form-field-style! state ctx)]
+        (assoc state :style-key style-key)))))
+
 (defcomponent pixils/form-field
   {:init (fn [state ctx]
-           (let [state (assoc state
-                              :form-value (:value state)
-                              :visible?
-                              (form-field-visible? state))]
-             (sync-form-field-style! state ctx)
-             state))
+           (sync-form-field-style-state!
+            (cached-form-field-state state)
+            ctx))
    :update (fn [state ctx]
-             (let [state (assoc state :form-value (:value state))
-                   visible? (form-field-visible? state)
-                   state (assoc state :visible? visible?)]
-               (sync-form-field-style! state ctx)
-               state))})
+             (sync-form-field-style-state!
+              (cached-form-field-state state)
+              ctx))})
 
 (defun text-control [field-id field-schema field-label opts]
   {:mode 'ui/text-input
@@ -899,10 +933,15 @@
 
 (defcomponent pixils/form-array-summary
   {:update (fn [state ctx]
-             (assoc state
-                    :summary
-                    (selected-summary-values (:item state)
-                                             (:specs state))))})
+             (let [key {:item (:item state)
+                        :specs (:specs state)}]
+               (if (= key (:summary-key state))
+                 state
+                 (assoc state
+                        :summary-key key
+                        :summary
+                        (selected-summary-values (:item state)
+                                                 (:specs state))))))})
 
 (defun array-summary-view [summary-specs]
   {:mode 'pixils/form-array-summary
@@ -913,13 +952,11 @@
                   summary-row-view)})
 
 (defun array-validation-state [state]
-  (let [validation (model-schema/validate-with-context
-                   (:item-schema state)
-                   (:value state)
-                   (:context state))]
-    (assoc state
-           :valid? (:valid? validation)
-           :errors (:errors validation))))
+  (cached-validation-state state
+                           (:item-schema state)
+                           (:value state)
+                           (:context state)
+                           :array-validation-key))
 
 (defun array-control-state [state]
   (let [state (ensure-array-selection-state state)
@@ -1289,11 +1326,17 @@
 
 (defcomponent pixils/form-selection
   {:update (fn [state ctx]
-             (assoc state
-                    :options (selection-options (:items state)
-                                                (:item-label state))
-                    :selected-indices
-                    (selected-indices (:selected-index state))))
+             (let [key {:items (:items state)
+                        :item-label (:item-label state)
+                        :selected-index (:selected-index state)}]
+               (if (= key (:selection-key state))
+                 state
+                 (assoc state
+                        :selection-key key
+                        :options (selection-options (:items state)
+                                                    (:item-label state))
+                        :selected-indices
+                        (selected-indices (:selected-index state))))))
    :on {:list-box/change (fn [state event ctx]
                            (let [stopped (ui/stop-propagation! event)]
                              (assoc state
@@ -1318,9 +1361,15 @@
 
 (defcomponent pixils/form-action
   {:update (fn [state ctx]
-             (assoc state
-                    :disabled?
-                    (action-disabled? state)))
+             (let [key {:form-state (:form-state state)
+                        :enabled-when (:enabled-when state)
+                        :disabled-when (:disabled-when state)}]
+               (if (= key (:action-state-key state))
+                 state
+                 (assoc state
+                        :action-state-key key
+                        :disabled?
+                        (action-disabled? state)))))
    :on-click (fn [state event ctx]
                (let [emitted (when (not (:disabled? state))
                                (ui/emit! (:view ctx)
@@ -1335,14 +1384,12 @@
 
 (defcomponent pixils/form
   {:update (fn [state ctx]
-             (let [state (projection-state state)
-                   validation (model-schema/validate-with-context
-                               (:schema state)
-                               (:value state)
-                               (:context state))]
-               (assoc state
-                      :valid? (:valid? validation)
-                      :errors (:errors validation))))
+             (let [state (projection-state state)]
+               (cached-validation-state state
+                                        (:schema state)
+                                        (:value state)
+                                        (:context state)
+                                        :validation-key)))
    :on {:form/new (fn [state event ctx]
                     (let [stopped (ui/stop-propagation! event)]
                       (begin-new-state state)))

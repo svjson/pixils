@@ -20,6 +20,8 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/dialog.roo
   ui/scrollbar.roo
   ui/scroll-pane.roo
+  ui/tree-view.roo
+  ui/file-tree.roo
   ui/list-box.roo
   ui/combo-box.roo
   ui/text-input.roo

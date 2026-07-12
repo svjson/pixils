@@ -1,0 +1,55 @@
+(ns pixils.ui.file-tree-test
+  (:require proof.core
+            [pixils.ui.file-tree :as file-tree]))
+
+(deftest entry-node-uses-entry-path-when-present
+  (let [node (file-tree/entry-node "/tmp"
+                                   {:name "project"
+                                    :path "/tmp/project"
+                                    :type :directory})]
+    (is (= "/tmp/project" (:id node)))
+    (is (= "/tmp/project" (:path node)))
+    (is (= "project" (:label node)))
+    (is (= :directory (:type node)))))
+
+(deftest entry-node-builds-path-from-parent-and-name
+  (let [node (file-tree/entry-node "/tmp"
+                                   {:name "notes.txt"
+                                    :type :file})]
+    (is (= "/tmp/notes.txt" (:id node)))
+    (is (= "/tmp/notes.txt" (:path node)))
+    (is (= "notes.txt" (:label node)))))
+
+(deftest safe-list-directory-treats-inaccessible-path-as-empty
+  (is (= [] (file-tree/safe-list-directory
+             "/tmp/pixils-file-tree-test-path-that-should-not-exist"
+             {}))))
+
+(deftest file-system-adapter-exposes-directory_nodes_as_expandable
+  (let [adapter (file-tree/file-system-adapter {})
+        directory {:path "/tmp"
+                   :label "tmp"
+                   :type :directory}
+        file {:path "/tmp/file.txt"
+              :label "file.txt"
+              :type :file}]
+    (is (= "/tmp" (apply (:id adapter) [directory])))
+    (is (= "/tmp" (apply (:value adapter) [directory])))
+    (is (= "tmp" (apply (:label adapter) [directory])))
+    (is (= true (apply (:expandable? adapter) [directory])))
+    (is (= false (apply (:expandable? adapter) [file])))))
+
+(deftest make-composes-a-tree-view-rooted-at-path
+  (let [view (file-tree/make {:path "/tmp"
+                              :root-label "Temporary files"
+                              :row-height 18
+                              :visible-rows 4
+                              :content-width 160})
+        state (:state view)
+        root (head (:roots state))]
+    (is (= 'ui/tree-view (:mode view)))
+    (is (= "/tmp" (:path root)))
+    (is (= "Temporary files" (:label root)))
+    (is (= 18 (:computed-row-height state)))
+    (is (= 4 (:visible-rows state)))
+    (is (not (nil? (:adapter state))))))
