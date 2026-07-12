@@ -1006,11 +1006,11 @@
     (pop-mode! (array-item-dialog-result state event ctx))
     state))
 
-(defun array-item-dialog-body [item-schema context]
+(defun array-item-dialog-body [item-schema opts]
   (assoc
    (dialog/make-dialog-body
     {:body [(array-item-form-view item-schema
-                                  {:context context})]
+                                  opts)]
      :buttons [:dialog/ok :dialog/cancel]
      :state {:value (ui/bind-state :value)
              :index (ui/bind-state :index)
@@ -1034,7 +1034,7 @@
                                   :index index
                                   :new? new?}
                           :body (array-item-dialog-body (:item-schema state)
-                                                        (:context state))})))
+                                                        (:item-opts state))})))
 
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
@@ -1093,6 +1093,13 @@
      :state {:items items-binding
              :item-schema item-schema
              :context (:context opts)
+             :item-opts {:context (:context opts)
+                         :controls (:controls opts)
+                         :text (:text opts)
+                         :field-style (:field-style opts)
+                         :field-label-style (:field-label-style opts)
+                         :control-style (:control-style opts)
+                         :object-style (:object-style opts)}
              :new-template (or (:new-template field-schema)
                                (:new-value field-schema)
                                {})

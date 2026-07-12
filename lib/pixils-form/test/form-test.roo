@@ -670,6 +670,23 @@
     (is (= 'ui/dialog-button-row (:mode button-row)))
     (is (= 2 (count (:children button-row))))))
 
+(deftest array-item-dialog-body-preserves-custom-controls
+  (let [custom-control (fn [field-id field-schema field-label opts]
+                         {:mode 'test/custom-control
+                          :state {:field-id field-id
+                                  :label field-label}})
+        body (form/array-item-dialog-body
+              {:type :object
+               :fields {:group {:type :group-membership}}}
+              {:controls {:group-membership custom-control}
+               :text {:group "Group"}})
+        item-form (head (:children body))
+        field-view (head (:children item-form))
+        control (nth (:children field-view) 1)]
+    (is (= 'test/custom-control (:mode control)))
+    (is (= :group (-> control :state :field-id)))
+    (is (= "Group" (-> control :state :label)))))
+
 (deftest make-normalizes-combined-model-projection
   (let [view (form/make {:model :person
                          :models {:person
