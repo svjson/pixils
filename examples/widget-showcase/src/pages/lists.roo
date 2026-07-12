@@ -1,5 +1,6 @@
 (ns widget-showcase.pages.lists
   (:require [pixils.ui :as ui]
+            [pixils.ui.file-tree :as file-tree]
             [pixils.ui.list-box :as list-box]
             [pixils.ui.scroll-pane :as scroll-pane]
             [pixils.ui.tree-view :as tree-view]
@@ -48,6 +49,14 @@
                               :selected-id (ui/bind-state :tree-selected)
                               :visible-rows 7
                               :content-width 260})]}])
+              (style/state-section
+               "File Tree"
+               [(file-tree/make
+                 {:path "."
+                  :root-label "Project"
+                  :expanded-ids (ui/bind-state :file-tree-expanded)
+                  :visible-rows 7
+                  :content-width 260})])
               (style/state-section
                "Scroll Pane"
                [(scroll-pane/make

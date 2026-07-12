@@ -122,6 +122,7 @@
    :scrollbar-x (ui/bind-state :scrollbar-x)
    :scrollbar-y (ui/bind-state :scrollbar-y)
    :tree-expanded (ui/bind-state :tree-expanded)
+   :file-tree-expanded (ui/bind-state :file-tree-expanded)
    :tree-selected (ui/bind-state :tree-selected)
    :desktop-selected-id (ui/bind-state :desktop-selected-id)
    :message (ui/bind-state :message)
@@ -147,6 +148,7 @@
    :scrollbar-x 24
    :scrollbar-y 40
    :tree-expanded [:workspace]
+   :file-tree-expanded []
    :tree-selected :src
    :desktop-selected-id :controls
    :message "Widget showcase ready."

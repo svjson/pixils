@@ -18,6 +18,17 @@
     (or expanded [])
     (concat (or expanded []) [id])))
 
+(defun tree-expanded-state-key [id]
+  (if (= (type-of id) "string")
+    :file-tree-expanded
+    :tree-expanded))
+
+(defun expanded-ids-for [state id]
+  (get state (tree-expanded-state-key id)))
+
+(defun assoc-expanded-ids [state id expanded]
+  (assoc state (tree-expanded-state-key id) expanded))
+
 (defmode main-mode
   {:class :ui/app
    :style {:width :fill
@@ -108,21 +119,21 @@
                             (let [id (-> event :payload :id)]
                               (do
                                 (ui/stop-propagation! event)
-                                (assoc state
-                                       :tree-expanded
-                                       (add-tree-expanded-id (:tree-expanded state)
-                                                             id)
-                                       :message "Tree node expanded."))))
+                                (assoc-expanded-ids
+                                 (assoc state :message "Tree node expanded.")
+                                 id
+                                 (add-tree-expanded-id (expanded-ids-for state id)
+                                                       id)))))
         :tree-view/collapse (fn [state event ctx]
                               (let [id (-> event :payload :id)]
                                 (do
                                   (ui/stop-propagation! event)
-                                  (assoc state
-                                         :tree-expanded
-                                         (remove-tree-expanded-id
-                                          (:tree-expanded state)
-                                          id)
-                                         :message "Tree node collapsed."))))
+                                  (assoc-expanded-ids
+                                   (assoc state :message "Tree node collapsed.")
+                                   id
+                                   (remove-tree-expanded-id
+                                    (expanded-ids-for state id)
+                                    id)))))
         :tree-view/activate (fn [state event ctx]
                               (do
                                 (ui/stop-propagation! event)
