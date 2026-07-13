@@ -739,6 +739,41 @@ that specific push only. It also accepts `:origin`, which controls where a later
 Mode transitions are message-based and take effect between frames, so it is safe to call
 `push-mode!` or `pop-mode!` from inside any hook.
 
+**Anchored overlays and popovers**
+
+For popovers, dropdowns, and other pushed modes that need to appear relative to
+an existing view, use `:overlay` in the third `push-mode!` argument. Overlay
+placement is applied after the pushed mode has been laid out and before it is
+rendered, so it has real anchor and popup geometry. This avoids the one-frame
+jump that can happen when a component computes absolute coordinates from
+`ctx.view.bounds` during `:update`.
+
+```clojure
+(pixils/push-mode! 'main/action-popover
+  {:options options}
+  {:origin {:view (:view ctx)
+            :event :action/select}
+   :overlay {:anchor (:view ctx)
+             :placement :bottom-start
+             :fallback-placement :top-start
+             :viewport-padding 8}
+   :children [{:mode 'main/action-popover-panel
+               :style {:position :absolute
+                       :left 0
+                       :top 0
+                       :width :shrink
+                       :height :shrink}}]})
+```
+
+The overlay anchor must be a view. `:placement` currently supports
+`:bottom-start` and `:top-start`; `:fallback-placement` also accepts `:none`.
+Use `:match-anchor-width? true` when the overlay should inherit the anchor's
+visual width. Use `:viewport-padding` to keep the overlay away from the render
+buffer edge.
+
+The pushed overlay remains a normal mode. Style the popup panel with ordinary
+layout/style keys, but let `:overlay` own the final screen placement.
+
 **Returning data from a pushed mode**
 
 When a mode is popped, it can return data to the view tree that is exposed underneath it.
