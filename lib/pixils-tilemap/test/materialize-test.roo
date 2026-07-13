@@ -289,7 +289,8 @@
 
 (deftest native-materializer-terrain-stamp-rules-match_not_same_or_none
   (let [render-map (materialize-impl/materialize-render-map
-                    (not-same-or-none-test-tilemap))]
+                    (not-same-or-none-test-tilemap)
+                    {})]
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
@@ -617,7 +618,10 @@
                         :color {:r 0 :g 160 :b 0}}
                        {:id :water-fill
                         :type :color
-                        :color {:r 0 :g 0 :b 200}}
+                        :color {:r 0 :g 0 :b 200}
+                        :properties {:walkable false
+                                     :cost 9
+                                     :liquid true}}
                        {:id :water-variant
                         :type :color
                         :color {:r 0 :g 0 :b 160}}
