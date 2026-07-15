@@ -371,6 +371,61 @@
                          (max 0 (- (or (:h content-size) 0)
                                    (or (:h viewport-size) 0))))})
 
+(defun scroll-pane-wheel-axis-offset [value delta step max-value enabled?]
+  (if (and enabled?
+           (not= delta 0)
+           (> max-value 0))
+    (scroll-pane-clamp (- (or value 0)
+                          (* delta step))
+                       0
+                       max-value)
+    (or value 0)))
+
+(defun scroll-pane-wheel-scroll-y? [state]
+  (cond
+    (= (:scroll-y? state) false)
+    false
+
+    (= (:scroll-y? state) :auto)
+    (= (:effective-scroll-y? state) true)
+
+    :default
+    true))
+
+(defun scroll-pane-wheel-offset [state event ctx]
+  (let [offset (scroll-pane-offset state)
+        content-size (scroll-pane-content-size state)
+        viewport-size (scroll-pane-viewport-size-from-view ctx)
+        max-x (max 0 (- (or (:w content-size) 0)
+                        (or (:w viewport-size) 0)))
+        max-y (max 0 (- (or (:h content-size) 0)
+                        (or (:h viewport-size) 0)))
+        step (or (:wheel-step state)
+                 (:step state)
+                 16)
+        next-offset {:x (scroll-pane-wheel-axis-offset (:x offset)
+                                                       (:x event)
+                                                       step
+                                                       max-x
+                                                       (not (= (:scroll-x? state) false)))
+                     :y (scroll-pane-wheel-axis-offset (:y offset)
+                                                       (:y event)
+                                                       step
+                                                       max-y
+                                                       (scroll-pane-wheel-scroll-y? state))}]
+    (scroll-pane-clamped-offset next-offset
+                                content-size
+                                viewport-size)))
+
+(defun scroll-pane-mouse-wheel [state event ctx]
+  (let [offset (scroll-pane-offset state)
+        next-offset (scroll-pane-wheel-offset state event ctx)]
+    (if (not= next-offset offset)
+      (do
+        (ui/stop-propagation! event)
+        (assoc state :offset next-offset))
+      state)))
+
 (defun scroll-pane-bottom-offset-y [content-size viewport-size]
   (max 0 (- (or (:h content-size) 0)
             (or (:h viewport-size) 0))))
@@ -456,6 +511,7 @@
                   state))
    :update scroll-pane-sync-auto-managed
    :after-layout scroll-pane-sync-auto-managed
+   :on-mouse-wheel scroll-pane-mouse-wheel
    :children [{:mode 'ui/scroll-pane-row
                :state {:offset (ui/bind-state :offset)
                        :content-size (ui/bind-state :content-size)

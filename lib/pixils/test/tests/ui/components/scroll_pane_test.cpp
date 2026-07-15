@@ -58,6 +58,19 @@ namespace
     }
     return false;
   }
+
+  Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
+  {
+    return Roo::Dict::get_property(value, Roo::keyword(key));
+  }
+
+  int offset_y(const std::shared_ptr<Pixils::Runtime::View>& view)
+  {
+    auto offset = get_key(view->state, "offset");
+    if (!offset || offset->type == Roo::Value::Type::NIL) return 0;
+    auto y = get_key(offset, "y");
+    return y ? y->num().get_int() : 0;
+  }
 } // namespace
 
 TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
@@ -238,6 +251,125 @@ TEST_F(ScrollPaneTest, scroll_pane_skips_fully_scrolled_out_background_image)
   auto& ops = render_target()->render_ops;
   EXPECT_FALSE(has_render_copy_rect(ops, SDL_Rect{0, 50, 20, 30}));
   EXPECT_FALSE(has_render_copy_rect(ops, SDL_Rect{0, 0, 20, 30}));
+}
+
+TEST_F(ScrollPaneTest, mouse_wheel_scrolls_vertical_scroll_pane_under_cursor)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode
+      {:style {:width 100 :height 200}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 100 :height 80}
+                    :content-size {:w 100 :h 200}
+                    :scroll-x? false
+                    :step 10
+                    :children [{:mode 'content-mode}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  EXPECT_EQ(offset_y(pane), 0);
+
+  input().mouse_wheel({20, 20}, 0.0f, -2.0f);
+  update_cycle();
+
+  EXPECT_EQ(offset_y(pane), 20);
+}
+
+TEST_F(ScrollPaneTest, mouse_wheel_bubbles_to_scroll_pane_when_child_does_not_handle_it)
+{
+  runtime.eval(R"(
+    (pixils/defmode passive-content
+      {:style {:width 100 :height 200}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 100 :height 80}
+                    :content-size {:w 100 :h 200}
+                    :scroll-x? false
+                    :step 12
+                    :children [{:mode 'passive-content}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  input().mouse_wheel({20, 20}, 0.0f, -1.0f);
+  update_cycle();
+
+  EXPECT_EQ(offset_y(pane), 12);
+}
+
+TEST_F(ScrollPaneTest, child_mouse_wheel_handler_can_stop_scroll_pane_wheel_scroll)
+{
+  runtime.eval(R"(
+    (pixils/defmode wheel-content
+      {:style {:width 100 :height 200}
+       :init (fn [state ctx] {:wheel-count 0})
+       :on-mouse-wheel (fn [state event ctx]
+                         (do
+                           (pixils.ui/stop-propagation! event)
+                           (assoc state :wheel-count (+ (:wheel-count state) 1))))})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 100 :height 80}
+                    :content-size {:w 100 :h 200}
+                    :scroll-x? false
+                    :step 10
+                    :children [{:mode 'wheel-content}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  input().mouse_wheel({20, 20}, 0.0f, -1.0f);
+  update_cycle();
+
+  EXPECT_EQ(offset_y(pane), 0);
+}
+
+TEST_F(ScrollPaneTest, wheel_bubbles_to_parent_scroll_pane_when_inner_pane_cannot_scroll)
+{
+  runtime.eval(R"(
+    (pixils/defmode inner-content
+      {:style {:width 80 :height 40}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 100 :height 80}
+                    :content-size {:w 100 :h 200}
+                    :scroll-x? false
+                    :step 15
+                    :children [(pixils.ui.scroll-pane/make
+                                {:style {:width 80 :height 40}
+                                 :content-size {:w 80 :h 40}
+                                 :scroll-x? false
+                                 :step 15
+                                 :children [{:mode 'inner-content}]})]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto outer = session.active_mode->children[0];
+  ASSERT_NE(outer, nullptr);
+
+  input().mouse_wheel({20, 20}, 0.0f, -1.0f);
+  update_cycle();
+
+  EXPECT_EQ(offset_y(outer), 15);
 }
 
 TEST_F(ScrollPaneTest, scroll_pane_without_horizontal_scroll_uses_content_width)
