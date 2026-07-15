@@ -1,8 +1,8 @@
 (ns tilemap-editor.view.terrains.layout
   (:require pixils
             [pixils.render :as r]
+            [pixils.form :as form]
             [pixils.ui :as ui]
-            [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.header-panel :as hp]
@@ -748,6 +748,32 @@
            {:label "Rotate Right"
             :action :terrain/rule-transform-menu
             :payload {:command :rotate-right}}]})
+
+(def terrain-rule-options-schema
+  {:terrain-rule-exclusive {:type :boolean
+                            :path [:exclusive?]}})
+
+(def terrain-rule-options-text
+  {:terrain-rule-exclusive "Exclusive"})
+
+(def terrain-rule-options-layout
+  [:terrain-rule-exclusive])
+
+(def terrain-rule-options-form-style
+  {:width 112
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def terrain-rule-options-field-style
+  {:width :fill
+   :height 24
+   :layout {:direction :row
+            :align-items :center
+            :gap 8}})
+
+(def terrain-rule-options-label-style
+  {:width 72})
 
 (def terrain-rule-grid-cell-size 32)
 (def terrain-rule-grid-gap 2)
@@ -1807,11 +1833,13 @@
                  (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color))))})
 
 (defun terrain-rule-application-options-child []
-  (chk/make {:label "Exclusive"
-             :value :terrain-rule-exclusive
-             :checked? (ui/bind-state :selected-terrain-rule-exclusive?)
-             :style {:width :fill
-                     :height 24}}))
+  (form/make {:schema terrain-rule-options-schema
+              :text terrain-rule-options-text
+              :layout terrain-rule-options-layout
+              :value (ui/bind-state :selected-terrain-rule)
+              :style terrain-rule-options-form-style
+              :field-style terrain-rule-options-field-style
+              :field-label-style terrain-rule-options-label-style}))
 
 (defun terrain-rule-add-button-child [label class]
   (merge {:mode 'ui/button
@@ -2098,7 +2126,8 @@
            :layout {:direction :row
                     :gap 8}}
    :update (fn [state ctx]
-             (let [has-rule? (not (nil? (model/selected-terrain-rule state)))
+             (let [selected-rule (model/selected-terrain-rule state)
+                   has-rule? (not (nil? selected-rule))
                    rule-add-disabled? (= (:rule-add-disabled? state) true)]
                (do
                  (when (or (not= has-rule? (:rendered-has-rule? state))
@@ -2109,9 +2138,11 @@
                     "terrain-rule-visual-editor-content"
                     (terrain-rule-visual-editor-child
                      (assoc state
+                            :selected-terrain-rule selected-rule
                             :rule-add-disabled?
                             rule-add-disabled?))))
                  (assoc state
+                        :selected-terrain-rule selected-rule
                         :rendered-has-rule? has-rule?
                         :rendered-rule-add-disabled? rule-add-disabled?
                         :rule-add-disabled? rule-add-disabled?))))
@@ -5245,19 +5276,6 @@
            state
            (fn [state]
              (model/transform-selected-rule state (:payload event)))))
-        :checkbox/change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (if (= (:value payload) :terrain-rule-exclusive)
-              (do
-                (ui/stop-propagation! event)
-                (update-selected-ruleset-preview
-                 state
-                 (fn [state]
-                   (model/set-selected-terrain-rule-exclusive
-                    state
-                    (:checked? payload)))))
-              state)))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
           (let [payload (:payload event)

@@ -1,0 +1,25 @@
+(ns tilemap-editor.view.project.dialogs
+  (:require [pixils.ui.file-dialog :as file-dialog]))
+
+(def project-file-filters
+  [{:label "Pixils project files (*.edn)"
+    :extensions [".edn"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(def default-project-filename "tilemap-project.edn")
+
+(defun project-file-dialog-options [state mode title]
+  {:title title
+   :mode mode
+   :path (or (:project-directory state) file-dialog/default-path)
+   :filename (or (:project-filename state) default-project-filename)
+   :filters project-file-filters
+   :result-event :project/file-dialog-result})
+
+(defun open-project-file-dialog! [state ctx mode title]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     (project-file-dialog-options state mode title))
+    state))

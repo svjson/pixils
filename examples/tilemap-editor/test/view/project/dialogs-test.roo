@@ -1,0 +1,27 @@
+(ns tilemap-editor.view.project.dialogs-test
+  (:require proof.core
+            [pixils.ui.file-dialog :as file-dialog]
+            [tilemap-editor.view.project.dialogs :as dialogs]))
+
+(deftest project-file-dialog-options-use-project-location-when-present
+  (is (= {:title "Open Project"
+          :mode :file-dialog/open
+          :path "/tmp/projects"
+          :filename "map.edn"
+          :filters dialogs/project-file-filters
+          :result-event :project/file-dialog-result}
+         (dialogs/project-file-dialog-options
+          {:project-directory "/tmp/projects"
+           :project-filename "map.edn"}
+          :file-dialog/open
+          "Open Project"))))
+
+(deftest project-file-dialog-options-fall-back-to-defaults
+  (let [options (dialogs/project-file-dialog-options {}
+                                                     :file-dialog/save
+                                                     "Save Project")]
+    (is (= "Save Project" (:title options)))
+    (is (= :file-dialog/save (:mode options)))
+    (is (= file-dialog/default-path (:path options)))
+    (is (= dialogs/default-project-filename (:filename options)))
+    (is (= :project/file-dialog-result (:result-event options)))))

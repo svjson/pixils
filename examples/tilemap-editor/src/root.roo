@@ -11,10 +11,12 @@
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
+            [tilemap-editor.view.terrains.model :as terrain-model]
             tilemap-editor.view.brushes.layout
             tilemap-editor.view.masks.layout
             [tilemap-editor.view.menu :as app-menu]
             tilemap-editor.view.property-sets.layout
+            [tilemap-editor.view.project.dialogs :as project-dialogs]
             tilemap-editor.view.resources.layout
             tilemap-editor.view.terrains.layout
             tilemap-editor.view.tilemap.layout
@@ -125,6 +127,33 @@
                                  (:height payload)
                                  (:tile-size payload)))
     state))
+
+(defun refresh-selected-terrain-ruleset-preview-after [previous-state state]
+  (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
+   previous-state
+   state
+   (or (terrain-model/selected-terrain-ruleset-id previous-state)
+       (terrain-model/selected-terrain-ruleset-id state))))
+
+(defun update-selected-terrain-ruleset-preview [state update-fn]
+  (terrain-model/clear-terrain-standard-role-slot-cache
+   (refresh-selected-terrain-ruleset-preview-after state
+                                                   (update-fn state))))
+
+(defun apply-form-change [state payload]
+  (case (:field-id payload)
+    :terrain-rule-exclusive
+    (editor-workbook/change-to
+     state
+     "Change terrain rule options"
+     (update-selected-terrain-ruleset-preview
+      state
+      (fn [state]
+        (terrain-model/set-selected-terrain-rule-exclusive
+         state
+         (:value payload)))))
+
+    :default state))
 
 (defun apply-theme-selection! [state payload]
   (do
@@ -708,6 +737,10 @@
                       state
                       "Paste map selection"
                       (tilemap/paste-map-clipboard state)))
+       :form/change (fn [state event ctx]
+                      (do
+                        (ui/stop-propagation! event)
+                        (apply-form-change state (:payload event))))
        :tab-panel/change (fn [state event ctx]
                            (select-workspace-tab state
                                                  (-> event :payload :tab)))
@@ -752,18 +785,20 @@
        (fn [state event ctx]
          (apply-map-dimensions-dialog-result state (:payload event)))
        :project/open (fn [state event ctx]
-                       (project-io/open-project-file-dialog! state
-                                                             ctx
-                                                             :file-dialog/open
-                                                             "Open Project"))
+                       (project-dialogs/open-project-file-dialog!
+                        state
+                        ctx
+                        :file-dialog/open
+                        "Open Project"))
        :project/open-recent (fn [state event ctx]
                               (project-io/open-recent-project! state
                                                                (:payload event)))
        :project/save-as (fn [state event ctx]
-                          (project-io/open-project-file-dialog! state
-                                                                ctx
-                                                                :file-dialog/save
-                                                                "Save Project As"))
+                          (project-dialogs/open-project-file-dialog!
+                           state
+                           ctx
+                           :file-dialog/save
+                           "Save Project As"))
        :project/save (fn [state event ctx]
                        (if (:project-path state)
                          (project-io/apply-project-file-dialog-result
@@ -773,10 +808,11 @@
                            :path (:project-path state)
                            :directory (:project-directory state)
                            :filename (:project-filename state)})
-                         (project-io/open-project-file-dialog! state
-                                                               ctx
-                                                               :file-dialog/save
-                                                               "Save Project")))
+                         (project-dialogs/open-project-file-dialog!
+                          state
+                          ctx
+                          :file-dialog/save
+                          "Save Project")))
               :project/file-dialog-result (fn [state event ctx]
                                             (project-io/apply-project-file-dialog-result
                                              state

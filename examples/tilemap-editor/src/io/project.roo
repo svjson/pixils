@@ -1,15 +1,8 @@
 (ns tilemap-editor.io.project
   (:require [roo.io :as io]
-            [pixils.ui.file-dialog :as file-dialog]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
             [tilemap-editor.model.tilemap :as tilemap]))
-
-(def project-file-filters
-  [{:label "Pixils project files (*.edn)"
-    :extensions [".edn"]}
-   {:label "All files (*)"
-    :extensions []}])
 
 (def default-recent-projects-path "examples/tilemap-editor/.recent-projects.edn")
 (def max-recent-projects 10)
@@ -236,18 +229,6 @@
                             :project-filename (:filename payload)
                             :last-project-file-dialog-result payload)
                      payload))))
-
-(defun open-project-file-dialog! [state ctx mode title]
-  (do
-    (file-dialog/open-file-dialog!
-     ctx
-     {:title title
-      :mode mode
-      :path (or (:project-directory state) file-dialog/default-path)
-      :filename (or (:project-filename state) "tilemap-project.edn")
-      :filters project-file-filters
-      :result-event :project/file-dialog-result})
-    state))
 
 (defun apply-project-file-dialog-result [state payload]
   (if (= (:type payload) :confirm)
