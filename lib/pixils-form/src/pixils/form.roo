@@ -150,6 +150,7 @@
   {:value (ui/bind-state :value)})
 
 (def form-change-event :form/change)
+(def form-select-event :form/select)
 
 (defun class-map [class]
   (if class {:class class} {}))
@@ -413,22 +414,13 @@
 (defun validate-with-context [schema value context]
   (model-schema/validate-with-context schema value context))
 
-(defun validation-input-key [schema value context]
-  {:schema schema
-   :value value
-   :context context})
-
-(defun cached-validation-state [state schema value context key-field]
-  (let [key (validation-input-key schema value context)]
-    (if (= key (get state key-field))
-      state
-      (let [validation (model-schema/validate-with-context schema
-                                                           value
-                                                           context)]
-        (assoc state
-               key-field key
-               :valid? (:valid? validation)
-               :errors (:errors validation))))))
+(defun validated-state [state]
+  (let [validation (model-schema/validate-with-context (:schema state)
+                                                       (:value state)
+                                                       (:context state))]
+    (assoc state
+           :valid? (:valid? validation)
+           :errors (:errors validation))))
 
 (defun selected-item [items index]
   (let [items (or items [])]
@@ -981,17 +973,10 @@
    :children (map (range 0 (dec (max 1 (count summary-specs))))
                   summary-row-view)})
 
-(defun array-validation-state [state]
-  (cached-validation-state state
-                           (:item-schema state)
-                           (:value state)
-                           (:context state)
-                           :array-validation-key))
-
 (defun array-control-state [state]
   (let [state (ensure-array-selection-state state)
         state (projection-state state)
-        state (array-validation-state state)]
+        state (validated-state state)]
     (array-actions-state state)))
 
 (defun array-toolbar []
@@ -1055,7 +1040,9 @@
   (let [index (:selected-index state)
         value (if new?
                 (new-form-value state)
-                (:value state))]
+                (:value state))
+        item-opts (assoc (:item-opts state)
+                         :context (:context state))]
     (dialog/open-dialog! ctx
                          {:title (if new? "Add Item" "Edit Item")
                           :style default-array-dialog-style
@@ -1064,7 +1051,7 @@
                                   :index index
                                   :new? new?}
                           :body (array-item-dialog-body (:item-schema state)
-                                                        (:item-opts state))})))
+                                                        item-opts)})))
 
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
@@ -1093,9 +1080,16 @@
   next-state)
 
 (defcomponent pixils/form-array-control
-  {:update (fn [state ctx]
-             (array-control-state state))
-   :on {:form/add-item (fn [state event ctx]
+  {:init (fn [state ctx]
+           (array-control-state state))
+   :on {:form/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (array-control-state
+                        (assoc state
+                               :new? false
+                               :selected-index
+                               (-> event :payload :value))))
+        :form/add-item (fn [state event ctx]
                          (ui/stop-propagation! event)
                          (when (:can-add? state)
                            (open-array-item-dialog! state ctx true))
@@ -1111,19 +1105,22 @@
                                                (array-dialog-result-state
                                                 state
                                                 (:payload event))]
-                                           (emit-array-items-change! state
-                                                                     next-state
-                                                                     ctx)))
+                                           (emit-array-items-change!
+                                            state
+                                            (array-control-state next-state)
+                                            ctx)))
         :form/delete (fn [state event ctx]
                        (ui/stop-propagation! event)
-                       (let [next-state (delete-state state)]
+                       (let [next-state (array-control-state
+                                         (delete-state state))]
                          (emit-array-items-change! state next-state ctx)))
         :form/reorder (fn [state event ctx]
                         (ui/stop-propagation! event)
                         (let [next-state
-                              (move-item-state state
-                                               (-> event :payload :from-index)
-                                               (-> event :payload :to-index))]
+                              (array-control-state
+                               (move-item-state state
+                                                (-> event :payload :from-index)
+                                                (-> event :payload :to-index)))]
                           (emit-array-items-change! state next-state ctx)))}})
 
 (defun array-control-view [field-id field-schema opts items-binding]
@@ -1431,7 +1428,11 @@
                         :selected-indices
                         (selected-indices (:selected-index state))))))
    :on {:list-box/change (fn [state event ctx]
-                           (let [stopped (ui/stop-propagation! event)]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       form-select-event
+                                       (:payload event))
                              (assoc state
                                     :new? false
                                     :selected-index
@@ -1477,33 +1478,40 @@
 
 (defun form-state [state]
   (let [state (projection-state state)]
-    (cached-validation-state state
-                             (:schema state)
-                             (:value state)
-                             (:context state)
-                             :validation-key)))
+    (validated-state state)))
+
+(defun changed-form-state [state payload]
+  (form-state (assoc state :value (:form-value payload))))
 
 (defcomponent pixils/form
-  {:update (fn [state ctx]
-             (form-state state))
-   :on {:form/new (fn [state event ctx]
+  {:init (fn [state ctx]
+           (form-state state))
+   :on {:form/change (fn [state event ctx]
+                       (changed-form-state state (:payload event)))
+        :form/select (fn [state event ctx]
+                       (form-state
+                        (assoc state
+                               :new? false
+                               :selected-index
+                               (-> event :payload :value))))
+        :form/new (fn [state event ctx]
                     (let [stopped (ui/stop-propagation! event)]
-                      (begin-new-state state)))
+                      (form-state (begin-new-state state))))
         :form/save-new (fn [state event ctx]
                          (let [stopped (ui/stop-propagation! event)]
-                           (save-new-state state)))
+                           (form-state (save-new-state state))))
         :form/cancel-new (fn [state event ctx]
                            (let [stopped (ui/stop-propagation! event)]
-                             (cancel-new-state state)))
+                             (form-state (cancel-new-state state))))
         :form/delete (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
-                         (delete-state state)))
+                         (form-state (delete-state state))))
         :form/move-up (fn [state event ctx]
                         (let [stopped (ui/stop-propagation! event)]
-                          (move-up-state state)))
+                          (form-state (move-up-state state))))
         :form/move-down (fn [state event ctx]
                           (let [stopped (ui/stop-propagation! event)]
-                            (move-down-state state)))}})
+                            (form-state (move-down-state state))))}})
 
 (defun selection-control-view [selection]
   (when selection

@@ -170,36 +170,36 @@
                      schema-doc
                      {:type :unknown}))))))
 
-(deftest cached-validation-state-reuses-existing-result-when-inputs-match
+(deftest validated-state-validates-current-value
   (let [value {:field/name ""
                :field/age -1}
-        key (form/validation-input-key person-schema value {})
-        state (form/cached-validation-state
-               {:validation-key key
-                :valid? :cached
-                :errors :cached-errors}
-               person-schema
-               value
-               {}
-               :validation-key)]
-    (is (= :cached (:valid? state)))
-    (is (= :cached-errors (:errors state)))))
-
-(deftest cached-validation-state-validates-when-inputs-change
-  (let [old-value {:field/name "Ada"
-                   :field/age 36}
-        value {:field/name ""
-               :field/age -1}
-        state (form/cached-validation-state
-               {:validation-key (form/validation-input-key person-schema
-                                                           old-value
-                                                           {})
+        state (form/validated-state
+               {:schema person-schema
+                :value value
+                :context {}
                 :valid? :stale
-                :errors :stale-errors}
-               person-schema
-               value
-               {}
-               :validation-key)]
+                :errors :stale-errors})]
+    (is (= false (:valid? state)))
+    (is (= [{:rule :required}]
+           (get-in state [:errors :field/name])))
+    (is (= [{:rule :min
+             :min 0
+             :actual -1}]
+           (get-in state [:errors :field/age])))))
+
+(deftest changed-form-state-updates-value-and-validation-from-event-payload
+  (let [state (form/changed-form-state
+               {:schema person-schema
+                :value {:field/name "Ada"
+                        :field/age 36}
+                :context {}
+                :valid? true
+                :errors {}}
+               {:form-value {:field/name ""
+                             :field/age -1}})]
+    (is (= {:field/name ""
+            :field/age -1}
+           (:value state)))
     (is (= false (:valid? state)))
     (is (= [{:rule :required}]
            (get-in state [:errors :field/name])))
