@@ -198,6 +198,15 @@
 (defun field-visible? [schema field-id value]
   (contains? (active-schema-fields schema value) field-id))
 
+(defun dynamic-field-visibility? [schema]
+  (= (:type (resolved-root-schema schema)) :union))
+
+(defun field-visibility-value [schema value]
+  (let [root (resolved-root-schema schema)]
+    (if (= (:type root) :union)
+      (union-discriminator-value root value)
+      nil)))
+
 (defun schema-document-with-root [schema root]
   (if (empty? (schema-definitions schema))
     root

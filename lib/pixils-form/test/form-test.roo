@@ -219,6 +219,21 @@
     (is (= true (:visible? cached)))
     (is (= :cached (:visible? reused)))))
 
+(deftest cached-form-field-state-ignores-unrelated-object-value-changes
+  (let [cached (form/cached-form-field-state
+                {:schema person-schema
+                 :field-id :field/name
+                 :dynamic-visibility? false
+                 :value {:field/name "Ada"
+                         :field/age 36}})
+        changed (form/cached-form-field-state
+                 (assoc cached
+                        :visible? :cached
+                        :value {:field/name "Grace"
+                                :field/age 37}))]
+    (is (= true (:visible? cached)))
+    (is (= :cached (:visible? changed)))))
+
 (deftest cached-form-field-state-recomputes-visibility-when-value-changes
   (let [schema-doc {:definitions
                     {:rule-base {:type :object
@@ -235,6 +250,7 @@
         cached (form/cached-form-field-state
                 {:schema schema-doc
                  :field-id :a
+                 :dynamic-visibility? true
                  :value {:type :a
                          :a "yes"}})
         changed (form/cached-form-field-state
@@ -255,6 +271,47 @@
                            :label "stand"}]
                 :value :stand})]
     (is (= 2 (:selected-index state)))))
+
+(deftest select-control-state-reuses-options-when-inputs-match
+  (let [state (form/select-control-state
+               {:options [{:value nil
+                           :label ""}
+                          {:value :sit
+                           :label "sit"}]
+                :value :sit})
+        reused (form/select-control-state
+                (assoc state
+                       :options :cached
+                       :selected-index :cached))]
+    (is (= 1 (:selected-index state)))
+    (is (= :cached (:options reused)))
+    (is (= :cached (:selected-index reused)))))
+
+(deftest select-control-state-rebuilds-options-when-dependent-source-changes
+  (let [field-schema {:type :keyword
+                      :valid-values
+                      {:from {:field [:source]
+                              :sources {:landmarks [:landmarks]
+                                        :terrain [:terrain]}}
+                       :value-path [:value]
+                       :label-path [:label]}}
+        state (form/select-control-state
+               {:field-schema field-schema
+                :context {:landmarks [{:value :dawnkeep
+                                       :label "Dawnkeep"}]
+                          :terrain [{:value :blackmere
+                                     :label "Blackmere"}]}
+                :form-value {:source :landmarks}
+                :value :dawnkeep})
+        changed (form/select-control-state
+                 (assoc state
+                        :options :cached
+                        :selected-index :cached
+                        :form-value {:source :terrain}
+                        :value :blackmere))]
+    (is (= :dawnkeep (-> state :options (nth 1) :value)))
+    (is (= :blackmere (-> changed :options (nth 1) :value)))
+    (is (= 1 (:selected-index changed)))))
 
 (deftest form-value-with-field-value-updates-nested-field-path
   (is (= {:target {:source :terrain
