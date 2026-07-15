@@ -265,6 +265,23 @@
            :field-path [:target :source]}
           :terrain))))
 
+(deftest field-change-payload-reports-field-and-next-form-value
+  (let [payload (form/field-change-payload
+                 {:field-id :terrain-rule-exclusive
+                  :field-path [:exclusive?]
+                  :field-schema {:type :boolean
+                                 :path [:exclusive?]}
+                  :form-value {:exclusive? false
+                               :label "Grass edge"}}
+                 true)]
+    (is (= :terrain-rule-exclusive (:field-id payload)))
+    (is (= [:exclusive?] (:field-path payload)))
+    (is (= false (:old-value payload)))
+    (is (= true (:value payload)))
+    (is (= {:exclusive? true
+            :label "Grass edge"}
+           (:form-value payload)))))
+
 (deftest schema-resolves-named-field-definition-references
   (let [schema-doc {:definitions
                     {:stable-role
@@ -953,6 +970,32 @@
     (is (= true (get-in number-control [:state :allow-fractions?])))
     (is (= 'ui/number-input (:mode integer-control)))
     (is (= false (get-in integer-control [:state :allow-fractions?])))))
+
+(deftest make-renders-fields-with-form-change-metadata
+  (let [view (form/make {:schema {:name {:type :text}
+                                  :count {:type :integer}
+                                  :enabled? {:type :boolean}
+                                  :role {:type :keyword
+                                         :valid-values [:a :b]}}
+                         :value {:name "Ada"
+                                 :count 1
+                                 :enabled? false
+                                 :role :a}})
+        name-control (nth (:children (nth (:children view) 0)) 1)
+        count-control (nth (:children (nth (:children view) 1)) 1)
+        enabled-control (nth (:children (nth (:children view) 2)) 1)
+        role-control (nth (:children (nth (:children view) 3)) 1)]
+    (is (= :name (get-in (nth (:children view) 0) [:state :field-id])))
+    (is (= [:name] (get-in (nth (:children view) 0) [:state :field-path])))
+    (is (= 'ui/text-input (:mode name-control)))
+    (is (= :count (get-in (nth (:children view) 1) [:state :field-id])))
+    (is (= [:count] (get-in (nth (:children view) 1) [:state :field-path])))
+    (is (= 'ui/number-input (:mode count-control)))
+    (is (= :enabled? (get-in (nth (:children view) 2) [:state :field-id])))
+    (is (= [:enabled?] (get-in (nth (:children view) 2) [:state :field-path])))
+    (is (= 'ui/checkbox (:mode enabled-control)))
+    (is (= 'pixils/form-select-control (:mode role-control)))
+    (is (= :role (get-in role-control [:state :field-id])))))
 
 (deftest make-renders-nested-object-fields
   (let [view (form/make {:schema {:field/location

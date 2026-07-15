@@ -149,6 +149,8 @@
 (def form-state-binding
   {:value (ui/bind-state :value)})
 
+(def form-change-event :form/change)
+
 (defun class-map [class]
   (if class {:class class} {}))
 
@@ -680,6 +682,22 @@
             (:field-path state)
             value))
 
+(defun field-change-payload [state value]
+  {:field-id (:field-id state)
+   :field-path (:field-path state)
+   :field-schema (:field-schema state)
+   :old-value (get-in (or (:form-value state) {})
+                      (:field-path state))
+   :value value
+   :form-value (form-value-with-field-value state value)})
+
+(defun emit-field-change! [state event ctx value]
+  (ui/stop-propagation! event)
+  (ui/emit! (:view ctx)
+            form-change-event
+            (field-change-payload state value))
+  state)
+
 (defun label-for [field-id text]
   (or (get (or text {}) field-id)
       (str field-id)))
@@ -735,7 +753,16 @@
    :update (fn [state ctx]
              (sync-form-field-style-state!
               (cached-form-field-state state)
-              ctx))})
+              ctx))
+   :on {:text-input/change
+        (fn [state event ctx]
+          (emit-field-change! state event ctx (-> event :payload :value)))
+        :number-input/change
+        (fn [state event ctx]
+          (emit-field-change! state event ctx (-> event :payload :value)))
+        :checkbox/change
+        (fn [state event ctx]
+          (emit-field-change! state event ctx (-> event :payload :checked?)))}})
 
 (defun text-control [field-id field-schema field-label opts]
   {:mode 'ui/text-input
@@ -1174,6 +1201,11 @@
    :on {:combo-box/change (fn [state event ctx]
                             (let [payload (:payload event)]
                               (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        form-change-event
+                                        (field-change-payload
+                                         state
+                                         (:value payload)))
                               (-> state
                                   (assoc :value (:value payload))
                                   (assoc :form-value
@@ -1198,6 +1230,7 @@
    :state {:value (field-binding field-id field-schema)
            :form-value (ui/bind-state :form-value)
            :options (select-options field-schema opts)
+           :field-id field-id
            :field-path (field-path field-id field-schema)
            :field-schema field-schema
            :context (:context opts)
@@ -1245,6 +1278,7 @@
        :state {:value (ui/bind-state :value)
                :schema schema
                :field-id field-id
+               :field-path (field-path field-id field-schema)
                :field-schema field-schema
                :base-style base-style
                :visible? initial-visible?}
