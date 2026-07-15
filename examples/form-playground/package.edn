@@ -1,9 +1,12 @@
 {:name form-playground
  :version "0.1.0"
  :description "Standalone Pixils Form playground."
- :dependencies {pixils-runner {:path "../../lib/pixils-runner"}
+ :dependencies {proof "0.1.0"
+                pixils-runner {:path "../../lib/pixils-runner"}
+                pixils-test {:path "../../lib/pixils-test"}
                 pixils-form {:path "../../lib/pixils-form"}}
  :run pixils-runner
  :load-roots ["src"]
- :namespace-roots {form-playground ["src"]}
+ :namespace-roots {form-playground ["src" "test"]}
+ :config {proof {:test-roots ["test"]}}
  :entry-points [form-playground.core]}

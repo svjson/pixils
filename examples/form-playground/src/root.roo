@@ -3,7 +3,80 @@
             [form-playground.forms.persons.components :as persons]
             [form-playground.forms.persons.model :as persons-model]
             [form-playground.forms.persons.summary :as persons-summary]
-            [pixils.ui :as ui]))
+            [form-playground.forms.program.components :as program]
+            [form-playground.forms.program.model :as program-model]
+            [pixils.ui :as ui]
+            [pixils.ui.tab-panel :as tabs]))
+
+(defun people-tab []
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 12}}
+   :state (ui/bind-state)
+   :children [(persons/make)
+              (persons-summary/make)]})
+
+(defun program-tab []
+  {:style {:width :fill
+           :height :shrink}
+   :state (ui/bind-state)
+   :children [(program/make)]})
+
+(defun initial-form-state []
+  (merge (persons-model/initial-state)
+         {:program program-model/initial-program
+          :program-valid? false
+          :program-errors {}
+          :selected-form-tab :people}))
+
+(defun form-tabs []
+  (tabs/make
+   {:selected-tab :people
+    :state (initial-form-state)
+    :style {:width :fill
+            :height :shrink}
+    :tabs [{:id :people
+            :label "People"
+            :body (people-tab)}
+           {:id :program
+            :label "Program"
+            :body (program-tab)}]}))
+
+(defun selected-person [state index]
+  (let [people (or (:people state) [])]
+    (when (and (not (nil? index))
+               (>= index 0)
+               (< index (count people)))
+      (nth people index))))
+
+(defun update-person-at-index [people index person]
+  (if (and (not (nil? index))
+           (>= index 0)
+           (< index (count (or people []))))
+    (assoc people index person)
+    people))
+
+(defun program-form-value? [value]
+  (or (contains? (or value {}) :program/name)
+      (contains? (or value {}) :program/entries)))
+
+(defun apply-form-change [state payload]
+  (let [form-value (:form-value payload)]
+    (if (program-form-value? form-value)
+      (assoc state :program form-value)
+      (assoc state
+             :selected-person form-value
+             :people (update-person-at-index
+                      (:people state)
+                      (:selected-person-index state)
+                      form-value)))))
+
+(defun apply-form-select [state payload]
+  (let [index (:value payload)]
+    (assoc state
+           :selected-person-index index
+           :selected-person (selected-person state index))))
 
 (defmode main-mode
   {:class :ui/app
@@ -14,12 +87,28 @@
            :layout {:direction :column
                     :gap 12}}
    :init (fn [state ctx]
-           (persons-model/initial-state))
+           (initial-form-state))
    :children [{:mode 'ui/text
                :style {:width :fill
                        :height 22
                        :text {:font :font/default
                               :scale 1.2}}
                :state {:value "Pixils Form Playground"}}
-              (persons/make)
-              (persons-summary/make)]})
+              (form-tabs)]
+   :on {:tab-panel/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state
+                   :selected-form-tab
+                   (-> event :payload :tab))))
+        :form/select
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (apply-form-select state (:payload event))))
+        :form/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (apply-form-change state (:payload event))))}})

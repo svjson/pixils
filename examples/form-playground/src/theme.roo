@@ -1,12 +1,13 @@
 (ns form-playground.theme
-  (:require pixils))
+  (:require pixils
+            pixils.ui.theme.windows-3))
 
 (def panel-bg {:r 0xd6 :g 0xd6 :b 0xce})
 
 (deftheme form-playground/theme
   {:extend 'pixils/windows-3
    :styles {:person-register
-            {:width 620
+            {:width 680
              :height :shrink
              :padding 10
              :background panel-bg
@@ -62,4 +63,18 @@
              :padding 8
              :background panel-bg
              :layout {:direction :column
-                      :gap 4}}}})
+                      :gap 4}}
+
+            :program-planner
+            {:width 680
+             :height :shrink
+             :padding 10
+             :background panel-bg
+             :layout {:direction :column
+                      :gap 8}}
+
+            :program-planner-form
+            {:width :fill
+             :height :shrink
+             :layout {:direction :column
+                      :gap 8}}}})

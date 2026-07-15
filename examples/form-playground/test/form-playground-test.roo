@@ -1,0 +1,152 @@
+(ns form-playground.form-playground-test
+  (:require proof.core
+            form-playground.core
+            [pixils.test.runtime :as runtime]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun press-key! [app key]
+  (runtime/key-down! app key)
+  (runtime/update! app)
+  (runtime/key-up! app key)
+  (runtime/update! app)
+  app)
+
+(defun type-keys! [app keys]
+  (reduce keys app
+          (fn [app key]
+            (press-key! app key))))
+
+(defun switch-tab! [app tab-id]
+  (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
+    (is (not (nil? tab)))
+    (runtime/click! app tab)
+    (settle-layout! app)))
+
+(defun input-with-value [app value]
+  (head (filter (runtime/find-views app "ui/text-input")
+                (fn [view]
+                  (= value (:value (runtime/view-state view)))))))
+
+(defun text-input-inner-with-value [app value]
+  (head (filter (runtime/find-views app "ui/text-input-inner")
+                (fn [view]
+                  (= value (:value (runtime/view-state view)))))))
+
+(defun combo-with-selected-label [app label]
+  (head (filter (runtime/find-views app "ui/combo-box")
+                (fn [view]
+                  (= label (:selected-label (runtime/view-state view)))))))
+
+(defun active-person [app]
+  (:selected-person (runtime/active-state app)))
+
+(defun active-person-at [app index]
+  (nth (:people (runtime/active-state app)) index))
+
+(defun active-program [app]
+  (:program (runtime/active-state app)))
+
+(defun program-entry-at [app index]
+  (nth (:program/entries (active-program app)) index))
+
+(defun make-form-playground-app []
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)))
+
+(deftest person-register-selects-and-edits-person-through-form
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :people)
+    (is (not (nil? (runtime/find-view-containing
+                    app
+                    "ui/text"
+                    "Pixils Form Playground"))))
+    (is (= "Ada"
+           (:field/first-name (active-person app))))
+    (let [grace-row (runtime/find-view-containing
+                     app
+                     "ui/list-box-item"
+                     "Grace Hopper")]
+      (runtime/click! app grace-row)
+      (settle-layout! app))
+    (is (= 1 (:selected-person-index (runtime/active-state app))))
+    (is (= "Grace"
+           (:field/first-name (active-person app))))
+    (let [first-name-input (input-with-value app "Grace")
+          first-name-inner (text-input-inner-with-value app "Grace")]
+      (is (not (nil? first-name-input)))
+      (is (not (nil? first-name-inner)))
+      (runtime/click! app first-name-input)
+      (press-key! app :end)
+      (type-keys! app [:backspace
+                       :backspace
+                       :backspace
+                       :backspace
+                       :backspace
+                       :m
+                       :a
+                       :r
+                       :y])
+      (settle-layout! app))
+    (is (= "mary"
+           (:field/first-name (active-person app))))
+    (is (= "mary"
+           (:field/first-name (active-person-at app 1))))
+    (is (not (nil? (runtime/find-view-containing
+                    app
+                    "ui/list-box-item"
+                    "mary Hopper"))))))
+
+(deftest program-planner-creates-union-entry-referencing-person-data
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :program)
+    (is (= :program (:selected-form-tab (runtime/active-state app))))
+    (is (= []
+           (:program/entries (active-program app))))
+    (let [add-button (runtime/find-view-containing app "ui/button" "Add")]
+      (runtime/click! app add-button)
+      (settle-layout! app))
+    (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
+    (let [title-input (input-with-value app "")]
+      (is (not (nil? title-input)))
+      (runtime/click! app title-input)
+      (type-keys! app [:k :e :y :n :o :t :e])
+      (settle-layout! app))
+    (let [speaker-combo (combo-with-selected-label app "Lovelace")]
+      (is (not (nil? speaker-combo)))
+      (runtime/click! app speaker-combo)
+      (settle-layout! app)
+      (let [hopper-option (runtime/find-view-containing
+                           app
+                           "ui/list-box-item"
+                           "Hopper")]
+        (is (not (nil? hopper-option)))
+        (runtime/click! app hopper-option)
+        (settle-layout! app)))
+    (let [ok-button (runtime/find-view-containing app "ui/button" "OK")]
+      (is (not (nil? ok-button)))
+      (runtime/click! app ok-button)
+      (settle-layout! app))
+    (is (= "main-mode" (runtime/active-mode-name app)))
+    (is (= {:kind :talk
+            :title "keynote"
+            :speaker :person/grace
+            :duration 30}
+           (select-keys (program-entry-at app 0)
+                        [:kind
+                         :title
+                         :speaker
+                         :duration])))
+    (is (not (nil? (runtime/find-view-containing
+                    app
+                    "ui/list-box-item"
+                    "keynote"))))))

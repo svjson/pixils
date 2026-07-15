@@ -1,0 +1,94 @@
+(ns form-playground.forms.program.schema)
+
+(def person-options
+  {:from []
+   :value-path [:person/id]
+   :label-path [:field/last-name]})
+
+(def program-schema
+  {:definitions
+   {:entry-base
+    {:type :object
+     :fields {:kind {:type :keyword
+                     :required true
+                     :valid-values [:talk
+                                    :workshop
+                                    :panel
+                                    :break]}}}
+
+    :talk-entry
+    {:extends :entry-base
+     :fields {:title {:type :text
+                      :required true
+                      :auto-focus? true}
+              :speaker {:type :keyword
+                        :required true
+                        :valid-values person-options}
+              :duration {:type :integer
+                         :required true
+                         :min 5
+                         :max 240}}}
+
+    :workshop-entry
+    {:extends :entry-base
+     :fields {:title {:type :text
+                      :required true
+                      :auto-focus? true}
+              :facilitator {:type :keyword
+                            :required true
+                            :valid-values person-options}
+              :capacity {:type :integer
+                         :required true
+                         :min 1
+                         :max 500}
+              :hands-on? {:type :boolean}}}
+
+    :panel-entry
+    {:extends :entry-base
+     :fields {:topic {:type :text
+                      :required true
+                      :auto-focus? true}
+              :moderator {:type :keyword
+                          :required true
+                          :valid-values person-options}
+              :panelist {:type :keyword
+                         :valid-values person-options}}}
+
+    :break-entry
+    {:extends :entry-base
+     :fields {:label {:type :text
+                      :required true
+                      :auto-focus? true}
+              :duration {:type :integer
+                         :required true
+                         :min 5
+                         :max 120}}}
+
+    :program-entry
+    {:type :union
+     :discriminator :kind
+     :base {:ref :entry-base}
+     :variants {:talk {:ref :talk-entry}
+                :workshop {:ref :workshop-entry}
+                :panel {:ref :panel-entry}
+                :break {:ref :break-entry}}}}
+
+   :schema
+   {:type :object
+    :fields {:program/name {:type :text
+                            :required true}
+             :program/entries
+             {:type :array
+              :new-template {:kind :talk
+                             :title ""
+                             :speaker :person/ada
+                             :duration 30}
+              :item-label {:path [:title]
+                           :empty "Untitled entry"}
+              :item-summary [{:label "Type"
+                              :path [:kind]}
+                             {:label "Title"
+                              :path [:title]}
+                             {:label "Person"
+                              :path [:speaker]}]
+              :items {:ref :program-entry}}}}})

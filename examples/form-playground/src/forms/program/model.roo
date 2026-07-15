@@ -1,0 +1,24 @@
+(ns form-playground.forms.program.model)
+
+(def program-text
+  {:program/name "Program name"
+   :program/entries "Agenda entries"
+   :kind "Entry type"
+   :title "Title"
+   :speaker "Speaker"
+   :duration "Duration"
+   :facilitator "Facilitator"
+   :capacity "Capacity"
+   :hands-on? "Hands-on"
+   :topic "Topic"
+   :moderator "Moderator"
+   :panelist "Panelist"
+   :label "Label"})
+
+(def program-layout
+  [:program/name
+   :program/entries])
+
+(def initial-program
+  {:program/name "Summer Conference"
+   :program/entries []})

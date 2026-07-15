@@ -15,24 +15,28 @@
    :field/newsletter?])
 
 (def people
-  [{:field/first-name "Ada"
+  [{:person/id :person/ada
+    :field/first-name "Ada"
     :field/last-name "Lovelace"
     :field/age 36
     :field/birth-place "London"
     :field/newsletter? true}
-   {:field/first-name "Grace"
+   {:person/id :person/grace
+    :field/first-name "Grace"
     :field/last-name "Hopper"
     :field/age 85
     :field/birth-place "New York"
     :field/newsletter? false}
-   {:field/first-name "Katherine"
+   {:person/id :person/katherine
+    :field/first-name "Katherine"
     :field/last-name "Johnson"
     :field/age 101
     :field/birth-place "White Sulphur Springs"
     :field/newsletter? true}])
 
 (defun empty-person [index]
-  {:field/first-name ""
+  {:person/id (keyword (str "person/new-" (inc index)))
+   :field/first-name ""
    :field/last-name ""
    :field/age 0
    :field/birth-place ""
@@ -53,6 +57,6 @@
 (defun initial-state []
   {:people people
    :selected-person-index 0
-   :selected-person nil
+   :selected-person (head people)
    :person-valid? false
    :person-errors {}})

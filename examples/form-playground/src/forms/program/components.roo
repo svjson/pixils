@@ -1,0 +1,24 @@
+(ns form-playground.forms.program.components
+  (:require pixils
+            [form-playground.forms.persons.model :as persons-model]
+            [form-playground.forms.program.model :as model]
+            [form-playground.forms.program.schema :as schema]
+            [pixils.form :as form]
+            [pixils.ui :as ui]))
+
+(defcomponent program-planner
+  {:class :program-planner
+   :children [(form/make {:schema schema/program-schema
+                          :text model/program-text
+                          :class :program-planner-form
+                          :value (ui/bind-state :program)
+                          :context persons-model/people
+                          :valid? (ui/bind-state :program-valid?)
+                          :errors (ui/bind-state :program-errors)
+                          :layout model/program-layout})]})
+
+(defun make []
+  {:mode 'program-planner
+   :state {:program (ui/bind-state :program)
+           :program-valid? (ui/bind-state :program-valid?)
+           :program-errors (ui/bind-state :program-errors)}})
