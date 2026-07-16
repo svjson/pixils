@@ -1483,6 +1483,20 @@
 (defun changed-form-state [state payload]
   (form-state (assoc state :value (:form-value payload))))
 
+(defun form-state-change-payload [next-state]
+  {:form-value (:value next-state)
+   :value (:value next-state)
+   :items (:items next-state)
+   :selected-index (:selected-index next-state)
+   :new? (:new? next-state)})
+
+(defun emit-form-state-change! [state next-state ctx]
+  (when (not= state next-state)
+    (ui/emit! (:view ctx)
+              form-change-event
+              (form-state-change-payload next-state)))
+  next-state)
+
 (defcomponent pixils/form
   {:init (fn [state ctx]
            (form-state state))
@@ -1499,19 +1513,31 @@
                       (form-state (begin-new-state state))))
         :form/save-new (fn [state event ctx]
                          (let [stopped (ui/stop-propagation! event)]
-                           (form-state (save-new-state state))))
+                           (emit-form-state-change!
+                            state
+                            (form-state (save-new-state state))
+                            ctx)))
         :form/cancel-new (fn [state event ctx]
                            (let [stopped (ui/stop-propagation! event)]
                              (form-state (cancel-new-state state))))
         :form/delete (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
-                         (form-state (delete-state state))))
+                         (emit-form-state-change!
+                          state
+                          (form-state (delete-state state))
+                          ctx)))
         :form/move-up (fn [state event ctx]
                         (let [stopped (ui/stop-propagation! event)]
-                          (form-state (move-up-state state))))
+                          (emit-form-state-change!
+                           state
+                           (form-state (move-up-state state))
+                           ctx)))
         :form/move-down (fn [state event ctx]
                           (let [stopped (ui/stop-propagation! event)]
-                            (form-state (move-down-state state))))}})
+                            (emit-form-state-change!
+                             state
+                             (form-state (move-down-state state))
+                             ctx)))}})
 
 (defun selection-control-view [selection]
   (when selection
