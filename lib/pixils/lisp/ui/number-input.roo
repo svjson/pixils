@@ -130,6 +130,19 @@
           (assoc :invalid? (and (> (count text) 0)
                                 (nil? value)))))))
 
+(defun commit-final-number-input-text [state text value ctx]
+  (let [normalized-text (if (nil? value) text (number-input-text value))]
+    (do
+      (ui/emit! (:view ctx) :number-input/change {:value value
+                                                  :text normalized-text})
+      (-> state
+          (assoc :value value)
+          (assoc :committed-value value)
+          (assoc :text-value normalized-text)
+          (assoc :last-text-value normalized-text)
+          (assoc :invalid? false)
+          (assoc :editing? false)))))
+
 (defun revert-number-input-text [state]
   (let [value (:committed-value state)
         text (number-input-text value)]
@@ -145,17 +158,13 @@
         parsed (parsed-number text state)]
     (cond
       (= text "")
-      (assoc (commit-number-input-text state text ctx)
-             :editing?
-             false)
+      (commit-final-number-input-text state text nil ctx)
 
       (nil? parsed)
       (revert-number-input-text state)
 
       :default
-      (assoc (commit-number-input-text state text ctx)
-             :editing?
-             false))))
+      (commit-final-number-input-text state text parsed ctx))))
 
 (defun edit-number-input-text [state text]
   (-> state
@@ -225,7 +234,9 @@
                       (= :key/enter (:key event))
                       (do
                         (ui/stop-propagation! event)
-                        (finalize-number-input-text state ctx))
+                        (if (= (:commit-on state) :blur)
+                          (finalize-number-input-text state ctx)
+                          (commit-number-input-text-if-changed state ctx)))
 
                       :default
                       (if (= (:commit-on state) :blur)
