@@ -19,6 +19,24 @@
   [:program/name
    :program/entries])
 
-(def initial-program
-  {:program/name "Summer Conference"
+(def conferences
+  [{:conference/id :conference/summer
+    :program/name "Summer Conference"
+    :program/entries []}
+   {:conference/id :conference/autumn
+    :program/name "Autumn Workshop"
+    :program/entries [{:kind :break
+                       :label "Arrival"
+                       :duration 15}]}])
+
+(defun empty-conference [index]
+  {:conference/id (keyword (str "conference/new-" (inc index)))
+   :program/name "New Conference"
    :program/entries []})
+
+(defun conference-label [conference index]
+  (let [name (:program/name conference)]
+    (if (and (not (nil? name))
+             (> (count name) 0))
+      name
+      (str "Conference " (inc index)))))

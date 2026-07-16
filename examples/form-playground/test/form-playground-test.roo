@@ -49,11 +49,14 @@
 (defun active-person-at [app index]
   (nth (:people (runtime/active-state app)) index))
 
-(defun active-program [app]
-  (:program (runtime/active-state app)))
+(defun active-conference [app]
+  (:selected-conference (runtime/active-state app)))
+
+(defun active-conference-at [app index]
+  (nth (:conferences (runtime/active-state app)) index))
 
 (defun program-entry-at [app index]
-  (nth (:program/entries (active-program app)) index))
+  (nth (:program/entries (active-conference app)) index))
 
 (defun make-form-playground-app []
   (let [app (runtime/make-app {:package-root "."
@@ -110,8 +113,42 @@
   (let [app (make-form-playground-app)]
     (switch-tab! app :program)
     (is (= :program (:selected-form-tab (runtime/active-state app))))
+    (is (= 2 (count (:conferences (runtime/active-state app)))))
+    (is (= "Summer Conference"
+           (:program/name (active-conference app))))
+    (let [autumn-row (runtime/find-view-containing
+                      app
+                      "ui/list-box-item"
+                      "Autumn Workshop")]
+      (runtime/click! app autumn-row)
+      (settle-layout! app))
+    (is (= 1 (:selected-conference-index (runtime/active-state app))))
+    (is (= "Autumn Workshop"
+           (:program/name (active-conference app))))
+    (let [name-input (input-with-value app "Autumn Workshop")]
+      (is (not (nil? name-input)))
+      (runtime/click! app name-input)
+      (press-key! app :end)
+      (type-keys! app [:space
+                       :d
+                       :a
+                       :y])
+      (settle-layout! app))
+    (is (= "Autumn Workshop day"
+           (:program/name (active-conference app))))
+    (is (= "Autumn Workshop day"
+           (:program/name (active-conference-at app 1))))
     (is (= []
-           (:program/entries (active-program app))))
+           (:program/entries (active-conference-at app 0))))
+    (let [summer-row (runtime/find-view-containing
+                      app
+                      "ui/list-box-item"
+                      "Summer Conference")]
+      (runtime/click! app summer-row)
+      (settle-layout! app))
+    (is (= 0 (:selected-conference-index (runtime/active-state app))))
+    (is (= []
+           (:program/entries (active-conference app))))
     (let [add-button (runtime/find-view-containing app "ui/button" "Add")]
       (runtime/click! app add-button)
       (settle-layout! app))
@@ -149,4 +186,35 @@
     (is (not (nil? (runtime/find-view-containing
                     app
                     "ui/list-box-item"
-                    "keynote"))))))
+                    "keynote"))))
+    (let [new-conference (runtime/find-view-containing
+                          app
+                          "ui/button"
+                          "New Conference")]
+      (is (not (nil? new-conference)))
+      (runtime/click! app new-conference)
+      (settle-layout! app))
+    (let [name-input (input-with-value app "New Conference")]
+      (is (not (nil? name-input)))
+      (runtime/click! app name-input)
+      (press-key! app :end)
+      (type-keys! app [:space
+                       "2"
+                       "0"
+                       "2"
+                       "7"])
+      (settle-layout! app))
+    (let [save-button (runtime/find-view-containing app "ui/button" "Save")]
+      (is (not (nil? save-button)))
+      (runtime/click! app save-button)
+      (settle-layout! app))
+    (is (= 3 (count (:conferences (runtime/active-state app)))))
+    (is (= 2 (:selected-conference-index (runtime/active-state app))))
+    (is (= "New Conference 2027"
+           (:program/name (active-conference app))))
+    (is (= "New Conference 2027"
+           (:program/name (active-conference-at app 2))))
+    (is (not (nil? (runtime/find-view-containing
+                    app
+                    "ui/list-box-item"
+                    "New Conference 2027"))))))

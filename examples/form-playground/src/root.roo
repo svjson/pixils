@@ -25,7 +25,9 @@
 
 (defun initial-form-state []
   (merge (persons-model/initial-state)
-         {:program program-model/initial-program
+         {:conferences program-model/conferences
+          :selected-conference-index 0
+          :selected-conference (head program-model/conferences)
           :program-valid? false
           :program-errors {}
           :selected-form-tab :people}))
@@ -50,6 +52,13 @@
                (< index (count people)))
       (nth people index))))
 
+(defun selected-conference [state index]
+  (let [conferences (or (:conferences state) [])]
+    (when (and (not (nil? index))
+               (>= index 0)
+               (< index (count conferences)))
+      (nth conferences index))))
+
 (defun update-person-at-index [people index person]
   (if (and (not (nil? index))
            (>= index 0)
@@ -57,14 +66,42 @@
     (assoc people index person)
     people))
 
+(defun update-conference-at-index [conferences index conference]
+  (if (and (not (nil? index))
+           (>= index 0)
+           (< index (count (or conferences []))))
+    (assoc conferences index conference)
+    conferences))
+
 (defun program-form-value? [value]
   (or (contains? (or value {}) :program/name)
       (contains? (or value {}) :program/entries)))
 
 (defun apply-form-change [state payload]
   (let [form-value (:form-value payload)]
-    (if (program-form-value? form-value)
-      (assoc state :program form-value)
+    (cond
+      (and (contains? (or payload {}) :items)
+           (= (:selected-form-tab state) :program))
+      (assoc state
+             :conferences (:items payload)
+             :selected-conference-index (:selected-index payload)
+             :selected-conference form-value)
+
+      (contains? (or payload {}) :items)
+      (assoc state
+             :people (:items payload)
+             :selected-person-index (:selected-index payload)
+             :selected-person form-value)
+
+      (program-form-value? form-value)
+      (assoc state
+             :selected-conference form-value
+             :conferences (update-conference-at-index
+                           (:conferences state)
+                           (:selected-conference-index state)
+                           form-value))
+
+      :default
       (assoc state
              :selected-person form-value
              :people (update-person-at-index
@@ -74,9 +111,13 @@
 
 (defun apply-form-select [state payload]
   (let [index (:value payload)]
-    (assoc state
-           :selected-person-index index
-           :selected-person (selected-person state index))))
+    (if (= (:selected-form-tab state) :program)
+      (assoc state
+             :selected-conference-index index
+             :selected-conference (selected-conference state index))
+      (assoc state
+             :selected-person-index index
+             :selected-person (selected-person state index)))))
 
 (defmode main-mode
   {:class :ui/app

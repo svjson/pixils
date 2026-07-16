@@ -8,17 +8,62 @@
 
 (defcomponent program-planner
   {:class :program-planner
-   :children [(form/make {:schema schema/program-schema
+   :children [(form/make {:models {:register
+                                   {:models
+                                    {:conference
+                                     {:schema schema/program-schema
+                                      :value (ui/bind-state
+                                              :selected-conference)}
+                                     :conferences
+                                     {:value (ui/bind-state
+                                              :conferences)}
+                                     :selected-conference-index
+                                     {:value
+                                      (ui/bind-state
+                                       :selected-conference-index)
+                                      :transient? true}}
+                                    :projections
+                                    {:current-conference
+                                     {:target [:register :conference]
+                                      :items [:register :conferences]
+                                      :selected-index
+                                      [:register
+                                       :selected-conference-index]
+                                      :new-value-fn
+                                      model/empty-conference}}}}
                           :text model/program-text
                           :class :program-planner-form
-                          :value (ui/bind-state :program)
                           :context persons-model/people
                           :valid? (ui/bind-state :program-valid?)
                           :errors (ui/bind-state :program-errors)
-                          :layout model/program-layout})]})
+                          :layout [[:row.program-main-row
+                                    [:form [:register :conference]
+                                     model/program-layout]
+                                    [:group.program-list-column
+                                     [:selection.program-list
+                                      [:register :current-conference]
+                                      {:item-label
+                                       model/conference-label}]
+                                     [:button.program-new
+                                      :form/new
+                                      {:label "New Conference"
+                                       :disabled-when :new?}]]]
+                                   [:row.program-button-row
+                                    [:button.program-save
+                                     :form/save-new
+                                     {:label "Save"
+                                      :enabled-when [:and :new? :valid?]}]
+                                    [:button.program-cancel
+                                     :form/cancel-new
+                                     {:label "Cancel"
+                                      :enabled-when :new?}]]]})]})
 
 (defun make []
   {:mode 'program-planner
-   :state {:program (ui/bind-state :program)
+   :state {:conferences (ui/bind-state :conferences)
+           :selected-conference-index
+           (ui/bind-state :selected-conference-index)
+           :selected-conference
+           (ui/bind-state :selected-conference)
            :program-valid? (ui/bind-state :program-valid?)
            :program-errors (ui/bind-state :program-errors)}})
