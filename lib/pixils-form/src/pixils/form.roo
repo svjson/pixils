@@ -843,7 +843,10 @@
                                           (:allow-fractions? field-schema)
                                           (= (:type field-schema) :number))
                       :disabled? (:read-only? field-schema)
-                      :auto-focus? (:auto-focus? field-schema)}))
+                      :auto-focus? (:auto-focus? field-schema)
+                      :commit-on (if (contains? field-schema :commit-on)
+                                   (:commit-on field-schema)
+                                   :blur)}))
 
 (defun boolean-control [field-id field-schema field-label opts]
   (checkbox/make {:style checkbox-style

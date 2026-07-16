@@ -1034,8 +1034,10 @@
         integer-control (nth (:children (form-child integer-view 0)) 1)]
     (is (= 'ui/number-input (:mode number-control)))
     (is (= true (get-in number-control [:state :allow-fractions?])))
+    (is (= :blur (get-in number-control [:state :commit-on])))
     (is (= 'ui/number-input (:mode integer-control)))
-    (is (= false (get-in integer-control [:state :allow-fractions?])))))
+    (is (= false (get-in integer-control [:state :allow-fractions?])))
+    (is (= :blur (get-in integer-control [:state :commit-on])))))
 
 (deftest make-renders-fields-with-form-change-metadata
   (let [view (form/make {:schema {:name {:type :text}
