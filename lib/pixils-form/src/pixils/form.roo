@@ -76,6 +76,10 @@
    :layout {:direction :column
             :gap 8}})
 
+(def default-object-control-style
+  {:width :fill
+   :height :shrink})
+
 (def default-array-style
   {:width :fill
    :height :shrink
@@ -153,6 +157,7 @@
 (def form-select-event :form/select)
 (def action-disabled-state-key :form/action-disabled)
 (def form-body-id "form-body")
+(def form-object-body-id "form-object-body")
 
 (def form-layout-state-binding
   {:value (ui/project-state :value)
@@ -724,9 +729,11 @@
 (defun field-change-payload [state value]
   {:field-id (:field-id state)
    :field-path (:field-path state)
+   :local-field-path (:local-field-path state)
    :field-schema (:field-schema state)
    :old-value (get-in (or (:form-value state) {})
-                      (:field-path state))
+                      (or (:local-field-path state)
+                          (:field-path state)))
    :value value
    :form-value (form-value-with-field-value state value)})
 
@@ -857,11 +864,96 @@
 (defun display-control [field-id field-schema field-label opts]
   (field-value-text field-id field-schema))
 
-(defcomponent pixils/form-object-control
-  {})
-
 (defun object-schema [field-schema opts]
   (model-schema/schema-document-with-root (:schema opts) field-schema))
+
+(defun event-field-path [opts field-id field-schema]
+  (concat (or (:field-path-prefix opts) [])
+          (field-path field-id field-schema)))
+
+(defun path-prefix-matches-at? [path prefix index]
+  (cond
+    (>= index (count prefix)) true
+    (>= index (count path)) false
+    (= (nth path index) (nth prefix index))
+    (path-prefix-matches-at? path prefix (inc index))
+    :default false))
+
+(defun path-prefix-matches? [path prefix]
+  (path-prefix-matches-at? (or path []) (or prefix []) 0))
+
+(defun path-tail [path index]
+  (if (>= index (count path))
+    []
+    (concat [(nth path index)]
+            (path-tail path (inc index)))))
+
+(defun path-without-prefix [path prefix]
+  (if (path-prefix-matches? path prefix)
+    (path-tail (or path []) (count (or prefix [])))
+    path))
+
+(defun direct-valid-value-options-cache-for-schema [cache schema context value]
+  (reduce (model-schema/active-schema-field-ids schema value)
+          cache
+          (fn [field-cache field-id]
+            (let [field-schema (model-schema/resolved-field-schema schema
+                                                                    field-id)]
+              (cache-field-valid-value-options field-cache
+                                               context
+                                               field-schema
+                                               value)))))
+
+(defun branch-render-key [schema value context]
+  {:fields (model-schema/active-schema-field-ids schema value)
+   :valid-value-options-cache
+   (direct-valid-value-options-cache-for-schema {} schema context value)})
+
+(defun object-control-render-opts [state value]
+  (with-valid-value-options-cache
+   (assoc (:render-opts state)
+          :schema (:schema state)
+          :value value
+          :context (:context state)
+          :field-path-prefix (:field-path-prefix state))))
+
+(defun object-control-body-view [state value]
+  (let [opts (object-control-render-opts state value)
+        layout (or (:layout state)
+                   (default-layout (:schema state) opts))]
+    {:id form-object-body-id
+     :style (:object-style state)
+     :state form-state-binding
+     :children (layout-item-views layout opts)}))
+
+(defun replace-object-control-body! [state ctx]
+  (ui/replace-child! (:view ctx)
+                     form-object-body-id
+                     (object-control-body-view state (:value state)))
+  state)
+
+(defun object-control-next-value [state payload]
+  (let [path (path-without-prefix (:field-path payload)
+                                  (:field-path-prefix state))]
+    (if path
+      (assoc-in (or (:value state) {})
+                path
+                (:value payload))
+      (:form-value payload))))
+
+(defcomponent pixils/form-object-control
+  {:on {form-change-event
+        (fn [state event ctx]
+          (let [next-value (object-control-next-value state (:payload event))
+                next-state (assoc state :value next-value)]
+            (when (not= (branch-render-key (:schema state)
+                                           (:value state)
+                                           (:context state))
+                        (branch-render-key (:schema next-state)
+                                           (:value next-state)
+                                           (:context next-state)))
+              (replace-object-control-body! next-state ctx))
+            next-state))}})
 
 (defun object-control [field-id field-schema field-label opts]
   (let [schema (object-schema field-schema opts)
@@ -869,15 +961,21 @@
                            :schema schema
                            :value (field-value (:value opts)
                                                field-id
-                                               field-schema))
-        children (map (or (:layout field-schema)
-                          (default-layout schema))
-                      (fn [item]
-                        (layout-item-view item object-opts)))]
+                                               field-schema)
+                           :field-path-prefix
+                           (event-field-path opts field-id field-schema))
+        state {:value (field-binding field-id field-schema)
+               :schema schema
+               :context (:context opts)
+               :field-path-prefix (:field-path-prefix object-opts)
+               :layout (:layout field-schema)
+               :render-opts object-opts
+               :object-style (or (:object-style opts)
+                                 default-object-style)}]
     {:mode 'pixils/form-object-control
-     :style (or (:object-style opts) default-object-style)
-     :state {:value (field-binding field-id field-schema)}
-     :children children}))
+     :style default-object-control-style
+     :state state
+     :children [(object-control-body-view state (:value object-opts))]}))
 
 (defun array-schema [field-schema opts]
   (model-schema/schema-document-with-root (:schema opts) field-schema))
@@ -1054,9 +1152,8 @@
                     (assoc opts
                            :schema item-schema
                            :value (:value opts)))
-        children (map (default-layout item-schema)
-                      (fn [item]
-                        (layout-item-view item item-opts)))]
+        children (layout-item-views (default-layout item-schema item-opts)
+                                    item-opts)]
     {:mode 'pixils/form
      :style default-fields-style
      :state {:value (ui/bind-state :value)
@@ -1311,7 +1408,7 @@
       cache
 
       :default
-      (reduce (model-schema/schema-field-ids schema)
+      (reduce (model-schema/active-schema-field-ids schema value)
               cache
               (fn [field-cache field-id]
                 (cache-schema-field-valid-value-options field-cache
@@ -1486,28 +1583,31 @@
         field-schema (model-schema/resolved-field-schema schema field-id)
         field-label (label-for field-id text)
         base-style (or (:field-style opts) default-field-style)
+        local-field-path (field-path field-id field-schema)
         initial-visible? (model-schema/field-visible? schema
                                                       field-id
                                                       (:value opts))]
     (if field-schema
-      {:mode 'pixils/form-field
-       :style (form-field-style base-style initial-visible?)
-       :state {:value (ui/project-state :value)
-               :form-value (ui/project-state :value)
-               :schema schema
-               :field-id field-id
-               :field-path (field-path field-id field-schema)
-               :field-schema field-schema
-               :base-style base-style
-               :dynamic-visibility?
-               (model-schema/dynamic-field-visibility? schema)
-               :visible? initial-visible?}
-       :children [{:mode 'ui/text
-                   :class :ui/muted
-                   :style (or (:field-label-style opts)
-                              default-field-label-style)
-                   :state {:value field-label}}
-                  (field-control field-id field-schema field-label opts)]}
+      (when initial-visible?
+        {:mode 'pixils/form-field
+         :style (form-field-style base-style true)
+         :state {:value (ui/project-state :value)
+                 :form-value (ui/project-state :value)
+                 :schema schema
+                 :field-id field-id
+                 :field-path (event-field-path opts field-id field-schema)
+                 :local-field-path local-field-path
+                 :field-schema field-schema
+                 :base-style base-style
+                 :dynamic-visibility?
+                 (model-schema/dynamic-field-visibility? schema)
+                 :visible? true}
+         :children [{:mode 'ui/text
+                     :class :ui/muted
+                     :style (or (:field-label-style opts)
+                                default-field-label-style)
+                     :state {:value field-label}}
+                    (field-control field-id field-schema field-label opts)]})
       {:mode 'ui/text
        :state {:value (str "Unknown form field " field-id)}})))
 
@@ -1517,7 +1617,7 @@
 (defun row-view [items opts]
   {:style (or (:row-style opts) default-row-style)
    :state form-state-binding
-   :children (map items (fn [item] (layout-item-view item opts)))})
+   :children (layout-item-views items opts)})
 
 (defun model-layout-opts [opts item]
   (let [models (:models opts)
@@ -1535,10 +1635,9 @@
 (defun form-layout-view [item opts]
   (let [opts (model-layout-opts opts item)
         schema (:schema opts)
-        children (map (or (:layout item)
-                          (default-layout schema))
-                      (fn [child]
-                        (layout-item-view child opts)))]
+        children (layout-item-views (or (:layout item)
+                                        (default-layout schema opts))
+                                    opts)]
     (merge {:state form-layout-state-binding
             :children children}
            (style-map (defaultable-style (:style item)
@@ -1555,9 +1654,7 @@
 
 (defun row-layout-view [item opts]
   (merge {:state form-layout-state-binding
-          :children (map (:children item)
-                         (fn [child]
-                           (layout-item-view child opts)))}
+          :children (layout-item-views (:children item) opts)}
          (style-map (or (:style item)
                         (when (nil? (:class item))
                           (or (:row-style opts)
@@ -1582,8 +1679,15 @@
       (= (type-of item) "map") (map-layout-item-view item opts)
       :default (field-view item opts))))
 
-(defun default-layout [schema]
-  (model-schema/schema-field-ids schema))
+(defun layout-item-views [items opts]
+  (filter (map (or items [])
+               (fn [item]
+                 (layout-item-view item opts)))
+          (fn [child]
+            (not (nil? child)))))
+
+(defun default-layout [schema opts]
+  (model-schema/active-schema-field-ids schema (:value opts)))
 
 (defcomponent pixils/form-selection
   {:init (fn [state ctx]
@@ -1701,6 +1805,9 @@
                        (let [stopped (ui/stop-propagation! event)]
                          (let [next-state
                                (changed-form-state state (:payload event))]
+                           (when (form-body-replace-needed? state
+                                                            next-state)
+                             (replace-form-body! next-state ctx))
                            (when (not (:new? next-state))
                              (ui/emit! (:view ctx)
                                        form-change-event
@@ -1817,9 +1924,8 @@
 (defun form-children [layout schema opts selection]
   (if (root-array-schema? schema)
     [(root-array-view schema opts)]
-    (let [children (map (or layout (default-layout schema))
-                        (fn [item]
-                          (layout-item-view item opts)))]
+    (let [children (layout-item-views (or layout (default-layout schema opts))
+                                      opts)]
       (cond
         (nil? selection)
         children
@@ -1854,6 +1960,14 @@
                      form-body-id
                      (form-body-from-state state))
   state)
+
+(defun form-body-replace-needed? [state next-state]
+  (not= (branch-render-key (:schema state)
+                           (:value state)
+                           (:context state))
+        (branch-render-key (:schema next-state)
+                           (:value next-state)
+                           (:context next-state))))
 
 (defun layout-item-projection [item]
   (let [item (normalize-layout-item item)]

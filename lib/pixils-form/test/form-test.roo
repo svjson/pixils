@@ -27,6 +27,9 @@
 (defun form-child [view index]
   (nth (form-children view) index))
 
+(defun object-control-children [view]
+  (:children (head (:children view))))
+
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""
@@ -270,6 +273,38 @@
     (is (= true (:visible? cached)))
     (is (= false (:visible? changed)))))
 
+(deftest branch-render-key-changes-for-active-branch-not-scalar-edits
+  (let [schema-doc {:definitions
+                    {:effect-base
+                     {:type :object
+                      :fields {:kind {:type :keyword
+                                      :valid-values [:move :wait]}}}
+                     :move-effect
+                     {:extends :effect-base
+                      :fields {:distance {:type :number}}}
+                     :wait-effect
+                     {:extends :effect-base
+                      :fields {:duration {:type :integer}}}}
+                    :schema {:type :union
+                             :discriminator :kind
+                             :base {:ref :effect-base}
+                             :variants {:move {:ref :move-effect}
+                                        :wait {:ref :wait-effect}}}}
+        move-key (form/branch-render-key schema-doc
+                                         {:kind :move
+                                          :distance 1}
+                                         {})
+        edited-move-key (form/branch-render-key schema-doc
+                                                {:kind :move
+                                                 :distance 2}
+                                                {})
+        wait-key (form/branch-render-key schema-doc
+                                         {:kind :wait
+                                          :duration 5}
+                                         {})]
+    (is (= move-key edited-move-key))
+    (is (not (= move-key wait-key)))))
+
 (deftest select-control-state-preselects-current-value
   (let [state (form/select-control-state
                {:options [{:value nil
@@ -378,6 +413,7 @@
   (let [payload (form/field-change-payload
                  {:field-id :terrain-rule-exclusive
                   :field-path [:exclusive?]
+                  :local-field-path [:exclusive?]
                   :field-schema {:type :boolean
                                  :path [:exclusive?]}
                   :form-value {:exclusive? false
@@ -385,6 +421,7 @@
                  true)]
     (is (= :terrain-rule-exclusive (:field-id payload)))
     (is (= [:exclusive?] (:field-path payload)))
+    (is (= [:exclusive?] (:local-field-path payload)))
     (is (= false (:old-value payload)))
     (is (= true (:value payload)))
     (is (= {:exclusive? true
@@ -985,7 +1022,7 @@
     (is (= 'pixils/form-field (:mode point-view)))
     (is (contains? (:state point-view) :form-value))
     (is (= :visible (get-in point-view [:style :visibility])))
-    (is (= :none (get-in target-view [:style :visibility])))))
+    (is (nil? target-view))))
 
 (deftest make-renders-nested-discriminated-union-field
   (let [view (form/make {:schema
@@ -1013,18 +1050,24 @@
                                                 :distance 1.5}}})
         effect-view (form-child view 0)
         union-control (nth (:children effect-view) 1)
-        kind-view (head (:children union-control))
+        union-children (object-control-children union-control)
+        kind-view (head union-children)
         kind-control (nth (:children kind-view) 1)
-        distance-view (nth (:children union-control) 1)
+        distance-view (nth union-children 1)
         distance-control (nth (:children distance-view) 1)
-        duration-view (nth (:children union-control) 2)]
+        duration-view (nth union-children 2)]
     (is (= 'pixils/form-object-control (:mode union-control)))
-    (is (= 3 (count (:children union-control))))
+    (is (= 2 (count union-children)))
+    (is (= [:field/effect :kind] (get-in kind-view [:state :field-path])))
+    (is (= [:kind] (get-in kind-view [:state :local-field-path])))
+    (is (= [:field/effect :distance]
+           (get-in distance-view [:state :field-path])))
+    (is (= [:distance] (get-in distance-view [:state :local-field-path])))
     (is (= 'pixils/form-select-control (:mode kind-control)))
     (is (= 'ui/number-input (:mode distance-control)))
     (is (= :visible (get-in kind-view [:style :visibility])))
     (is (= :visible (get-in distance-view [:style :visibility])))
-    (is (= :none (get-in duration-view [:style :visibility])))))
+    (is (nil? duration-view))))
 
 (deftest make-renders-fields-through-named-definition-references
   (let [view (form/make {:schema {:definitions
@@ -1129,12 +1172,13 @@
                                   :anchor :stable/aisle}}})
         location-view (form-child view 0)
         object-control (nth (:children location-view) 1)
-        place-view (head (:children object-control))
+        object-children (object-control-children object-control)
+        place-view (head object-children)
         place-control (nth (:children place-view) 1)
-        anchor-view (nth (:children object-control) 1)
+        anchor-view (nth object-children 1)
         anchor-control (nth (:children anchor-view) 1)]
     (is (= 'pixils/form-object-control (:mode object-control)))
-    (is (= 2 (count (:children object-control))))
+    (is (= 2 (count object-children)))
     (is (= 'pixils/form-select-control (:mode place-control)))
     (is (= 'pixils/form-keyword-input (:mode anchor-control)))))
 
