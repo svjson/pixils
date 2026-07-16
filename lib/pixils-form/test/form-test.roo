@@ -18,6 +18,15 @@
    :field/age 0
    :label (str "New Person " (inc index))})
 
+(defun form-body [view]
+  (head (:children view)))
+
+(defun form-children [view]
+  (:children (form-body view)))
+
+(defun form-child [view index]
+  (nth (form-children view) index))
+
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""
@@ -812,7 +821,7 @@
                                            :field/age 36}}}
                          :text {:field/name "Name"}
                          :layout [:field/name]})
-        field-view (head (:children view))]
+        field-view (form-child view 0)]
     (is (= 2 (count (:children field-view))))
     (is (= "Name"
            (get-in field-view [:children 0 :state :value])))))
@@ -824,7 +833,7 @@
                          :text {:field/id "Id"}
                          :layout [:field/id]
                          :value {:field/id "scene/ground"}})
-        field-view (head (:children view))
+        field-view (form-child view 0)
         control (nth (:children field-view) 1)]
     (is (= 'pixils/form-keyword-input (:mode control)))
     (is (contains? (:state control) :value))
@@ -839,7 +848,7 @@
                          :text {:field/role "Role"}
                          :layout [:field/role]
                          :value {:field/role :role/stable-lad}})
-        field-view (head (:children view))
+        field-view (form-child view 0)
         control (nth (:children field-view) 1)]
     (is (= 'pixils/form-select-control (:mode control)))
     (is (= [{:value nil
@@ -865,7 +874,7 @@
                          :layout [:field/place]
                          :value {:field/place
                                  :place/dawnkeep-stables}})
-        field-view (head (:children view))
+        field-view (form-child view 0)
         control (nth (:children field-view) 1)]
     (is (= 'pixils/form-select-control (:mode control)))
     (is (= [{:value :place/dawnkeep-stables
@@ -895,7 +904,7 @@
                          :layout [:source :id]
                          :value {:source :terrain
                                  :id :blackmere}})
-        id-view (nth (:children view) 1)
+        id-view (form-child view 1)
         control (nth (:children id-view) 1)]
     (is (= 'pixils/form-select-control (:mode control)))
     (is (= [:id] (get-in control [:state :field-path])))
@@ -928,10 +937,10 @@
                                     :edge {:ref :edge-rule}}}}
                          :value {:type :preferred-position
                                  :point 3}})
-        point-view (nth (:children view) 1)
-        target-view (nth (:children view) 2)]
+        point-view (form-child view 1)
+        target-view (form-child view 2)]
     (is (= 'pixils/form-field (:mode point-view)))
-    (is (not (contains? (:state point-view) :form-value)))
+    (is (contains? (:state point-view) :form-value))
     (is (= :visible (get-in point-view [:style :visibility])))
     (is (= :none (get-in target-view [:style :visibility])))))
 
@@ -959,7 +968,7 @@
                          :layout [:field/effect]
                          :value {:field/effect {:kind :move
                                                 :distance 1.5}}})
-        effect-view (head (:children view))
+        effect-view (form-child view 0)
         union-control (nth (:children effect-view) 1)
         kind-view (head (:children union-control))
         kind-control (nth (:children kind-view) 1)
@@ -986,7 +995,7 @@
                          :text {:field/role "Role"}
                          :layout [:field/role]
                          :value {:field/role :role/stable-lad}})
-        field-view (head (:children view))
+        field-view (form-child view 0)
         control (nth (:children field-view) 1)]
     (is (= 'pixils/form-select-control (:mode control)))
     (is (= [{:value nil
@@ -1008,11 +1017,11 @@
                                             :min 1}}}
                          :value {:relation :place-relation/works-at
                                  :priority 10}})
-        relation-view (head (:children view))
+        relation-view (form-child view 0)
         relation-control (nth (:children relation-view) 1)
-        priority-view (nth (:children view) 1)
+        priority-view (form-child view 1)
         priority-control (nth (:children priority-view) 1)]
-    (is (= 2 (count (:children view))))
+    (is (= 2 (count (form-children view))))
     (is (= 'pixils/form-select-control (:mode relation-control)))
     (is (= 'ui/number-input (:mode priority-control)))))
 
@@ -1021,8 +1030,8 @@
                                 :value {:distance 0.1}})
         integer-view (form/make {:schema {:count {:type :integer}}
                                  :value {:count 1}})
-        number-control (nth (:children (head (:children number-view))) 1)
-        integer-control (nth (:children (head (:children integer-view))) 1)]
+        number-control (nth (:children (form-child number-view 0)) 1)
+        integer-control (nth (:children (form-child integer-view 0)) 1)]
     (is (= 'ui/number-input (:mode number-control)))
     (is (= true (get-in number-control [:state :allow-fractions?])))
     (is (= 'ui/number-input (:mode integer-control)))
@@ -1038,18 +1047,23 @@
                                  :count 1
                                  :enabled? false
                                  :role :a}})
-        name-control (nth (:children (nth (:children view) 0)) 1)
-        count-control (nth (:children (nth (:children view) 1)) 1)
-        enabled-control (nth (:children (nth (:children view) 2)) 1)
-        role-control (nth (:children (nth (:children view) 3)) 1)]
-    (is (= :name (get-in (nth (:children view) 0) [:state :field-id])))
-    (is (= [:name] (get-in (nth (:children view) 0) [:state :field-path])))
+        fields (form-children view)
+        name-field (nth fields 0)
+        count-field (nth fields 1)
+        enabled-field (nth fields 2)
+        role-field (nth fields 3)
+        name-control (nth (:children name-field) 1)
+        count-control (nth (:children count-field) 1)
+        enabled-control (nth (:children enabled-field) 1)
+        role-control (nth (:children role-field) 1)]
+    (is (= :name (get-in name-field [:state :field-id])))
+    (is (= [:name] (get-in name-field [:state :field-path])))
     (is (= 'ui/text-input (:mode name-control)))
-    (is (= :count (get-in (nth (:children view) 1) [:state :field-id])))
-    (is (= [:count] (get-in (nth (:children view) 1) [:state :field-path])))
+    (is (= :count (get-in count-field [:state :field-id])))
+    (is (= [:count] (get-in count-field [:state :field-path])))
     (is (= 'ui/number-input (:mode count-control)))
-    (is (= :enabled? (get-in (nth (:children view) 2) [:state :field-id])))
-    (is (= [:enabled?] (get-in (nth (:children view) 2) [:state :field-path])))
+    (is (= :enabled? (get-in enabled-field [:state :field-id])))
+    (is (= [:enabled?] (get-in enabled-field [:state :field-path])))
     (is (= 'ui/checkbox (:mode enabled-control)))
     (is (= 'pixils/form-select-control (:mode role-control)))
     (is (= :role (get-in role-control [:state :field-id])))))
@@ -1068,7 +1082,7 @@
                                  {:place-id
                                   :place/dawnkeep-stables
                                   :anchor :stable/aisle}}})
-        location-view (head (:children view))
+        location-view (form-child view 0)
         object-control (nth (:children location-view) 1)
         place-view (head (:children object-control))
         place-control (nth (:children place-view) 1)
@@ -1095,7 +1109,7 @@
                                                    {:type :integer}}}}
                          :value [{:relation :place-relation/works-at
                                   :priority 10}]})
-        array-control (head (:children view))
+        array-control (form-child view 0)
         content-row (head (:children array-control))
         selection-view (head (:children content-row))
         list-box (head (:children selection-view))
@@ -1134,7 +1148,7 @@
                                  [{:place-id
                                    :place/dawnkeep-stables
                                    :anchor :stable/aisle}]}})
-        relations-view (head (:children view))
+        relations-view (form-child view 0)
         array-control (nth (:children relations-view) 1)
         content-row (head (:children array-control))
         selection-view (head (:children content-row))
@@ -1190,17 +1204,17 @@
                                      :projection
                                      [:register :current-person]}]}]})
         state (:state view)
-        row-view (head (:children view))
+        row-view (form-child view 0)
         form-view (head (:children row-view))
         selection-view (nth (:children row-view) 1)]
     (is (= person-schema (:schema state)))
     (is (= {:field/name "Ada"
             :field/age 36}
            (:value state)))
-    (is (= 1 (count (:children view))))
+    (is (= 1 (count (form-children view))))
     (is (= 2 (count (:children row-view))))
-    (is (= {} (:state row-view)))
-    (is (= {} (:state form-view)))
+    (is (contains? (:state row-view) :value))
+    (is (contains? (:state form-view) :value))
     (is (= [{:field/name "Ada"
              :field/age 36}]
            (:items state)))
@@ -1263,7 +1277,7 @@
                                      :label "Save"
                                      :enabled-when
                                      [:and :new? :valid?]}]}]})
-        action-row (nth (:children view) 1)
+        action-row (form-child view 1)
         new-action (head (:children action-row))
         save-action (nth (:children action-row) 1)]
     (is (= 'pixils/form-action (:mode new-action)))
@@ -1309,7 +1323,7 @@
                            :person/new
                            {:label "New"
                             :disabled-when :new?}]]]]})
-        row-view (head (:children view))
+        row-view (form-child view 0)
         form-view (head (:children row-view))
         group-view (nth (:children row-view) 1)
         selection-view (head (:children group-view))
@@ -1319,7 +1333,8 @@
     (is (= :person-list-column (:class group-view)))
     (is (= :person-list (:class selection-view)))
     (is (= :person-new (:class action-view)))
-    (is (= {} (:state form-view)))
+    (is (contains? (:state row-view) :value))
+    (is (contains? (:state form-view) :value))
     (is (= 'pixils/form-selection (:mode selection-view)))
     (is (= 'pixils/form-action (:mode action-view)))
     (is (= :person/new (get-in action-view [:state :event])))
