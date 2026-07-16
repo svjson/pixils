@@ -347,7 +347,7 @@
   (text-input-style-if-changed! (:view ctx)
                                 (text-input-caret-style state)))
 
-(defun sync-text-input-state [state ctx]
+(defun sync-text-input-state* [state ctx emit-blur?]
   (let [value (or (:value state) "")
         style (-> ctx :view :effective-style)
         text-opts (text-args style)
@@ -387,6 +387,7 @@
         show-caret? (and (not (:disabled? state))
                          (or (-> ctx :view :interaction :focused)
                              (-> ctx :view :interaction :focus-within)))
+        was-focused? (:focused? state)
         selection-prefix-width (measure-text-width
                                  (substr value
                                          0
@@ -403,6 +404,11 @@
         selection-w (max 0 (- (min content-width selection-right)
                               selection-x))]
     (do
+      (when (and emit-blur?
+                 (:emit-blur? state)
+                 was-focused?
+                 (not show-caret?))
+        (ui/emit! (:view ctx) :text-input/blur {:value value}))
       (position-text-input-children! ctx
                                      scroll-x
                                      cursor-y
@@ -424,7 +430,11 @@
           (assoc :selection-y cursor-y)
           (assoc :selection-w selection-w)
           (assoc :selection-h cursor-h)
-          (assoc :show-caret? show-caret?)))))
+          (assoc :show-caret? show-caret?)
+          (assoc :focused? show-caret?)))))
+
+(defun sync-text-input-state [state ctx]
+  (sync-text-input-state* state ctx false))
 
 (defcomponent ui/text-input-caret
   {:style {:width 1}
@@ -468,7 +478,7 @@
    :update (fn [state ctx]
              (sync-text-input-state state ctx))
    :after-layout (fn [state ctx]
-                   (sync-text-input-state state ctx))
+                   (sync-text-input-state* state ctx true))
    :render (fn [state ctx]
              (when (> (or (:selection-w state) 0) 0)
                (r/rect! {:x (or (:selection-x state) 0)
@@ -569,4 +579,5 @@
                        :read-only? (ui/bind-state :read-only?)
                        :auto-focus? (ui/bind-state :auto-focus?)
                        :accept-value? (ui/bind-state :accept-value?)
-                       :emit-change? (ui/bind-state :emit-change?)}}]})
+                       :emit-change? (ui/bind-state :emit-change?)
+                       :emit-blur? (ui/bind-state :emit-blur?)}}]})

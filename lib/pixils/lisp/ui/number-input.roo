@@ -25,6 +25,32 @@
 (defun fraction-text? [text]
   (text-contains? text "." 0))
 
+(defun number-text-digit? [text]
+  (or (= text "0")
+      (= text "1")
+      (= text "2")
+      (= text "3")
+      (= text "4")
+      (= text "5")
+      (= text "6")
+      (= text "7")
+      (= text "8")
+      (= text "9")))
+
+(defun editable-number-character? [text state]
+  (or (number-text-digit? text)
+      (and (= text "-") (allows-negative? state))
+      (and (= text ".") (allows-fractions? state))))
+
+(defun editable-number-text-at? [text state index]
+  (if (>= index (count text))
+    true
+    (and (editable-number-character? (substr text index 1) state)
+         (editable-number-text-at? text state (inc index)))))
+
+(defun editable-number-text? [text state]
+  (editable-number-text-at? (or text "") state 0))
+
 (defun parsed-number [text state]
   (if (and (allows-fractions? state)
            (fraction-text? text))
@@ -43,6 +69,11 @@
       (nil? parsed) false
       (= (substr text 0 1) "-") (allows-negative? state)
       :default true)))
+
+(defun number-input-accepts-text? [text state]
+  (if (= (:commit-on state) :blur)
+    (editable-number-text? text state)
+    (integer-text? text state)))
 
 (defun clamp-number [value state]
   (let [min-value (:min state)
@@ -75,7 +106,8 @@
           (assoc :committed-value clamped)
           (assoc :text-value text)
           (assoc :last-text-value text)
-          (assoc :invalid? false)))))
+          (assoc :invalid? false)
+          (assoc :editing? false)))))
 
 (defun commit-number-input-text [state text ctx]
   (let [parsed (parsed-number text state)
@@ -98,6 +130,39 @@
           (assoc :invalid? (and (> (count text) 0)
                                 (nil? value)))))))
 
+(defun revert-number-input-text [state]
+  (let [value (:committed-value state)
+        text (number-input-text value)]
+    (-> state
+        (assoc :value value)
+        (assoc :text-value text)
+        (assoc :last-text-value text)
+        (assoc :invalid? false)
+        (assoc :editing? false))))
+
+(defun finalize-number-input-text [state ctx]
+  (let [text (or (:text-value state) "")
+        parsed (parsed-number text state)]
+    (cond
+      (= text "")
+      (assoc (commit-number-input-text state text ctx)
+             :editing?
+             false)
+
+      (nil? parsed)
+      (revert-number-input-text state)
+
+      :default
+      (assoc (commit-number-input-text state text ctx)
+             :editing?
+             false))))
+
+(defun edit-number-input-text [state text]
+  (-> state
+      (assoc :text-value text)
+      (assoc :invalid? false)
+      (assoc :editing? true)))
+
 (defun commit-number-input-text-if-changed [state ctx]
   (let [text (or (:text-value state) "")]
     (if (= text (:last-text-value state))
@@ -118,18 +183,31 @@
                :state {:value (ui/bind-state :text-value)
                        :disabled? (ui/bind-state :disabled?)
                        :auto-focus? (ui/bind-state :auto-focus?)
-                       :accept-value? integer-text?
+                       :accept-value? number-input-accepts-text?
                        :emit-change? false
                        :allow-negative? (ui/bind-state :allow-negative?)
                        :allow-fractions? (ui/bind-state :allow-fractions?)
                        :min (ui/bind-state :min)
-                       :max (ui/bind-state :max)}}]
+                       :max (ui/bind-state :max)
+                       :commit-on (ui/bind-state :commit-on)
+                       :emit-blur? true}}]
    :on {:text-input/change (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)
-                               (commit-number-input-text state
-                                                         (-> event :payload :value)
-                                                         ctx)))}
+                               (if (= (:commit-on state) :blur)
+                                 (edit-number-input-text
+                                  state
+                                  (-> event :payload :value))
+                                 (commit-number-input-text
+                                  state
+                                  (-> event :payload :value)
+                                  ctx))))
+        :text-input/blur (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (if (= (:commit-on state) :blur)
+                               (finalize-number-input-text state ctx)
+                               state)))}
    :on-key-down (fn [state event ctx]
                   (if (:disabled? state)
                     state
@@ -144,10 +222,17 @@
                         (ui/stop-propagation! event)
                         (step-number-input state -1 ctx))
 
-                      :default
-                      (commit-number-input-text-if-changed state ctx))))})
+                      (= :key/enter (:key event))
+                      (do
+                        (ui/stop-propagation! event)
+                        (finalize-number-input-text state ctx))
 
-(defun make [{:keys [style value min max step allow-negative? allow-fractions? disabled? auto-focus?]}]
+                      :default
+                      (if (= (:commit-on state) :blur)
+                        state
+                        (commit-number-input-text-if-changed state ctx)))))})
+
+(defun make [{:keys [style value min max step allow-negative? allow-fractions? disabled? auto-focus? commit-on]}]
   {:mode 'ui/number-input
    :style (or style {})
    :state {:value value
@@ -157,4 +242,5 @@
            :allow-negative? allow-negative?
            :allow-fractions? allow-fractions?
            :disabled? disabled?
-           :auto-focus? auto-focus?}})
+           :auto-focus? auto-focus?
+           :commit-on commit-on}})
