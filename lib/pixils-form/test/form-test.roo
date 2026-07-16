@@ -322,6 +322,49 @@
     (is (= :blackmere (-> changed :options (nth 1) :value)))
     (is (= 1 (:selected-index changed)))))
 
+(deftest valid-value-options-cache-deduplicates-repeated-context-sources
+  (let [valid-values {:from [:vocabularies :places]
+                      :value-path [:id]
+                      :label-path [:label]}
+        field-schema {:type :keyword
+                      :valid-values valid-values}
+        schema-doc {:schema {:type :object
+                             :fields {:home field-schema
+                                      :work field-schema}}}
+        context {:vocabularies
+                 {:places [{:id :dawnkeep
+                            :label "Dawnkeep"}]}}
+        cache (form/valid-value-options-cache schema-doc {} context)
+        key (form/valid-value-options-cache-key context field-schema {})]
+    (is (= 1 (count (keys cache))))
+    (is (= [{:value :dawnkeep
+             :label "Dawnkeep"}]
+           (get cache key)))))
+
+(deftest valid-value-options-cache-separates-dependent-sources
+  (let [valid-values {:from {:field [:source]
+                             :sources {:landmarks [:landmarks]
+                                       :terrain [:terrain]}}
+                      :value-path [:value]
+                      :label-path [:label]}
+        relation-schema {:type :object
+                         :fields {:source {:type :keyword}
+                                  :target {:type :keyword
+                                           :valid-values valid-values}}}
+        schema-doc {:schema {:type :object
+                             :fields {:a relation-schema
+                                      :b relation-schema}}}
+        context {:landmarks [{:value :dawnkeep
+                              :label "Dawnkeep"}]
+                 :terrain [{:value :blackmere
+                            :label "Blackmere"}]}
+        cache (form/valid-value-options-cache
+               schema-doc
+               {:a {:source :landmarks}
+                :b {:source :terrain}}
+               context)]
+    (is (= 2 (count (keys cache))))))
+
 (deftest form-value-with-field-value-updates-nested-field-path
   (is (= {:target {:source :terrain
                    :id :dawnkeep}}

@@ -1050,7 +1050,10 @@
    :children (map array-toolbar-actions action-view)})
 
 (defun array-item-form-view [item-schema opts]
-  (let [item-opts (assoc opts :schema item-schema)
+  (let [item-opts (with-valid-value-options-cache
+                    (assoc opts
+                           :schema item-schema
+                           :value (:value opts)))
         children (map (default-layout item-schema)
                       (fn [item]
                         (layout-item-view item item-opts)))]
@@ -1108,7 +1111,9 @@
                                   :index index
                                   :new? new?}
                           :body (array-item-dialog-body (:item-schema state)
-                                                        item-opts)})))
+                                                        (assoc item-opts
+                                                               :value
+                                                               value))})))
 
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
@@ -1232,6 +1237,99 @@
                       opts
                       (field-binding field-id field-schema)))
 
+(defun valid-values-cache-source-key [context parent-value source]
+  (cond
+    (= (type-of source) "vector")
+    {:source-path source}
+
+    (= (type-of source) "map")
+    (let [source-key (model-schema/path-value parent-value
+                                              (or (:field source)
+                                                  (:path source)))
+          source-path (get (or (:sources source) {}) source-key)]
+      {:source-key source-key
+       :source-path source-path})
+
+    :default nil))
+
+(defun valid-value-options-cache-key [context field-schema parent-value]
+  (let [valid-values (:valid-values field-schema)]
+    (when valid-values
+      {:valid-values valid-values
+       :source
+       (if (and (= (type-of valid-values) "map")
+                (contains? valid-values :from))
+         (valid-values-cache-source-key context
+                                        parent-value
+                                        (:from valid-values))
+         {:values valid-values})})))
+
+(defun cache-field-valid-value-options [cache context field-schema parent-value]
+  (let [key (valid-value-options-cache-key context field-schema parent-value)]
+    (if key
+      (if (contains? cache key)
+        cache
+        (assoc cache
+               key
+               (model-schema/valid-value-options-for-value context
+                                                           field-schema
+                                                           parent-value)))
+      cache)))
+
+(defun cache-schema-field-valid-value-options [cache schema context value field-id]
+  (let [field-schema (model-schema/resolved-field-schema schema field-id)
+        field-value (field-value value field-id field-schema)
+        cache (cache-field-valid-value-options cache
+                                               context
+                                               field-schema
+                                               value)]
+    (cond
+      (= (:type field-schema) :object)
+      (valid-value-options-cache-for-schema
+       cache
+       (object-schema field-schema {:schema schema})
+       context
+       field-value)
+
+      (= (:type field-schema) :union)
+      (valid-value-options-cache-for-schema
+       cache
+       (object-schema field-schema {:schema schema})
+       context
+       field-value)
+
+      (= (:type field-schema) :array)
+      cache
+
+      :default
+      cache)))
+
+(defun valid-value-options-cache-for-schema [cache schema context value]
+  (let [root (model-schema/resolved-root-schema schema)]
+    (cond
+      (= (:type root) :array)
+      cache
+
+      :default
+      (reduce (model-schema/schema-field-ids schema)
+              cache
+              (fn [field-cache field-id]
+                (cache-schema-field-valid-value-options field-cache
+                                                        schema
+                                                        context
+                                                        value
+                                                        field-id))))))
+
+(defun valid-value-options-cache [schema value context]
+  (valid-value-options-cache-for-schema {} schema context value))
+
+(defun with-valid-value-options-cache [opts]
+  (assoc opts
+         :valid-value-options-cache
+         (valid-value-options-cache (:schema opts)
+                                    (:value opts)
+                                    (:context opts))))
+
 (defun select-option-index-from [options value index]
   (cond
     (>= index (count options))
@@ -1279,10 +1377,19 @@
        (select-source-key state (:from valid-values))
        {:valid-values valid-values})}))
 
+(defun raw-select-options-for-value [field-schema opts value]
+  (let [key (valid-value-options-cache-key (:context opts)
+                                           field-schema
+                                           value)
+        cache (:valid-value-options-cache opts)]
+    (if (and key (contains? (or cache {}) key))
+      (get cache key)
+      (model-schema/valid-value-options-for-value (:context opts)
+                                                  field-schema
+                                                  value))))
+
 (defun select-options-for-value [field-schema opts value]
-  (let [options (model-schema/valid-value-options-for-value (:context opts)
-                                                            field-schema
-                                                            value)]
+  (let [options (raw-select-options-for-value field-schema opts value)]
     (if (= true (:required field-schema))
       options
       (concat [{:value nil
@@ -1343,6 +1450,7 @@
            :field-path (field-path field-id field-schema)
            :field-schema field-schema
            :context (:context opts)
+           :valid-value-options-cache (:valid-value-options-cache opts)
            :row-height (:row-height field-schema)
            :max-height (:max-height field-schema)
            :disabled? (:read-only? field-schema)}})
@@ -1728,10 +1836,11 @@
    :children (form-children layout schema opts selection)})
 
 (defun form-render-opts [state]
-  (merge (or (:form/render-opts state) {})
-         {:schema (:schema state)
-          :value (:value state)
-          :context (:context state)}))
+  (with-valid-value-options-cache
+   (merge (or (:form/render-opts state) {})
+          {:schema (:schema state)
+           :value (:value state)
+           :context (:context state)})))
 
 (defun form-body-from-state [state]
   (let [opts (form-render-opts state)]
@@ -1826,14 +1935,18 @@
         render-selection (when selection state-selection)
         opts (assoc opts :projection projection)
         state (normalized-form-state opts state-selection)
+        schema (:schema state)
+        opts (with-valid-value-options-cache
+               (assoc opts
+                      :schema schema
+                      :value (:value state)
+                      :context (:context state)))
         state (assoc state
                      :form/selection state-selection
                      :form/render-selection render-selection
                      :form/actions (layout-actions layout)
                      :form/layout layout
-                     :form/render-opts opts)
-        schema (:schema state)
-        opts (assoc opts :schema schema)]
+                     :form/render-opts opts)]
     (merge {:mode 'pixils/form
             :state state
             :children [(form-body-view layout schema opts render-selection)]}
