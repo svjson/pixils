@@ -1,0 +1,31 @@
+(ns pixils.ui.number-input-test
+  (:require proof.core
+            [pixils.ui.number-input :as number-input]))
+
+(deftest number-input-make-preserves-commit-mode
+  (is (= :blur
+         (-> (number-input/make {:commit-on :blur})
+             :state
+             :commit-on))))
+
+(deftest number-input-blur-mode-accepts-editable-number-characters
+  (let [state {:commit-on :blur
+               :allow-negative? true
+               :allow-fractions? true}]
+    (is (= true
+           (number-input/number-input-accepts-text? "" state)))
+    (is (= true
+           (number-input/number-input-accepts-text? "--1.." state)))
+    (is (= false
+           (number-input/number-input-accepts-text? "1a" state)))))
+
+(deftest number-input-blur-mode-edit-keeps-committed-value
+  (let [state {:value 50
+               :committed-value 50
+               :text-value "50"
+               :last-text-value "50"}
+        edited (number-input/edit-number-input-text state "0")]
+    (is (= 50 (:value edited)))
+    (is (= 50 (:committed-value edited)))
+    (is (= "0" (:text-value edited)))
+    (is (= true (:editing? edited)))))
