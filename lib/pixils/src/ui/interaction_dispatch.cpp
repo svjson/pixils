@@ -774,6 +774,7 @@ namespace Pixils::UI
           merge_child_state_into_parent(view, chain[i + 1]);
         }
       }
+      bubble_emitted_events_from_chain(chain, hook_args, rt);
     }
 
     void bubble_held_key_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,

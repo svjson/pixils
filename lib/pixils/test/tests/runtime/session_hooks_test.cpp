@@ -443,6 +443,42 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
   EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
 }
 
+TEST_F(SessionHooksTest, focused_child_key_down_emitted_event_reaches_root_mode)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:focusable true
+       :init (fn [state ctx] {:keys 0})
+       :on-key-down (fn [state event ctx]
+                      (do
+                        (pixils.ui/emit! (:view ctx) :child/change {:value true})
+                        (assoc state :keys (+ (:keys state) 1))))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:keys 0}
+                              :changes 0})
+       :on {:child/change
+            (fn [state event ctx]
+              (assoc state :changes (+ (:changes state) 1)))}
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  session.update_mode();
+  input().clear_transients();
+
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1} :changes 1}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
+}
+
 TEST_F(SessionHooksTest, child_mode_focused_in_init_receives_key_down)
 {
   runtime.eval(R"(

@@ -199,7 +199,8 @@
                        :min (ui/bind-state :min)
                        :max (ui/bind-state :max)
                        :commit-on (ui/bind-state :commit-on)
-                       :emit-blur? true}}]
+                       :emit-blur? true
+                       :focused? (ui/bind-state :focused?)}}]
    :on {:text-input/change (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)
