@@ -1599,7 +1599,8 @@
            :form-value (ui/bind-state :form-value)
            :options (select-options field-schema opts)
            :field-id field-id
-           :field-path (field-path field-id field-schema)
+           :field-path (event-field-path opts field-id field-schema)
+           :local-field-path (field-path field-id field-schema)
            :field-schema field-schema
            :context (:context opts)
            :valid-value-options-cache (:valid-value-options-cache opts)

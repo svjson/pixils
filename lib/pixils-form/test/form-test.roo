@@ -1172,6 +1172,10 @@
     (is (= 2 (count union-children)))
     (is (= [:field/effect :kind] (get-in kind-view [:state :field-path])))
     (is (= [:kind] (get-in kind-view [:state :local-field-path])))
+    (is (= [:field/effect :kind]
+           (get-in kind-control [:state :field-path])))
+    (is (= [:kind]
+           (get-in kind-control [:state :local-field-path])))
     (is (= [:field/effect :distance]
            (get-in distance-view [:state :field-path])))
     (is (= [:distance] (get-in distance-view [:state :local-field-path])))
