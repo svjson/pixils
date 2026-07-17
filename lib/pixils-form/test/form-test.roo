@@ -469,6 +469,48 @@
                                :label-path [:label]}}}}}
            (schema/resolved-root-schema schema-doc)))))
 
+(deftest prepared-schema-preserves-schema-behavior
+  (let [schema-doc {:definitions
+                    {:base {:type :object
+                            :fields {:type {:type :keyword
+                                            :valid-values
+                                            {:values [:simple :detailed]}}}}
+                     :simple {:extends :base
+                              :fields {:name {:type :text}}}
+                     :detailed {:extends :base
+                                :fields {:name {:type :text}
+                                         :note {:type :text}}}}
+                    :schema {:type :union
+                             :discriminator :type
+                             :base {:ref :base}
+                             :variants {:simple {:ref :simple}
+                                        :detailed {:ref :detailed}}}}
+        prepared (schema/prepare-schema schema-doc)
+        value {:type :detailed
+               :name "Name"
+               :note "Note"}]
+    (is (= (schema/resolved-root-schema schema-doc)
+           (schema/resolved-root-schema prepared)))
+    (is (= (schema/resolved-field-schema schema-doc :name)
+           (schema/resolved-field-schema prepared :name)))
+    (is (= (schema/active-schema-field-ids schema-doc value)
+           (schema/active-schema-field-ids prepared value)))
+    (is (schema/field-visible? prepared :note value))))
+
+(deftest prepared-schema-supports-shorthand-type-field
+  (let [schema-doc {:definitions
+                    {:rule-type {:type :keyword
+                                 :valid-values
+                                 [:preferred-position :edge]}}
+                    :schema {:type {:ref :rule-type}
+                             :name {:type :text}}}
+        prepared (schema/prepare-schema schema-doc)]
+    (is (= {:type :keyword
+            :valid-values [:preferred-position :edge]}
+           (schema/resolved-field-schema prepared :type)))
+    (is (= [:type :name]
+           (schema/schema-field-ids prepared)))))
+
 (deftest validate-resolves-field-definition-references
   (let [schema-doc {:definitions
                     {:stable-role

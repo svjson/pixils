@@ -905,9 +905,10 @@
                                                value)))))
 
 (defun branch-render-key [schema value context]
-  {:fields (model-schema/active-schema-field-ids schema value)
-   :valid-value-options-cache
-   (direct-valid-value-options-cache-for-schema {} schema context value)})
+  (let [schema (model-schema/prepare-schema schema)]
+    {:fields (model-schema/active-schema-field-ids schema value)
+     :valid-value-options-cache
+     (direct-valid-value-options-cache-for-schema {} schema context value)}))
 
 (defun object-control-render-opts [state value]
   (with-valid-value-options-cache
@@ -1418,14 +1419,23 @@
                                                         field-id))))))
 
 (defun valid-value-options-cache [schema value context]
-  (valid-value-options-cache-for-schema {} schema context value))
+  (valid-value-options-cache-for-schema
+   {}
+   (model-schema/prepare-schema schema)
+   context
+   value))
 
 (defun with-valid-value-options-cache [opts]
-  (assoc opts
-         :valid-value-options-cache
-         (valid-value-options-cache (:schema opts)
-                                    (:value opts)
-                                    (:context opts))))
+  (let [schema (model-schema/prepare-schema (:schema opts))
+        opts (assoc opts :schema schema)]
+    (if (:valid-value-options-cache opts)
+      opts
+      (assoc opts
+             :valid-value-options-cache
+             (valid-value-options-cache-for-schema {}
+                                                   schema
+                                                   (:context opts)
+                                                   (:value opts))))))
 
 (defun select-option-index-from [options value index]
   (cond
@@ -1944,7 +1954,7 @@
 (defun form-render-opts [state]
   (with-valid-value-options-cache
    (merge (or (:form/render-opts state) {})
-          {:schema (:schema state)
+          {:schema (model-schema/prepare-schema (:schema state))
            :value (:value state)
            :context (:context state)})))
 
@@ -2049,13 +2059,13 @@
         render-selection (when selection state-selection)
         opts (assoc opts :projection projection)
         state (normalized-form-state opts state-selection)
-        schema (:schema state)
+        schema (model-schema/prepare-schema (:schema state))
         opts (with-valid-value-options-cache
                (assoc opts
                       :schema schema
                       :value (:value state)
                       :context (:context state)))
-        state (assoc state
+        state (assoc (assoc state :schema schema)
                      :form/selection state-selection
                      :form/render-selection render-selection
                      :form/actions (layout-actions layout)

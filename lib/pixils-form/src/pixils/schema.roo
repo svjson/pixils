@@ -1,5 +1,11 @@
 (ns pixils.schema)
 
+(def prepared-schema-key :pixils.schema/prepared?)
+
+(defun prepared-schema? [schema]
+  (and (= (type-of schema) "map")
+       (= true (get schema prepared-schema-key))))
+
 (defun blank-value? [value]
   (or (nil? value)
       (and (= (type-of value) "string")
@@ -135,7 +141,35 @@
   (resolve-schema-with-seen schema schema-node []))
 
 (defun resolved-root-schema [schema]
-  (resolve-schema schema (schema-root schema)))
+  (if (prepared-schema? schema)
+    (schema-root schema)
+    (resolve-schema schema (schema-root schema))))
+
+(defun root-field-map? [root]
+  (and (= (type-of root) "map")
+       (not (keyword? (:type root)))
+       (not (keyword? (:ref root)))
+       (not (keyword? (:extends root)))
+       (not (contains? root :schema))))
+
+(defun prepare-root-schema [schema]
+  (let [root (resolved-root-schema schema)]
+    (if (root-field-map? root)
+      (resolve-fields-with-seen schema root [])
+      root)))
+
+(defun prepare-schema [schema]
+  (if (or (nil? schema)
+          (prepared-schema? schema))
+    schema
+    (let [root (prepare-root-schema schema)]
+      (if (and (empty? (schema-definitions schema))
+               (root-field-map? root))
+        root
+        (assoc {:definitions (schema-definitions schema)
+                :schema root}
+               prepared-schema-key
+               true)))))
 
 (defun schema-fields [schema]
   (let [root (resolved-root-schema schema)]
@@ -150,8 +184,10 @@
       (or root {}))))
 
 (defun resolved-field-schema [schema field-id]
-  (resolve-schema schema
-                  (get (schema-fields schema) field-id)))
+  (let [field-schema (get (schema-fields schema) field-id)]
+    (if (prepared-schema? schema)
+      field-schema
+      (resolve-schema schema field-schema))))
 
 (defun schema-field-ids [schema]
   (keys (schema-fields schema)))
@@ -208,8 +244,17 @@
       nil)))
 
 (defun schema-document-with-root [schema root]
-  (if (empty? (schema-definitions schema))
+  (cond
+    (prepared-schema? schema)
+    (assoc {:definitions (schema-definitions schema)
+            :schema root}
+           prepared-schema-key
+           true)
+
+    (empty? (schema-definitions schema))
     root
+
+    :default
     {:definitions (schema-definitions schema)
      :schema root}))
 
