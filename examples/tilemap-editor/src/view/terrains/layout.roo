@@ -1836,6 +1836,7 @@
   (form/make {:schema terrain-rule-options-schema
               :text terrain-rule-options-text
               :layout terrain-rule-options-layout
+              :mode :live
               :value (ui/bind-state :selected-terrain-rule)
               :style terrain-rule-options-form-style
               :field-style terrain-rule-options-field-style
