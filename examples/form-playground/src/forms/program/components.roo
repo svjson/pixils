@@ -8,29 +8,12 @@
 
 (defcomponent program-planner
   {:class :program-planner
-   :children [(form/make {:models {:register
-                                   {:models
-                                    {:conference
-                                     {:schema schema/program-schema
-                                      :value (ui/bind-state
-                                              :selected-conference)}
-                                     :conferences
-                                     {:value (ui/bind-state
-                                              :conferences)}
-                                     :selected-conference-index
-                                     {:value
-                                      (ui/bind-state
-                                       :selected-conference-index)
-                                      :transient? true}}
-                                    :projections
-                                    {:current-conference
-                                     {:target [:register :conference]
-                                      :items [:register :conferences]
-                                      :selected-index
-                                      [:register
-                                       :selected-conference-index]
-                                      :new-value-fn
-                                      model/empty-conference}}}}
+   :children [(form/make {:schema schema/program-schema
+                          :value (ui/bind-state :selected-conference)
+                          :items (ui/bind-state :conferences)
+                          :selected-index
+                          (ui/bind-state :selected-conference-index)
+                          :new-value-fn model/empty-conference
                           :text model/program-text
                           :class :program-planner-form
                           :mode :live
@@ -38,13 +21,13 @@
                           :valid? (ui/bind-state :program-valid?)
                           :errors (ui/bind-state :program-errors)
                           :layout [[:row.program-main-row
-                                    [:form [:register :conference]
-                                     model/program-layout]
+                                    {:type :form
+                                     :layout model/program-layout}
                                     [:group.program-list-column
-                                     [:selection.program-list
-                                      [:register :current-conference]
-                                      {:item-label
-                                       model/conference-label}]
+                                     {:type :selection
+                                      :class :program-list
+                                      :item-label
+                                      model/conference-label}
                                      [:button.program-new
                                       :form/new
                                       {:label "New Conference"

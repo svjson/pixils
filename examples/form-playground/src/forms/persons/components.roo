@@ -7,38 +7,24 @@
 
 (defcomponent person-register
   {:class :person-register
-   :children [(form/make {:models {:register
-                                   {:models
-                                    {:person
-                                     {:schema schema/person-schema
-                                      :value (ui/bind-state
-                                              :selected-person)}
-                                     :people
-                                     {:value (ui/bind-state :people)}
-                                     :selected-person-index
-                                     {:value
-                                      (ui/bind-state :selected-person-index)
-                                      :transient? true}}
-                                    :projections
-                                    {:current-person
-                                     {:target [:register :person]
-                                      :items [:register :people]
-                                      :selected-index
-                                      [:register :selected-person-index]
-                                      :new-value-fn
-                                      model/empty-person}}}}
+   :children [(form/make {:schema schema/person-schema
+                          :value (ui/bind-state :selected-person)
+                          :items (ui/bind-state :people)
+                          :selected-index
+                          (ui/bind-state :selected-person-index)
+                          :new-value-fn model/empty-person
                           :text model/person-text
                           :class :person-register-form
                           :mode :live
                           :valid? (ui/bind-state :person-valid?)
                           :errors (ui/bind-state :person-errors)
                           :layout [[:row.person-main-row
-                                    [:form [:register :person]
-                                     model/person-layout]
+                                    {:type :form
+                                     :layout model/person-layout}
                                     [:group.person-list-column
-                                     [:selection.person-list
-                                      [:register :current-person]
-                                      {:item-label model/person-label}]
+                                     {:type :selection
+                                      :class :person-list
+                                      :item-label model/person-label}
                                      [:button.person-new
                                       :form/new
                                       {:label "New Person"
