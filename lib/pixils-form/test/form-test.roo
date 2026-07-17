@@ -906,6 +906,7 @@
                  {:items [{:id :terrain/dirt}
                           {:id :terrain/grass}]})]
     (is (= nil (:field-path payload)))
+    (is (= true (:commit? payload)))
     (is (= nil
            (form/array-items-change-payload
             {:items [{:id :terrain/grass}
@@ -937,6 +938,7 @@
     (is (contains? (:state body) :value))
     (is (contains? (:state body) :index))
     (is (contains? (:state body) :new?))
+    (is (contains? (:on body) :form/draft-change))
     (is (contains? (:on body) :dialog/button))
     (is (= 'pixils/form (:mode item-form)))
     (is (= 'ui/dialog-button-row (:mode button-row)))

@@ -741,11 +741,12 @@
      :value value
      :form-value (form-value-with-field-value state value)}))
 
-(defun emit-field-change! [state event ctx value]
+(defun emit-field-change! [state event ctx value commit?]
   (ui/stop-propagation! event)
   (ui/emit! (:view ctx)
-            :form/change
-            (field-change-payload state value))
+            :form/edit
+            (assoc (field-change-payload state value)
+                   :commit? commit?))
   state)
 
 (defun label-for [field-id text]
@@ -805,13 +806,32 @@
             ctx))
    :on {:text-input/change
         (fn [state event ctx]
-          (emit-field-change! state event ctx (-> event :payload :value)))
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
+                              false))
+        :text-input/blur
+        (fn [state event ctx]
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
+                              true))
         :number-input/change
         (fn [state event ctx]
-          (emit-field-change! state event ctx (-> event :payload :value)))
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
+                              true))
         :checkbox/change
         (fn [state event ctx]
-          (emit-field-change! state event ctx (-> event :payload :checked?)))}})
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :checked?)
+                              true))}})
 
 (defun text-control [field-id field-schema field-label opts]
   {:mode 'ui/text-input
@@ -820,6 +840,7 @@
                                field-id
                                field-schema)
            :auto-focus? (:auto-focus? field-schema)
+           :emit-blur? true
            :read-only? (:read-only? field-schema)}})
 
 (defcomponent pixils/form-keyword-input
@@ -832,6 +853,7 @@
                        :height :fill}
                :state {:value (ui/bind-state :value)
                        :auto-focus? (ui/bind-state :auto-focus?)
+                       :emit-blur? (ui/bind-state :emit-blur?)
                        :read-only? (ui/bind-state :read-only?)}}]})
 
 (defun keyword-control [field-id field-schema field-label opts]
@@ -846,6 +868,7 @@
                       (keyword? value) (keyword-label value)
                       :default value)
              :auto-focus? (:auto-focus? field-schema)
+             :emit-blur? true
              :read-only? (:read-only? field-schema)}}))
 
 (defun number-control [field-id field-schema field-label opts]
@@ -953,7 +976,7 @@
       (:form-value payload))))
 
 (defcomponent pixils/form-object-control
-  {:on {:form/change
+  {:on {:form/edit
         (fn [state event ctx]
           (let [next-value (object-control-next-value state (:payload event))
                 next-state (assoc state :value next-value)]
@@ -1202,7 +1225,12 @@
              :errors (ui/bind-state :errors)}
      :body-style default-array-dialog-body-style
      :button-row-style default-array-dialog-button-row-style})
-   :on {:dialog/button array-item-dialog-button-handler}))
+   :on {:form/draft-change (fn [state event ctx]
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :value
+                                     (-> event :payload :form-value)))
+        :dialog/button array-item-dialog-button-handler}))
 
 (defun open-array-item-dialog! [state ctx new?]
   (let [index (:selected-index state)
@@ -1243,13 +1271,14 @@
 
 (defun array-items-change-payload [state next-state]
   (when (not= (:items state) (:items next-state))
-    (field-change-payload state (:items next-state))))
+    (assoc (field-change-payload state (:items next-state))
+           :commit? true)))
 
 (defun emit-array-items-change! [state next-state ctx]
   (let [payload (array-items-change-payload state next-state)]
     (when payload
       (ui/emit! (:view ctx)
-                :form/change
+                :form/edit
                 payload))
     next-state))
 
@@ -1539,10 +1568,12 @@
                             (let [payload (:payload event)]
                               (ui/stop-propagation! event)
                               (ui/emit! (:view ctx)
-                                        :form/change
-                                        (field-change-payload
-                                         state
-                                         (:value payload)))
+                                        :form/edit
+                                        (assoc
+                                         (field-change-payload
+                                          state
+                                          (:value payload))
+                                         :commit? true))
                               (-> state
                                   (assoc :value (:value payload))
                                   (assoc :form-value
@@ -1825,7 +1856,7 @@
 (defcomponent pixils/form
   {:init (fn [state ctx]
            (form-state state))
-   :on {:form/change (fn [state event ctx]
+   :on {:form/edit (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
                          (let [next-state
                                (changed-form-state state (:payload event))]
@@ -1833,6 +1864,13 @@
                                                             next-state)
                              (replace-form-body! next-state ctx))
                            (when (not (:new? next-state))
+                             (ui/emit! (:view ctx)
+                                       :form/draft-change
+                                       (form-state-change-payload
+                                        next-state)))
+                           (when (and (not (:new? next-state))
+                                      (= :live (:form/mode state))
+                                      (= true (-> event :payload :commit?)))
                              (ui/emit! (:view ctx)
                                        :form/change
                                        (form-state-change-payload
