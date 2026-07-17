@@ -30,6 +30,38 @@
 (defun object-control-children [view]
   (:children (head (:children view))))
 
+(deftest normalized-form-state-records-data-ownership-mode
+  (let [transient-state
+        (form/normalized-form-state {:schema person-schema
+                                     :value {:field/name "Ada"}
+                                     :context {}}
+                                    nil)
+        live-state
+        (form/normalized-form-state {:schema person-schema
+                                     :value {:field/name "Ada"}
+                                     :context {}
+                                     :mode :live}
+                                    nil)]
+    (is (= :transient
+           (:form/mode transient-state)))
+    (is (= :live
+           (:form/mode live-state)))))
+
+(deftest make-keeps-component-mode-separate-from-form-mode
+  (let [transient-view (form/make {:schema person-schema
+                                   :value {:field/name "Ada"
+                                           :field/age 36}})
+        live-view (form/make {:schema person-schema
+                              :value {:field/name "Ada"
+                                      :field/age 36}
+                              :mode :live})]
+    (is (= 'pixils/form (:mode transient-view)))
+    (is (= :transient
+           (-> transient-view :state :form/mode)))
+    (is (= 'pixils/form (:mode live-view)))
+    (is (= :live
+           (-> live-view :state :form/mode)))))
+
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""

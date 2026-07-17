@@ -153,9 +153,6 @@
 (def form-state-binding
   {:value (ui/project-state :value)})
 
-(def form-change-event :form/change)
-(def form-select-event :form/select)
-(def action-disabled-state-key :form/action-disabled)
 (def form-body-id "form-body")
 (def form-object-body-id "form-object-body")
 
@@ -355,6 +352,7 @@
                (:new-value-fn projection)))))
 
 (defun normalized-form-state [{:keys [schema value valid? errors models context
+                                      mode
                                       projection]
                                :as opts}
                               selection]
@@ -362,6 +360,7 @@
     {:value (or value (model-value models model-id))
      :schema (or schema (model-schema models model-id))
      :context context
+     :form/mode (or mode :transient)
      :valid? valid?
      :errors errors
      :items (:items selection)
@@ -441,7 +440,7 @@
 
 (defun actions-derived-state [state actions]
   (assoc state
-         action-disabled-state-key
+         :form/action-disabled
          (disabled-action-map state actions)))
 
 (defun validate-field [schema value field-id]
@@ -745,7 +744,7 @@
 (defun emit-field-change! [state event ctx value]
   (ui/stop-propagation! event)
   (ui/emit! (:view ctx)
-            form-change-event
+            :form/change
             (field-change-payload state value))
   state)
 
@@ -954,7 +953,7 @@
       (:form-value payload))))
 
 (defcomponent pixils/form-object-control
-  {:on {form-change-event
+  {:on {:form/change
         (fn [state event ctx]
           (let [next-value (object-control-next-value state (:payload event))
                 next-state (assoc state :value next-value)]
@@ -1250,7 +1249,7 @@
   (let [payload (array-items-change-payload state next-state)]
     (when payload
       (ui/emit! (:view ctx)
-                form-change-event
+                :form/change
                 payload))
     next-state))
 
@@ -1540,7 +1539,7 @@
                             (let [payload (:payload event)]
                               (ui/stop-propagation! event)
                               (ui/emit! (:view ctx)
-                                        form-change-event
+                                        :form/change
                                         (field-change-payload
                                          state
                                          (:value payload)))
@@ -1723,7 +1722,7 @@
                            (do
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)
-                                       form-select-event
+                                       :form/select
                                        (:payload event))
                              (assoc state
                                     :new? false
@@ -1819,7 +1818,7 @@
 (defun emit-form-state-change! [state next-state ctx]
   (when (not= state next-state)
     (ui/emit! (:view ctx)
-              form-change-event
+              :form/change
               (form-state-change-payload next-state)))
   next-state)
 
@@ -1835,7 +1834,7 @@
                              (replace-form-body! next-state ctx))
                            (when (not (:new? next-state))
                              (ui/emit! (:view ctx)
-                                       form-change-event
+                                       :form/change
                                        (form-state-change-payload
                                         next-state)))
                            next-state)))
@@ -1849,7 +1848,7 @@
                                        (-> event :payload :value)))]
                            (replace-form-body! next-state ctx)
                            (ui/emit! (:view ctx)
-                                     form-select-event
+                                     :form/select
                                      (:payload event))
                            next-state)))
         :form/new (fn [state event ctx]
@@ -1925,7 +1924,7 @@
                     :payload (:payload action)
                     :enabled-when (:enabled-when action)
                     :disabled-when (:disabled-when action)
-                    :disabled? (ui/project-state action-disabled-state-key
+                    :disabled? (ui/project-state :form/action-disabled
                                                  event-id)}}
            (style-map (defaultable-style (:style action)
                                          (:class action)
