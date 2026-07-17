@@ -831,12 +831,18 @@
                        :read-only? (ui/bind-state :read-only?)}}]})
 
 (defun keyword-control [field-id field-schema field-label opts]
-  {:mode 'pixils/form-keyword-input
-   :style (merge default-keyword-control-style
-                 (or (:control-style opts) {}))
-   :state {:value (field-binding field-id field-schema)
-           :auto-focus? (:auto-focus? field-schema)
-           :read-only? (:read-only? field-schema)}})
+  (let [value (field-value (:value opts)
+                           field-id
+                           field-schema)]
+    {:mode 'pixils/form-keyword-input
+     :style (merge default-keyword-control-style
+                   (or (:control-style opts) {}))
+     :state {:value (cond
+                      (nil? value) ""
+                      (keyword? value) (keyword-label value)
+                      :default value)
+             :auto-focus? (:auto-focus? field-schema)
+             :read-only? (:read-only? field-schema)}}))
 
 (defun number-control [field-id field-schema field-label opts]
   (number-input/make {:style (or (:control-style opts) default-control-style)

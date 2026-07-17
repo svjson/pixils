@@ -954,11 +954,12 @@
                                              :auto-focus? true}}
                          :text {:field/id "Id"}
                          :layout [:field/id]
-                         :value {:field/id "scene/ground"}})
+                         :value {:field/id :scene/ground}})
         field-view (form-child view 0)
         control (nth (:children field-view) 1)]
     (is (= 'pixils/form-keyword-input (:mode control)))
-    (is (contains? (:state control) :value))
+    (is (= "scene/ground"
+           (get-in control [:state :value])))
     (is (= true (get-in control [:state :auto-focus?])))))
 
 (deftest make-renders-valid-values-fields-with-select-control
