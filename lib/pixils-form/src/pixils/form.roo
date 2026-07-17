@@ -1703,9 +1703,15 @@
 (defun selection-layout-view [item opts]
   (let [projection (projection-entry (:models opts)
                                      (:projection item))]
-    (selection-control-view (normalized-selection (:models opts)
-                                                 item
-                                                 projection))))
+    (selection-control-view
+     (if (or (:projection item)
+             (contains? item :items)
+             (contains? item :selected-index)
+             (contains? item :new?)
+             (contains? item :new-value)
+             (contains? item :new-value-fn))
+       (normalized-selection (:models opts) item projection)
+       (merge (or (:form/selection opts) {}) item)))))
 
 (defun row-layout-view [item opts]
   (merge {:state form-layout-state-binding
@@ -2102,14 +2108,41 @@
                                      (or projection
                                          (layout-projection layout)))
         layout-selection (layout-selection layout)
+        direct-state-selection
+        (let [result {}
+              result (if (contains? opts :items)
+                       (assoc result :items (:items opts))
+                       result)
+              result (if (contains? opts :selected-index)
+                       (assoc result :selected-index (:selected-index opts))
+                       result)
+              result (if (contains? opts :new?)
+                       (assoc result :new? (:new? opts))
+                       result)
+              result (if (contains? opts :new-value)
+                       (assoc result :new-value (:new-value opts))
+                       result)
+              result (if (contains? opts :new-value-fn)
+                       (assoc result :new-value-fn (:new-value-fn opts))
+                       result)
+              result (if (contains? opts :item-label)
+                       (assoc result :item-label (:item-label opts))
+                       result)]
+          (when (not (empty? result))
+            result))
         state-selection (merge (or layout-selection {})
                                (or (normalized-selection models
                                                          selection
                                                          projection)
-                                   {}))
+                                   {})
+                               (or direct-state-selection {}))
         state-selection (if (empty? state-selection) nil state-selection)
-        render-selection (when selection state-selection)
-        opts (assoc opts :projection projection)
+        render-selection (when (or selection
+                                   (and direct-state-selection
+                                        (nil? layout-selection)))
+                           state-selection)
+        opts (assoc (assoc opts :projection projection)
+                    :form/selection state-selection)
         state (normalized-form-state opts state-selection)
         schema (model-schema/prepare-schema (:schema state))
         opts (with-valid-value-options-cache

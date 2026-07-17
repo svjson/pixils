@@ -1423,6 +1423,45 @@
     (is (= 0 (:selected-index state)))
     (is (= false (:new? state)))))
 
+(deftest make-supports-direct-master-detail-layout
+  (let [view (form/make
+              {:schema person-schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}
+                       {:field/name "Grace"
+                        :field/age 85}]
+               :selected-index 0
+               :new-value-fn empty-person
+               :layout [{:type :row
+                         :children [{:type :form
+                                     :layout [:field/name]}
+                                    {:type :selection
+                                     :class :person-list
+                                     :item-label [:field/name]}]}]})
+        state (:state view)
+        row-view (form-child view 0)
+        form-view (head (:children row-view))
+        selection-view (nth (:children row-view) 1)]
+    (is (= person-schema (:schema state)))
+    (is (= {:field/name "Ada"
+            :field/age 36}
+           (:value state)))
+    (is (= [{:field/name "Ada"
+             :field/age 36}
+            {:field/name "Grace"
+             :field/age 85}]
+           (:items state)))
+    (is (= 0 (:selected-index state)))
+    (is (= empty-person (:new-value-fn state)))
+    (is (contains? (:state form-view) :value))
+    (is (= 'pixils/form-selection (:mode selection-view)))
+    (is (= [:field/name]
+           (-> selection-view :state :item-label)))
+    (is (= :person-list
+           (:class selection-view)))))
+
 (deftest action-disabled-uses-form-state-conditions
   (is (= true
          (form/action-disabled?
