@@ -722,20 +722,25 @@
   (apply ui/project-state (concat [:value] (field-path field-id field-schema))))
 
 (defun form-value-with-field-value [state value]
-  (assoc-in (or (:form-value state) {})
-            (:field-path state)
-            value))
+  (if (:field-path state)
+    (assoc-in (or (:form-value state) {})
+              (:field-path state)
+              value)
+    value))
 
 (defun field-change-payload [state value]
-  {:field-id (:field-id state)
-   :field-path (:field-path state)
-   :local-field-path (:local-field-path state)
-   :field-schema (:field-schema state)
-   :old-value (get-in (or (:form-value state) {})
-                      (or (:local-field-path state)
-                          (:field-path state)))
-   :value value
-   :form-value (form-value-with-field-value state value)})
+  (let [old-value-path (or (:local-field-path state)
+                           (:field-path state))]
+    {:field-id (:field-id state)
+     :field-path (:field-path state)
+     :local-field-path (:local-field-path state)
+     :field-schema (:field-schema state)
+     :old-value (if old-value-path
+                  (get-in (or (:form-value state) {})
+                          old-value-path)
+                  (:form-value state))
+     :value value
+     :form-value (form-value-with-field-value state value)}))
 
 (defun emit-field-change! [state event ctx value]
   (ui/stop-propagation! event)
@@ -1237,13 +1242,17 @@
                :projected-item nil)))
     state))
 
+(defun array-items-change-payload [state next-state]
+  (when (not= (:items state) (:items next-state))
+    (field-change-payload state (:items next-state))))
+
 (defun emit-array-items-change! [state next-state ctx]
-  (when (and (:field-path state)
-             (not= (:items state) (:items next-state)))
-    (ui/emit! (:view ctx)
-              form-change-event
-              (field-change-payload state (:items next-state))))
-  next-state)
+  (let [payload (array-items-change-payload state next-state)]
+    (when payload
+      (ui/emit! (:view ctx)
+                form-change-event
+                payload))
+    next-state))
 
 (defcomponent pixils/form-array-control
   {:init (fn [state ctx]

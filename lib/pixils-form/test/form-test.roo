@@ -409,6 +409,12 @@
            :field-path [:target :source]}
           :terrain))))
 
+(deftest form-value-with-field-value-uses-root-value-without-field-path
+  (is (= [{:id :terrain/grass}]
+         (form/form-value-with-field-value
+          {:form-value [{:id :terrain/dirt}]}
+          [{:id :terrain/grass}]))))
+
 (deftest field-change-payload-reports-field-and-next-form-value
   (let [payload (form/field-change-payload
                  {:field-id :terrain-rule-exclusive
@@ -426,6 +432,19 @@
     (is (= true (:value payload)))
     (is (= {:exclusive? true
             :label "Grass edge"}
+           (:form-value payload)))))
+
+(deftest field-change-payload-reports-root-form-value
+  (let [payload (form/field-change-payload
+                 {:form-value [{:id :terrain/dirt}]}
+                 [{:id :terrain/grass}])]
+    (is (= nil (:field-id payload)))
+    (is (= nil (:field-path payload)))
+    (is (= [{:id :terrain/dirt}]
+           (:old-value payload)))
+    (is (= [{:id :terrain/grass}]
+           (:value payload)))
+    (is (= [{:id :terrain/grass}]
            (:form-value payload)))))
 
 (deftest schema-resolves-named-field-definition-references
@@ -848,6 +867,22 @@
             :place-id :workstation/stable-hand-post
             :anchor :stand}
            (:value projected)))))
+
+(deftest array-items-change-payload-reports-root-array-value
+  (let [payload (form/array-items-change-payload
+                 {:items [{:id :terrain/dirt}]}
+                 {:items [{:id :terrain/dirt}
+                          {:id :terrain/grass}]})]
+    (is (= nil (:field-path payload)))
+    (is (= nil
+           (form/array-items-change-payload
+            {:items [{:id :terrain/grass}
+                     {:id :terrain/dirt}]}
+            {:items [{:id :terrain/grass}
+                     {:id :terrain/dirt}]})))
+    (is (= [{:id :terrain/dirt}
+            {:id :terrain/grass}]
+           (:form-value payload)))))
 
 (deftest move-item-state-reorders-items-and-selected-index
   (let [state (form/move-item-state
