@@ -33,6 +33,7 @@
                                       model/empty-conference}}}}
                           :text model/program-text
                           :class :program-planner-form
+                          :mode :live
                           :context persons-model/people
                           :valid? (ui/bind-state :program-valid?)
                           :errors (ui/bind-state :program-errors)

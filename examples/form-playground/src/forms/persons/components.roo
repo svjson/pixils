@@ -29,6 +29,7 @@
                                       model/empty-person}}}}
                           :text model/person-text
                           :class :person-register-form
+                          :mode :live
                           :valid? (ui/bind-state :person-valid?)
                           :errors (ui/bind-state :person-errors)
                           :layout [[:row.person-main-row

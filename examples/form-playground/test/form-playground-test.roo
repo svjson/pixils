@@ -100,6 +100,17 @@
                        :r
                        :y])
       (settle-layout! app))
+    (is (= "Grace"
+           (:field/first-name (active-person app))))
+    (let [new-person-button (runtime/find-view-containing
+                             app
+                             "ui/button"
+                             "New Person")]
+      (is (not (nil? new-person-button)))
+      (runtime/mouse-down-in! app new-person-button 2 2)
+      (settle-layout! app)
+      (runtime/mouse-up-at! app 2 2))
+    (settle-layout! app)
     (is (= "mary"
            (:field/first-name (active-person app))))
     (is (= "mary"
@@ -134,6 +145,17 @@
                        :a
                        :y])
       (settle-layout! app))
+    (is (= "Autumn Workshop"
+           (:program/name (active-conference app))))
+    (let [new-conference-button (runtime/find-view-containing
+                                 app
+                                 "ui/button"
+                                 "New Conference")]
+      (is (not (nil? new-conference-button)))
+      (runtime/mouse-down-in! app new-conference-button 2 2)
+      (settle-layout! app)
+      (runtime/mouse-up-at! app 2 2))
+    (settle-layout! app)
     (is (= "Autumn Workshop day"
            (:program/name (active-conference app))))
     (is (= "Autumn Workshop day"
