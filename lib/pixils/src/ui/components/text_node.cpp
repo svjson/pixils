@@ -189,7 +189,7 @@ namespace Pixils::UI::Components
 
           int y =
             static_cast<int>(i) * (layout.size.h / static_cast<int>(layout.lines.size()));
-          Text::render_text(rc, *text_op, layout.lines[i].text, x, y);
+          Text::render_layout_line(rc, *text_op, layout.lines[i], x, y);
         }
         return Roo::Constant::NIL;
       }

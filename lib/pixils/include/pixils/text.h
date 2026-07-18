@@ -119,9 +119,17 @@ namespace Pixils
       std::optional<InlineTextRenderOp> inline_style = std::nullopt;
     };
 
+    struct LayoutSegment
+    {
+      std::string text;
+      bool use_inline_style = false;
+      int width = 0;
+    };
+
     struct LayoutLine
     {
       std::string text;
+      std::vector<LayoutSegment> segments;
       int width = 0;
     };
 
@@ -573,6 +581,15 @@ namespace Pixils
                      const std::string& text,
                      int x,
                      int y);
+
+    /*!
+     * @brief Renders an already laid out text line without re-parsing inline markers.
+     */
+    void render_layout_line(RenderContext& rc,
+                            const TextRenderOp& op,
+                            const LayoutLine& line,
+                            int x,
+                            int y);
 
   } // namespace Text
 } // namespace Pixils

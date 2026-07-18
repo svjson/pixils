@@ -2584,6 +2584,115 @@ TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnem
   EXPECT_EQ(ops[2].texture_color_mod.b, 255);
 }
 
+TEST_F(RenderTest, built_in_text_node_marked_style_state_survives_word_wrap)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {32, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}
+                "C" {:x 8 :y 0 :w 4 :h 7}
+                "D" {:x 12 :y 0 :w 4 :h 7}
+                " " {:x 16 :y 0 :w 1 :h 7}}})
+    (pixils/defcomponent wrap-box
+      {:style {:width 24
+               :max-width 24}
+       :children [{:mode 'ui/text
+                   :state {:value "AA @BB CC@ DD"}
+                   :style {:width :fill
+                           :text {:font :font/test-font
+                                  :color {:r 0 :g 0 :b 0}
+                                  :marked-style {:enabled true
+                                                 :marker "@"
+                                                 :color {:r 255 :g 255 :b 255}}}}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'wrap-box}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 10u);
+
+  EXPECT_EQ(ops[5].rendered_rect.x, 0);
+  EXPECT_EQ(ops[5].rendered_rect.y, 7);
+  EXPECT_EQ(ops[5].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[5].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[5].texture_color_mod.b, 255);
+
+  EXPECT_EQ(ops[6].rendered_rect.x, 5);
+  EXPECT_EQ(ops[6].rendered_rect.y, 7);
+  EXPECT_EQ(ops[6].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[6].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[6].texture_color_mod.b, 255);
+
+  EXPECT_EQ(ops[8].rendered_rect.x, 12);
+  EXPECT_EQ(ops[8].rendered_rect.y, 7);
+  EXPECT_EQ(ops[8].texture_color_mod.r, 0);
+  EXPECT_EQ(ops[8].texture_color_mod.g, 0);
+  EXPECT_EQ(ops[8].texture_color_mod.b, 0);
+
+  EXPECT_EQ(ops[9].rendered_rect.x, 17);
+  EXPECT_EQ(ops[9].rendered_rect.y, 7);
+  EXPECT_EQ(ops[9].texture_color_mod.r, 0);
+  EXPECT_EQ(ops[9].texture_color_mod.g, 0);
+  EXPECT_EQ(ops[9].texture_color_mod.b, 0);
+}
+
+TEST_F(RenderTest, text_bang_marked_style_state_survives_explicit_newline)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {32, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}
+                "C" {:x 8 :y 0 :w 4 :h 7}
+                "D" {:x 12 :y 0 :w 4 :h 7}}})
+    (pixils/defmode test-mode
+      {:render (fn [state ctx]
+                 (pixils.render/text!
+                   "A@B
+C@D"
+                   {:x 10 :y 20}
+                   {:font :font/test-font
+                    :color {:r 0 :g 0 :b 0}
+                    :marked-style {:enabled true
+                                   :marker "@"
+                                   :color {:r 255 :g 255 :b 255}}}))})
+  )");
+
+  session.push_mode("test-mode", Roo::Constant::NIL);
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 4u);
+
+  EXPECT_EQ(ops[1].rendered_rect.x, 15);
+  EXPECT_EQ(ops[1].rendered_rect.y, 20);
+  EXPECT_EQ(ops[1].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[1].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[1].texture_color_mod.b, 255);
+
+  EXPECT_EQ(ops[2].rendered_rect.x, 10);
+  EXPECT_EQ(ops[2].rendered_rect.y, 27);
+  EXPECT_EQ(ops[2].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[2].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[2].texture_color_mod.b, 255);
+
+  EXPECT_EQ(ops[3].rendered_rect.x, 15);
+  EXPECT_EQ(ops[3].rendered_rect.y, 27);
+  EXPECT_EQ(ops[3].texture_color_mod.r, 0);
+  EXPECT_EQ(ops[3].texture_color_mod.g, 0);
+  EXPECT_EQ(ops[3].texture_color_mod.b, 0);
+}
+
 TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrained)
 {
   SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};

@@ -57,46 +57,6 @@ namespace Pixils
         return c == ' ' || c == '\t';
       }
 
-      std::vector<StyledSegment> split_inline_segments(const std::string& text,
-                                                       const TextRenderOp& op)
-      {
-        std::vector<StyledSegment> segments;
-        const bool inline_enabled = op.inline_style && op.inline_style->enabled;
-        const char marker = inline_enabled ? op.inline_style->marker : '\0';
-        bool use_inline_style = false;
-        std::string current;
-
-        auto flush = [&]()
-        {
-          if (current.empty()) return;
-          segments.push_back({current, use_inline_style});
-          current.clear();
-        };
-
-        for (size_t i = 0; i < text.size(); i++)
-        {
-          char c = text.at(i);
-          if (inline_enabled && c == marker)
-          {
-            if (i + 1 < text.size() && text.at(i + 1) == marker)
-            {
-              current.push_back(marker);
-              i++;
-              continue;
-            }
-
-            flush();
-            use_inline_style = !use_inline_style;
-            continue;
-          }
-
-          current.push_back(c);
-        }
-
-        flush();
-        return segments;
-      }
-
       std::vector<StyledSegment> split_marker_segments(const std::string& text,
                                                        char marker = '@')
       {
@@ -334,11 +294,188 @@ namespace Pixils
 
       int rendered_width_for_segment(RenderContext& rc,
                                      const TextRenderOp& op,
-                                     const StyledSegment& segment)
+                                     const LayoutSegment& segment)
       {
         return select_renderer(op, segment.use_inline_style)
           .get_rendered_size(rc, segment.text)
           .w;
+      }
+
+      struct LayoutToken
+      {
+        std::string text;
+        std::vector<LayoutSegment> segments;
+        int width = 0;
+        bool whitespace = false;
+      };
+
+      struct LineBuilder
+      {
+        std::string text;
+        std::vector<LayoutSegment> segments;
+        int width = 0;
+      };
+
+      bool inline_style_enabled(const TextRenderOp& op)
+      {
+        return op.inline_style && op.inline_style->enabled;
+      }
+
+      char inline_style_marker(const TextRenderOp& op)
+      {
+        return inline_style_enabled(op) ? op.inline_style->marker : '\0';
+      }
+
+      void append_segment_text(std::vector<LayoutSegment>& segments,
+                               char c,
+                               bool use_inline_style)
+      {
+        if (!segments.empty() &&
+            segments.back().use_inline_style == use_inline_style)
+        {
+          segments.back().text.push_back(c);
+          return;
+        }
+
+        segments.push_back({std::string(1, c), use_inline_style, 0});
+      }
+
+      void measure_segments(RenderContext& rc,
+                            const TextRenderOp& op,
+                            std::vector<LayoutSegment>& segments)
+      {
+        for (auto& segment : segments)
+        {
+          segment.width = rendered_width_for_segment(rc, op, segment);
+        }
+      }
+
+      int total_segment_width(const std::vector<LayoutSegment>& segments)
+      {
+        int width = 0;
+        for (const auto& segment : segments)
+        {
+          width += segment.width;
+        }
+        return width;
+      }
+
+      void append_token_to_line(LineBuilder& line, const LayoutToken& token)
+      {
+        line.text += token.text;
+        for (const auto& segment : token.segments)
+        {
+          if (segment.text.empty()) continue;
+          if (!line.segments.empty() &&
+              line.segments.back().use_inline_style == segment.use_inline_style)
+          {
+            line.segments.back().text += segment.text;
+            line.segments.back().width += segment.width;
+            continue;
+          }
+          line.segments.push_back(segment);
+        }
+        line.width += token.width;
+      }
+
+      void append_builder_to_line(LineBuilder& line, const LineBuilder& other)
+      {
+        line.text += other.text;
+        for (const auto& segment : other.segments)
+        {
+          if (segment.text.empty()) continue;
+          if (!line.segments.empty() &&
+              line.segments.back().use_inline_style == segment.use_inline_style)
+          {
+            line.segments.back().text += segment.text;
+            line.segments.back().width += segment.width;
+            continue;
+          }
+          line.segments.push_back(segment);
+        }
+        line.width += other.width;
+      }
+
+      void append_line_to_layout(Layout& layout, const LineBuilder& line)
+      {
+        layout.lines.push_back({line.text, line.segments, line.width});
+        layout.size.w = std::max(layout.size.w, line.width);
+      }
+
+      void append_empty_line_to_layout(Layout& layout)
+      {
+        layout.lines.push_back({"", {}, 0});
+      }
+
+      std::vector<LayoutToken> tokenize_paragraph(RenderContext& rc,
+                                                  const TextRenderOp& op,
+                                                  const std::string& text,
+                                                  bool& use_inline_style)
+      {
+        std::vector<LayoutToken> tokens;
+        const bool inline_enabled = inline_style_enabled(op);
+        const char marker = inline_style_marker(op);
+        LayoutToken current;
+        bool has_current = false;
+
+        auto flush = [&]()
+        {
+          if (!has_current) return;
+          measure_segments(rc, op, current.segments);
+          current.width = total_segment_width(current.segments);
+          tokens.push_back(current);
+          current = LayoutToken{};
+          has_current = false;
+        };
+
+        auto ensure_token = [&](bool whitespace)
+        {
+          if (has_current && current.whitespace == whitespace) return;
+          flush();
+          current.whitespace = whitespace;
+          has_current = true;
+        };
+
+        for (size_t i = 0; i < text.size(); i++)
+        {
+          char c = text.at(i);
+          const bool marker_char = inline_enabled && c == marker;
+          const bool whitespace = !marker_char && is_wrap_whitespace(c);
+          ensure_token(whitespace);
+          current.text.push_back(c);
+
+          if (marker_char)
+          {
+            if (i + 1 < text.size() && text.at(i + 1) == marker)
+            {
+              current.text.push_back(marker);
+              append_segment_text(current.segments, marker, use_inline_style);
+              i++;
+              continue;
+            }
+
+            use_inline_style = !use_inline_style;
+            continue;
+          }
+
+          append_segment_text(current.segments, c, use_inline_style);
+        }
+
+        flush();
+        return tokens;
+      }
+
+      LayoutLine line_from_paragraph(RenderContext& rc,
+                                     const TextRenderOp& op,
+                                     const std::string& paragraph,
+                                     bool& use_inline_style)
+      {
+        LineBuilder line;
+        for (const auto& token : tokenize_paragraph(rc, op, paragraph, use_inline_style))
+        {
+          append_token_to_line(line, token);
+        }
+        return {line.text, line.segments, line.width};
       }
 
       std::vector<std::string> split_paragraphs(const std::string& text)
@@ -637,13 +774,9 @@ namespace Pixils
                                           const std::string& string)
     {
       PIXILS_BENCHMARK_COUNT(text_line_measure_calls);
-      SDL_Rect rect{0, 0, 0, op_line_height(op)};
-      auto segments = split_inline_segments(string, op);
-      for (const auto& segment : segments)
-      {
-        rect.w += rendered_width_for_segment(rc, op, segment);
-      }
-      return rect;
+      bool use_inline_style = false;
+      auto line = line_from_paragraph(rc, op, string, use_inline_style);
+      return SDL_Rect{0, 0, line.width, op_line_height(op)};
     }
 
     SDL_Rect calculate_rendered_size(RenderContext& rc,
@@ -652,22 +785,8 @@ namespace Pixils
     {
       PIXILS_BENCHMARK_COUNT(text_measure_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(text_measure_time_ns);
-      SDL_Rect rect{0, 0, 0, 0};
-      const int line_height = op_line_height(op);
-
-      for (const auto& line : split_paragraphs(string))
-      {
-        SDL_Rect line_rect = calculate_line_rendered_size(rc, op, line);
-        rect.w = std::max(rect.w, line_rect.w);
-        rect.h += line_height;
-      }
-
-      if (rect.h == 0)
-      {
-        rect.h = line_height;
-      }
-
-      return rect;
+      auto layout = layout_text(rc, op, string, WrapMode::NONE, std::nullopt);
+      return SDL_Rect{0, 0, layout.size.w, layout.size.h};
     }
 
     Layout layout_text(RenderContext& rc,
@@ -682,111 +801,101 @@ namespace Pixils
       const int line_height = op_line_height(op);
       const bool should_wrap = wrap_mode == WrapMode::WORD && max_width && *max_width > 0;
 
-      auto measure_width = [&](const std::string& line)
-      {
-        return calculate_line_rendered_size(rc, op, line).w;
-      };
-      auto append_line = [&](const std::string& line)
-      {
-        const int width = measure_width(line);
-        layout.lines.push_back({line, width});
-        layout.size.w = std::max(layout.size.w, width);
-      };
+      bool use_inline_style = false;
 
       for (const auto& paragraph : split_paragraphs(text))
       {
         if (!should_wrap)
         {
-          append_line(paragraph);
+          auto line = line_from_paragraph(rc, op, paragraph, use_inline_style);
+          layout.size.w = std::max(layout.size.w, line.width);
+          layout.lines.push_back(line);
           continue;
         }
 
-        std::string current;
-        std::string pending_whitespace;
+        auto tokens = tokenize_paragraph(rc, op, paragraph, use_inline_style);
+        LineBuilder current;
+        LineBuilder pending_whitespace;
         bool emitted_line = false;
         bool at_paragraph_start = true;
 
-        for (size_t i = 0; i < paragraph.size();)
+        for (const auto& token : tokens)
         {
-          while (i < paragraph.size() && is_wrap_whitespace(paragraph[i]))
+          if (token.whitespace)
           {
-            pending_whitespace.push_back(paragraph[i]);
-            i++;
-          }
-
-          const size_t word_start = i;
-          while (i < paragraph.size() && !is_wrap_whitespace(paragraph[i]))
-          {
-            i++;
-          }
-
-          const std::string word = paragraph.substr(word_start, i - word_start);
-          if (word.empty())
-          {
+            append_token_to_line(pending_whitespace, token);
             continue;
           }
 
-          if (current.empty())
+          if (current.text.empty())
           {
-            current = at_paragraph_start ? pending_whitespace + word : word;
-            pending_whitespace.clear();
+            if (at_paragraph_start)
+            {
+              append_builder_to_line(current, pending_whitespace);
+            }
+            append_token_to_line(current, token);
+            pending_whitespace = LineBuilder{};
             at_paragraph_start = false;
             continue;
           }
 
-          const std::string candidate = current + pending_whitespace + word;
-          if (measure_width(candidate) <= *max_width)
+          if (current.width + pending_whitespace.width + token.width <= *max_width)
           {
-            current = candidate;
-            pending_whitespace.clear();
+            append_builder_to_line(current, pending_whitespace);
+            append_token_to_line(current, token);
+            pending_whitespace = LineBuilder{};
             continue;
           }
 
-          append_line(current);
+          append_line_to_layout(layout, current);
           emitted_line = true;
-          current = word;
-          pending_whitespace.clear();
+          current = LineBuilder{};
+          append_token_to_line(current, token);
+          pending_whitespace = LineBuilder{};
           at_paragraph_start = false;
         }
 
-        if (!current.empty() && !pending_whitespace.empty())
+        if (!current.text.empty() && !pending_whitespace.text.empty())
         {
-          current += pending_whitespace;
+          append_builder_to_line(current, pending_whitespace);
         }
 
-        if (!current.empty())
+        if (!current.text.empty())
         {
-          append_line(current);
+          append_line_to_layout(layout, current);
+        }
+        else if (!pending_whitespace.text.empty())
+        {
+          append_line_to_layout(layout, pending_whitespace);
         }
         else if (!emitted_line)
         {
-          append_line(paragraph);
+          append_empty_line_to_layout(layout);
         }
       }
 
       if (layout.lines.empty())
       {
-        append_line("");
+        append_empty_line_to_layout(layout);
       }
 
       layout.size.h = line_height * static_cast<int>(layout.lines.size());
       return layout;
     }
 
-    void render_text_line(RenderContext& rc,
-                          const TextRenderOp& op,
-                          const std::string& text,
-                          int x,
-                          int y)
+    void render_layout_line(RenderContext& rc,
+                            const TextRenderOp& op,
+                            const LayoutLine& line,
+                            int x,
+                            int y)
     {
       PIXILS_BENCHMARK_COUNT(text_render_lines);
       auto mutable_op = op;
       int cursor_x = x;
-      auto segments = split_inline_segments(text, mutable_op);
       PIXILS_BENCHMARK_ADD(text_render_segments,
-                           static_cast<std::int64_t>(segments.size()));
+                           static_cast<std::int64_t>(line.segments.size()));
 
-      for (const auto& segment : segments)
+      for (const auto& segment : line.segments)
       {
         auto& tint_renderer = select_tint_renderer(mutable_op, segment.use_inline_style);
         auto& renderer = select_renderer(mutable_op, segment.use_inline_style);
@@ -807,20 +916,19 @@ namespace Pixils
                             segment.use_inline_style,
                             cursor_x + shadow.offset.x,
                             y + shadow.offset.y,
-                            tint_renderer.get_rendered_size(rc, segment.text).w,
+                            segment.width,
                             shadow_color);
         }
 
         renderer.render_text(rc, segment.text, cursor_x, y, color);
-        int width = renderer.get_rendered_size(rc, segment.text).w;
         render_underlines(rc,
                           mutable_op,
                           segment.use_inline_style,
                           cursor_x,
                           y,
-                          width,
+                          segment.width,
                           color);
-        cursor_x += width;
+        cursor_x += segment.width;
       }
     }
 
@@ -836,11 +944,11 @@ namespace Pixils
       auto layout = layout_text(rc, op, text, WrapMode::NONE, std::nullopt);
       for (size_t i = 0; i < layout.lines.size(); i++)
       {
-        render_text_line(rc,
-                         op,
-                         layout.lines[i].text,
-                         x,
-                         y + static_cast<int>(i) * line_height);
+        render_layout_line(rc,
+                           op,
+                           layout.lines[i],
+                           x,
+                           y + static_cast<int>(i) * line_height);
       }
     }
 
