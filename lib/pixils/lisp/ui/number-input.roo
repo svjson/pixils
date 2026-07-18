@@ -85,7 +85,11 @@
   (if (nil? value) "" (str value)))
 
 (defun normalize-number-input-state [state]
-  (let [value (:value state)]
+  (let [value (:value state)
+        emit-text-change? (= (:commit-on state) :blur)
+        state (if (= emit-text-change? (:emit-text-change? state))
+                state
+                (assoc state :emit-text-change? emit-text-change?))]
     (if (or (nil? (:text-value state))
             (not= value (:committed-value state)))
       (let [text (number-input-text value)]
@@ -193,7 +197,7 @@
                        :disabled? (ui/bind-state :disabled?)
                        :auto-focus? (ui/bind-state :auto-focus?)
                        :accept-value? number-input-accepts-text?
-                       :emit-change? false
+                       :emit-change? (ui/bind-state :emit-text-change?)
                        :allow-negative? (ui/bind-state :allow-negative?)
                        :allow-fractions? (ui/bind-state :allow-fractions?)
                        :min (ui/bind-state :min)
@@ -204,14 +208,15 @@
    :on {:text-input/change (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)
-                               (if (= (:commit-on state) :blur)
-                                 (edit-number-input-text
-                                  state
-                                  (-> event :payload :value))
-                                 (commit-number-input-text
-                                  state
-                                  (-> event :payload :value)
-                                  ctx))))
+                               (let [text (-> event :payload :value)]
+                                 (if (= (:commit-on state) :blur)
+                                   (do
+                                     (ui/emit! (:view ctx)
+                                               :number-input/text-change
+                                               {:value text
+                                                :text text})
+                                     (edit-number-input-text state text))
+                                   (commit-number-input-text state text ctx)))))
         :text-input/blur (fn [state event ctx]
                            (do
                              (ui/stop-propagation! event)

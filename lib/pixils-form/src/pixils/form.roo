@@ -827,7 +827,7 @@
                               ctx
                               (-> event :payload :value)
                               true))
-        :number-input/draft-change
+        :number-input/text-change
         (fn [state event ctx]
           (emit-field-change! state
                               event

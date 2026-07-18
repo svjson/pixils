@@ -8,6 +8,16 @@
              :state
              :commit-on))))
 
+(deftest number-input-blur-mode-emits-text-changes
+  (is (= true
+         (-> {:commit-on :blur}
+             number-input/normalize-number-input-state
+             :emit-text-change?)))
+  (is (= false
+         (-> {}
+             number-input/normalize-number-input-state
+             :emit-text-change?))))
+
 (deftest number-input-blur-mode-accepts-editable-number-characters
   (let [state {:commit-on :blur
                :allow-negative? true

@@ -77,6 +77,48 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
   EXPECT_EQ(last_change->to_string(), "{:value 12 :text \"12\"}");
 }
 
+TEST_F(NumberInputTest, blur_mode_number_input_emits_text_change)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:amount nil
+                              :last-text nil
+                              :last-change nil})
+       :children [{:mode 'ui/number-input
+                   :style {:width 80 :height 22}
+                   :state {:value (pixils.ui/bind-state :amount)
+                           :commit-on :blur
+                           :auto-focus? true}}]
+       :on {:number-input/text-change
+            (fn [state event ctx]
+              (assoc state :last-text (:payload event)))
+            :number-input/change
+            (fn [state event ctx]
+              (assoc state :last-change (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  input().key_down(SDLK_1);
+  update_cycle();
+
+  auto amount =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto last_text =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-text"));
+  auto last_change =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
+
+  ASSERT_NE(amount, nullptr);
+  ASSERT_NE(last_text, nullptr);
+  ASSERT_NE(last_change, nullptr);
+  EXPECT_EQ(amount->to_string(), "nil");
+  EXPECT_EQ(last_text->to_string(), "{:value \"1\" :text \"1\"}");
+  EXPECT_EQ(last_change->to_string(), "nil");
+}
+
 TEST_F(NumberInputTest, number_input_accepts_decimal_text_when_fractions_are_allowed)
 {
   runtime.eval(R"(
