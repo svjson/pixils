@@ -43,6 +43,16 @@
                 (fn [view]
                   (= label (:selected-label (runtime/view-state view)))))))
 
+(defun number-input-with-text [app value]
+  (head (filter (runtime/find-views app "ui/number-input")
+                (fn [view]
+                  (= value (:text-value (runtime/view-state view)))))))
+
+(defun number-input-texts [app]
+  (map (runtime/find-views app "ui/number-input")
+       (fn [view]
+         (:text-value (runtime/view-state view)))))
+
 (defun active-person [app]
   (:selected-person (runtime/active-state app)))
 
@@ -65,6 +75,139 @@
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
     (settle-layout! app)))
+
+(def nested-transient-form-source
+  "(pixils/defmode nested-transient-root-mode
+     {:init
+      (fn [state ctx]
+        {:generators
+         [{:id \"generator\"
+           :shape
+           {:type :merged-polygons
+            :parts
+            [{:id \"base\"
+              :shape
+              {:type :radial-polygon
+               :radius
+               {:x {:type :random
+                    :range {:min nil :max nil}}
+                :y {:type :random
+                    :range {:min nil :max nil}}}}}]}}]})
+      :children
+      [(pixils.form/make
+        {:schema
+         {:definitions
+          {:number-range
+           {:type :object
+            :fields {:min {:type :number}
+                     :max {:type :number}}}
+           :random-number-base
+           {:type :object
+            :fields {:type {:type :keyword
+                            :valid-values [:fixed :random]}}}
+           :fixed-number
+           {:extends :random-number-base
+            :fields {:value {:type :number}}}
+           :random-number
+           {:extends :random-number-base
+            :fields {:range {:ref :number-range}}}
+           :randomizable-number
+           {:type :union
+            :discriminator :type
+            :base {:ref :random-number-base}
+            :variants {:fixed {:ref :fixed-number}
+                       :random {:ref :random-number}}}
+           :radius
+           {:type :object
+            :fields {:x {:ref :randomizable-number}
+                     :y {:ref :randomizable-number}}}
+           :part-shape-base
+           {:type :object
+            :fields {:type {:type :keyword
+                            :valid-values [:radial-polygon]}}}
+           :part-radial-shape
+           {:extends :part-shape-base
+            :fields {:radius {:ref :radius}}}
+           :part-shape
+           {:type :union
+            :discriminator :type
+            :base {:ref :part-shape-base}
+            :variants {:radial-polygon {:ref :part-radial-shape}}}
+           :part
+           {:type :object
+            :fields {:id {:type :text}
+                     :shape {:ref :part-shape}}}
+           :generator-shape-base
+           {:type :object
+            :fields {:type {:type :keyword
+                            :valid-values [:merged-polygons]}}}
+           :merged-shape
+           {:extends :generator-shape-base
+            :fields {:parts {:type :array
+                             :item-label {:path [:id]}
+                             :items {:ref :part}}}}
+           :generator-shape
+           {:type :union
+            :discriminator :type
+            :base {:ref :generator-shape-base}
+            :variants {:merged-polygons {:ref :merged-shape}}}
+           :generator
+           {:type :object
+            :fields {:id {:type :text}
+                     :shape {:ref :generator-shape}}}}
+          :schema
+          {:type :array
+           :item-label {:path [:id]}
+           :items {:ref :generator}}}
+         :value (pixils.ui/bind-state :generators)
+         :mode :live
+         :field-label-style {:width 112 :height 18}
+         :control-style {:width :fill :height 22}})]
+      :on {:form/change
+           (fn [state event ctx]
+             (do
+               (pixils.ui/stop-propagation! event)
+               (assoc state :generators (-> event :payload :form-value))))}})")
+
+(defun make-nested-transient-form-app []
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/eval! app nested-transient-form-source)
+    (runtime/push-mode! app 'nested-transient-root-mode)
+    (settle-layout! app)))
+
+(defun click-button! [app label]
+  (let [button (runtime/find-view-containing app "ui/button" label)]
+    (is (not (nil? button)))
+    (runtime/click! app button)
+    (settle-layout! app)))
+
+(defun type-number-input! [app current-value keys]
+  (let [input (number-input-with-text app current-value)]
+    (is (not (nil? input)))
+    (runtime/click! app input)
+    (type-keys! app keys)
+    (settle-layout! app)))
+
+(deftest nested-array-dialog-preserves-blur-number-drafts
+  (let [app (make-nested-transient-form-app)]
+    (click-button! app "Edit")
+    (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
+    (click-button! app "Edit")
+    (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
+    (is (= ["" "" "" ""] (number-input-texts app)))
+    (type-number-input! app "" ["1" "8" "0" "0"])
+    (is (= ["1800" "" "" ""] (number-input-texts app)))
+    (type-number-input! app "" ["2" "2" "0" "0"])
+    (is (= ["1800" "2200" "" ""] (number-input-texts app)))
+    (click-button! app "OK")
+    (click-button! app "Edit")
+    (is (= ["1800" "2200" "" ""] (number-input-texts app)))
+    (click-button! app "OK")
+    (click-button! app "OK")
+    (is (= "nested-transient-root-mode" (runtime/active-mode-name app)))))
 
 (deftest person-register-selects-and-edits-person-through-form
   (let [app (make-form-playground-app)]
