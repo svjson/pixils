@@ -15,26 +15,38 @@
   {:children [{:mode 'ui/text
                :state {:value (ui/bind-state :title)}}]})
 
-(defun group-box-title-child [panel-state title-style]
-  (when (:title panel-state)
-    {:mode 'ui/group-box-title
-     :style (or title-style {})
-     :state panel-state}))
+(defun class-map [class]
+  (if class {:class class} {}))
 
-(defun group-box-children [panel-state frame-style title-style body-style body-state children]
-  (let [title-child (group-box-title-child panel-state title-style)]
-    (concat [{:mode 'ui/group-box-frame
-              :style (or frame-style {})
-              :state panel-state
-              :children [{:mode 'ui/group-box-body
-                          :style (or body-style {})
-                          :state (if (nil? body-state)
-                                   panel-state
-                                   body-state)
-                          :children (or children [])}]}]
+(defun group-box-title-child [panel-state title-style title-class]
+  (when (:title panel-state)
+    (merge {:mode 'ui/group-box-title
+            :style (or title-style {})
+            :state panel-state}
+           (class-map title-class))))
+
+(defun group-box-children [panel-state frame-style frame-class title-style title-class
+                           body-style body-class body-state children]
+  (let [title-child (group-box-title-child panel-state
+                                           title-style
+                                           title-class)]
+    (concat [(merge {:mode 'ui/group-box-frame
+                     :style (or frame-style {})
+                     :state panel-state
+                     :children [(merge
+                                 {:mode 'ui/group-box-body
+                                  :style (or body-style {})
+                                  :state (if (nil? body-state)
+                                           panel-state
+                                           body-state)
+                                  :children (or children [])}
+                                 (class-map body-class))]}
+                    (class-map frame-class))]
             (if title-child [title-child] []))))
 
-(defun make [{:keys [title init update on state style class frame-style title-style body-style body-state children]}]
+(defun make [{:keys [title init update on state style class
+                     frame-style frame-class title-style title-class
+                     body-style body-class body-state children]}]
   (let [panel-state (merge (or state {})
                            {:title title})]
     (merge {:mode 'ui/group-box
@@ -42,8 +54,11 @@
             :state panel-state
             :children (group-box-children panel-state
                                           frame-style
+                                          frame-class
                                           title-style
+                                          title-class
                                           body-style
+                                          body-class
                                           body-state
                                           children)}
            (if class {:class class} {})

@@ -1,5 +1,6 @@
 (ns pixils.ui.group-box-test
   (:require proof.core
+            [pixils.ui.group-box :as group-box]
             [pixils.test.runtime :as runtime]))
 
 (defun settle-layout! [app]
@@ -107,6 +108,20 @@
         group (runtime/eval! app (group-box-body-state-map-probe-source))
         body (-> group :children (nth 0) :children (nth 0))]
     (is (not (nil? (:label (:state body)))))))
+
+(deftest make-forwards-frame-title-and-body-classes
+  (let [group (group-box/make
+               {:title "Options"
+                :frame-class :app/group-frame
+                :title-class :app/group-title
+                :body-class :app/group-body
+                :children [{:mode 'content-mode}]})
+        frame (-> group :children head)
+        title (-> group :children (nth 1))
+        body (-> frame :children head)]
+    (is (= :app/group-frame (:class frame)))
+    (is (= :app/group-title (:class title)))
+    (is (= :app/group-body (:class body)))))
 
 (deftest group-box-layout-places-title-over-inset-frame
   (let [app (make-app)]
