@@ -1,5 +1,6 @@
 (ns pixils.form
   (:require pixils
+            [pixils.form.layout :as form-layout]
             [pixils.schema :as model-schema]
             [pixils.ui :as ui]
             pixils.ui.button
@@ -165,120 +166,6 @@
    :selection-options (ui/project-state :selection-options)
    :selected-indices (ui/project-state :selected-indices)
    :form/action-disabled (ui/project-state :form/action-disabled)})
-
-(defun class-map [class]
-  (if class {:class class} {}))
-
-(defun defaultable-style [style class default-style]
-  (or style
-      (when (nil? class) default-style)))
-
-(defun style-map [style]
-  (if style {:style style} {}))
-
-(defun keyword-label [value]
-  (let [text (str value)]
-    (if (= ":" (substr text 0 1))
-      (substr text 1)
-      text)))
-
-(defun text-index-of [text needle index]
-  (cond
-    (>= index (count text)) nil
-    (= (substr text index 1) needle) index
-    :default (text-index-of text needle (inc index))))
-
-(defun layout-class-index [label]
-  (or (text-index-of label "#" 0)
-      (text-index-of label "." 0)))
-
-(defun canonical-layout-type [type]
-  (if (= type :button) :action type))
-
-(defun layout-token [token]
-  (let [label (keyword-label token)
-        class-index (layout-class-index label)]
-    (if class-index
-      {:type (canonical-layout-type
-              (keyword (substr label 0 class-index)))
-       :class (keyword (substr label (inc class-index)))}
-      {:type (canonical-layout-type token)})))
-
-(defun apply-layout-token [node token]
-  (let [parsed (layout-token token)]
-    (if (:class parsed)
-      (assoc node
-             :type (:type parsed)
-             :class (:class parsed))
-      (assoc node :type (:type parsed)))))
-
-(defun layout-vector-type [item]
-  (when (and (= (type-of item) "vector")
-             (> (count item) 0)
-             (keyword? (nth item 0)))
-    (:type (layout-token (nth item 0)))))
-
-(defun dsl-layout-vector? [item]
-  (let [type (layout-vector-type item)]
-    (or (= type :row)
-        (= type :group)
-        (= type :form)
-        (= type :selection)
-        (= type :action))))
-
-(defun vector-tail [items start]
-  (if (>= start (count items))
-    []
-    (concat [(nth items start)]
-            (vector-tail items (inc start)))))
-
-(defun vector-option [items index]
-  (when (and (< index (count items))
-             (= (type-of (nth items index)) "map"))
-    (nth items index)))
-
-(defun normalize-layout-item [item]
-  (cond
-    (= (type-of item) "vector")
-    (if (dsl-layout-vector? item)
-      (normalize-dsl-layout item)
-      item)
-
-    :default item))
-
-(defun normalize-layout-children [items]
-  (map (or items []) normalize-layout-item))
-
-(defun normalize-dsl-layout [item]
-  (let [token (nth item 0)
-        type (layout-vector-type item)]
-    (case type
-      :row
-      (apply-layout-token {:children (normalize-layout-children
-                                      (vector-tail item 1))}
-                          token)
-
-      :group
-      (apply-layout-token {:children (normalize-layout-children
-                                      (vector-tail item 1))}
-                          token)
-
-      :form
-      (apply-layout-token {:model (nth item 1)
-                           :layout (nth item 2)}
-                          token)
-
-      :selection
-      (merge (apply-layout-token {:projection (nth item 1)}
-                                 token)
-             (or (vector-option item 2) {}))
-
-      :action
-      (merge (apply-layout-token {:id (nth item 1)}
-                                 token)
-             (or (vector-option item 2) {}))
-
-      :default item)))
 
 (defun child-models [entry]
   (or (:models entry)
@@ -874,7 +761,7 @@
                    (or (:control-style opts) {}))
      :state {:value (cond
                       (nil? value) ""
-                      (keyword? value) (keyword-label value)
+                      (keyword? value) (form-layout/keyword-label value)
                       :default value)
              :auto-focus? (:auto-focus? field-schema)
              :emit-blur? true
@@ -963,7 +850,7 @@
 
 (defun object-control-render-opts [state value]
   (with-valid-value-options-cache
-   (assoc (:render-opts state)
+   (assoc (form-layout/section-child-opts (:render-opts state))
           :schema (:schema state)
           :value value
           :context (:context state)
@@ -1203,7 +1090,7 @@
 
 (defun array-item-form-view [item-schema opts]
   (let [item-opts (with-valid-value-options-cache
-                    (assoc opts
+                    (assoc (form-layout/section-child-opts opts)
                            :schema item-schema
                            :value (:value opts)))
         children (layout-item-views (default-layout item-schema item-opts)
@@ -1718,10 +1605,11 @@
                                     opts)]
     (merge {:state form-layout-state-binding
             :children children}
-           (style-map (defaultable-style (:style item)
-                                         (:class item)
-                                         default-fields-style))
-           (class-map (:class item)))))
+           (form-layout/style-map
+            (form-layout/defaultable-style (:style item)
+                                           (:class item)
+                                           default-fields-style))
+           (form-layout/class-map (:class item)))))
 
 (defun selection-layout-view [item opts]
   (let [projection (projection-entry (:models opts)
@@ -1739,24 +1627,35 @@
 (defun row-layout-view [item opts]
   (merge {:state form-layout-state-binding
           :children (layout-item-views (:children item) opts)}
-         (style-map (or (:style item)
-                        (when (nil? (:class item))
-                          (or (:row-style opts)
-                              default-row-style))))
-         (class-map (:class item))))
+         (form-layout/style-map
+          (or (:style item)
+              (when (nil? (:class item))
+                (or (:row-style opts)
+                    default-row-style))))
+         (form-layout/class-map (:class item))))
+
+(defun section-layout-view [item opts]
+  (form-layout/section-view
+   item
+   opts
+   (layout-item-views (or (:layout item)
+                          (:children item))
+                      (form-layout/section-child-opts opts))
+   form-layout-state-binding))
 
 (defun map-layout-item-view [item opts]
   (cond
     (= (:type item) :form) (form-layout-view item opts)
     (= (:type item) :selection) (selection-layout-view item opts)
     (= (:type item) :action) (action-view item)
+    (= (:type item) :section) (section-layout-view item opts)
     (= (:type item) :group) (row-layout-view item opts)
     (= (:type item) :row) (row-layout-view item opts)
     :default {:mode 'ui/text
               :state {:value (str "Unknown form layout item " item)}}))
 
 (defun layout-item-view [item opts]
-  (let [item (normalize-layout-item item)]
+  (let [item (form-layout/normalize-layout-item item)]
     (cond
       (= item separator-token) (separator-view opts)
       (= (type-of item) "vector") (row-view item opts)
@@ -1978,10 +1877,11 @@
                          :reorderable? (ui/bind-state :reorderable?)
                          :style (or (:list-style selection)
                                     default-selection-list-style)})]}
-           (style-map (defaultable-style (:style selection)
-                                         (:class selection)
-                                         default-selection-style))
-           (class-map (:class selection)))))
+           (form-layout/style-map
+            (form-layout/defaultable-style (:style selection)
+                                           (:class selection)
+                                           default-selection-style))
+           (form-layout/class-map (:class selection)))))
 
 (defun action-view [action]
   (let [event-id (action-event-id action)]
@@ -1993,10 +1893,11 @@
                     :disabled-when (:disabled-when action)
                     :disabled? (ui/project-state :form/action-disabled
                                                  event-id)}}
-           (style-map (defaultable-style (:style action)
-                                         (:class action)
-                                         default-action-style))
-           (class-map (:class action)))))
+           (form-layout/style-map
+            (form-layout/defaultable-style (:style action)
+                                           (:class action)
+                                           default-action-style))
+           (form-layout/class-map (:class action)))))
 
 (defun fields-view [children]
   {:style default-fields-style
@@ -2062,77 +1963,15 @@
                            (:value next-state)
                            (:context next-state))))
 
-(defun layout-item-projection [item]
-  (let [item (normalize-layout-item item)]
-    (cond
-      (nil? item) nil
-      (= (type-of item) "map")
-      (or (:projection item)
-          (layout-projection (:children item))
-          (layout-projection (:layout item)))
-      (= (type-of item) "vector") (layout-projection item)
-      :default nil)))
-
-(defun layout-projection [layout]
-  (reduce (or layout [])
-          nil
-          (fn [projection item]
-            (or projection
-                (layout-item-projection item)))))
-
-(defun layout-item-selection [item]
-  (let [item (normalize-layout-item item)]
-    (cond
-      (nil? item) nil
-      (= (type-of item) "map")
-      (cond
-        (= (:type item) :selection) item
-        (or (= (:type item) :group)
-            (= (:type item) :row)) (layout-selection (:children item))
-        (= (:type item) :form) (layout-selection (:layout item))
-        :default nil)
-      (= (type-of item) "vector") (layout-selection item)
-      :default nil)))
-
-(defun layout-selection [layout]
-  (reduce (or layout [])
-          nil
-          (fn [selection item]
-            (or selection
-                (layout-item-selection item)))))
-
-(defun layout-item-actions [item]
-  (let [item (normalize-layout-item item)]
-    (cond
-      (nil? item) []
-
-      (= (type-of item) "map")
-      (cond
-        (= (:type item) :action) [item]
-        (or (= (:type item) :group)
-            (= (:type item) :row)) (layout-actions (:children item))
-        (= (:type item) :form) (layout-actions (:layout item))
-        :default [])
-
-      (= (type-of item) "vector")
-      (layout-actions item)
-
-      :default [])))
-
-(defun layout-actions [layout]
-  (reduce (or layout [])
-          []
-          (fn [actions item]
-            (concat actions (layout-item-actions item)))))
-
 (defun make [{:keys [schema text layout controls value style class
                      field-style field-label-style row-style separator-style
                      control-style valid? errors selection models projection]
               :as opts}]
   (let [projection (projection-entry models
                                      (or projection
-                                         (layout-projection layout)))
-        layout-selection (layout-selection layout)
+                                         (form-layout/layout-projection
+                                          layout)))
+        layout-selection (form-layout/layout-selection layout)
         direct-state-selection
         (let [result {}
               result (if (contains? opts :items)
@@ -2178,11 +2017,12 @@
         state (assoc (assoc state :schema schema)
                      :form/selection state-selection
                      :form/render-selection render-selection
-                     :form/actions (layout-actions layout)
+                     :form/actions (form-layout/layout-actions layout)
                      :form/layout layout
                      :form/render-opts opts)]
     (merge {:mode 'pixils/form
             :state state
             :children [(form-body-view layout schema opts render-selection)]}
-           (style-map (defaultable-style style class default-style))
-           (class-map class))))
+           (form-layout/style-map
+            (form-layout/defaultable-style style class default-style))
+           (form-layout/class-map class))))

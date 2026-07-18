@@ -1,0 +1,289 @@
+(ns pixils.form.layout
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.group-box :as group-box]))
+
+(def default-section-style
+  {:width :fill
+   :height :shrink})
+
+(def default-section-body-style
+  {:width :fill
+   :height :shrink
+   :padding 8
+   :layout {:direction :column
+            :gap 8}})
+
+(def default-nested-section-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def default-nested-section-body-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 6}})
+
+(def default-nested-section-title-style
+  {:width :fill
+   :height 18})
+
+(defun class-map [class]
+  (if class {:class class} {}))
+
+(defun defaultable-style [style class default-style]
+  (or style
+      (when (nil? class) default-style)))
+
+(defun style-map [style]
+  (if style {:style style} {}))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun text-index-of [text needle index]
+  (cond
+    (>= index (count text)) nil
+    (= (substr text index 1) needle) index
+    :default (text-index-of text needle (inc index))))
+
+(defun layout-class-index [label]
+  (or (text-index-of label "#" 0)
+      (text-index-of label "." 0)))
+
+(defun canonical-layout-type [type]
+  (if (= type :button) :action type))
+
+(defun layout-token [token]
+  (let [label (keyword-label token)
+        class-index (layout-class-index label)]
+    (if class-index
+      {:type (canonical-layout-type
+              (keyword (substr label 0 class-index)))
+       :class (keyword (substr label (inc class-index)))}
+      {:type (canonical-layout-type token)})))
+
+(defun apply-layout-token [node token]
+  (let [parsed (layout-token token)]
+    (if (:class parsed)
+      (assoc node
+             :type (:type parsed)
+             :class (:class parsed))
+      (assoc node :type (:type parsed)))))
+
+(defun layout-vector-type [item]
+  (when (and (= (type-of item) "vector")
+             (> (count item) 0)
+             (keyword? (nth item 0)))
+    (:type (layout-token (nth item 0)))))
+
+(defun dsl-layout-vector? [item]
+  (let [type (layout-vector-type item)]
+    (or (= type :row)
+        (= type :group)
+        (= type :section)
+        (= type :form)
+        (= type :selection)
+        (= type :action))))
+
+(defun vector-tail [items start]
+  (if (>= start (count items))
+    []
+    (concat [(nth items start)]
+            (vector-tail items (inc start)))))
+
+(defun vector-option [items index]
+  (when (and (< index (count items))
+             (= (type-of (nth items index)) "map"))
+    (nth items index)))
+
+(defun normalize-layout-item [item]
+  (cond
+    (= (type-of item) "vector")
+    (if (dsl-layout-vector? item)
+      (normalize-dsl-layout item)
+      item)
+
+    :default item))
+
+(defun normalize-layout-children [items]
+  (map (or items []) normalize-layout-item))
+
+(defun normalize-section-layout [item]
+  (let [options (vector-option item 2)
+        child-start (if options 3 2)]
+    (merge (apply-layout-token
+            {:title (nth item 1)
+             :layout (normalize-layout-children
+                      (vector-tail item child-start))}
+            (nth item 0))
+           (or options {}))))
+
+(defun normalize-dsl-layout [item]
+  (let [token (nth item 0)
+        type (layout-vector-type item)]
+    (case type
+      :row
+      (apply-layout-token {:children (normalize-layout-children
+                                      (vector-tail item 1))}
+                          token)
+
+      :group
+      (apply-layout-token {:children (normalize-layout-children
+                                      (vector-tail item 1))}
+                          token)
+
+      :section
+      (normalize-section-layout item)
+
+      :form
+      (apply-layout-token {:model (nth item 1)
+                           :layout (nth item 2)}
+                          token)
+
+      :selection
+      (merge (apply-layout-token {:projection (nth item 1)}
+                                 token)
+             (or (vector-option item 2) {}))
+
+      :action
+      (merge (apply-layout-token {:id (nth item 1)}
+                                 token)
+             (or (vector-option item 2) {}))
+
+      :default item)))
+
+(defun layout-child-items [item]
+  (or (:children item)
+      (:layout item)))
+
+(defun layout-item-projection [item]
+  (let [item (normalize-layout-item item)]
+    (cond
+      (nil? item) nil
+      (= (type-of item) "map")
+      (or (:projection item)
+          (layout-projection (layout-child-items item)))
+      (= (type-of item) "vector") (layout-projection item)
+      :default nil)))
+
+(defun layout-projection [layout]
+  (reduce (or layout [])
+          nil
+          (fn [projection item]
+            (or projection
+                (layout-item-projection item)))))
+
+(defun layout-item-selection [item]
+  (let [item (normalize-layout-item item)]
+    (cond
+      (nil? item) nil
+      (= (type-of item) "map")
+      (if (= (:type item) :selection)
+        item
+        (layout-selection (layout-child-items item)))
+      (= (type-of item) "vector") (layout-selection item)
+      :default nil)))
+
+(defun layout-selection [layout]
+  (reduce (or layout [])
+          nil
+          (fn [selection item]
+            (or selection
+                (layout-item-selection item)))))
+
+(defun layout-item-actions [item]
+  (let [item (normalize-layout-item item)]
+    (cond
+      (nil? item) []
+
+      (= (type-of item) "map")
+      (if (= (:type item) :action)
+        [item]
+        (layout-actions (layout-child-items item)))
+
+      (= (type-of item) "vector")
+      (layout-actions item)
+
+      :default [])))
+
+(defun layout-actions [layout]
+  (reduce (or layout [])
+          []
+          (fn [actions item]
+            (concat actions (layout-item-actions item)))))
+
+(defun section-depth [opts]
+  (or (:form/section-depth opts) 0))
+
+(defun section-child-opts [opts]
+  (assoc opts :form/section-depth (inc (section-depth opts))))
+
+(defun section-wrapper [item opts]
+  (let [wrappers (or (:section-wrappers opts) {})]
+    (or (:section-wrapper item)
+        (get wrappers (section-depth opts))
+        (get wrappers :default)
+        (if (= (section-depth opts) 0)
+          :group-box
+          :plain))))
+
+(defun group-box-section-view [item opts children state-binding]
+  (group-box/make
+   {:title (:title item)
+    :class (:class item)
+    :style (defaultable-style (:style item)
+                              (:class item)
+                              (or (:section-style opts)
+                                  default-section-style))
+    :state state-binding
+    :frame-style (or (:frame-style item)
+                     (:section-frame-style opts))
+    :title-style (or (:title-style item)
+                     (:section-title-style opts))
+    :body-style (or (:body-style item)
+                    (:section-body-style opts)
+                    default-section-body-style)
+    :body-state state-binding
+    :children children}))
+
+(defun plain-section-view [item opts children state-binding]
+  (let [title (when (:title item)
+                {:mode 'ui/text
+                 :class (or (:title-class item) :ui/muted)
+                 :style (or (:title-style item)
+                            (:nested-section-title-style opts)
+                            (:section-title-style opts)
+                            default-nested-section-title-style)
+                 :state {:value (:title item)}})
+        body {:style (or (:body-style item)
+                         (:nested-section-body-style opts)
+                         default-nested-section-body-style)
+              :state state-binding
+              :children children}]
+    (merge {:state state-binding
+            :children (concat (if title [title] [])
+                              [body])}
+           (style-map (defaultable-style (:style item)
+                                         (:class item)
+                                         (or (:nested-section-style opts)
+                                             default-nested-section-style)))
+           (class-map (:class item)))))
+
+(defun unwrapped-section-view [item opts children state-binding]
+  (merge {:state state-binding
+          :children children}
+         (style-map (:style item))
+         (class-map (:class item))))
+
+(defun section-view [item opts children state-binding]
+  (case (section-wrapper item opts)
+    :group-box (group-box-section-view item opts children state-binding)
+    :none (unwrapped-section-view item opts children state-binding)
+    :plain (plain-section-view item opts children state-binding)
+    :default (plain-section-view item opts children state-binding)))

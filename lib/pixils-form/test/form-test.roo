@@ -30,6 +30,9 @@
 (defun object-control-children [view]
   (:children (head (:children view))))
 
+(defun group-box-body [view]
+  (-> view :children head :children head))
+
 (deftest normalized-form-state-records-data-ownership-mode
   (let [transient-state
         (form/normalized-form-state {:schema person-schema
@@ -69,6 +72,47 @@
         body (form-body view)]
     (is (= :fill (-> body :style :width)))
     (is (= :shrink (-> body :style :height)))))
+
+(deftest make-renders-top-level-layout-sections-as-group-boxes
+  (let [view (form/make {:schema person-schema
+                         :value {:field/name "Ada"
+                                 :field/age 36
+                                 :profile {:city "London"}}
+                         :layout [{:type :section
+                                   :title "Identity"
+                                   :layout [:field/name
+                                            :field/city]}]})
+        section (form-child view 0)
+        body (group-box-body section)]
+    (is (= 'ui/group-box (:mode section)))
+    (is (= "Identity"
+           (-> section :state :title)))
+    (is (= 'ui/group-box-body (:mode body)))
+    (is (= 2 (count (:children body))))
+    (is (= 'pixils/form-field
+           (-> body :children head :mode)))))
+
+(deftest make-renders-nested-layout-sections-as-plain-containers
+  (let [view (form/make {:schema person-schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}
+                         :layout [{:type :section
+                                   :title "Outer"
+                                   :layout [{:type :section
+                                             :title "Inner"
+                                             :layout [:field/name]}]}]})
+        outer (form-child view 0)
+        outer-body (group-box-body outer)
+        inner (head (:children outer-body))
+        inner-title (head (:children inner))
+        inner-body (nth (:children inner) 1)]
+    (is (= 'ui/group-box (:mode outer)))
+    (is (nil? (:mode inner)))
+    (is (= 'ui/text (:mode inner-title)))
+    (is (= "Inner"
+           (-> inner-title :state :value)))
+    (is (= 'pixils/form-field
+           (-> inner-body :children head :mode)))))
 
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema

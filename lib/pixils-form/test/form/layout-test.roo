@@ -1,0 +1,41 @@
+(ns pixils.form.layout-test
+  (:require proof.core
+            [pixils.form.layout :as layout]))
+
+(deftest normalizes-section-layout-shorthand
+  (let [item (layout/normalize-layout-item
+              [:section.identity "Identity" :field/name :field/age])]
+    (is (= :section (:type item)))
+    (is (= :identity (:class item)))
+    (is (= "Identity" (:title item)))
+    (is (= [:field/name :field/age] (:layout item)))))
+
+(deftest layout-searches-through-section-children
+  (let [selection {:type :selection
+                   :projection :people}
+        action {:type :action
+                :id :person/save}
+        form {:type :form
+              :projection :person
+              :layout [:field/name]}
+        section {:type :section
+                 :title "People"
+                 :layout [selection action form]}
+        layout [section]]
+    (is (= :people
+           (layout/layout-projection layout)))
+    (is (= selection
+           (layout/layout-selection layout)))
+    (is (= [action]
+           (layout/layout-actions layout)))))
+
+(deftest section-wrapper-defaults-are-depth-aware
+  (is (= :group-box
+         (layout/section-wrapper {} {})))
+  (is (= :plain
+         (layout/section-wrapper {}
+                                 {:form/section-depth 1})))
+  (is (= :none
+         (layout/section-wrapper {}
+                                 {:form/section-depth 2
+                                  :section-wrappers {2 :none}}))))
