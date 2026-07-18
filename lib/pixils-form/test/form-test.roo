@@ -62,6 +62,14 @@
     (is (= :live
            (-> live-view :state :form/mode)))))
 
+(deftest make-renders-fill-width-form-body
+  (let [view (form/make {:schema person-schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}})
+        body (form-body view)]
+    (is (= :fill (-> body :style :width)))
+    (is (= :shrink (-> body :style :height)))))
+
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""
@@ -478,6 +486,35 @@
            (:value payload)))
     (is (= [{:id :terrain/grass}]
            (:form-value payload)))))
+
+(deftest changed-form-state-keeps-deep-number-draft-text
+  (let [state {:schema {:shape {:type :object
+                                :fields {:radius
+                                         {:type :object
+                                          :fields {:x
+                                                   {:type :object
+                                                    :fields {:range
+                                                             {:type :object
+                                                              :fields
+                                                              {:min
+                                                               {:type
+                                                                :number}}}}}}}}}}
+               :value {:shape {:radius {:x {:type :random
+                                             :range {:min nil}}}}}}
+        draft (form/changed-form-state
+               state
+               {:field-path [:shape :radius :x :range :min]
+                :value "1200"
+                :commit? false})
+        committed (form/changed-form-state
+                   draft
+                   {:field-path [:shape :radius :x :range :min]
+                    :value 1200
+                    :commit? true})]
+    (is (= "1200"
+           (-> draft :value :shape :radius :x :range :min)))
+    (is (= 1200
+           (-> committed :value :shape :radius :x :range :min)))))
 
 (deftest schema-resolves-named-field-definition-references
   (let [schema-doc {:definitions
@@ -917,6 +954,48 @@
             {:id :terrain/grass}]
            (:form-value payload)))))
 
+(deftest nested-array-items-change-payload-uses-full-field-path
+  (let [view (form/array-control-view
+              :parts
+              {:type :array
+               :items {:type :object
+                       :fields {:id {:type :keyword}}}}
+              {:field-path-prefix [:shape]
+               :schema {:type :object
+                        :fields {:parts {:type :array
+                                         :items {:type :object
+                                                 :fields {:id
+                                                          {:type :keyword}}}}}}
+               :value {:parts [{:id :base}]}}
+              [{:id :base}])
+        state (assoc (:state view)
+                     :items [{:id :base}]
+                     :form-value {:shape {:parts [{:id :base}]}})
+        payload (form/array-items-change-payload
+                 state
+                 (assoc state
+                        :items [{:id :base}
+                                {:id :cove}]))
+        next-form-state
+        (form/changed-form-state
+         {:schema {:shape {:type :object
+                           :fields {:parts {:type :array
+                                            :items {:type :object
+                                                    :fields {:id
+                                                             {:type
+                                                              :keyword}}}}}}}
+          :value {:shape {:parts [{:id :base}]}}}
+         payload)]
+    (is (= [:shape :parts] (:field-path payload)))
+    (is (= [:parts] (:local-field-path payload)))
+    (is (= {:shape {:parts [{:id :base}
+                            {:id :cove}]}}
+           (:form-value payload)))
+    (is (= [{:id :base}
+            {:id :cove}]
+           (-> next-form-state :value :shape :parts)))
+    (is (nil? (-> next-form-state :value :parts)))))
+
 (deftest move-item-state-reorders-items-and-selected-index
   (let [state (form/move-item-state
                {:items [:a :b :c]
@@ -1297,6 +1376,52 @@
     (is (= 2 (count object-children)))
     (is (= 'pixils/form-select-control (:mode place-control)))
     (is (= 'pixils/form-keyword-input (:mode anchor-control)))))
+
+(deftest nested-object-fields-use-compact-fixed-label-width
+  (let [view (form/make {:schema {:shape
+                                  {:type :object
+                                   :fields {:radius
+                                            {:type :object
+                                             :fields {:x {:type :number}}}}}}
+                         :layout [:shape]
+                         :value {:shape {:radius {:x 1}}}
+                         :field-label-style {:width 112
+                                             :height 18}})
+        shape-view (form-child view 0)
+        shape-label (head (:children shape-view))
+        shape-control (nth (:children shape-view) 1)
+        radius-view (head (object-control-children shape-control))
+        radius-label (head (:children radius-view))
+        radius-control (nth (:children radius-view) 1)
+        x-view (head (object-control-children radius-control))
+        x-label (head (:children x-view))]
+    (is (= 112 (-> shape-label :style :width)))
+    (is (= 64 (-> radius-label :style :width)))
+    (is (= 64 (-> x-label :style :width)))))
+
+(deftest nested-object-fields-support-explicit-label-style
+  (let [view (form/make {:schema {:shape
+                                  {:type :object
+                                   :fields {:radius
+                                            {:type :object
+                                             :fields {:x {:type :number}}}}}}
+                         :layout [:shape]
+                         :value {:shape {:radius {:x 1}}}
+                         :field-label-style {:width 112
+                                             :height 18}
+                         :nested-field-label-style {:width 72
+                                                    :height 18}})
+        shape-view (form-child view 0)
+        shape-label (head (:children shape-view))
+        shape-control (nth (:children shape-view) 1)
+        radius-view (head (object-control-children shape-control))
+        radius-label (head (:children radius-view))
+        radius-control (nth (:children radius-view) 1)
+        x-view (head (object-control-children radius-control))
+        x-label (head (:children x-view))]
+    (is (= 112 (-> shape-label :style :width)))
+    (is (= 72 (-> radius-label :style :width)))
+    (is (= 72 (-> x-label :style :width)))))
 
 (deftest make-renders-root-array-editor-for-object-items
   (let [view (form/make {:schema {:type :array

@@ -24,6 +24,8 @@
 (def default-field-label-style
   {:width :fill})
 
+(def default-nested-field-label-width 64)
+
 (def default-row-style
   {:width :fill
    :height :shrink
@@ -825,6 +827,13 @@
                               ctx
                               (-> event :payload :value)
                               true))
+        :number-input/draft-change
+        (fn [state event ctx]
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
+                              false))
         :checkbox/change
         (fn [state event ctx]
           (emit-field-change! state
@@ -943,13 +952,24 @@
      :valid-value-options-cache
      (direct-valid-value-options-cache-for-schema {} schema context value)}))
 
+(defun nested-field-label-style [opts]
+  (let [style (:field-label-style opts)
+        configured (:nested-field-label-style opts)
+        width (:width style)]
+    (or configured
+        (if (number? width)
+          (assoc style :width (min width default-nested-field-label-width))
+          style))))
+
 (defun object-control-render-opts [state value]
   (with-valid-value-options-cache
    (assoc (:render-opts state)
           :schema (:schema state)
           :value value
           :context (:context state)
-          :field-path-prefix (:field-path-prefix state))))
+          :field-path-prefix (:field-path-prefix state)
+          :field-label-style
+          (nested-field-label-style (:render-opts state)))))
 
 (defun object-control-body-view [state value]
   (let [opts (object-control-render-opts state value)
@@ -1335,7 +1355,9 @@
              :item-schema item-schema
              :field-id field-id
              :field-path (when field-id
-                           (field-path field-id field-schema))
+                           (event-field-path opts field-id field-schema))
+             :local-field-path (when field-id
+                                 (field-path field-id field-schema))
              :field-schema field-schema
              :form-value (ui/bind-state :form-value)
              :context (:context opts)
@@ -2007,6 +2029,8 @@
 
 (defun form-body-view [layout schema opts selection]
   {:id form-body-id
+   :style {:width :fill
+           :height :shrink}
    :state form-layout-state-binding
    :children (form-children layout schema opts selection)})
 
