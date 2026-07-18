@@ -27,6 +27,16 @@
 (defun form-child [view index]
   (nth (form-children view) index))
 
+(defun class-list [view]
+  (let [class (:class view)]
+    (cond
+      (nil? class) []
+      (keyword? class) [class]
+      :default class)))
+
+(defun view-class? [view class]
+  (contains? (class-list view) class))
+
 (defun object-control-children [view]
   (:children (head (:children view))))
 
@@ -70,8 +80,28 @@
                          :value {:field/name "Ada"
                                  :field/age 36}})
         body (form-body view)]
+    (is (= :pixils/form-body (:class body)))
     (is (= :fill (-> body :style :width)))
     (is (= :shrink (-> body :style :height)))))
+
+(deftest make-renders-theme-backed-structural-classes
+  (let [view (form/make {:schema person-schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}
+                         :theme-styles? true})
+        body (form-body view)
+        field (head (:children body))
+        label (head (:children field))
+        control (nth (:children field) 1)]
+    (is (= :pixils/form (:class view)))
+    (is (= :pixils/form-body (:class body)))
+    (is (= :pixils/form-field (:class field)))
+    (is (= {:visibility :visible} (:style field)))
+    (is (= [:ui/muted :pixils/form-label] (:class label)))
+    (is (= {} (:style label)))
+    (is (= [:pixils/form-control :pixils/form-text-control]
+           (:class control)))
+    (is (= {} (:style control)))))
 
 (deftest make-renders-top-level-layout-sections-as-group-boxes
   (let [view (form/make {:schema person-schema
@@ -85,9 +115,11 @@
         section (form-child view 0)
         body (group-box-body section)]
     (is (= 'ui/group-box (:mode section)))
+    (is (= :pixils/form-section (:class section)))
     (is (= "Identity"
            (-> section :state :title)))
     (is (= 'ui/group-box-body (:mode body)))
+    (is (= :pixils/form-section-body (:class body)))
     (is (= 2 (count (:children body))))
     (is (= 'pixils/form-field
            (-> body :children head :mode)))))
@@ -107,10 +139,16 @@
         inner-title (head (:children inner))
         inner-body (nth (:children inner) 1)]
     (is (= 'ui/group-box (:mode outer)))
+    (is (= :pixils/form-section (:class outer)))
     (is (nil? (:mode inner)))
+    (is (= :pixils/form-nested-section (:class inner)))
     (is (= 'ui/text (:mode inner-title)))
+    (is (= [:ui/muted :pixils/form-nested-section-title]
+           (:class inner-title)))
     (is (= "Inner"
            (-> inner-title :state :value)))
+    (is (= :pixils/form-nested-section-body
+           (:class inner-body)))
     (is (= 'pixils/form-field
            (-> inner-body :children head :mode)))))
 
@@ -1632,8 +1670,8 @@
     (is (= 'pixils/form-selection (:mode selection-view)))
     (is (= [:field/name]
            (-> selection-view :state :item-label)))
-    (is (= :person-list
-           (:class selection-view)))))
+    (is (= true (view-class? selection-view :pixils/form-selection)))
+    (is (= true (view-class? selection-view :person-list)))))
 
 (deftest action-disabled-uses-form-state-conditions
   (is (= true
@@ -1741,11 +1779,16 @@
         group-view (nth (:children row-view) 1)
         selection-view (head (:children group-view))
         action-view (nth (:children group-view) 1)]
-    (is (= :person-register-form (:class view)))
-    (is (= :person-main-row (:class row-view)))
-    (is (= :person-list-column (:class group-view)))
-    (is (= :person-list (:class selection-view)))
-    (is (= :person-new (:class action-view)))
+    (is (= true (view-class? view :pixils/form)))
+    (is (= true (view-class? view :person-register-form)))
+    (is (= true (view-class? row-view :pixils/form-row)))
+    (is (= true (view-class? row-view :person-main-row)))
+    (is (= true (view-class? group-view :pixils/form-group)))
+    (is (= true (view-class? group-view :person-list-column)))
+    (is (= true (view-class? selection-view :pixils/form-selection)))
+    (is (= true (view-class? selection-view :person-list)))
+    (is (= true (view-class? action-view :pixils/form-action)))
+    (is (= true (view-class? action-view :person-new)))
     (is (contains? (:state row-view) :value))
     (is (contains? (:state form-view) :value))
     (is (= 'pixils/form-selection (:mode selection-view)))

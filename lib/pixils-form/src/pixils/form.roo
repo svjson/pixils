@@ -642,9 +642,11 @@
   (or (get (or text {}) field-id)
       (str field-id)))
 
-(defun field-value-text [field-id field-schema]
+(defun field-value-text [field-id field-schema opts]
   {:mode 'ui/text
-   :style default-display-style
+   :class [:pixils/form-control :pixils/form-display-control]
+   :style (or (form-layout/style-option opts :display-style default-display-style)
+              {})
    :state {:value (field-binding field-id field-schema)}})
 
 (defun form-field-visible? [state]
@@ -721,6 +723,14 @@
                               ctx
                               (-> event :payload :value)
                               false))
+        :form/control-change
+        (fn [state event ctx]
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
+                              (not= false
+                                    (-> event :payload :commit?))))
         :checkbox/change
         (fn [state event ctx]
           (emit-field-change! state
@@ -731,7 +741,9 @@
 
 (defun text-control [field-id field-schema field-label opts]
   {:mode 'ui/text-input
-   :style (or (:control-style opts) default-control-style)
+   :class [:pixils/form-control :pixils/form-text-control]
+   :style (or (form-layout/style-option opts :control-style default-control-style)
+              {})
    :state {:value (field-value (:value opts)
                                field-id
                                field-schema)
@@ -755,10 +767,16 @@
 (defun keyword-control [field-id field-schema field-label opts]
   (let [value (field-value (:value opts)
                            field-id
-                           field-schema)]
+                           field-schema)
+        style (if (contains? opts :control-style)
+                (merge default-keyword-control-style
+                       (:control-style opts))
+                (form-layout/style-option opts
+                                          :control-style
+                                          default-keyword-control-style))]
     {:mode 'pixils/form-keyword-input
-     :style (merge default-keyword-control-style
-                   (or (:control-style opts) {}))
+     :class [:pixils/form-control :pixils/form-keyword-control]
+     :style (or style {})
      :state {:value (cond
                       (nil? value) ""
                       (keyword? value) (form-layout/keyword-label value)
@@ -768,30 +786,38 @@
              :read-only? (:read-only? field-schema)}}))
 
 (defun number-control [field-id field-schema field-label opts]
-  (number-input/make {:style (or (:control-style opts) default-control-style)
-                      :value (field-binding field-id field-schema)
-                      :min (:min field-schema)
-                      :max (:max field-schema)
-                      :step (:step field-schema)
-                      :allow-negative? (:allow-negative? field-schema)
-                      :allow-fractions? (if (contains? field-schema
-                                                        :allow-fractions?)
-                                          (:allow-fractions? field-schema)
-                                          (= (:type field-schema) :number))
-                      :disabled? (:read-only? field-schema)
-                      :auto-focus? (:auto-focus? field-schema)
-                      :commit-on (if (contains? field-schema :commit-on)
-                                   (:commit-on field-schema)
-                                   :blur)}))
+  (assoc (number-input/make
+          {:style (or (form-layout/style-option opts :control-style default-control-style)
+                      {})
+           :value (field-binding field-id field-schema)
+           :min (:min field-schema)
+           :max (:max field-schema)
+           :step (:step field-schema)
+           :allow-negative? (:allow-negative? field-schema)
+           :allow-fractions? (if (contains? field-schema
+                                             :allow-fractions?)
+                               (:allow-fractions? field-schema)
+                               (= (:type field-schema) :number))
+           :disabled? (:read-only? field-schema)
+           :auto-focus? (:auto-focus? field-schema)
+           :commit-on (if (contains? field-schema :commit-on)
+                        (:commit-on field-schema)
+                        :blur)})
+         :class
+         [:pixils/form-control :pixils/form-number-control]))
 
 (defun boolean-control [field-id field-schema field-label opts]
-  (checkbox/make {:style checkbox-style
-                  :label ""
-                  :checked? (field-binding field-id field-schema)
-                  :value field-id}))
+  (assoc (checkbox/make
+          {:style (or (form-layout/style-option opts :checkbox-style checkbox-style)
+                      {})
+           :label ""
+           :checked? (field-binding field-id field-schema)
+           :value field-id})
+         :class
+         [:pixils/form-control :pixils/form-checkbox-control]))
 
 (defun display-control [field-id field-schema field-label opts]
-  (field-value-text field-id field-schema))
+  (field-value-text field-id field-schema opts))
 
 (defun object-schema [field-schema opts]
   (model-schema/schema-document-with-root (:schema opts) field-schema))
@@ -863,7 +889,8 @@
         layout (or (:layout state)
                    (default-layout (:schema state) opts))]
     {:id form-object-body-id
-     :style (:object-style state)
+     :class :pixils/form-object-body
+     :style (or (:object-style state) {})
      :state form-state-binding
      :children (layout-item-views layout opts)}))
 
@@ -911,10 +938,15 @@
                :field-path-prefix (:field-path-prefix object-opts)
                :layout (:layout field-schema)
                :render-opts object-opts
-               :object-style (or (:object-style opts)
-                                 default-object-style)}]
+               :object-style (form-layout/style-option opts
+                                                       :object-style
+                                                       default-object-style)}]
     {:mode 'pixils/form-object-control
-     :style default-object-control-style
+     :class [:pixils/form-control :pixils/form-object-control]
+     :style (or (form-layout/style-option opts
+                                          :object-control-style
+                                          default-object-control-style)
+                {})
      :state state
      :children [(object-control-body-view state (:value object-opts))]}))
 
@@ -1049,14 +1081,27 @@
                                       (:summary-specs state)))
       (actions-derived-state array-toolbar-actions)))
 
-(defun summary-row-view [index]
-  {:style default-array-summary-row-style
+(defun summary-row-view [opts index]
+  {:class :pixils/form-array-summary-row
+   :style (or (form-layout/style-option opts
+                                         :array-summary-row-style
+                                         default-array-summary-row-style)
+              {})
    :children [{:mode 'ui/text
-               :class :ui/muted
-               :style default-array-summary-label-style
+               :class [:ui/muted :pixils/form-array-summary-label]
+               :style (or (form-layout/style-option
+                            opts
+                            :array-summary-label-style
+                            default-array-summary-label-style)
+                          {})
                :state {:value (ui/bind-state :summary index :label)}}
               {:mode 'ui/text
-               :style default-array-summary-value-style
+               :class :pixils/form-array-summary-value
+               :style (or (form-layout/style-option
+                            opts
+                            :array-summary-value-style
+                            default-array-summary-value-style)
+                          {})
                :state {:value (ui/bind-state :summary index :value)}}]})
 
 (defcomponent pixils/form-array-summary
@@ -1068,14 +1113,18 @@
                     (selected-summary-values (:item state)
                                              (:specs state)))))})
 
-(defun array-summary-view [summary-specs]
+(defun array-summary-view [opts summary-specs]
   {:mode 'pixils/form-array-summary
-   :style default-array-summary-style
+   :class :pixils/form-array-summary
+   :style (or (form-layout/style-option opts
+                                         :array-summary-style
+                                         default-array-summary-style)
+              {})
    :state {:item (ui/project-state :value)
            :summary (ui/project-state :summary)
            :specs summary-specs}
    :children (map (range 0 (dec (max 1 (count summary-specs))))
-                  summary-row-view)})
+                  (fn [index] (summary-row-view opts index)))})
 
 (defun array-control-state [state]
   (let [state (ensure-array-selection-state state)
@@ -1083,10 +1132,15 @@
         state (validated-state state)]
     (array-derived-state (array-actions-state state))))
 
-(defun array-toolbar []
-  {:style default-array-toolbar-style
+(defun array-toolbar [opts]
+  {:class :pixils/form-array-toolbar
+   :style (or (form-layout/style-option opts
+                                         :array-toolbar-style
+                                         default-array-toolbar-style)
+              {})
    :state {:form/action-disabled (ui/project-state :form/action-disabled)}
-   :children (map array-toolbar-actions action-view)})
+   :children (map array-toolbar-actions
+                  (fn [action] (action-view action opts)))})
 
 (defun array-item-form-view [item-schema opts]
   (let [item-opts (with-valid-value-options-cache
@@ -1096,7 +1150,9 @@
         children (layout-item-views (default-layout item-schema item-opts)
                                     item-opts)]
     {:mode 'pixils/form
-     :style default-fields-style
+     :class :pixils/form-array-item-form
+     :style (or (form-layout/style-option opts :fields-style default-fields-style)
+                {})
      :state {:value (ui/bind-state :value)
              :schema item-schema
              :context (:context opts)
@@ -1130,8 +1186,14 @@
              :new? (ui/bind-state :new?)
              :valid? (ui/bind-state :valid?)
              :errors (ui/bind-state :errors)}
-     :body-style default-array-dialog-body-style
-     :button-row-style default-array-dialog-button-row-style})
+     :body-class :pixils/form-array-dialog-body
+     :body-style (form-layout/style-option opts
+                                           :array-dialog-body-style
+                                           default-array-dialog-body-style)
+     :button-row-class :pixils/form-array-dialog-buttons
+     :button-row-style (form-layout/style-option opts
+                                                 :array-dialog-button-row-style
+                                                 default-array-dialog-button-row-style)})
    :on {:form/draft-change (fn [state event ctx]
                               (ui/stop-propagation! event)
                               (assoc state
@@ -1148,7 +1210,10 @@
                          :context (:context state))]
     (dialog/open-dialog! ctx
                          {:title (if new? "Add Item" "Edit Item")
-                          :style default-array-dialog-style
+                          :class :pixils/form-array-dialog
+                          :style (form-layout/style-option item-opts
+                                                           :array-dialog-style
+                                                           default-array-dialog-style)
                           :result-event :form/array-item-dialog-result
                           :state {:value value
                                   :index index
@@ -1237,7 +1302,9 @@
   (let [item-schema (array-item-schema field-schema opts)
         summary-specs (array-summary-specs field-schema item-schema)]
     {:mode 'pixils/form-array-control
-     :style (or (:array-style opts) default-array-style)
+     :class [:pixils/form-control :pixils/form-array-control]
+     :style (or (form-layout/style-option opts :array-style default-array-style)
+                {})
      :state {:items items-binding
              :item-schema item-schema
              :field-id field-id
@@ -1253,8 +1320,30 @@
                          :text (:text opts)
                          :field-style (:field-style opts)
                          :field-label-style (:field-label-style opts)
+                         :nested-field-label-style
+                         (:nested-field-label-style opts)
                          :control-style (:control-style opts)
-                         :object-style (:object-style opts)}
+                         :object-style (:object-style opts)
+                         :row-style (:row-style opts)
+                         :separator-style (:separator-style opts)
+                         :array-style (:array-style opts)
+                         :array-content-style (:array-content-style opts)
+                         :array-list-style (:array-list-style opts)
+                         :array-list-box-style (:array-list-box-style opts)
+                         :array-summary-style (:array-summary-style opts)
+                         :array-summary-row-style
+                         (:array-summary-row-style opts)
+                         :array-summary-label-style
+                         (:array-summary-label-style opts)
+                         :array-summary-value-style
+                         (:array-summary-value-style opts)
+                         :array-toolbar-style (:array-toolbar-style opts)
+                         :array-dialog-style (:array-dialog-style opts)
+                         :array-dialog-body-style
+                         (:array-dialog-body-style opts)
+                         :array-dialog-button-row-style
+                         (:array-dialog-button-row-style opts)
+                         :theme-styles? (:theme-styles? opts)}
              :new-template (or (:new-template field-schema)
                                (:new-value field-schema)
                                {})
@@ -1262,7 +1351,12 @@
              :summary-specs summary-specs
              :array-editor (:array-editor field-schema)
              :read-only? (:read-only? field-schema)}
-     :children [{:style default-array-content-style
+     :children [{:class :pixils/form-array-content
+                 :style (or (form-layout/style-option
+                              opts
+                              :array-content-style
+                              default-array-content-style)
+                            {})
                  :state {:value (ui/project-state :value)
                          :selection-options
                          (ui/project-state :selection-options)
@@ -1272,14 +1366,22 @@
                          :reorderable? (ui/project-state :reorderable?)}
                  :children [(selection-control-view
                              {:item-label (:item-label field-schema)
-                              :style default-array-list-style
-                              :list-style default-array-list-box-style
+                              :class :pixils/form-array-list
+                              :style (form-layout/style-option
+                                      opts
+                                      :array-list-style
+                                      default-array-list-style)
+                              :list-style (form-layout/style-option
+                                           opts
+                                           :array-list-box-style
+                                           default-array-list-box-style)
                               :visible-rows 5
                               :fixed-visible-rows? true
                               :reorderable? (ui/bind-state :reorderable?)
-                              :activate-event :form/edit-item})
-                            (array-summary-view summary-specs)]}
-                (array-toolbar)]}))
+                              :activate-event :form/edit-item}
+                             opts)
+                            (array-summary-view opts summary-specs)]}
+                (array-toolbar opts)]}))
 
 (defun array-control [field-id field-schema field-label opts]
   (array-control-view field-id
@@ -1503,7 +1605,9 @@
 
 (defun select-control [field-id field-schema field-label opts]
   {:mode 'pixils/form-select-control
-   :style (or (:control-style opts) default-control-style)
+   :class [:pixils/form-control :pixils/form-select-control]
+   :style (or (form-layout/style-option opts :control-style default-control-style)
+              {})
    :state {:value (field-binding field-id field-schema)
            :form-value (ui/bind-state :form-value)
            :options (select-options field-schema opts)
@@ -1542,12 +1646,19 @@
       (apply control [field-id field-schema field-label opts])
       (display-control field-id field-schema field-label opts))))
 
+(defun field-label-class [opts]
+  (form-layout/classes
+   (if (:field-path-prefix opts)
+     [:ui/muted :pixils/form-label :pixils/form-nested-label]
+     [:ui/muted :pixils/form-label])
+   (:field-label-class opts)))
+
 (defun field-view [field-id opts]
   (let [schema (or (:schema opts) {})
         text (:text opts)
         field-schema (model-schema/resolved-field-schema schema field-id)
         field-label (label-for field-id text)
-        base-style (or (:field-style opts) default-field-style)
+        base-style (form-layout/style-option opts :field-style default-field-style)
         local-field-path (field-path field-id field-schema)
         initial-visible? (model-schema/field-visible? schema
                                                       field-id
@@ -1555,6 +1666,7 @@
     (if field-schema
       (when initial-visible?
         {:mode 'pixils/form-field
+         :class :pixils/form-field
          :style (form-field-style base-style true)
          :state {:value (ui/project-state :value)
                  :form-value (ui/project-state :value)
@@ -1568,19 +1680,28 @@
                  (model-schema/dynamic-field-visibility? schema)
                  :visible? true}
          :children [{:mode 'ui/text
-                     :class :ui/muted
-                     :style (or (:field-label-style opts)
-                                default-field-label-style)
+                     :class (field-label-class opts)
+                     :style (or (form-layout/style-option
+                                  opts
+                                  :field-label-style
+                                  default-field-label-style)
+                                {})
                      :state {:value field-label}}
                     (field-control field-id field-schema field-label opts)]})
       {:mode 'ui/text
        :state {:value (str "Unknown form field " field-id)}})))
 
 (defun separator-view [opts]
-  {:style (or (:separator-style opts) default-separator-style)})
+  {:class :pixils/form-separator
+   :style (or (form-layout/style-option opts
+                                         :separator-style
+                                         default-separator-style)
+              {})})
 
 (defun row-view [items opts]
-  {:style (or (:row-style opts) default-row-style)
+  {:class :pixils/form-row
+   :style (or (form-layout/style-option opts :row-style default-row-style)
+              {})
    :state form-state-binding
    :children (layout-item-views items opts)})
 
@@ -1606,10 +1727,13 @@
     (merge {:state form-layout-state-binding
             :children children}
            (form-layout/style-map
-            (form-layout/defaultable-style (:style item)
-                                           (:class item)
-                                           default-fields-style))
-           (form-layout/class-map (:class item)))))
+           (form-layout/defaultable-style (:style item)
+                                          (:class item)
+                                          (form-layout/style-option
+                                           opts
+                                           :fields-style
+                                           default-fields-style)))
+           {:class (form-layout/classes :pixils/form-fields (:class item))})))
 
 (defun selection-layout-view [item opts]
   (let [projection (projection-entry (:models opts)
@@ -1622,7 +1746,8 @@
              (contains? item :new-value)
              (contains? item :new-value-fn))
        (normalized-selection (:models opts) item projection)
-       (merge (or (:form/selection opts) {}) item)))))
+       (merge (or (:form/selection opts) {}) item))
+     opts)))
 
 (defun row-layout-view [item opts]
   (merge {:state form-layout-state-binding
@@ -1630,9 +1755,12 @@
          (form-layout/style-map
           (or (:style item)
               (when (nil? (:class item))
-                (or (:row-style opts)
-                    default-row-style))))
-         (form-layout/class-map (:class item))))
+                (form-layout/style-option opts :row-style default-row-style))))
+         {:class (form-layout/classes
+                  (if (= (:type item) :group)
+                    [:pixils/form-row :pixils/form-group]
+                    :pixils/form-row)
+                  (:class item))}))
 
 (defun section-layout-view [item opts]
   (form-layout/section-view
@@ -1647,7 +1775,7 @@
   (cond
     (= (:type item) :form) (form-layout-view item opts)
     (= (:type item) :selection) (selection-layout-view item opts)
-    (= (:type item) :action) (action-view item)
+    (= (:type item) :action) (action-view item opts)
     (= (:type item) :section) (section-layout-view item opts)
     (= (:type item) :group) (row-layout-view item opts)
     (= (:type item) :row) (row-layout-view item opts)
@@ -1858,7 +1986,7 @@
                                next-state
                                ctx))))}})
 
-(defun selection-control-view [selection]
+(defun selection-control-view [selection opts]
   (when selection
     (merge {:mode 'pixils/form-selection
             :state {:options (ui/project-state :selection-options)
@@ -1875,15 +2003,23 @@
                          :visible-rows (:visible-rows selection)
                          :fixed-visible-rows? (:fixed-visible-rows? selection)
                          :reorderable? (ui/bind-state :reorderable?)
-                         :style (or (:list-style selection)
-                                    default-selection-list-style)})]}
+                         :style (if (contains? selection :list-style)
+                                  (:list-style selection)
+                                  (form-layout/style-option
+                                   opts
+                                   :selection-list-style
+                                   default-selection-list-style))})]}
            (form-layout/style-map
-            (form-layout/defaultable-style (:style selection)
-                                           (:class selection)
-                                           default-selection-style))
-           (form-layout/class-map (:class selection)))))
+           (form-layout/defaultable-style (:style selection)
+                                          (:class selection)
+                                          (form-layout/style-option
+                                           opts
+                                           :selection-style
+                                           default-selection-style)))
+           {:class (form-layout/classes :pixils/form-selection
+                                        (:class selection))})))
 
-(defun action-view [action]
+(defun action-view [action opts]
   (let [event-id (action-event-id action)]
     (merge {:mode 'pixils/form-action
             :state {:label (:label action)
@@ -1894,13 +2030,18 @@
                     :disabled? (ui/project-state :form/action-disabled
                                                  event-id)}}
            (form-layout/style-map
-            (form-layout/defaultable-style (:style action)
-                                           (:class action)
-                                           default-action-style))
-           (form-layout/class-map (:class action)))))
+           (form-layout/defaultable-style (:style action)
+                                          (:class action)
+                                          (form-layout/style-option
+                                           opts
+                                           :action-style
+                                           default-action-style)))
+           {:class (form-layout/classes :pixils/form-action (:class action))})))
 
-(defun fields-view [children]
-  {:style default-fields-style
+(defun fields-view [children opts]
+  {:class :pixils/form-fields
+   :style (or (form-layout/style-option opts :fields-style default-fields-style)
+              {})
    :state form-state-binding
    :children children})
 
@@ -1923,15 +2064,19 @@
         children
 
         (= (:placement selection) :right)
-        [(fields-view children) (selection-control-view selection)]
+        [(fields-view children opts) (selection-control-view selection opts)]
 
         :default
-        (concat [(selection-control-view selection)] children)))))
+        (concat [(selection-control-view selection opts)] children)))))
 
 (defun form-body-view [layout schema opts selection]
   {:id form-body-id
-   :style {:width :fill
-           :height :shrink}
+   :class :pixils/form-body
+   :style (or (form-layout/style-option opts
+                                         :body-style
+                                         {:width :fill
+                                          :height :shrink})
+              {})
    :state form-layout-state-binding
    :children (form-children layout schema opts selection)})
 
@@ -2024,5 +2169,8 @@
             :state state
             :children [(form-body-view layout schema opts render-selection)]}
            (form-layout/style-map
-            (form-layout/defaultable-style style class default-style))
-           (form-layout/class-map class))))
+            (form-layout/defaultable-style
+             style
+             class
+             (form-layout/style-option opts :style default-style)))
+           {:class (form-layout/classes :pixils/form class)})))
