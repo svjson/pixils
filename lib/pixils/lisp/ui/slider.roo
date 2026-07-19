@@ -23,9 +23,6 @@
 (defun slider-max [state]
   (or (:max state) 100))
 
-(defun slider-step [state]
-  (or (:step state) 1))
-
 (defun slider-limits-enabled? [state]
   (not= (:limits-enabled? state) false))
 
@@ -141,15 +138,22 @@
   (max 1 (- (slider-axis-size state ctx)
             (slider-handle-size state ctx))))
 
+(defun slider-value-span [state]
+  (- (slider-max state) (slider-min state)))
+
 (defun slider-value-ratio [state]
-  (let [span (max 1 (- (slider-max state) (slider-min state)))]
-    (/ (- (slider-value state) (slider-min state)) span)))
+  (let [span (slider-value-span state)]
+    (if (> span 0)
+      (/ (- (slider-value state) (slider-min state)) span)
+      0)))
 
 (defun slider-visual-ratio [state value]
-  (let [span (max 1 (- (slider-max state) (slider-min state)))]
-    (/ (- (clamp value (slider-min state) (slider-max state))
-          (slider-min state))
-       span)))
+  (let [span (slider-value-span state)]
+    (if (> span 0)
+      (/ (- (clamp value (slider-min state) (slider-max state))
+            (slider-min state))
+         span)
+      0)))
 
 (defun slider-handle-pos [state ctx]
   (int (* (slider-value-ratio state)
@@ -157,12 +161,13 @@
 
 (defun nearest-stepped-value [state raw]
   (let [min-value (slider-min state)
-        step (slider-step state)]
-    (+ min-value
-       (* step
-          (int (/ (+ (- raw min-value)
-                     (/ step 2))
-                  step))))))
+        step (:step state)]
+    (if (and step (> step 0))
+      (+ min-value
+         (* step
+            (int (+ (/ (- raw min-value) step)
+                    0.5))))
+      raw)))
 
 (defun slider-value-at [state event ctx]
   (let [handle (slider-handle-size state ctx)
@@ -171,7 +176,7 @@
                      (slider-track-span state ctx))
         ratio (/ coord (slider-track-span state ctx))
         raw (+ (slider-min state)
-               (* ratio (- (slider-max state) (slider-min state))))]
+               (* ratio (slider-value-span state)))]
     (clamp (nearest-stepped-value state raw)
            (slider-limit-min state)
            (slider-limit-max state))))

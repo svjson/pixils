@@ -95,6 +95,30 @@ TEST_F(SliderTest, slider_limits_clamp_value_and_pointer_input)
   EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 1000);
 }
 
+TEST_F(SliderTest, slider_fractional_pointer_input_preserves_fractional_values)
+{
+  auto result = runtime.eval(R"(
+    (let [ctx {:view {:bounds {:x 0 :y 0 :w 108 :h 8}}}
+          quarter-event {:position {:x 29 :y 4}}
+          stepped-event {:position {:x 31 :y 4}}
+          small-range-event {:position {:x 79 :y 4}}
+          continuous-state {:value 0.0 :min 0.0 :max 1.0}
+          stepped-state {:value 0.0 :min 0.0 :max 1.0 :step 0.1}
+          small-range-state {:value 0.00025 :min 0.0 :max 0.001}]
+      [(pixils.ui.slider/slider-value-at continuous-state quarter-event ctx)
+       (pixils.ui.slider/slider-value-at stepped-state stepped-event ctx)
+       (pixils.ui.slider/slider-value-at small-range-state small-range-event ctx)
+       (pixils.ui.slider/slider-handle-pos small-range-state ctx)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 4u);
+  EXPECT_NEAR(Roo::get_child(*result, 0)->num().get_float(), 0.25f, 0.0001f);
+  EXPECT_NEAR(Roo::get_child(*result, 1)->num().get_float(), 0.3f, 0.0001f);
+  EXPECT_NEAR(Roo::get_child(*result, 2)->num().get_float(), 0.00075f, 0.0000001f);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 25);
+}
+
 TEST_F(SliderTest, slider_track_rect_is_centered_on_handle_travel)
 {
   auto result = runtime.eval(R"(
