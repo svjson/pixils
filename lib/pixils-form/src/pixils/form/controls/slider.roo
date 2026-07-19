@@ -1,0 +1,29 @@
+(ns pixils.form.controls.slider
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.slider :as slider]))
+
+(defcomponent pixils/form-slider-control
+  {:on {:slider/change
+        (fn [state event ctx]
+          (let [value (:payload event)]
+            (ui/stop-propagation! event)
+            (when (not (:read-only? state))
+              (ui/emit! (:view ctx)
+                        :form/control-change
+                        {:value value
+                         :commit? true}))
+            (if (:read-only? state)
+              state
+              (assoc state :value value))))}
+   :children [(slider/make
+               {:style (ui/bind-state :slider-style)
+                :value (ui/bind-state :value)
+                :min (ui/bind-state :min)
+                :max (ui/bind-state :max)
+                :step (ui/bind-state :step)
+                :axis (ui/bind-state :axis)})
+              {:mode 'ui/text
+               :class [:ui/muted :pixils/form-slider-value]
+               :style (ui/bind-state :value-style)
+               :state {:value (ui/bind-state :value)}}]})
