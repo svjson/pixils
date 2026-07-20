@@ -39,8 +39,8 @@
 (defun schema-definitions [schema]
   (or (:definitions (or schema {})) {}))
 
-(defun ref-seen? [seen ref-id]
-  (reduce (or seen [])
+(defun ref-seen? [seen-refs ref-id]
+  (reduce (or seen-refs [])
           false
           (fn [found item]
             (or found (= item ref-id)))))
@@ -56,34 +56,34 @@
       merged
       (assoc merged :fields fields))))
 
-(defun extension-base-schema [schema schema-node seen]
+(defun extension-base-schema [schema schema-node seen-refs]
   (let [extension (:extends schema-node)
         base-node (if (keyword? extension)
                     {:ref extension}
                     extension)]
-    (resolve-schema-with-seen schema base-node seen)))
+    (resolve-schema-node schema base-node seen-refs)))
 
-(defun resolve-variants-with-seen [schema variants seen]
+(defun resolve-variants [schema variants seen-refs]
   (reduce-kv (or variants {})
              {}
              (fn [resolved variant-key variant-schema]
                (assoc resolved
                       variant-key
-                      (resolve-schema-with-seen schema
-                                                variant-schema
-                                                seen)))))
+                      (resolve-schema-node schema
+                                           variant-schema
+                                           seen-refs)))))
 
-(defun resolve-fields-with-seen [schema fields seen]
+(defun resolve-fields [schema fields seen-refs]
   (reduce-kv (or fields {})
              {}
              (fn [resolved field-id field-schema]
                (assoc resolved
                       field-id
-                      (resolve-schema-with-seen schema
-                                                field-schema
-                                                seen)))))
+                      (resolve-schema-node schema
+                                           field-schema
+                                           seen-refs)))))
 
-(defun resolve-nested-schema-with-seen [schema resolved seen]
+(defun resolve-nested-schema [schema resolved seen-refs]
   (cond
     (not (= (type-of resolved) "map"))
     resolved
@@ -91,54 +91,52 @@
     (= (:type resolved) :object)
     (assoc resolved
            :fields
-           (resolve-fields-with-seen schema (:fields resolved) seen))
+           (resolve-fields schema (:fields resolved) seen-refs))
 
     (= (:type resolved) :array)
     (assoc resolved
            :items
-           (resolve-schema-with-seen schema (:items resolved) seen))
+           (resolve-schema-node schema (:items resolved) seen-refs))
 
     (= (:type resolved) :union)
     (assoc resolved
            :base
-           (resolve-schema-with-seen schema (:base resolved) seen)
+           (resolve-schema-node schema (:base resolved) seen-refs)
            :variants
-           (resolve-variants-with-seen schema (:variants resolved) seen))
+           (resolve-variants schema (:variants resolved) seen-refs))
 
     :default resolved))
 
-(defun resolve-schema-with-seen [schema schema-node seen]
+(defun resolve-schema-node [schema schema-node seen-refs]
   (cond
     (not (= (type-of schema-node) "map"))
     schema-node
 
     (contains? schema-node :ref)
     (let [ref-id (:ref schema-node)
-          definition (get (schema-definitions schema) ref-id)]
+          definition (get (schema-definitions schema) ref-id)
+          next-seen-refs (concat (or seen-refs []) [ref-id])]
       (if (or (nil? definition)
-              (ref-seen? seen ref-id))
+              (ref-seen? seen-refs ref-id))
         schema-node
-        (resolve-nested-schema-with-seen
-         schema
-         (merge (resolve-schema-with-seen schema
-                                          definition
-                                          (concat (or seen []) [ref-id]))
-                (ref-overrides schema-node))
-         seen)))
+        (merge (resolve-schema-node schema
+                                    definition
+                                    next-seen-refs)
+               (ref-overrides schema-node))))
 
     (contains? schema-node :extends)
-    (resolve-nested-schema-with-seen
+    (resolve-nested-schema
      schema
      (merge-schema-nodes
-      (extension-base-schema schema schema-node seen)
+      (extension-base-schema schema schema-node seen-refs)
       (dissoc schema-node :extends))
-     seen)
+     seen-refs)
 
     :default
-    (resolve-nested-schema-with-seen schema schema-node seen)))
+    (resolve-nested-schema schema schema-node seen-refs)))
 
 (defun resolve-schema [schema schema-node]
-  (resolve-schema-with-seen schema schema-node []))
+  (resolve-schema-node schema schema-node []))
 
 (defun resolved-root-schema [schema]
   (if (prepared-schema? schema)
@@ -155,7 +153,7 @@
 (defun prepare-root-schema [schema]
   (let [root (resolved-root-schema schema)]
     (if (root-field-map? root)
-      (resolve-fields-with-seen schema root [])
+      (resolve-fields schema root [])
       root)))
 
 (defun prepare-schema [schema]

@@ -703,6 +703,21 @@
            (schema/active-schema-field-ids prepared value)))
     (is (schema/field-visible? prepared :note value))))
 
+(deftest prepared-schema-leaves-reentrant-references-unresolved
+  (let [schema-doc {:definitions
+                    {:node {:type :object
+                            :fields {:name {:type :text}
+                                     :children {:type :array
+                                                :items {:ref :node}}}}}
+                    :schema {:ref :node}}
+        prepared (schema/prepare-schema schema-doc)]
+    (is (= true (schema/prepared-schema? prepared)))
+    (is (= {:type :object
+            :fields {:name {:type :text}
+                     :children {:type :array
+                                :items {:ref :node}}}}
+           (schema/resolved-root-schema prepared)))))
+
 (deftest prepared-schema-supports-shorthand-type-field
   (let [schema-doc {:definitions
                     {:rule-type {:type :keyword
