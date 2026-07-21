@@ -1,6 +1,7 @@
 
 #include "../render_fixture.h"
 #include "session_fixture.h"
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/program.h>
 
 #include <gtest/gtest.h>
@@ -986,6 +987,83 @@ TEST_F(SessionChildrenTest,
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 4);
+}
+
+TEST_F(SessionChildrenTest, pushed_overlay_can_be_placed_from_anchor_bounds)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent popup-panel {})
+    (pixils/defmode popup-mode
+      {:children [{:mode 'popup-panel
+                   :style {:position :absolute
+                           :left 0
+                           :top 0
+                           :width 30
+                           :height 20}}]})
+  )");
+
+  auto overlay = Roo::map({Roo::keyword("anchor-bounds"),
+                           Pixils::Script::RectAdapter::make_unique(40, 50, 12, 10),
+                           Roo::keyword("placement"),
+                           Roo::keyword("bottom-start")});
+  auto overrides = Roo::map({Roo::keyword("overlay"), overlay});
+
+  session.push_mode("popup-mode", Roo::Constant::NIL, overrides);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto panel = session.active_mode->children[0];
+  ASSERT_NE(panel, nullptr);
+  EXPECT_EQ(panel->bounds.x, 40);
+  EXPECT_EQ(panel->bounds.y, 60);
+  EXPECT_EQ(panel->bounds.w, 30);
+  EXPECT_EQ(panel->bounds.h, 20);
+}
+
+TEST_F(SessionChildrenTest, interaction_pass_overlay_allows_underlying_mouse_leave)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:compose {:render :pass
+                 :update :pass
+                 :interaction :pass}
+       :children [{:style {:width 40
+                           :height 20}}]})
+
+    (pixils/defcomponent hover-target
+      {:on-mouse-enter (fn [state event ctx]
+                         (pixils/push-mode! 'popup-mode)
+                         (assoc state :entered true))
+       :on-mouse-leave (fn [state event ctx]
+                         (pixils/pop-mode!)
+                         (assoc state :left true))})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'hover-target
+                   :style {:width 40
+                           :height 20}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  input().mouse_move({5, 5});
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+
+  input().mouse_move({100, 100});
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto target = session.active_mode->children[0];
+  ASSERT_NE(target, nullptr);
+  auto left = Roo::Dict::get_property(target->state, Roo::keyword("left"));
+  ASSERT_NE(left, nullptr);
+  EXPECT_EQ(left->to_string(), "true");
 }
 
 TEST_F(SessionChildrenTest,

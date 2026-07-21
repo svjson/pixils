@@ -1,4 +1,5 @@
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/ui/ui_host_type.h>
 #include <pixils/context.h>
 #include <pixils/hook_context.h>
@@ -66,6 +67,7 @@ namespace Pixils::UI::Components
       std::string text;
       Roo::sptr_val source = Roo::Constant::NIL;
       Roo::sptr_val value = Roo::Constant::NIL;
+      Rect bounds = {0, 0, 0, 0};
     };
 
     Roo::sptr_val map_value(const Roo::sptr_val& value, const std::string& key)
@@ -330,6 +332,35 @@ namespace Pixils::UI::Components
       return 0;
     }
 
+    Rect run_bounds_on_line(const RichLine& line,
+                            std::size_t run_index,
+                            int line_x,
+                            int line_y,
+                            int line_height)
+    {
+      bool found = false;
+      Rect bounds{0, line_y, 0, line_height};
+      int x = line_x;
+      for (const auto& token : line.tokens)
+      {
+        if (token.run_index == run_index)
+        {
+          if (!found)
+          {
+            bounds.x = x;
+            bounds.w = token.width;
+            found = true;
+          }
+          else
+          {
+            bounds.w = (x + token.width) - bounds.x;
+          }
+        }
+        x += token.width;
+      }
+      return bounds;
+    }
+
     std::optional<HitRun> hit_rich_run(const RichTextLayout& layout,
                                        Text::Alignment alignment,
                                        int available_width,
@@ -345,14 +376,24 @@ namespace Pixils::UI::Components
         {
           const Rect token_rect{x, y, token.width, layout.line_height};
           if (token.interactive && token_rect.contains(pos))
-            return HitRun{token.run_index, token.run_text, token.source, token.value};
+            return HitRun{token.run_index,
+                          token.run_text,
+                          token.source,
+                          token.value,
+                          run_bounds_on_line(line,
+                                             token.run_index,
+                                             line_start_x(line,
+                                                          alignment,
+                                                          available_width),
+                                             y,
+                                             layout.line_height)};
           x += token.width;
         }
       }
       return std::nullopt;
     }
 
-    Roo::sptr_val hit_payload(const HitRun& hit)
+    Roo::sptr_val hit_payload(Runtime::View& view, const HitRun& hit)
     {
       return Roo::map({Roo::keyword("index"),
                        Roo::number(static_cast<int>(hit.index)),
@@ -361,7 +402,11 @@ namespace Pixils::UI::Components
                        Roo::keyword("run"),
                        hit.source,
                        Roo::keyword("value"),
-                       hit.value});
+                       hit.value,
+                       Roo::keyword("anchor"),
+                       Script::ViewAdapter::make_ref(view),
+                       Roo::keyword("anchor-bounds"),
+                       Script::RectAdapter::make_unique(hit.bounds)});
     }
 
     std::optional<int> hovered_run_index(const Roo::sptr_val& state)
@@ -401,11 +446,21 @@ namespace Pixils::UI::Components
                                      rich_runs_from_state(state),
                                      TextStyle::wrap_mode(view.effective_style),
                                      content_rect.w);
-      return hit_rich_run(
+      auto hit = hit_rich_run(
         layout,
         TextStyle::alignment(view.effective_style),
         content_rect.w,
         pos.minus(content_rect.x - view.bounds.x, content_rect.y - view.bounds.y));
+      if (hit)
+      {
+        const int scale = std::max(1, view.visual_scale);
+        hit->bounds = {
+          view.visual_bounds.x + ((content_rect.x - view.bounds.x + hit->bounds.x) * scale),
+          view.visual_bounds.y + ((content_rect.y - view.bounds.y + hit->bounds.y) * scale),
+          hit->bounds.w * scale,
+          hit->bounds.h * scale};
+      }
+      return hit;
     }
 
     void emit_rich_text_event(Runtime::View& view,
@@ -515,7 +570,7 @@ namespace Pixils::UI::Components
 
         emit_rich_text_event(view,
                              hit ? "rich-text/hover" : "rich-text/leave",
-                             hit ? hit_payload(*hit) : Roo::Constant::NIL);
+                             hit ? hit_payload(view, *hit) : Roo::Constant::NIL);
         return set_hovered_run_index(args[0], hit);
       }
 
@@ -554,7 +609,9 @@ namespace Pixils::UI::Components
                                          args[0],
                                          Roo::obj<MouseEvent>(*args[1]).local_pos);
         if (hit)
-          emit_rich_text_event(*hook_ctx.current_view, "rich-text/click", hit_payload(*hit));
+          emit_rich_text_event(*hook_ctx.current_view,
+                               "rich-text/click",
+                               hit_payload(*hook_ctx.current_view, *hit));
         return args[0];
       }
     } // namespace Function
