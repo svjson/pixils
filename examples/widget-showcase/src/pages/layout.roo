@@ -2,6 +2,7 @@
   (:require [pixils.ui :as ui]
             [pixils.ui.collapsible :as collapsible]
             [pixils.ui.header-panel :as header-panel]
+            [pixils.ui.rich-text :as rich-text]
             [pixils.ui.split-pane :as split-pane]
             [widget-showcase.state :as showcase-state]
             [widget-showcase.style :as style]))
@@ -18,6 +19,43 @@
                                       :gap 4}}
                 :children [(style/label "Header panels provide a title band and body area.")
                            (style/label "They are useful for app settings and inspectors.")]})
+              (style/state-section
+               "Rich Text"
+               [(rich-text/make
+                 {:style {:width :fill
+                          :height 56
+                          :padding 6
+                          :background style/content-bg
+                          :text {:marked-style {:color {:r 0x1c
+                                                        :g 0x52
+                                                        :b 0x9b
+                                                        :a 0xff}
+                                                :font-styles :underline}}}
+                  :state (showcase-state/bindings)
+                  :runs [{:text "Marked metadata"
+                          :marked? true
+                          :value {:subject :showcase/rich-text
+                                  :kind :value}}
+                         " can sit inline with plain wrapped text, "
+                         {:text "identifier spans"
+                          :marked? true
+                          :id :showcase/identifier-span}
+                         ", and "
+                         {:text "external references"
+                          :marked? true
+                          :href "https://pixils.local/rich-text"}
+                         ". Hover an interactive run to update the status bar, or click one to receive its payload."]})
+                {:style {:width :fill
+                         :height :shrink
+                         :layout {:direction :row
+                                  :gap 6}}
+                 :state (showcase-state/bindings)
+                 :children [{:mode 'ui/text
+                             :style {:width 72}
+                             :state {:value "Events:"}}
+                            {:mode 'ui/text
+                             :style {:width :fill}
+                             :state {:value (ui/bind-state :rich-text-event)}}]}])
               (style/section
                "Split Pane"
                [(split-pane/make

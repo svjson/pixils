@@ -195,6 +195,57 @@
                  (:layout-collapsible-expanded? (runtime/active-state app))))
           (is (= 0 (:h (:bounds content-after)))))))))
 
+(deftest layout-tab-renders-rich-text-section
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (runtime/click! app (runtime/find-view-containing app "ui/tab" ":tab-id :layout"))
+    (settle-layout! app)
+    (let [rich-text (runtime/find-view app "ui/rich-text")]
+      (is (not (nil? rich-text)))
+      (is (= 56 (:h (:bounds rich-text))))
+      (is (= 6 (count (:runs (runtime/view-state rich-text))))))))
+
+(deftest layout-tab-rich-text-events-update-status
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend true})]
+    (runtime/eval! app "(pixils/set-theme! 'pixils/windows-3)")
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (runtime/click! app (runtime/find-view-containing app "ui/tab" ":tab-id :layout"))
+    (settle-layout! app)
+    (let [rich-text (runtime/find-view app "ui/rich-text")]
+      (runtime/mouse-move-in! app rich-text 8 8)
+      (runtime/update! app)
+      (runtime/update! app)
+      (is (= "Hover rich text: Marked metadata"
+             (:message (runtime/active-state app))))
+      (is (= "Hover rich text: Marked metadata"
+             (:rich-text-event (runtime/active-state app))))
+      (is (not (nil? (runtime/find-view-containing
+                      app
+                      "ui/text"
+                      "Hover rich text: Marked metadata"))))
+      (runtime/mouse-click-in! app rich-text 8 8)
+      (runtime/update! app)
+      (is (= "Clicked rich text: Marked metadata"
+             (:message (runtime/active-state app))))
+      (is (not (nil? (runtime/find-view-containing
+                      app
+                      "ui/text"
+                      "Clicked rich text: Marked metadata"))))
+      (runtime/mouse-move-in! app rich-text 4 (- (:h (:bounds rich-text)) 4))
+      (runtime/update! app)
+      (runtime/update! app)
+      (is (= "Rich text hover cleared."
+             (:message (runtime/active-state app))))
+      (is (not (nil? (runtime/find-view-containing app "ui/text" "leave")))))))
+
 (deftest widget-showcase-title-bar-stays-anchored-on-first-hover
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800

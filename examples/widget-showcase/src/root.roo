@@ -139,6 +139,25 @@
                                 (ui/stop-propagation! event)
                                 (assoc state
                                        :message "Tree node activated.")))
+        :rich-text/hover (fn [state event ctx]
+                           (ui/stop-propagation! event)
+                           (let [message (str "Hover rich text: "
+                                              (-> event :payload :text))]
+                             (assoc state
+                                    :message message
+                                    :rich-text-event message)))
+        :rich-text/leave (fn [state event ctx]
+                           (ui/stop-propagation! event)
+                           (assoc state
+                                  :message "Rich text hover cleared."
+                                  :rich-text-event "leave"))
+        :rich-text/click (fn [state event ctx]
+                           (ui/stop-propagation! event)
+                           (let [message (str "Clicked rich text: "
+                                              (-> event :payload :text))]
+                             (assoc state
+                                    :message message
+                                    :rich-text-event message)))
         :slider/change (fn [state event ctx]
                          (do
                            (ui/stop-propagation! event)

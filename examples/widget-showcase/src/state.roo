@@ -127,6 +127,7 @@
    :tree-selected (ui/bind-state :tree-selected)
    :desktop-selected-id (ui/bind-state :desktop-selected-id)
    :message (ui/bind-state :message)
+   :rich-text-event (ui/bind-state :rich-text-event)
    :theme-label (ui/bind-state :theme-label)})
 
 (defun initial-state []
@@ -154,4 +155,5 @@
    :tree-selected :src
    :desktop-selected-id :controls
    :message "Widget showcase ready."
+   :rich-text-event "hover, leave, click"
    :theme-label "Windows 3"})
