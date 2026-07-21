@@ -594,6 +594,42 @@
             :label "Grass edge"}
            (:form-value payload)))))
 
+(deftest field-change-payload-canonicalizes-keyword-field-values
+  (let [payload (form/field-change-payload
+                 {:field-id :terrain-id
+                  :field-path [:id]
+                  :local-field-path [:id]
+                  :field-schema {:type :keyword}
+                  :form-value {:id :terrain/old}}
+                 "terrain/new")]
+    (is (= :terrain/new (:value payload)))
+    (is (= {:id :terrain/new}
+           (:form-value payload)))))
+
+(deftest field-change-payload-accepts-leading-colon-for-keywords
+  (let [payload (form/field-change-payload
+                 {:field-id :terrain-id
+                  :field-path [:id]
+                  :local-field-path [:id]
+                  :field-schema {:type :keyword}
+                  :form-value {:id :terrain/old}}
+                 ":terrain/new")]
+    (is (= :terrain/new (:value payload)))
+    (is (= {:id :terrain/new}
+           (:form-value payload)))))
+
+(deftest field-change-payload-clears-blank-keyword-fields
+  (let [payload (form/field-change-payload
+                 {:field-id :terrain-id
+                  :field-path [:id]
+                  :local-field-path [:id]
+                  :field-schema {:type :keyword}
+                  :form-value {:id :terrain/old}}
+                 "")]
+    (is (nil? (:value payload)))
+    (is (= {:id nil}
+           (:form-value payload)))))
+
 (deftest field-change-payload-reports-root-form-value
   (let [payload (form/field-change-payload
                  {:form-value [{:id :terrain/dirt}]}

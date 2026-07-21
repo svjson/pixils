@@ -562,8 +562,28 @@
               value)
     value))
 
+(defun keyword-field-value [value]
+  (cond
+    (nil? value)
+    nil
+
+    (keyword? value)
+    value
+
+    :default
+    (let [text (form-layout/keyword-label value)]
+      (if (model-schema/blank-value? text)
+        nil
+        (keyword text)))))
+
 (defun field-change-payload [state value]
-  (let [old-value-path (or (:local-field-path state)
+  (let [value (case (-> state :field-schema :type)
+                :keyword
+                (keyword-field-value value)
+
+                :default
+                value)
+        old-value-path (or (:local-field-path state)
                            (:field-path state))]
     {:field-id (:field-id state)
      :field-path (:field-path state)
