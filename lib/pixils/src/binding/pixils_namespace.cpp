@@ -589,9 +589,11 @@ namespace Pixils::Script
 
       auto opts = mode_compose_schema.bind(ctx, *args[0]);
 
+      const auto interaction = opts.str("interaction", "block");
       Runtime::ModeComposition composition{opts.str("render", "block") == "pass",
                                            opts.str("update", "block") == "pass",
-                                           opts.str("interaction", "block") == "refresh"};
+                                           interaction == "pass",
+                                           interaction == "refresh"};
 
       return ModeCompositionAdapter::make_unique(composition);
     }
@@ -891,8 +893,9 @@ namespace Pixils::Script
 
   Roo::sptr_val ModeCompositionAdapter::get_interaction() const
   {
-    return this->get_object().interaction_refresh ? Roo::keyword("refresh")
-                                                  : MapKey::BLOCK;
+    if (this->get_object().interaction_pass) return MapKey::PASS;
+    if (this->get_object().interaction_refresh) return Roo::keyword("refresh");
+    return MapKey::BLOCK;
   }
 
   /* DimensionAdapter */

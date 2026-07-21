@@ -132,6 +132,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
 | `ui/list-box` | Data-driven selectable list with optional multi-select and item reordering. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
+| `ui/popover` | Local or pushed-overlay content panel for contextual UI. |
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/header-panel` | Static content panel with a styled header/title region. |
 | `ui/collapsible` | Expandable section with a clickable header and hideable content body. |
@@ -790,14 +791,52 @@ jump that can happen when a component computes absolute coordinates from
                        :height :shrink}}]})
 ```
 
-The overlay anchor must be a view. `:placement` currently supports
-`:bottom-start` and `:top-start`; `:fallback-placement` also accepts `:none`.
+The overlay anchor can be a view with `:anchor` or a visual/render-coordinate
+rect with `:anchor-bounds`. `:placement` currently supports `:bottom-start` and
+`:top-start`; `:fallback-placement` also accepts `:none`.
 Use `:match-anchor-width? true` when the overlay should inherit the anchor's
 visual width. Use `:viewport-padding` to keep the overlay away from the render
 buffer edge.
 
 The pushed overlay remains a normal mode. Style the popup panel with ordinary
 layout/style keys, but let `:overlay` own the final screen placement.
+
+`pixils.ui.popover` provides a stock panel and two convenience entry points for
+the common cases. `popover/make` returns a mountable local component. It stays in
+the current view tree, so it can be clipped by parent views and participates in
+local z-order.
+
+```clojure
+(popover/make
+ {:open? (ui/bind-state :info-open?)
+  :style {:width 220}
+  :children [{:mode 'ui/text
+              :style {:width :fill}
+              :state {:value "Contextual information."}}]})
+```
+
+`popover/make-trigger` returns a trigger plus a local popover. It toggles
+`:open?` when the trigger is clicked.
+
+```clojure
+(popover/make-trigger
+ {:label "Details"
+  :children [{:mode 'ui/text
+              :state {:value "More details."}}]})
+```
+
+Use `popover/open!` when the popover should be a top-layer overlay that escapes
+local clipping. It pushes `ui/popover-overlay` and returns dismiss/close data to
+the origin view as `:popover/result`, unless `:result-event` is supplied.
+
+```clojure
+(popover/open! ctx
+ {:placement :bottom-start
+  :fallback-placement :top-start
+  :viewport-padding 8
+  :children [{:mode 'ui/text
+              :state {:value "Overlay popover."}}]})
+```
 
 **Returning data from a pushed mode**
 
@@ -849,7 +888,10 @@ the top also participates in update and/or render - useful for overlays and HUDs
 ```
 
 With `:render :pass`, both this mode and the one below render each frame (the lower mode
-first). With `:update :pass`, both update each frame.
+first). With `:update :pass`, both update each frame. With `:interaction :pass`,
+mouse interaction is dispatched to the mode below instead of the overlay. Use
+`:interaction :refresh` when a render-through overlay should refresh the lower
+mode's hover/press visual state without dispatching interaction hooks to it.
 
 ### Children and layout
 
@@ -1129,7 +1171,10 @@ click behavior. The state accepts `:runs`, `:content`, or `:value`. A run may be
 plain string or a map with `:text`, optional `:marked? true`, and optional metadata
 under `:value`, `:id`, or `:href`. Runs with metadata emit `:rich-text/hover`,
 `:rich-text/leave`, and `:rich-text/click`; the event payload is
-`{:index n :text text :run original-run :value metadata}`.
+`{:index n :text text :run original-run :value metadata :anchor source-view
+:anchor-bounds visual-hit-rect}`. Pass `:anchor-bounds` to
+`pixils.ui.popover/open!` when a rich-text run should open a floating popover,
+menu, or tooltip at the hit span.
 
 ```clojure
 {:mode 'ui/rich-text

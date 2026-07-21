@@ -6,6 +6,7 @@
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
@@ -32,6 +33,7 @@ namespace Pixils::Runtime
   namespace
   {
     const Roo::sptr_val KEYWORD__ANCHOR = Roo::keyword("anchor");
+    const Roo::sptr_val KEYWORD__ANCHOR_BOUNDS = Roo::keyword("anchor-bounds");
     const Roo::sptr_val KEYWORD__EVENT = Roo::keyword("event");
     const Roo::sptr_val KEYWORD__FALLBACK_PLACEMENT = Roo::keyword("fallback-placement");
     const Roo::sptr_val KEYWORD__MATCH_ANCHOR_WIDTH =
@@ -118,13 +120,32 @@ namespace Pixils::Runtime
       }
 
       auto anchor = Roo::Dict::get_property(overlay, KEYWORD__ANCHOR);
-      if (!anchor || !Script::HostType::VIEW.is_type_of(*anchor))
+      auto anchor_bounds = Roo::Dict::get_property(overlay, KEYWORD__ANCHOR_BOUNDS);
+      if ((!anchor || anchor->type == Roo::Value::Type::NIL) &&
+          (!anchor_bounds || anchor_bounds->type == Roo::Value::Type::NIL))
+      {
+        throw Roo::TypeError("Mode :overlay requires :anchor or :anchor-bounds");
+      }
+      if (anchor && anchor->type != Roo::Value::Type::NIL &&
+          !Script::HostType::VIEW.is_type_of(*anchor))
       {
         throw Roo::TypeError("Mode :overlay :anchor must be a view");
       }
+      if (anchor_bounds && anchor_bounds->type != Roo::Value::Type::NIL &&
+          !Script::HostType::RECT.is_type_of(*anchor_bounds))
+      {
+        throw Roo::TypeError("Mode :overlay :anchor-bounds must be a rect");
+      }
 
       Session::ModeFrameMetadata::Overlay metadata;
-      metadata.anchor_view = &Roo::obj<View>(*anchor);
+      if (anchor && anchor->type != Roo::Value::Type::NIL)
+      {
+        metadata.anchor_view = &Roo::obj<View>(*anchor);
+      }
+      if (anchor_bounds && anchor_bounds->type != Roo::Value::Type::NIL)
+      {
+        metadata.anchor_bounds = Roo::obj<Rect>(*anchor_bounds);
+      }
       metadata.placement = parse_overlay_placement(
         Roo::Dict::get_property(overlay, KEYWORD__PLACEMENT),
         Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START);
@@ -388,7 +409,8 @@ namespace Pixils::Runtime
                                  const Session::ModeFrameMetadata& metadata,
                                  const Rect& viewport)
     {
-      if (!metadata.overlay || !metadata.overlay->anchor_view)
+      if (!metadata.overlay ||
+          (!metadata.overlay->anchor_view && !metadata.overlay->anchor_bounds))
       {
         return false;
       }
@@ -400,7 +422,8 @@ namespace Pixils::Runtime
       }
 
       const auto& overlay = *metadata.overlay;
-      const Rect anchor = overlay.anchor_view->visual_bounds;
+      const Rect anchor =
+        overlay.anchor_bounds ? *overlay.anchor_bounds : overlay.anchor_view->visual_bounds;
       const int scale = std::max(1, root ? root->visual_scale : target->visual_scale);
       const int target_visual_width =
         overlay.match_anchor_width ? anchor.w : target->visual_bounds.w;

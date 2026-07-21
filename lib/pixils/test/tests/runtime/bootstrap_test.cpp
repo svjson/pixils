@@ -183,6 +183,24 @@ TEST_F(BootstrapTest, includes_embedded_rich_text_source)
             std::string_view::npos);
 }
 
+TEST_F(BootstrapTest, includes_embedded_popover_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto popover =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/popover.roo"; });
+
+  ASSERT_NE(popover, sources.end());
+  EXPECT_NE(std::string_view(popover->source).find("(ns pixils.ui.popover"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(popover->source).find("(defun make"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(popover->source).find("(defun open!"),
+            std::string_view::npos);
+}
+
 TEST_F(BootstrapTest, includes_embedded_toggle_button_source)
 {
   const auto& sources = Pixils::EmbeddedLisp::core_sources();

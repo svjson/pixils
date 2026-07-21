@@ -1,0 +1,181 @@
+(ns pixils.ui.popover
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(def supported-overlay-placements
+  [:bottom-start :top-start])
+
+(defun option-classes [classes]
+  (cond
+    (nil? classes) []
+    (keyword? classes) [classes]
+    :default classes))
+
+(defun merge-classes [base extra]
+  (concat (option-classes base)
+          (option-classes extra)))
+
+(defun sync-popover-style! [state ctx]
+  (ui/style! (:view ctx)
+             {:hidden (not (:open? state))})
+  state)
+
+(defun stop-mouse-down [state event ctx]
+  (ui/stop-propagation! event)
+  state)
+
+(defun popover-result [state type payload]
+  {:type type
+   :payload (or payload (:popover/payload state))})
+
+(defun dismiss-popover! [state payload]
+  (when (:popover/dismissable state)
+    (pop-mode! (popover-result state :dismiss payload))))
+
+(defcomponent ui/popover
+  {:class :ui/popover
+   :init sync-popover-style!
+   :update sync-popover-style!})
+
+(defcomponent ui/popover-trigger
+  {:class :ui/popover-trigger
+   :on {:popover/open (fn [state event ctx]
+                        (ui/stop-propagation! event)
+                        (assoc state :open? true))
+        :popover/close (fn [state event ctx]
+                         (ui/stop-propagation! event)
+                         (assoc state :open? false))
+        :popover/toggle (fn [state event ctx]
+                          (ui/stop-propagation! event)
+                          (assoc state :open? (not (:open? state))))}})
+
+(defcomponent ui/popover-trigger-control
+  {:class :ui/popover-trigger-control})
+
+(defmode ui/popover-overlay
+  {:focusable true
+   :style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (ui/focus! ctx)
+           state)
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/escape
+                    (do
+                      (ui/stop-propagation! event)
+                      (dismiss-popover! state nil)
+                      state)
+
+                    :default
+                    state))
+   :on-mouse-down (fn [state event ctx]
+                    (ui/preserve-focus! event)
+                    (ui/stop-propagation! event)
+                    (dismiss-popover! state nil)
+                    state)
+   :on {:popover/close (fn [state event ctx]
+                         (ui/stop-propagation! event)
+                         (pop-mode! (popover-result state
+                                                    :close
+                                                    (:payload event)))
+                         state)}
+   :compose {:render :pass
+             :update :pass
+             :interaction :pass}})
+
+(defun make [{:keys [class style state children init update on on-mouse-down]
+              :as opts}]
+  (merge {:mode 'ui/popover
+          :class (merge-classes [:ui/popover] class)
+          :style (or style {})
+          :state (merge (or state {})
+                        {:open? (if (contains? opts :open?)
+                                  (:open? opts)
+                                  true)})
+          :children (or children [])}
+         (if init {:init init} {})
+         (if update {:update update} {})
+         (if on {:on on} {})
+         (if on-mouse-down {:on-mouse-down on-mouse-down} {})))
+
+(defun make-trigger-control [trigger label]
+  {:mode 'ui/popover-trigger-control
+   :class :ui/popover-trigger-control
+   :on-click (fn [state event ctx]
+               (when (= (:button event) :left)
+                 (ui/emit! (:view ctx) :popover/toggle nil))
+               state)
+   :children [(or trigger
+                  {:mode 'ui/button
+                   :state {:label (or label "Open")}})]})
+
+(defun make-trigger [{:keys [class style state trigger label children
+                             popover-class popover-style popover-state
+                             trigger-style trigger-class on init update]
+                      :as opts}]
+  (merge {:mode 'ui/popover-trigger
+          :class (merge-classes [:ui/popover-trigger] class)
+          :style (or style {})
+          :state (merge (or state {})
+                        {:open? (if (contains? opts :open?)
+                                  (:open? opts)
+                                  false)})
+          :children [(merge (make-trigger-control trigger label)
+                            (if trigger-style {:style trigger-style} {})
+                            (if trigger-class
+                              {:class (merge-classes [:ui/popover-trigger-control]
+                                                     trigger-class)}
+                              {}))
+                     (make {:class popover-class
+                            :style popover-style
+                            :state (or popover-state {})
+                            :open? (ui/bind-state :open?)
+                            :children children})]}
+         (if init {:init init} {})
+         (if update {:update update} {})
+         (if on {:on on} {})))
+
+(defun overlay-placement [placement]
+  (if (contains? supported-overlay-placements placement)
+    placement
+    :bottom-start))
+
+(defun overlay-opts [ctx opts]
+  (merge {:anchor (or (:anchor opts) (:view ctx))
+          :placement (overlay-placement (or (:placement opts)
+                                            :bottom-start))
+          :fallback-placement (or (:fallback-placement opts)
+                                  :top-start)}
+         (if (contains? opts :anchor-bounds)
+           {:anchor-bounds (:anchor-bounds opts)}
+           {})
+         (if (contains? opts :match-anchor-width?)
+           {:match-anchor-width? (:match-anchor-width? opts)}
+           {})
+         (if (contains? opts :viewport-padding)
+           {:viewport-padding (:viewport-padding opts)}
+           {})))
+
+(defun open! [ctx opts]
+  (push-mode!
+   'ui/popover-overlay
+   (merge (or (:state opts) {})
+          {:popover/payload (:payload opts)
+           :popover/dismissable (if (contains? opts :dismissable)
+                                  (:dismissable opts)
+                                  true)})
+   {:origin {:view (:view ctx)
+             :event (or (:result-event opts)
+                        :popover/result)}
+    :overlay (overlay-opts ctx opts)
+    :children [(make (merge opts
+                            {:open? true
+                             :style (merge {:position :absolute
+                                            :left 0
+                                            :top 0
+                                            :width :shrink
+                                            :height :shrink}
+                                           (or (:style opts) {}))
+                             :on-mouse-down stop-mouse-down}))]})
+  nil)

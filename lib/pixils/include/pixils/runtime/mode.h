@@ -51,6 +51,7 @@ namespace Pixils::Runtime
   {
     bool render = false;
     bool update = false;
+    bool interaction_pass = false;
     bool interaction_refresh = false;
   };
 

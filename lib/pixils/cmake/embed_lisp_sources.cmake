@@ -18,6 +18,7 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/toggle-button.roo
   ui/window.roo
   ui/dialog.roo
+  ui/popover.roo
   ui/scrollbar.roo
   ui/scroll-pane.roo
   ui/tree-view.roo

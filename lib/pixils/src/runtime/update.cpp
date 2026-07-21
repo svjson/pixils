@@ -77,12 +77,22 @@ namespace Pixils::Runtime
     }
 
     /**
-     * Delegate active-mode update, hover tracking, and event dispatch to UI helpers.
+     * Delegate update, hover tracking, and event dispatch to UI helpers.
+     * Non-modal overlays can pass pointer interaction through to the mode below.
      */
     if (hook_args.events)
     {
+      auto interaction_root = active_mode;
+      size_t interaction_offset = 0;
+      if (active_mode && active_mode->mode && active_mode->mode->composition.interaction_pass &&
+          !ctx_stack.empty())
+      {
+        interaction_root = ctx_stack.back();
+        interaction_offset = 1;
+      }
+
       bool late_interaction_update =
-        Pixils::UI::dispatch_interactions(active_mode,
+        Pixils::UI::dispatch_interactions(interaction_root,
                                           mouse_state,
                                           focus_state,
                                           *hook_args.events,
@@ -90,18 +100,22 @@ namespace Pixils::Runtime
                                           roo_runtime);
       if (late_interaction_update)
       {
-        Pixils::UI::update_view_tree(active_mode,
+        Pixils::UI::update_view_tree(interaction_root,
                                      mouse_state,
                                      focus_state,
                                      update_mouse_pos(hook_args),
                                      hook_args,
                                      roo_runtime);
       }
-      Pixils::UI::sync_focus_state(active_mode, focus_state);
-      Pixils::UI::refresh_view_interaction_tree(active_mode,
+      Pixils::UI::sync_focus_state(interaction_root, focus_state);
+      Pixils::UI::refresh_view_interaction_tree(interaction_root,
                                                 mouse_state,
                                                 focus_state,
                                                 {0.0f, 0.0f});
+      if (interaction_offset > 0)
+      {
+        mode_stack.update_state(interaction_root->state, interaction_offset);
+      }
     }
     this->hook_args.update_state(active_mode->state);
   }

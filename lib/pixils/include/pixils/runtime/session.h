@@ -42,6 +42,7 @@ namespace Pixils::Runtime
       struct Overlay
       {
         View* anchor_view = nullptr;
+        std::optional<Rect> anchor_bounds = std::nullopt;
         OverlayPlacement placement = OverlayPlacement::BOTTOM_START;
         OverlayPlacement fallback_placement = OverlayPlacement::NONE;
         bool match_anchor_width = false;

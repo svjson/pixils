@@ -626,4 +626,17 @@
     'ui/popup-menu-inner
     {:text {:color (var :text)}
      :background (var :surface)
+     :border (var :inset-border-style)}
+
+    'ui/popover-trigger
+    {:height :shrink}
+
+    'ui/popover
+    {:width :shrink
+     :height :shrink
+     :padding 8
+     :layout {:direction :column
+              :gap 4}
+     :text {:color (var :text)}
+     :background (var :surface)
      :border (var :inset-border-style)}}})
