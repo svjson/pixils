@@ -498,6 +498,8 @@
                   :menu-option-indicator {:selected-symbol :checkmark}
                   :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                            :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
+                  :collapsible {:collapsed-image :windows-3-theme/chevron-right
+                                :expanded-image :windows-3-theme/chevron-down}
                   :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
                                              :down-image :windows-3-theme/scrollbar-arrow-down
                                              :left-image :windows-3-theme/scrollbar-arrow-left
@@ -551,6 +553,8 @@
                  :menu-option-indicator {:selected-symbol :checkmark}
                  :menu-submenu-indicator {:image :windows-3-theme/submenu-chevron-highlighted
                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
+                 :collapsible {:collapsed-image :windows-3-theme/tree-disclosure-collapsed
+                               :expanded-image :windows-3-theme/tree-disclosure-expanded}
                  :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up-dark
                                             :down-image :windows-3-theme/scrollbar-arrow-down-dark
                                             :left-image :windows-3-theme/scrollbar-arrow-left-dark

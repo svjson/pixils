@@ -133,6 +133,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/header-panel` | Static content panel with a styled header/title region. |
+| `ui/collapsible` | Expandable section with a clickable header and hideable content body. |
 | `ui/group-box` | Titled inset-border container with the title drawn over the top border. |
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
@@ -382,6 +383,29 @@ theme-styled inset frame with the title over the top border:
    :children [{:mode 'ui/checkbox
                :state {:label "Snap to grid"}}]})
 ```
+
+`ui/collapsible` is usually created with `pixils.ui.collapsible/make`. Bind
+`:expanded?` when an ancestor should own the open/closed state. Clicking the
+header toggles the state and emits `:collapsible/toggle` with
+`{:expanded? bool :value value}`.
+
+```clojure
+(pixils.ui.collapsible/make
+  {:title "Advanced"
+   :value :advanced
+   :expanded? (pixils.ui/bind-state :advanced?)
+   :children [{:mode 'ui/checkbox
+               :state {:label "Show grid"}}]})
+```
+
+The default marker comes from the active theme, usually using the same disclosure
+or chevron imagery as tree views and menus. Pass `:marker? false` to omit it.
+Override it with text or image keywords via `:collapsed-marker` and
+`:expanded-marker`, or use `:collapsed-image` and `:expanded-image` when the
+override is specifically image-based. `:disabled? true` prevents toggling. The
+builder also accepts `:header-style`, `:marker-style`, `:title-style`,
+`:content-style`, matching `:*-class` options, and `:header-children` when the
+header needs custom content instead of the stock title.
 
 `ui/number-input` reuses the same text editing core as `ui/text-input`, but only
 accepts integer text. Bind `:value` to numeric state, use optional `:min`, `:max`,

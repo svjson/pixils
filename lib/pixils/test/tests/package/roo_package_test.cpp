@@ -48,7 +48,9 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
   auto fs = Roo::Package::make_load_path_file_system(plan);
   Roo::Package::LoadedNativePackages native_packages;
   Roo::Runtime runtime(fs.get());
+  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
   native_packages = Roo::Package::load_native_libraries(runtime, plan);
+  Roo::Package::load_autoloads(runtime, plan);
 
   runtime.eval("(ns pixils.package-test-runner "
                "(:require proof.core "
@@ -59,7 +61,7 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 32 :passed 32 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 33 :passed 33 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)
@@ -77,7 +79,9 @@ TEST(PixilsRooPackageTest, pixils_runner_package_loads)
   auto fs = Roo::Package::make_load_path_file_system(plan);
   Roo::Package::LoadedNativePackages native_packages;
   Roo::Runtime runtime(fs.get());
+  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
   native_packages = Roo::Package::load_native_libraries(runtime, plan);
+  Roo::Package::load_autoloads(runtime, plan);
 
   runtime.eval("(ns pixils.runner-package-test (:require pixils.runner))");
 
@@ -94,7 +98,9 @@ TEST(PixilsRooPackageTest, pixils_test_package_loads)
   auto fs = Roo::Package::make_load_path_file_system(plan);
   Roo::Package::LoadedNativePackages native_packages;
   Roo::Runtime runtime(fs.get());
+  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
   native_packages = Roo::Package::load_native_libraries(runtime, plan);
+  Roo::Package::load_autoloads(runtime, plan);
 
   runtime.eval("(ns pixils.test-package-test (:require pixils.test))");
 
@@ -108,7 +114,9 @@ TEST(PixilsRooPackageTest, pixils_test_package_runs_proof_tests)
   auto fs = Roo::Package::make_load_path_file_system(plan);
   Roo::Package::LoadedNativePackages native_packages;
   Roo::Runtime runtime(fs.get());
+  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
   native_packages = Roo::Package::load_native_libraries(runtime, plan);
+  Roo::Package::load_autoloads(runtime, plan);
 
   runtime.eval("(ns pixils.test-package-proof-runner "
                "(:require proof.core pixils.test.package-test))");

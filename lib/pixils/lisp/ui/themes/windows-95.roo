@@ -309,6 +309,8 @@
                   :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
                   :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
                                            :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
+                  :collapsible {:collapsed-image :windows-95-theme/scrollbar-arrow-right
+                                :expanded-image :windows-95-theme/scrollbar-arrow-down}
                   :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                              :down-image :windows-95-theme/scrollbar-arrow-down
                                              :left-image :windows-95-theme/scrollbar-arrow-left
@@ -358,6 +360,8 @@
                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron-highlighted
                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
+                 :collapsible {:collapsed-image :windows-95-theme/tree-disclosure-collapsed
+                               :expanded-image :windows-95-theme/tree-disclosure-expanded}
                  :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                             :down-image :windows-95-theme/scrollbar-arrow-down
                                             :left-image :windows-95-theme/scrollbar-arrow-left

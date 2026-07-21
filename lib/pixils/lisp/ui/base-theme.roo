@@ -180,6 +180,8 @@
                           :limit-track-color (var :disabled-border)}
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}
+                 :collapsible {:collapsed-image :base-theme/tree-disclosure-collapsed
+                               :expanded-image :base-theme/tree-disclosure-expanded}
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up
                                             :down-image :base-theme/scrollbar-arrow-down
                                             :left-image :base-theme/scrollbar-arrow-left
@@ -409,6 +411,43 @@
     'ui/header-panel-body {:width :fill
                            :height :fill
                            :padding 4}
+
+    'ui/collapsible {:width :fill
+                     :height :shrink
+                     :padding 0
+                     :layout {:direction :column}
+                     :text {:color (var :text)}}
+
+    'ui/collapsible-header {:width :fill
+                            :height 20
+                            :max-height 20
+                            :padding [2 4]
+                            :layout {:direction :row
+                                     :align-items :center
+                                     :gap 4}
+                            :background (var :surface)
+                            :border {:bottom {:color (var :border)
+                                              :thickness 1}}}
+
+    'ui/collapsible-header:hover
+    {:background (var :field-bg)}
+
+    '(ui/collapsible-header {:pressed true})
+    {:background (var :disabled-bg)}
+
+    'ui/collapsible-header:disabled
+    {:text {:color (var :disabled-text)}}
+
+    'ui/collapsible-marker {:width 12
+                            :height :fill
+                            :max-width 12
+                            :clip true}
+
+    :ui/collapsible-title {:width :fill}
+
+    'ui/collapsible-content {:width :fill
+                             :height :shrink
+                             :padding 4}
 
     'ui/group-box {:padding 0
                    :layout {:direction :column}

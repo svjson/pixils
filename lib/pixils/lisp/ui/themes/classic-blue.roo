@@ -215,6 +215,8 @@
                  :menu-option-indicator {:selected-text "[x]"
                                          :unselected-text "[ ]"}
                  :menu-submenu-indicator {:text ">"}
+                 :collapsible {:collapsed-image :classic-blue-theme/tree-disclosure-collapsed
+                               :expanded-image :classic-blue-theme/tree-disclosure-expanded}
                  :scrollbar-button-symbols {:up-image :classic-blue-theme/scrollbar-arrow-up
                                             :down-image :classic-blue-theme/scrollbar-arrow-down
                                             :left-image :classic-blue-theme/scrollbar-arrow-left

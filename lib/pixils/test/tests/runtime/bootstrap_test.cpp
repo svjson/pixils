@@ -43,6 +43,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto popup_menu_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/popup-menu"));
   auto list_box_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/list-box"));
   auto combo_box_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/combo-box"));
+  auto collapsible_mode =
+    Roo::Dict::get_property(modes, Roo::symbol("ui/collapsible"));
   auto slider_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/slider"));
   auto split_pane_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/split-pane"));
   auto split_pane_resizer_mode =
@@ -76,6 +78,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(popup_menu_mode, nullptr);
   ASSERT_NE(list_box_mode, nullptr);
   ASSERT_NE(combo_box_mode, nullptr);
+  ASSERT_NE(collapsible_mode, nullptr);
   ASSERT_NE(slider_mode, nullptr);
   ASSERT_NE(split_pane_mode, nullptr);
   ASSERT_NE(split_pane_resizer_mode, nullptr);
@@ -108,6 +111,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*popup_menu_mode).name, "ui/popup-menu");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*list_box_mode).name, "ui/list-box");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*combo_box_mode).name, "ui/combo-box");
+  EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*collapsible_mode).name,
+            "ui/collapsible");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*slider_mode).name, "ui/slider");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*split_pane_mode).name, "ui/split-pane");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*split_pane_resizer_mode).name,
