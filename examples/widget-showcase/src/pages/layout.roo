@@ -1,10 +1,14 @@
 (ns widget-showcase.pages.layout
-  (:require [pixils.ui.header-panel :as header-panel]
+  (:require [pixils.ui :as ui]
+            [pixils.ui.collapsible :as collapsible]
+            [pixils.ui.header-panel :as header-panel]
             [pixils.ui.split-pane :as split-pane]
+            [widget-showcase.state :as showcase-state]
             [widget-showcase.style :as style]))
 
 (defun make []
   {:style style/page-style
+   :state (showcase-state/bindings)
    :children [(header-panel/make
                {:title "Header Panel"
                 :style {:width :fill
@@ -32,6 +36,18 @@
                                       :background style/panel-bg}
                               :children [(style/label "Secondary pane")
                                          (style/label "This side fills remaining space.")]}]})])
+              (collapsible/make
+               {:title "Disclosure Section"
+                :value :layout-disclosure
+                :expanded? (ui/bind-state :layout-collapsible-expanded?)
+                :style {:width :fill
+                        :height :shrink}
+                :content-style {:layout {:direction :column
+                                         :gap 4}}
+                :state (showcase-state/bindings)
+                :content-state (showcase-state/bindings)
+                :children [(style/label "This body is part of the normal layout while expanded.")
+                           (style/label "Click the header to collapse it without changing tabs.")]})
               (style/section
                "Nested Layout"
                [{:style {:width :fill

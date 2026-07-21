@@ -170,6 +170,31 @@
       (is (= true (< (:h (:bounds viewport))
                      (:h (:bounds tab-panel))))))))
 
+(deftest layout-tab-collapsible-toggles_disclosure_section
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [layout-tab (runtime/find-view-containing app
+                                                   "ui/tab"
+                                                   ":tab-id :layout")]
+      (runtime/click! app layout-tab)
+      (settle-layout! app)
+      (let [collapsible (runtime/find-view app "ui/collapsible")
+            content (runtime/find-view app "ui/collapsible-content")
+            header (runtime/find-view app "ui/collapsible-header")]
+        (is (not (nil? collapsible)))
+        (is (= true (:layout-collapsible-expanded? (runtime/active-state app))))
+        (is (= true (> (:h (:bounds content)) 0)))
+        (runtime/click! app header)
+        (settle-layout! app)
+        (let [content-after (runtime/find-view app "ui/collapsible-content")]
+          (is (= false
+                 (:layout-collapsible-expanded? (runtime/active-state app))))
+          (is (= 0 (:h (:bounds content-after)))))))))
+
 (deftest widget-showcase-title-bar-stays-anchored-on-first-hover
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800

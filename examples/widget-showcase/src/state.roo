@@ -121,6 +121,7 @@
    :read-only-value (ui/bind-state :read-only-value)
    :scrollbar-x (ui/bind-state :scrollbar-x)
    :scrollbar-y (ui/bind-state :scrollbar-y)
+   :layout-collapsible-expanded? (ui/bind-state :layout-collapsible-expanded?)
    :tree-expanded (ui/bind-state :tree-expanded)
    :file-tree-expanded (ui/bind-state :file-tree-expanded)
    :tree-selected (ui/bind-state :tree-selected)
@@ -147,6 +148,7 @@
    :read-only-value "Read-only text can be focused and selected."
    :scrollbar-x 24
    :scrollbar-y 40
+   :layout-collapsible-expanded? true
    :tree-expanded [:workspace]
    :file-tree-expanded []
    :tree-selected :src
