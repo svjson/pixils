@@ -17,6 +17,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(modes, nullptr);
 
   auto text_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/text"));
+  auto rich_text_mode =
+    Roo::Dict::get_property(modes, Roo::symbol("ui/rich-text"));
   auto text_input_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/text-input"));
   auto number_input_mode =
     Roo::Dict::get_property(modes, Roo::symbol("ui/number-input"));
@@ -60,6 +62,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
     Roo::Dict::get_property(modes, Roo::symbol("ui/icon-preview"));
 
   ASSERT_NE(text_mode, nullptr);
+  ASSERT_NE(rich_text_mode, nullptr);
   ASSERT_NE(text_input_mode, nullptr);
   ASSERT_NE(number_input_mode, nullptr);
   ASSERT_NE(button_mode, nullptr);
@@ -89,6 +92,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(icon_preview_mode, nullptr);
 
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*text_mode).name, "ui/text");
+  EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*rich_text_mode).name,
+            "ui/rich-text");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*number_input_mode).name, "ui/number-input");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*button_mode).name, "ui/button");
@@ -159,6 +164,22 @@ TEST_F(BootstrapTest, includes_embedded_dialog_source)
   EXPECT_NE(std::string_view(dialog->source).find("(defun open-dialog!"),
             std::string_view::npos);
   EXPECT_NE(std::string_view(dialog->source).find(":dialog/ok-cancel"),
+            std::string_view::npos);
+}
+
+TEST_F(BootstrapTest, includes_embedded_rich_text_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto rich_text =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/rich-text.roo"; });
+
+  ASSERT_NE(rich_text, sources.end());
+  EXPECT_NE(std::string_view(rich_text->source).find("(ns pixils.ui.rich-text"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(rich_text->source).find("(defun make"),
             std::string_view::npos);
 }
 

@@ -203,6 +203,9 @@
 
     :ui/accent {:text {:color (var :text)}}
 
+    'ui/rich-text {:text {:color (var :text)
+                          :wrap :word}}
+
     :ui/canvas {:background (var :field-bg)
                 :border (var :inset-border-style)}
 

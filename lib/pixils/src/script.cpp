@@ -20,6 +20,7 @@
 #include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/embedded_lisp_sources.h>
 #include <pixils/font_registry.h>
+#include <pixils/ui/components/rich_text.h>
 #include <pixils/ui/components/text_node.h>
 
 #include <roo/io/dir_root_file_system.h>
@@ -89,6 +90,7 @@ namespace Pixils
                              std::move(fs.release()));
     roo_runtime.set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(roo_runtime);
+    UI::Components::register_rich_text_component(roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
       try
@@ -152,6 +154,7 @@ namespace Pixils
                                                       std::move(fs.release()));
     roo_runtime->set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(*roo_runtime);
+    UI::Components::register_rich_text_component(*roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
       try

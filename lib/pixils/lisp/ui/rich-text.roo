@@ -1,0 +1,12 @@
+(ns pixils.ui.rich-text
+  (:require pixils))
+
+(defun make [{:keys [runs content value class style state on init update]}]
+  (merge {:mode 'ui/rich-text
+          :style (or style {})
+          :state (merge (or state {})
+                        {:runs (or runs content value)})}
+         (if class {:class class} {})
+         (if on {:on on} {})
+         (if init {:init init} {})
+         (if update {:update update} {})))

@@ -121,6 +121,7 @@ Roo components, so applications can use them like any other mode.
 | Component | Purpose |
 |-----------|---------|
 | `ui/text` | Styled text node with scaling, alignment, and word wrapping. |
+| `ui/rich-text` | Inline text runs with wrapping plus hover/click events for metadata-bearing spans. |
 | `ui/button` | Focusable button wrapper with inner text/content styling. |
 | `ui/toggle-button` | Button subtype that keeps a persistent toggled state and renders toggled-on as pressed. |
 | `ui/toggle-button-group` | Data-driven group of toggle buttons with optional forced selection. |
@@ -1122,6 +1123,28 @@ available width, either from its own fixed/fill `:width` or from a constrained
 ancestor. Auto-width text uses that available width as a wrapping maximum without
 filling the full width itself. Use `:text {:wrap :none}` to keep it on a single
 line. Explicit newline characters still create separate lines.
+
+Use `ui/rich-text` when a single wrapped text flow needs inline metadata, hover, or
+click behavior. The state accepts `:runs`, `:content`, or `:value`. A run may be a
+plain string or a map with `:text`, optional `:marked? true`, and optional metadata
+under `:value`, `:id`, or `:href`. Runs with metadata emit `:rich-text/hover`,
+`:rich-text/leave`, and `:rich-text/click`; the event payload is
+`{:index n :text text :run original-run :value metadata}`.
+
+```clojure
+{:mode 'ui/rich-text
+ :style {:width :fill
+         :text {:marked-style {:color {:r 255 :g 220 :b 120 :a 255}}}}
+ :state {:runs ["The old road leads to "
+                {:text "Blackmere"
+                 :marked? true
+                 :value {:subject :place/blackmere}}
+                "."]}
+ :on {:rich-text/click
+      (fn [state event ctx]
+        (open-subject! (:value (:payload event)))
+        state)}}
+```
 
 Programmatic focus control is also available from hooks:
 

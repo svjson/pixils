@@ -7,6 +7,7 @@
 #include <pixils/text.h>
 #include <pixils/ui/components/text_node.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/text_style.h>
 
 #include <roo/exec.h>
 #include <roo/host/object.h>
@@ -30,101 +31,13 @@ namespace Pixils::UI::Components
       return value->str();
     }
 
-    float text_style_scale(const Style& style)
-    {
-      if (style.text && style.text->scale) return *style.text->scale;
-      return 1.0f;
-    }
-
-    std::optional<Color> text_style_color(const Style& style)
-    {
-      if (style.text && style.text->use_font_color) return std::nullopt;
-      if (style.text && style.text->color) return style.text->color;
-      return std::nullopt;
-    }
-
-    std::string text_style_font_key(const Style& style)
-    {
-      if (style.text && style.text->font) return *style.text->font;
-      return "font/console";
-    }
-
-    std::vector<Text::FontStyle> text_style_font_styles(const Style& style)
-    {
-      if (style.text && style.text->font_styles) return *style.text->font_styles;
-      return {};
-    }
-
-    std::vector<Text::Shadow> text_style_shadows(const Style& style)
-    {
-      if (style.text && style.text->shadows) return *style.text->shadows;
-      return {};
-    }
-
-    std::optional<Text::InlineTextStyleSpec> text_style_marked_style(const Style& style)
-    {
-      if (!style.text || !style.text->marked_style) return std::nullopt;
-
-      Text::InlineTextStyleSpec inline_style;
-      inline_style.enabled = style.text->marked_style->enabled.value_or(true);
-      inline_style.marker = style.text->marked_style->marker.value_or('@');
-      inline_style.use_font_color = style.text->marked_style->use_font_color.value_or(false);
-      inline_style.color = style.text->marked_style->color;
-      inline_style.font_key = style.text->marked_style->font;
-      if (style.text->marked_style->scale)
-        inline_style.scale = Text::Scale(*style.text->marked_style->scale);
-      inline_style.font_styles = style.text->marked_style->font_styles;
-      inline_style.shadows = style.text->marked_style->shadows;
-      return inline_style;
-    }
-
-    Text::Alignment text_style_alignment(const Style& style)
-    {
-      if (style.text && style.text->align) return *style.text->align;
-      return Text::Alignment::LEFT;
-    }
-
-    Text::WrapMode text_style_wrap_mode(const Style& style)
-    {
-      if (!style.text || !style.text->wrap) return Text::WrapMode::WORD;
-      return *style.text->wrap == Style::Text::Wrap::NONE ? Text::WrapMode::NONE
-                                                          : Text::WrapMode::WORD;
-    }
-
-    std::optional<Text::TextRenderOp> make_text_node_render_op(
-      RenderContext& rc,
-      const Style& style,
-      const std::optional<Color>& color = std::nullopt)
-    {
-      auto font_key = text_style_font_key(style);
-      auto text_op = Text::make_text_render_op(rc,
-                                               font_key,
-                                               text_style_scale(style),
-                                               color,
-                                               text_style_font_styles(style),
-                                               text_style_shadows(style),
-                                               text_style_marked_style(style));
-      if (!text_op && font_key != "font/console")
-      {
-        text_op = Text::make_text_render_op(rc,
-                                            "font/console",
-                                            text_style_scale(style),
-                                            color,
-                                            text_style_font_styles(style),
-                                            text_style_shadows(style),
-                                            text_style_marked_style(style));
-      }
-      return text_op;
-    }
-
     namespace Function
     {
       FUNC(TextNodeContentSize, text_node_content_size);
       FUNC(TextNodeRender, text_node_render);
 
       FUNC_IMPL(TextNodeContentSize,
-                SIG((FN_ARGS((&Roo::Type::ANY),
-                             (&Pixils::Script::HostType::HOOK_CONTEXT)),
+                SIG((FN_ARGS((&Roo::Type::ANY), (&Pixils::Script::HostType::HOOK_CONTEXT)),
                      EXEC_DISPATCH(&TextNodeContentSize::exec_text_node_content_size))));
 
       EXEC_BODY(TextNodeContentSize, exec_text_node_content_size)
@@ -135,20 +48,19 @@ namespace Pixils::UI::Components
         RenderContext& rc =
           Roo::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
-        auto text_op = make_text_node_render_op(rc, view.effective_style);
+        auto text_op = TextStyle::make_render_op(rc, view.effective_style);
         if (!text_op) return Roo::Constant::NIL;
 
         auto layout = Text::layout_text(rc,
                                         *text_op,
                                         text_node_value(args[0]),
-                                        text_style_wrap_mode(view.effective_style),
+                                        TextStyle::wrap_mode(view.effective_style),
                                         hook_ctx.available_width);
         return Script::DimensionAdapter::make_unique(layout.size.w, layout.size.h);
       }
 
       FUNC_IMPL(TextNodeRender,
-                SIG((FN_ARGS((&Roo::Type::ANY),
-                             (&Pixils::Script::HostType::HOOK_CONTEXT)),
+                SIG((FN_ARGS((&Roo::Type::ANY), (&Pixils::Script::HostType::HOOK_CONTEXT)),
                      EXEC_DISPATCH(&TextNodeRender::exec_text_node_render))));
 
       EXEC_BODY(TextNodeRender, exec_text_node_render)
@@ -160,22 +72,22 @@ namespace Pixils::UI::Components
           Roo::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
 
-        auto text_op = make_text_node_render_op(rc,
-                                                view.effective_style,
-                                                text_style_color(view.effective_style));
+        auto text_op = TextStyle::make_render_op(rc,
+                                                 view.effective_style,
+                                                 TextStyle::color(view.effective_style));
         if (!text_op) return Roo::Constant::NIL;
 
         const Rect content_rect = view.effective_style.content_rect(view.bounds);
         auto layout = Text::layout_text(rc,
                                         *text_op,
                                         text_node_value(args[0]),
-                                        text_style_wrap_mode(view.effective_style),
+                                        TextStyle::wrap_mode(view.effective_style),
                                         content_rect.w);
 
         for (size_t i = 0; i < layout.lines.size(); i++)
         {
           int x = 0;
-          switch (text_style_alignment(view.effective_style))
+          switch (TextStyle::alignment(view.effective_style))
           {
           case Text::Alignment::CENTER:
             x += (content_rect.w - layout.lines[i].width) / 2;
