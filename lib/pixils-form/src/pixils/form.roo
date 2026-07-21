@@ -393,8 +393,10 @@
 (defun save-new-state [state]
   (let [items (or (:items state) [])
         index (count items)
-        value (or (:projected-item state)
-                  (:value state))
+        value (model-schema/canonical-value
+               (:schema state)
+               (or (:projected-item state)
+                   (:value state)))
         validated (validated-state (assoc state :value value))]
     (if (and (:new? state)
              (:valid? validated))
@@ -562,27 +564,22 @@
               value)
     value))
 
-(defun keyword-field-value [value]
-  (cond
-    (nil? value)
-    nil
+(defun field-change-value [field-schema value commit?]
+  (case (:type field-schema)
+    :keyword
+    (model-schema/canonical-value field-schema value)
 
-    (keyword? value)
-    value
+    :number
+    (if commit? (model-schema/canonical-value field-schema value) value)
+
+    :integer
+    (if commit? (model-schema/canonical-value field-schema value) value)
 
     :default
-    (let [text (form-layout/keyword-label value)]
-      (if (model-schema/blank-value? text)
-        nil
-        (keyword text)))))
+    value))
 
-(defun field-change-payload [state value]
-  (let [value (case (-> state :field-schema :type)
-                :keyword
-                (keyword-field-value value)
-
-                :default
-                value)
+(defun field-change-payload-with-commit [state value commit?]
+  (let [value (field-change-value (:field-schema state) value commit?)
         old-value-path (or (:local-field-path state)
                            (:field-path state))]
     {:field-id (:field-id state)
@@ -596,11 +593,14 @@
      :value value
      :form-value (form-value-with-field-value state value)}))
 
+(defun field-change-payload [state value]
+  (field-change-payload-with-commit state value false))
+
 (defun emit-field-change! [state event ctx value commit?]
   (ui/stop-propagation! event)
   (ui/emit! (:view ctx)
             :form/edit
-            (assoc (field-change-payload state value)
+            (assoc (field-change-payload-with-commit state value commit?)
                    :commit? commit?))
   state)
 
@@ -1152,7 +1152,8 @@
       {:type :confirm
        :index (:index state)
        :new? (:new? state)
-       :value (:value state)}
+       :value (model-schema/canonical-value (:schema state)
+                                             (:value state))}
       {:type :cancel})))
 
 (defun array-item-dialog-button-handler [state event ctx]
@@ -1168,6 +1169,7 @@
                                   opts)]
      :buttons [:dialog/ok :dialog/cancel]
      :state {:value (ui/bind-state :value)
+             :schema item-schema
              :index (ui/bind-state :index)
              :new? (ui/bind-state :new?)
              :valid? (ui/bind-state :valid?)
@@ -1258,7 +1260,10 @@
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
     (let [items (or (:items state) [])
-          value (:value payload)
+          value (model-schema/canonical-value
+                 (or (:item-schema state)
+                     (:schema state))
+                 (:value payload))
           index (:index payload)]
       (if (:new? payload)
         (assoc state
@@ -1920,12 +1925,27 @@
                 (assoc state :value next-value))]
     (form-state state)))
 
-(defun form-state-change-payload [next-state]
+(defun canonical-form-items [state]
+  (when (not (nil? (:items state)))
+    (map (:items state)
+         (fn [item]
+           (model-schema/canonical-value (:schema state) item)))))
+
+(defun form-state-draft-change-payload [next-state]
   {:form-value (:value next-state)
    :value (:value next-state)
    :items (:items next-state)
    :selected-index (:selected-index next-state)
    :new? (:new? next-state)})
+
+(defun form-state-change-payload [next-state]
+  (let [value (model-schema/canonical-value (:schema next-state)
+                                            (:value next-state))]
+    {:form-value value
+     :value value
+     :items (canonical-form-items next-state)
+     :selected-index (:selected-index next-state)
+     :new? (:new? next-state)}))
 
 (defun emit-form-state-change! [state next-state ctx]
   (when (not= state next-state)
@@ -1947,7 +1967,7 @@
                            (when (not (:new? next-state))
                              (ui/emit! (:view ctx)
                                        :form/draft-change
-                                       (form-state-change-payload
+                                       (form-state-draft-change-payload
                                         next-state)))
                            (when (and (not (:new? next-state))
                                       (= :live (:form/mode state))

@@ -630,6 +630,19 @@
     (is (= {:id nil}
            (:form-value payload)))))
 
+(deftest field-change-payload-keeps-number-draft-text-until-commit
+  (let [state {:field-id :duration
+               :field-path [:duration]
+               :local-field-path [:duration]
+               :field-schema {:type :integer}
+               :form-value {:duration 50}}
+        draft (form/field-change-payload state "5")
+        committed (form/field-change-payload-with-commit state "5" true)]
+    (is (= "5" (:value draft)))
+    (is (= {:duration "5"} (:form-value draft)))
+    (is (= 5 (:value committed)))
+    (is (= {:duration 5} (:form-value committed)))))
+
 (deftest field-change-payload-reports-root-form-value
   (let [payload (form/field-change-payload
                  {:form-value [{:id :terrain/dirt}]}
@@ -671,6 +684,55 @@
            (-> draft :value :shape :radius :x :range :min)))
     (is (= 1200
            (-> committed :value :shape :radius :x :range :min)))))
+
+(deftest form-state-change-payload-canonicalizes-number-fields
+  (let [state {:schema {:type :object
+                        :fields {:id {:type :keyword}
+                                 :count {:type :integer}
+                                 :weight {:type :number}
+                                 :parts {:type :array
+                                         :items {:type :object
+                                                 :fields {:offset
+                                                          {:type
+                                                           :number}}}}}}
+               :value {:id "terrain/forest"
+                       :count "12"
+                       :weight "0.5"
+                       :parts [{:offset "1.25"}]}}
+        payload (form/form-state-change-payload state)
+        draft-payload (form/form-state-draft-change-payload state)]
+    (is (= {:id :terrain/forest
+            :count 12
+            :weight 0.5
+            :parts [{:offset 1.25}]}
+           (:value payload)))
+    (is (= {:id "terrain/forest"
+            :count "12"
+            :weight "0.5"
+            :parts [{:offset "1.25"}]}
+           (:value draft-payload)))))
+
+(deftest canonical-value-discards-invalid-number-text
+  (is (= {:count nil
+          :weight nil
+          :blank nil}
+         (schema/canonical-value
+          {:type :object
+           :fields {:count {:type :integer}
+                    :weight {:type :number}
+                    :blank {:type :number}}}
+          {:count "12.5"
+           :weight "--1"
+           :blank ""}))))
+
+(deftest canonical-value-supports-shorthand-field-map-schemas
+  (is (= {:id :terrain/forest
+          :count 12}
+         (schema/canonical-value
+          {:id {:type :keyword}
+           :count {:type :integer}}
+          {:id "terrain/forest"
+           :count "12"}))))
 
 (deftest schema-resolves-named-field-definition-references
   (let [schema-doc {:definitions
@@ -940,6 +1002,28 @@
     (is (= false (:new? state)))
     (is (= nil (:new-value state)))))
 
+(deftest form-owned-save-new-canonicalizes-submitted-number-drafts
+  (let [state (form/save-new-state
+               {:schema {:type :object
+                         :fields {:name {:type :text}
+                                  :count {:type :integer}
+                                  :weight {:type :number}}}
+                :items []
+                :selected-index nil
+                :new? true
+                :valid? true
+                :value {:name "Sample"
+                        :count "3"
+                        :weight "2.5"}})]
+    (is (= [{:name "Sample"
+             :count 3
+             :weight 2.5}]
+           (:items state)))
+    (is (= {:name "Sample"
+            :count 3
+            :weight 2.5}
+           (:value state)))))
+
 (deftest form-owned-delete-removes-selected-item-and-selects-next
   (let [state (form/delete-state
                {:items [{:name "Ada"}
@@ -1171,6 +1255,44 @@
             {:name "Margaret"}]
            (:items replaced)))
     (is (= 1 (:selected-index replaced)))))
+
+(deftest array-dialog-result-state-canonicalizes-submitted-number-drafts
+  (let [schema {:type :object
+                :fields {:id {:type :keyword}
+                         :count {:type :integer}
+                         :weight {:type :number}}}
+        state {:item-schema schema
+               :items []
+               :selected-index nil}
+        next-state (form/array-dialog-result-state
+                    state
+                    {:type :confirm
+                     :new? true
+                     :value {:id "item/example"
+                             :count "7"
+                             :weight "1.5"}})]
+    (is (= [{:id :item/example
+             :count 7
+             :weight 1.5}]
+           (:items next-state)))))
+
+(deftest array-item-dialog-result-canonicalizes-submitted-number-drafts
+  (let [result (form/array-item-dialog-result
+                {:schema {:type :object
+                          :fields {:count {:type :integer}
+                                   :weight {:type :number}}}
+                 :index 1
+                 :new? false
+                 :value {:count "2"
+                         :weight "0.75"}}
+                {:payload {:choice :dialog/ok}}
+                nil)]
+    (is (= {:type :confirm
+            :index 1
+            :new? false
+            :value {:count 2
+                    :weight 0.75}}
+           result))))
 
 (deftest selection-dialog-result-state-appends-and-projects-new-item
   (let [state (form/form-state

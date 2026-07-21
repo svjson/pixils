@@ -14,6 +14,11 @@
 (defun numeric-value? [value]
   (number? value))
 
+(defun sequence-value? [value]
+  (or (= (type-of value) "vector")
+      (= (type-of value) "array")
+      (= (type-of value) "list")))
+
 (defun field-path [field-id field-schema]
   (let [path (:path field-schema)]
     (cond
@@ -29,6 +34,74 @@
     (nil? path) value
     (= (type-of path) "vector") (get-in (or value {}) path)
     :default (get (or value {}) path)))
+
+(defun path-present-at? [value path index]
+  (cond
+    (>= index (count (or path []))) true
+
+    (and (= (type-of value) "map")
+         (contains? value (nth path index)))
+    (path-present-at? (get value (nth path index))
+                      path
+                      (inc index))
+
+    :default false))
+
+(defun path-present? [value path]
+  (path-present-at? value path 0))
+
+(defun text-contains-at? [text needle index]
+  (cond
+    (> (+ index (count needle)) (count text)) false
+    (= (substr text index (count needle)) needle) true
+    :default (text-contains-at? text needle (inc index))))
+
+(defun text-contains? [text needle]
+  (text-contains-at? text needle 0))
+
+(defun text-value [value]
+  (if (nil? value) "" (str value)))
+
+(defun canonical-keyword [value]
+  (cond
+    (nil? value)
+    nil
+
+    (keyword? value)
+    value
+
+    :default
+    (let [text (keyword-label value)]
+      (if (blank-value? text)
+        nil
+        (keyword text)))))
+
+(defun canonical-number [value integer?]
+  (cond
+    (nil? value)
+    nil
+
+    (number? value)
+    value
+
+    (= (type-of value) "string")
+    (let [text (text-value value)]
+      (cond
+        (blank-value? text)
+        nil
+
+        integer?
+        (if (text-contains? text ".")
+          nil
+          (int text))
+
+        :default
+        (if (text-contains? text ".")
+          (float text)
+          (int text))))
+
+    :default
+    nil))
 
 (defun schema-root [schema]
   (if (and (= (type-of schema) "map")
@@ -255,6 +328,71 @@
     :default
     {:definitions (schema-definitions schema)
      :schema root}))
+
+(defun canonical-field [schema value field-id field-schema]
+  (let [path (field-path field-id field-schema)]
+    (if (path-present? value path)
+      (assoc-in value
+                path
+                (canonical-value
+                 (schema-document-with-root schema field-schema)
+                 (get-in (or value {}) path)))
+      value)))
+
+(defun canonical-fields [schema fields value]
+  (reduce-kv (or fields {})
+             value
+             (fn [result field-id field-schema]
+               (canonical-field schema result field-id field-schema))))
+
+(defun canonical-object [schema value]
+  (if (= (type-of value) "map")
+    (canonical-fields schema (active-schema-fields schema value) value)
+    value))
+
+(defun canonical-union [schema root value]
+  (if (= (type-of value) "map")
+    (let [base-value
+          (canonical-value (schema-document-with-root schema (:base root))
+                           value)]
+      (canonical-fields schema
+                        (active-schema-fields schema base-value)
+                        base-value))
+    value))
+
+(defun canonical-array [schema root value]
+  (if (sequence-value? value)
+    (let [item-schema (schema-document-with-root schema (:items root))]
+      (map value
+           (fn [item]
+             (canonical-value item-schema item))))
+    value))
+
+(defun canonical-value [schema value]
+  (let [root (resolved-root-schema schema)]
+    (case (:type root)
+      :object
+      (canonical-object schema value)
+
+      :union
+      (canonical-union schema root value)
+
+      :array
+      (canonical-array schema root value)
+
+      :keyword
+      (canonical-keyword value)
+
+      :number
+      (canonical-number value false)
+
+      :integer
+      (canonical-number value true)
+
+      :default
+      (if (root-field-map? root)
+        (canonical-fields schema root value)
+        value))))
 
 (defun append-error [errors error]
   (if error
