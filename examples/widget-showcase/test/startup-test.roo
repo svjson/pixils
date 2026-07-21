@@ -207,7 +207,11 @@
     (let [rich-text (runtime/find-view app "ui/rich-text")]
       (is (not (nil? rich-text)))
       (is (= 56 (:h (:bounds rich-text))))
-      (is (= 6 (count (:runs (runtime/view-state rich-text))))))))
+      (is (= 6 (count (:runs (runtime/view-state rich-text)))))
+      (is (= "Marked Metadata"
+             (-> (runtime/view-state rich-text) :runs (nth 0) :value :title)))
+      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 2) :value :title)))
+      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 4) :value :title))))))
 
 (deftest layout-tab-rich-text-events-update-status
   (let [app (runtime/make-app {:package-root "."
@@ -222,29 +226,82 @@
     (let [rich-text (runtime/find-view app "ui/rich-text")]
       (runtime/mouse-move-in! app rich-text 8 8)
       (runtime/update! app)
-      (runtime/update! app)
-      (is (= "Hover rich text: Marked metadata"
-             (:message (runtime/active-state app))))
-      (is (= "Hover rich text: Marked metadata"
-             (:rich-text-event (runtime/active-state app))))
+      (settle-layout! app)
+      (is (= "ui/popover-overlay" (runtime/active-mode-name app)))
+      (let [info-popover (runtime/find-view app "ui/popover")]
+        (is (not (nil? info-popover)))
+        (is (= true (:open? (runtime/view-state info-popover))))
+        (is (= true (< (-> info-popover :bounds :y)
+                       (view-bottom rich-text))))
+        (runtime/render! app)
+        (assert-view-rendered! app info-popover))
       (is (not (nil? (runtime/find-view-containing
                       app
                       "ui/text"
-                      "Hover rich text: Marked metadata"))))
-      (runtime/mouse-click-in! app rich-text 8 8)
+                      "Marked Metadata"))))
+      (runtime/mouse-move-at! app
+                              (+ (-> rich-text :bounds :x) 4)
+                              (+ (-> rich-text :bounds :y)
+                                 (-> rich-text :bounds :h)
+                                 8))
       (runtime/update! app)
-      (is (= "Clicked rich text: Marked metadata"
-             (:message (runtime/active-state app))))
-      (is (not (nil? (runtime/find-view-containing
-                      app
-                      "ui/text"
-                      "Clicked rich text: Marked metadata"))))
-      (runtime/mouse-move-in! app rich-text 4 (- (:h (:bounds rich-text)) 4))
-      (runtime/update! app)
-      (runtime/update! app)
+      (settle-layout! app)
+      (is (= "main-mode" (runtime/active-mode-name app)))
       (is (= "Rich text hover cleared."
-             (:message (runtime/active-state app))))
-      (is (not (nil? (runtime/find-view-containing app "ui/text" "leave")))))))
+             (:message (runtime/active-state app)))))))
+
+(deftest layout-tab-popover-trigger-toggles-local-popover
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/eval! app
+                   "(ns widget-showcase.popover-trigger-test
+                      (:require pixils
+                                [pixils.ui.popover :as popover]))
+
+                    (pixils/defmode popover-trigger-root
+                      {:children [(popover/make-trigger
+                                   {:label \"Toggle\"
+                                    :children [{:mode 'ui/text
+                                                :state {:value \"Local content\"}}]})]})")
+    (runtime/push-mode! app 'popover-trigger-root)
+    (settle-layout! app)
+    (let [popover (runtime/find-view app "ui/popover")
+          trigger (runtime/find-view app "ui/popover-trigger-control")]
+      (is (not (nil? popover)))
+      (is (= false (:open? (runtime/view-state popover))))
+      (runtime/click! app trigger)
+      (settle-layout! app)
+      (is (= true (:open? (runtime/view-state (runtime/find-view app "ui/popover"))))))))
+
+(deftest popover-open-pushes-overlay-mode
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 320
+                               :buffer-height 240
+                               :render-backend false})]
+    (runtime/eval! app
+                   "(ns widget-showcase.popover-open-test
+                      (:require pixils
+                                [pixils.ui.popover :as popover]))
+
+                    (pixils/defmode popover-open-root
+                      {:children [{:mode 'ui/button
+                                   :style {:width 80
+                                           :height 24}
+                                   :state {:label \"Open\"}
+                                   :on-click (fn [state event ctx]
+                                               (popover/open!
+                                                ctx
+                                                {:children [{:mode 'ui/text
+                                                             :state {:value \"Overlay content\"}}]})
+                                               state)}]})")
+    (runtime/push-mode! app 'popover-open-root)
+    (settle-layout! app)
+    (runtime/click! app (runtime/find-view app "ui/button"))
+    (runtime/update! app)
+    (is (= "ui/popover-overlay" (runtime/active-mode-name app)))
+    (is (not (nil? (runtime/find-view app "ui/popover"))))))
 
 (deftest widget-showcase-title-bar-stays-anchored-on-first-hover
   (let [app (runtime/make-app {:package-root "."

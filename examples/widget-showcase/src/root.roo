@@ -3,6 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
+            [pixils.ui.popover :as popover]
             [widget-showcase.menu :as app-menu]
             [widget-showcase.showcase-window :as showcase-window]
             [widget-showcase.state :as showcase-state]
@@ -141,20 +142,52 @@
                                        :message "Tree node activated.")))
         :rich-text/hover (fn [state event ctx]
                            (ui/stop-propagation! event)
-                           (let [message (str "Hover rich text: "
-                                              (-> event :payload :text))]
+                           (let [payload (:payload event)
+                                 value (:value payload)
+                                 title (when (= (type-of value) "map")
+                                         (:title value))
+                                 body (when (= (type-of value) "map")
+                                        (:body value))
+                                 message (str "Hover rich text: "
+                                              (:text payload))]
+                             (if title
+                               (popover/open!
+                                ctx
+                                {:anchor (:anchor payload)
+                                 :anchor-bounds (:anchor-bounds payload)
+                                 :placement :bottom-start
+                                 :fallback-placement :top-start
+                                 :viewport-padding 8
+                                 :style {:width 320
+                                         :background style/quiet-bg
+                                         :border {:thickness 1
+                                                  :line-style :solid
+                                                  :color {:r 0x38
+                                                          :g 0x44
+                                                          :b 0x4f
+                                                          :a 0xff}}}
+                                 :children [{:mode 'ui/text
+                                             :style {:width :fill
+                                                     :text {:font-styles :bold}}
+                                             :state {:value title}}
+                                            {:mode 'ui/text
+                                             :style {:width :fill}
+                                             :state {:value body}}]})
+                               (pop-mode!))
                              (assoc state
                                     :message message
                                     :rich-text-event message)))
         :rich-text/leave (fn [state event ctx]
                            (ui/stop-propagation! event)
+                           (pop-mode!)
                            (assoc state
                                   :message "Rich text hover cleared."
                                   :rich-text-event "leave"))
         :rich-text/click (fn [state event ctx]
                            (ui/stop-propagation! event)
-                           (let [message (str "Clicked rich text: "
-                                              (-> event :payload :text))]
+                           (let [payload (:payload event)
+                                 message (str "Clicked rich text: "
+                                              (:text payload))]
                              (assoc state
                                     :message message
                                     :rich-text-event message)))

@@ -2,6 +2,7 @@
   (:require [pixils.ui :as ui]
             [pixils.ui.collapsible :as collapsible]
             [pixils.ui.header-panel :as header-panel]
+            [pixils.ui.popover :as popover]
             [pixils.ui.rich-text :as rich-text]
             [pixils.ui.split-pane :as split-pane]
             [widget-showcase.state :as showcase-state]
@@ -35,7 +36,9 @@
                   :runs [{:text "Marked metadata"
                           :marked? true
                           :value {:subject :showcase/rich-text
-                                  :kind :value}}
+                                  :kind :value
+                                  :title "Marked Metadata"
+                                  :body "This highlighted run carries structured metadata. The popover contents come from that payload."}}
                          " can sit inline with plain wrapped text, "
                          {:text "identifier spans"
                           :marked? true
@@ -51,9 +54,9 @@
                                   :gap 6}}
                  :state (showcase-state/bindings)
                  :children [{:mode 'ui/text
-                             :style {:width 72}
-                             :state {:value "Events:"}}
-                            {:mode 'ui/text
+                            :style {:width 72}
+                            :state {:value "Events:"}}
+                           {:mode 'ui/text
                              :style {:width :fill}
                              :state {:value (ui/bind-state :rich-text-event)}}]}])
               (style/section
@@ -101,4 +104,15 @@
                                      :height :fill
                                      :background style/quiet-bg
                                      :padding 6}
-                             :children [(style/label "Fixed width")]}]}])]})
+                             :children [(style/label "Fixed width")]}]}])
+              (style/section
+               "Popover"
+               [(popover/make-trigger
+                 {:label "Toggle popover"
+                  :popover-style {:width 260}
+                  :children [{:mode 'ui/text
+                              :style {:width :fill}
+                              :state {:value "Local popover content can contain ordinary Pixils views."}}
+                             {:mode 'ui/text
+                              :style {:width :fill}
+                              :state {:value "Use popover/open! when it must escape clipping."}}]})])]})
