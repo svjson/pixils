@@ -1,10 +1,11 @@
 (ns pixils.form
   (:require pixils
+            [pixils.form.actions :as form-actions]
             pixils.form.controls.slider
             [pixils.form.layout :as form-layout]
+            [pixils.form.selection :as form-selection]
             [pixils.schema :as model-schema]
             [pixils.ui :as ui]
-            pixils.ui.button
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.combo-box :as combo-box]
             [pixils.ui.dialog :as dialog]
@@ -163,10 +164,6 @@
    :layout {:direction :row
             :gap :space-between}})
 
-(def default-action-style
-  {:width 96
-   :height 24})
-
 (def separator-token :------)
 
 (def form-state-binding
@@ -280,73 +277,6 @@
 
 (defun field-value [value field-id field-schema]
   (model-schema/field-value value field-id field-schema))
-
-(defun form-truthy? [value]
-  (and (not (nil? value))
-       (not (= false value))))
-
-(defun condition-value [state condition]
-  (cond
-    (keyword? condition) (get state condition)
-
-    (= (type-of condition) "vector")
-    (let [op (nth condition 0)]
-      (cond
-        (= op :not)
-        (not (form-truthy? (condition-value state (nth condition 1))))
-
-        (= op :and)
-        (and (form-truthy? (condition-value state (nth condition 1)))
-             (form-truthy? (condition-value state (nth condition 2))))
-
-        (= op :or)
-        (or (form-truthy? (condition-value state (nth condition 1)))
-            (form-truthy? (condition-value state (nth condition 2))))
-
-        (= op :=)
-        (= (condition-value state (nth condition 1))
-           (nth condition 2))
-
-        :default condition))
-
-    :default condition))
-
-(defun condition-true? [state condition]
-  (form-truthy? (condition-value state condition)))
-
-(defun action-disabled? [state]
-  (let [form-state (:form-state state)]
-    (or (condition-true? form-state (:disabled-when state))
-        (and (not (nil? (:enabled-when state)))
-             (not (condition-true? form-state
-                                   (:enabled-when state)))))))
-
-(defun action-event-id [action]
-  (or (:event action)
-      (:action action)
-      (:id action)))
-
-(defun action-state [form-state action]
-  {:form-state form-state
-   :enabled-when (:enabled-when action)
-   :disabled-when (:disabled-when action)})
-
-(defun disabled-action-map [form-state actions]
-  (reduce (or actions [])
-          {}
-          (fn [result action]
-            (let [event-id (action-event-id action)]
-              (if event-id
-                (assoc result
-                       event-id
-                       (action-disabled? (action-state form-state
-                                                       action)))
-                result)))))
-
-(defun actions-derived-state [state actions]
-  (assoc state
-         :form/action-disabled
-         (disabled-action-map state actions)))
 
 (defun validate-field [schema value field-id]
   (model-schema/validate-field schema value field-id))
@@ -1112,7 +1042,7 @@
       (assoc :summary
              (selected-summary-values (:value state)
                                       (:summary-specs state)))
-      (actions-derived-state array-toolbar-actions)))
+      (form-actions/derived-state array-toolbar-actions)))
 
 (defun summary-row-view [opts index]
   {:class :pixils/form-array-summary-row
@@ -1173,15 +1103,18 @@
               {})
    :state {:form/action-disabled (ui/project-state :form/action-disabled)}
    :children (map array-toolbar-actions
-                  (fn [action] (action-view action opts)))})
+                  (fn [action]
+                    (form-actions/action-view action opts)))})
 
 (defun array-item-form-view [item-schema opts]
   (let [item-opts (with-valid-value-options-cache
                     (assoc (form-layout/section-child-opts opts)
                            :schema item-schema
                            :value (:value opts)))
-        children (layout-item-views (default-layout item-schema item-opts)
-                                    item-opts)]
+        children (layout-item-views
+                  (or (:layout item-opts)
+                      (default-layout item-schema item-opts))
+                  item-opts)]
     {:mode 'pixils/form
      :class :pixils/form-array-item-form
      :style (or (form-layout/style-option opts :fields-style default-fields-style)
@@ -1255,6 +1188,52 @@
                                                         (assoc item-opts
                                                                :value
                                                                value))})))
+
+(defun form-action [state key]
+  (head (filter (or (:form/actions state) [])
+                (fn [action]
+                  (= key (:key action))))))
+
+(defun action-dialog-config [action]
+  (let [dialog (:dialog action)]
+    (cond
+      (= true dialog) {}
+      (= (type-of dialog) "map") dialog
+      :default nil)))
+
+(defun selection-add-dialog-config [state action]
+  (let [dialog (action-dialog-config action)]
+    (cond
+      dialog dialog
+      (contains? action :dialog) nil
+      (or (form-action state :save)
+          (form-action state :cancel)) nil
+      (= :form/new (form-actions/action-event-id action)) {}
+      :default nil)))
+
+(defun open-selection-new-dialog! [state ctx dialog]
+  (let [value (new-form-value state)
+        opts (assoc (or (:form/render-opts state) {})
+                    :schema (:schema state)
+                    :value value
+                    :context (:context state)
+                    :layout (or (:layout dialog)
+                                (form-layout/layout-form-layout
+                                 (:form/layout state))))]
+    (dialog/open-dialog! ctx
+                         {:title (or (:title dialog) "Add Item")
+                          :class :pixils/form-selection-dialog
+                          :style (or (:style dialog)
+                                     (form-layout/style-option
+                                      opts
+                                      :selection-dialog-style
+                                      default-array-dialog-style))
+                          :result-event :form/selection-dialog-result
+                          :state {:value value
+                                  :index (count (or (:items state) []))
+                                  :new? true}
+                          :body (array-item-dialog-body (:schema state)
+                                                        opts)})))
 
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
@@ -1809,7 +1788,7 @@
   (cond
     (= (:type item) :form) (form-layout-view item opts)
     (= (:type item) :selection) (selection-layout-view item opts)
-    (= (:type item) :action) (action-view item opts)
+    (= (:type item) :action) (form-actions/action-view item opts)
     (= (:type item) :section) (section-layout-view item opts)
     (= (:type item) :group) (row-layout-view item opts)
     (= (:type item) :row) (row-layout-view item opts)
@@ -1863,24 +1842,16 @@
                               (ui/emit! (:view ctx)
                                         :form/reorder
                                         (:payload event))
-                              state))}})
-
-(defcomponent pixils/form-action
-  {:init (fn [state ctx]
-           (if (contains? state :disabled?)
-             state
-             (assoc state :disabled? (action-disabled? state))))
-   :on-click (fn [state event ctx]
-               (let [emitted (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         (:event state)
-                                         (:payload state)))]
-                 state))
-   :children [{:mode 'ui/button
-               :style {:width :fill
-                       :height :fill}
-               :state {:label (ui/bind-state :label)
-                       :disabled? (ui/bind-state :disabled?)}}]})
+                              state))
+        :form/activate-selection (fn [state event ctx]
+                                   (do
+                                     (ui/stop-propagation! event)
+                                     (when (:activate-event state)
+                                       (ui/emit! (:view ctx)
+                                                 (:activate-event state)
+                                                 {:index (:selected-index state)
+                                                  :value (:selected-index state)}))
+                                     state))}})
 
 (defun form-state [state]
   (let [state (projection-state state)]
@@ -1889,7 +1860,7 @@
           state (if selection
                   (selection-derived-state state (:item-label selection))
                   state)]
-      (actions-derived-state state (:form/actions state)))))
+      (form-actions/derived-state state (:form/actions state)))))
 
 (defun changed-form-state [state payload]
   (let [base-value (cond
@@ -1981,8 +1952,16 @@
                            next-state)))
         :form/new (fn [state event ctx]
                     (let [stopped (ui/stop-propagation! event)]
-                      (let [next-state (form-state (begin-new-state state))]
-                        (replace-form-body! next-state ctx))))
+                      (let [add-action (form-action state :add)
+                            dialog (selection-add-dialog-config state
+                                                                add-action)]
+                        (if dialog
+                          (do
+                            (open-selection-new-dialog! state ctx dialog)
+                            state)
+                          (let [next-state
+                                (form-state (begin-new-state state))]
+                            (replace-form-body! next-state ctx))))))
         :form/save-new (fn [state event ctx]
                          (let [stopped (ui/stop-propagation! event)]
                            (let [next-state (form-state (save-new-state state))]
@@ -1993,8 +1972,18 @@
                               ctx))))
         :form/cancel-new (fn [state event ctx]
                            (let [stopped (ui/stop-propagation! event)]
-                             (let [next-state (form-state (cancel-new-state state))]
+                             (let [next-state
+                                   (form-state (cancel-new-state state))]
                                (replace-form-body! next-state ctx))))
+        :form/selection-dialog-result
+        (fn [state event ctx]
+          (let [stopped (ui/stop-propagation! event)]
+            (let [next-state
+                  (form-state
+                   (array-dialog-result-state state (:payload event)))]
+              (when (not= state next-state)
+                (replace-form-body! next-state ctx))
+              (emit-form-state-change! state next-state ctx))))
         :form/delete (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
                          (let [next-state (form-state (delete-state state))]
@@ -2022,55 +2011,53 @@
 
 (defun selection-control-view [selection opts]
   (when selection
-    (merge {:mode 'pixils/form-selection
-            :state {:options (ui/project-state :selection-options)
-                    :selection-options (ui/project-state :selection-options)
-                    :selected-indices (ui/project-state :selected-indices)
-                    :item-label (:item-label selection)
-                    :reorderable? (:reorderable? selection)
-                    :activate-event (:activate-event selection)}
-            :children [(list-box/make
-                        {:options (ui/bind-state :options)
-                         :selected-indices
-                         (ui/bind-state :selected-indices)
-                         :force-selection? false
-                         :visible-rows (:visible-rows selection)
-                         :fixed-visible-rows? (:fixed-visible-rows? selection)
-                         :reorderable? (ui/bind-state :reorderable?)
-                         :style (if (contains? selection :list-style)
-                                  (:list-style selection)
-                                  (form-layout/style-option
-                                   opts
-                                   :selection-list-style
-                                   default-selection-list-style))})]}
-           (form-layout/style-map
-           (form-layout/defaultable-style (:style selection)
-                                          (:class selection)
-                                          (form-layout/style-option
-                                           opts
-                                           :selection-style
-                                           default-selection-style)))
-           {:class (form-layout/classes :pixils/form-selection
-                                        (:class selection))})))
-
-(defun action-view [action opts]
-  (let [event-id (action-event-id action)]
-    (merge {:mode 'pixils/form-action
-            :state {:label (:label action)
-                    :event event-id
-                    :payload (:payload action)
-                    :enabled-when (:enabled-when action)
-                    :disabled-when (:disabled-when action)
-                    :disabled? (ui/project-state :form/action-disabled
-                                                 event-id)}}
-           (form-layout/style-map
-           (form-layout/defaultable-style (:style action)
-                                          (:class action)
-                                          (form-layout/style-option
-                                           opts
-                                           :action-style
-                                           default-action-style)))
-           {:class (form-layout/classes :pixils/form-action (:class action))})))
+    (let [toolbar-actions
+          (form-selection/actions-for-presentation selection :toolbar)
+          context-menu-actions
+          (form-selection/actions-for-presentation selection :context-menu)
+          item-child (when (not (empty? context-menu-actions))
+                       (form-selection/list-item context-menu-actions))
+          list-box-view
+          (list-box/make
+           {:options (ui/bind-state :options)
+            :selected-indices
+            (ui/bind-state :selected-indices)
+            :force-selection? false
+            :visible-rows (:visible-rows selection)
+            :fixed-visible-rows? (:fixed-visible-rows? selection)
+            :reorderable? (ui/bind-state :reorderable?)
+            :item-child item-child
+            :style (if (contains? selection :list-style)
+                     (:list-style selection)
+                     (form-layout/style-option
+                      opts
+                      :selection-list-style
+                      default-selection-list-style))})
+          children (if (empty? toolbar-actions)
+                     [list-box-view]
+                     [list-box-view
+                      (form-selection/toolbar-view selection
+                                                   opts
+                                                   toolbar-actions)])]
+      (merge {:mode 'pixils/form-selection
+              :state {:options (ui/project-state :selection-options)
+                      :selection-options (ui/project-state :selection-options)
+                      :selected-indices (ui/project-state :selected-indices)
+                      :form/action-disabled
+                      (ui/project-state :form/action-disabled)
+                      :item-label (:item-label selection)
+                      :reorderable? (:reorderable? selection)
+                      :activate-event (:activate-event selection)}
+              :children children}
+             (form-layout/style-map
+             (form-layout/defaultable-style (:style selection)
+                                            (:class selection)
+                                            (form-layout/style-option
+                                             opts
+                                             :selection-style
+                                             default-selection-style)))
+             {:class (form-layout/classes :pixils/form-selection
+                                          (:class selection))}))))
 
 (defun fields-view [children opts]
   {:class :pixils/form-fields
@@ -2179,7 +2166,11 @@
                                                          projection)
                                    {})
                                (or direct-state-selection {}))
-        state-selection (if (empty? state-selection) nil state-selection)
+        state-selection
+        (if (empty? state-selection)
+          nil
+          (merge (or (:selection-defaults opts) {})
+                 state-selection))
         render-selection (when (or selection
                                    (and direct-state-selection
                                         (nil? layout-selection)))
@@ -2196,7 +2187,10 @@
         state (assoc (assoc state :schema schema)
                      :form/selection state-selection
                      :form/render-selection render-selection
-                     :form/actions (form-layout/layout-actions layout)
+                     :form/actions
+                     (concat (form-layout/layout-actions layout)
+                             (form-selection/actions
+                              (or state-selection {})))
                      :form/layout layout
                      :form/render-opts opts)]
     (merge {:mode 'pixils/form

@@ -213,6 +213,24 @@
             (or selection
                 (layout-item-selection item)))))
 
+(defun layout-item-form-layout [item]
+  (let [item (normalize-layout-item item)]
+    (cond
+      (nil? item) nil
+      (= (type-of item) "map")
+      (if (= (:type item) :form)
+        (:layout item)
+        (layout-form-layout (layout-child-items item)))
+      (= (type-of item) "vector") (layout-form-layout item)
+      :default nil)))
+
+(defun layout-form-layout [layout]
+  (reduce (or layout [])
+          nil
+          (fn [form-layout item]
+            (or form-layout
+                (layout-item-form-layout item)))))
+
 (defun layout-item-actions [item]
   (let [item (normalize-layout-item item)]
     (cond

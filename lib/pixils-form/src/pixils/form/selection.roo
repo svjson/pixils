@@ -1,0 +1,245 @@
+(ns pixils.form.selection
+  (:require pixils
+            [pixils.form.actions :as form-actions]
+            [pixils.form.layout :as form-layout]
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]
+            [pixils.ui.menu :as menu]))
+
+(def default-toolbar-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :center
+            :gap 6}})
+
+(defun base-action [selection key]
+  (case key
+    :add
+    {:key :add
+     :id :form/new
+     :label "Add"
+     :disabled-when :new?}
+
+    :save
+    {:key :save
+     :id :form/save-new
+     :label "Save"
+     :enabled-when [:and :new? :valid?]}
+
+    :cancel
+    {:key :cancel
+     :id :form/cancel-new
+     :label "Cancel"
+     :enabled-when :new?}
+
+    :edit
+    (when (:activate-event selection)
+      {:key :edit
+       :id :form/activate-selection
+       :label "Edit"
+       :enabled-when [:and [:not :new?] :selected-index]})
+
+    :delete
+    {:key :delete
+     :id :form/delete
+     :label "Delete"
+     :enabled-when [:and [:not :new?] :selected-index]}
+
+    :move-up
+    {:key :move-up
+     :id :form/move-up
+     :label "Up"
+     :enabled-when [:and [:not :new?] :selected-index]}
+
+    :move-down
+    {:key :move-down
+     :id :form/move-down
+     :label "Down"
+     :enabled-when [:and [:not :new?] :selected-index]}
+
+    :default nil))
+
+(defun configured-action [selection key config]
+  (let [base (base-action selection key)]
+    (cond
+      (= false config)
+      nil
+
+      (nil? config)
+      nil
+
+      (= true config)
+      base
+
+      (= (type-of config) "map")
+      (if base
+        (merge base config)
+        (merge {:key key} config))
+
+      :default base)))
+
+(defun actions-from-map [selection action-map]
+  (filter
+   (map [:add :save :cancel :edit :delete :move-up :move-down]
+        (fn [key]
+          (when (contains? action-map key)
+            (configured-action selection
+                               key
+                               (get action-map key)))))
+   (fn [action]
+     (not (nil? action)))))
+
+(defun actions-from-vector [selection action-list]
+  (filter
+   (map (or action-list [])
+        (fn [action]
+          (cond
+            (keyword? action)
+            (configured-action selection action true)
+
+            (= (type-of action) "map")
+            action
+
+            :default nil)))
+   (fn [action]
+     (not (nil? action)))))
+
+(defun actions [selection]
+  (let [configured (:actions selection)]
+    (cond
+      (= true configured)
+      (actions-from-map selection
+                        {:add true
+                         :save true
+                         :cancel true
+                         :delete true})
+
+      (= (type-of configured) "map")
+      (actions-from-map selection configured)
+
+      (= (type-of configured) "vector")
+      (actions-from-vector selection configured)
+
+      (and (nil? configured)
+           (= true (:editable? selection)))
+      (actions-from-map selection
+                        {:add true
+                         :save true
+                         :cancel true
+                         :delete true})
+
+      :default [])))
+
+(defun action-presentation [selection action]
+  (let [presentation (:action-presentation selection)]
+    (or (:presentation action)
+        (when (= (type-of presentation) "map")
+          (or (get presentation (:key action))
+              (get presentation :default)))
+        (when (keyword? presentation)
+          presentation)
+        :toolbar)))
+
+(defun actions-for-presentation [selection presentation]
+  (filter (actions selection)
+          (fn [action]
+            (= presentation
+               (action-presentation selection action)))))
+
+(defun menu-item [action]
+  (let [event-id (form-actions/action-event-id action)]
+    {:label (:label action)
+     :action event-id
+     :payload (:payload action)}))
+
+(defun context-menu [actions]
+  {:items (map actions
+               (fn [action]
+                 (menu-item action)))})
+
+(defun list-item-payload [state ctx]
+  {:index (:index state)
+   :value (:value state)
+   :shift? (list-box/held-shift? ctx)
+   :ctrl? (list-box/held-ctrl? ctx)})
+
+(defun list-item-selected-state [state]
+  (assoc state
+         :selected
+         (list-box/selected-index? (:selected-indices state)
+                                   (:index state))))
+
+(defun open-context-menu! [state event ctx]
+  (when (and (= (:button event) :right)
+             (not (:disabled? state))
+             (not (empty? (or (:context-menu-actions state) []))))
+    (menu/open-context-menu!
+     (context-menu (:context-menu-actions state))
+     (:global-position event)
+     state
+     ctx)))
+
+(defcomponent pixils/form-selection-list-item
+  {:class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
+   :style {:width :fill
+           :height list-box/default-row-height
+           :clip true
+           :layout {:direction :row
+                    :align-items :center}}
+   :init (fn [state ctx]
+           (list-item-selected-state state))
+   :update (fn [state ctx]
+             (list-item-selected-state state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (when (not (:disabled? state))
+                      (ui/emit! (:view ctx)
+                                :list-box/item-click
+                                (list-item-payload state ctx)))
+                    (open-context-menu! state event ctx)
+                    state))
+   :on-double-click (fn [state event ctx]
+                      (do
+                        (when (not (:disabled? state))
+                          (ui/emit! (:view ctx)
+                                    :list-box/item-activate
+                                    (list-item-payload state ctx)))
+                        state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       (:action payload)
+                                       (:payload payload)))
+                           state)))}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun list-item [context-menu-actions]
+  (fn [index option]
+    {:mode 'pixils/form-selection-list-item
+     :state {:index index
+             :value (list-box/option-value option)
+             :label (list-box/option-label option)
+             :selected-indices (ui/bind-state :selected-indices)
+             :context-menu-actions context-menu-actions}}))
+
+(defun toolbar-view [selection opts actions]
+  {:class :pixils/form-selection-toolbar
+   :style (or (form-layout/style-option opts
+                                         :selection-toolbar-style
+                                         default-toolbar-style)
+              {})
+   :state {:form/action-disabled (ui/project-state :form/action-disabled)}
+   :children (map actions
+                  (fn [action]
+                    (form-actions/action-view action opts)))})

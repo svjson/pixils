@@ -1,5 +1,7 @@
 (ns pixils.form-test
   (:require proof.core
+            [pixils.form.actions :as form-actions]
+            [pixils.form.selection :as form-selection]
             [pixils.form :as form]
             [pixils.schema :as schema]))
 
@@ -1021,6 +1023,94 @@
              :label ":place/dawnkeep-smithy"}]
            options))))
 
+(deftest selection-actions-can-be-derived-from-editable-selection
+  (let [actions (form-selection/actions {:editable? true})]
+    (is (= [:add :save :cancel :delete]
+           (map actions :key)))
+    (is (= [:form/new
+            :form/save-new
+            :form/cancel-new
+            :form/delete]
+           (map actions form-actions/action-event-id)))))
+
+(deftest selection-actions-can-be-split-by-presentation
+  (let [selection {:actions [:add :delete]
+                   :action-presentation {:delete :context-menu}}
+        toolbar-actions
+        (form-selection/actions-for-presentation selection :toolbar)
+        context-actions
+        (form-selection/actions-for-presentation selection :context-menu)]
+    (is (= [:add]
+           (map toolbar-actions :key)))
+    (is (= [:delete]
+           (map context-actions :key)))))
+
+(deftest selection-add-dialog-config-is-inferred-from-actions
+  (let [dialog-actions (form-selection/actions
+                        {:actions {:add true
+                                   :delete true}})
+        inline-actions (form-selection/actions {:editable? true})
+        custom-dialog-actions
+        (form-selection/actions {:actions {:add {:dialog {:title "Add Person"
+                                                          :layout [:field/name]}}
+                                          :delete true}})
+        disabled-dialog-actions
+        (form-selection/actions {:actions {:add {:dialog false}
+                                          :delete true}})]
+    (is (= {}
+           (form/selection-add-dialog-config
+            {:form/actions dialog-actions}
+            (head dialog-actions))))
+    (is (nil?
+         (form/selection-add-dialog-config
+          {:form/actions inline-actions}
+          (head inline-actions))))
+    (is (= {:title "Add Person"
+            :layout [:field/name]}
+           (form/selection-add-dialog-config
+            {:form/actions custom-dialog-actions}
+            (head custom-dialog-actions))))
+    (is (nil?
+         (form/selection-add-dialog-config
+          {:form/actions disabled-dialog-actions}
+          (head disabled-dialog-actions))))))
+
+(deftest make-renders-selection-dialog-add-action
+  (let [view (form/make
+              {:schema person-schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :new-value-fn empty-person
+               :selection-defaults
+               {:actions {:add true
+                          :delete true}
+                :action-presentation {:delete :context-menu}}
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :visible-rows 4}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        state (:state view)
+        row-view (form-child view 0)
+        selection-view (head (:children row-view))
+        toolbar (nth (:children selection-view) 1)]
+    (is (= 4
+           (-> state :form/selection :visible-rows)))
+    (is (= {:add true
+            :delete true}
+           (-> state :form/selection :actions)))
+    (is (= {:delete :context-menu}
+           (-> state :form/selection :action-presentation)))
+    (is (= empty-person (:new-value-fn state)))
+    (is (= [:form/new]
+           (map (:children toolbar)
+                (fn [action]
+                  (-> action :state :event)))))))
+
 (deftest array-dialog-result-state-appends-and-replaces-items
   (let [state {:items [{:name "Ada"}
                        {:name "Grace"}]
@@ -1045,6 +1135,32 @@
             {:name "Margaret"}]
            (:items replaced)))
     (is (= 1 (:selected-index replaced)))))
+
+(deftest selection-dialog-result-state-appends-and-projects-new-item
+  (let [state (form/form-state
+               {:schema person-schema
+                :value {:field/name "Ada"
+                        :field/age 36}
+                :items [{:field/name "Ada"
+                         :field/age 36}]
+                :selected-index 0
+                :new-value-fn empty-person})
+        next-state (form/form-state
+                    (form/array-dialog-result-state
+                     state
+                     {:type :confirm
+                      :new? true
+                      :value {:field/name "Grace"
+                              :field/age 85}}))]
+    (is (= [{:field/name "Ada"
+             :field/age 36}
+            {:field/name "Grace"
+             :field/age 85}]
+           (:items next-state)))
+    (is (= 1 (:selected-index next-state)))
+    (is (= {:field/name "Grace"
+            :field/age 85}
+           (:value next-state)))))
 
 (deftest array-dialog-result-state-replaces-existing-empty-item
   (let [state {:items [{}]
@@ -1155,6 +1271,18 @@
     (is (= 'pixils/form (:mode item-form)))
     (is (= 'ui/dialog-button-row (:mode button-row)))
     (is (= 2 (count (:children button-row))))))
+
+(deftest array-item-dialog-body-uses-configured-layout
+  (let [body (form/array-item-dialog-body
+              person-schema
+              {:layout [:field/name]
+               :value {:field/name "Ada"
+                       :field/age 36}})
+        item-form (head (:children body))]
+    (is (= 1
+           (count (:children item-form))))
+    (is (= :field/name
+           (-> item-form :children head :state :field-id)))))
 
 (deftest array-item-dialog-body-preserves-custom-controls
   (let [custom-control (fn [field-id field-schema field-label opts]
@@ -1724,19 +1852,87 @@
     (is (= true (view-class? selection-view :pixils/form-selection)))
     (is (= true (view-class? selection-view :person-list)))))
 
+(deftest make-renders-selection-toolbar-actions
+  (let [view (form/make
+              {:schema person-schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :actions [:add :save :cancel :delete]}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        row-view (form-child view 0)
+        selection-view (head (:children row-view))
+        list-box (head (:children selection-view))
+        toolbar (nth (:children selection-view) 1)]
+    (is (= 2 (count (:children selection-view))))
+    (is (= 'ui/list-box (:mode list-box)))
+    (is (= nil (-> list-box :state :item-child)))
+    (is (= :pixils/form-selection-toolbar (:class toolbar)))
+    (is (= [:form/new
+            :form/save-new
+            :form/cancel-new
+            :form/delete]
+           (map (:children toolbar)
+                (fn [action]
+                  (-> action :state :event)))))
+    (is (= [:form/new
+            :form/save-new
+            :form/cancel-new
+            :form/delete]
+           (map (-> view :state :form/actions)
+                form-actions/action-event-id)))))
+
+(deftest make-renders-selection-context-menu-actions
+  (let [view (form/make
+              {:schema person-schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :actions [:add :delete]
+                          :action-presentation
+                          {:delete :context-menu}}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        row-view (form-child view 0)
+        selection-view (head (:children row-view))
+        list-box (head (:children selection-view))
+        toolbar (nth (:children selection-view) 1)
+        item-child (-> list-box :state :item-child)
+        item-view (item-child 0 {:value 0
+                                 :label "Ada"})]
+    (is (= [:form/new]
+           (map (:children toolbar)
+                (fn [action]
+                  (-> action :state :event)))))
+    (is (not (nil? item-child)))
+    (is (= 'pixils/form-selection-list-item (:mode item-view)))
+    (is (= [:delete]
+           (map (-> item-view :state :context-menu-actions) :key)))))
+
 (deftest action-disabled-uses-form-state-conditions
   (is (= true
-         (form/action-disabled?
+         (form-actions/action-disabled?
           {:form-state {:new? true
                         :valid? false}
            :disabled-when :new?})))
   (is (= true
-         (form/action-disabled?
+         (form-actions/action-disabled?
           {:form-state {:new? true
                         :valid? false}
            :enabled-when [:and :new? :valid?]})))
   (is (= false
-         (form/action-disabled?
+         (form-actions/action-disabled?
           {:form-state {:new? true
                         :valid? true}
            :enabled-when [:and :new? :valid?]}))))

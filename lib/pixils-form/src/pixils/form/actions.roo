@@ -1,0 +1,113 @@
+(ns pixils.form.actions
+  (:require pixils
+            [pixils.form.layout :as form-layout]
+            [pixils.ui :as ui]
+            pixils.ui.button))
+
+(def default-action-style
+  {:width 96
+   :height 24})
+
+(defun form-truthy? [value]
+  (and (not (nil? value))
+       (not (= false value))))
+
+(defun condition-value [state condition]
+  (cond
+    (keyword? condition) (get state condition)
+
+    (= (type-of condition) "vector")
+    (let [op (nth condition 0)]
+      (cond
+        (= op :not)
+        (not (form-truthy? (condition-value state (nth condition 1))))
+
+        (= op :and)
+        (and (form-truthy? (condition-value state (nth condition 1)))
+             (form-truthy? (condition-value state (nth condition 2))))
+
+        (= op :or)
+        (or (form-truthy? (condition-value state (nth condition 1)))
+            (form-truthy? (condition-value state (nth condition 2))))
+
+        (= op :=)
+        (= (condition-value state (nth condition 1))
+           (nth condition 2))
+
+        :default condition))
+
+    :default condition))
+
+(defun condition-true? [state condition]
+  (form-truthy? (condition-value state condition)))
+
+(defun action-disabled? [state]
+  (let [form-state (:form-state state)]
+    (or (condition-true? form-state (:disabled-when state))
+        (and (not (nil? (:enabled-when state)))
+             (not (condition-true? form-state
+                                   (:enabled-when state)))))))
+
+(defun action-event-id [action]
+  (or (:event action)
+      (:action action)
+      (:id action)))
+
+(defun action-state [form-state action]
+  {:form-state form-state
+   :enabled-when (:enabled-when action)
+   :disabled-when (:disabled-when action)})
+
+(defun disabled-action-map [form-state actions]
+  (reduce (or actions [])
+          {}
+          (fn [result action]
+            (let [event-id (action-event-id action)]
+              (if event-id
+                (assoc result
+                       event-id
+                       (action-disabled? (action-state form-state
+                                                       action)))
+                result)))))
+
+(defun derived-state [state actions]
+  (assoc state
+         :form/action-disabled
+         (disabled-action-map state actions)))
+
+(defcomponent pixils/form-action
+  {:init (fn [state ctx]
+           (if (contains? state :disabled?)
+             state
+             (assoc state :disabled? (action-disabled? state))))
+   :on-click (fn [state event ctx]
+               (let [emitted (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         (:event state)
+                                         (:payload state)))]
+                 state))
+   :children [{:mode 'ui/button
+               :style {:width :fill
+                       :height :fill}
+               :state {:label (ui/bind-state :label)
+                       :disabled? (ui/bind-state :disabled?)}}]})
+
+(defun action-view [action opts]
+  (let [event-id (action-event-id action)]
+    (merge {:mode 'pixils/form-action
+            :state {:label (:label action)
+                    :event event-id
+                    :payload (:payload action)
+                    :enabled-when (:enabled-when action)
+                    :disabled-when (:disabled-when action)
+                    :disabled? (ui/project-state :form/action-disabled
+                                                 event-id)}}
+           (form-layout/style-map
+           (form-layout/defaultable-style (:style action)
+                                          (:class action)
+                                          (form-layout/style-option
+                                           opts
+                                           :action-style
+                                           default-action-style)))
+           {:class (form-layout/classes :pixils/form-action
+                                        (:class action))})))
