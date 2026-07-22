@@ -858,14 +858,20 @@
           style))))
 
 (defun object-control-render-opts [state value]
-  (with-valid-value-options-cache
-   (assoc (form-layout/section-child-opts (:render-opts state))
-          :schema (:schema state)
-          :value value
-          :context (:context state)
-          :field-path-prefix (:field-path-prefix state)
-          :field-label-style
-          (nested-field-label-style (:render-opts state)))))
+  (let [nested? (not (nil? (:field-path-prefix state)))
+        opts (if nested?
+               (form-layout/section-child-opts (:render-opts state))
+               (:render-opts state))]
+    (with-valid-value-options-cache
+     (assoc opts
+            :schema (:schema state)
+            :value value
+            :context (:context state)
+            :field-path-prefix (:field-path-prefix state)
+            :field-label-style
+            (if nested?
+              (nested-field-label-style (:render-opts state))
+              (:field-label-style (:render-opts state)))))))
 
 (defun object-control-body-view [state value]
   (let [opts (object-control-render-opts state value)
@@ -886,7 +892,7 @@
 (defun object-control-next-value [state payload]
   (let [path (path-without-prefix (:field-path payload)
                                   (:field-path-prefix state))]
-    (if path
+    (if (:field-path payload)
       (assoc-in (or (:value state) {})
                 path
                 (:value payload))
@@ -1130,11 +1136,7 @@
   (let [item-opts (with-valid-value-options-cache
                     (assoc (form-layout/section-child-opts opts)
                            :schema item-schema
-                           :value (:value opts)))
-        children (layout-item-views
-                  (or (:layout item-opts)
-                      (default-layout item-schema item-opts))
-                  item-opts)]
+                           :value (:value opts)))]
     {:mode 'pixils/form
      :class :pixils/form-array-item-form
      :style (or (form-layout/style-option opts :fields-style default-fields-style)
@@ -1143,8 +1145,13 @@
              :schema item-schema
              :context (:context opts)
              :valid? (ui/bind-state :valid?)
-             :errors (ui/bind-state :errors)}
-     :children children}))
+             :errors (ui/bind-state :errors)
+             :form/layout (:layout item-opts)
+             :form/render-opts item-opts}
+     :children [(form-body-view (:layout item-opts)
+                                item-schema
+                                item-opts
+                                nil)]}))
 
 (defun array-item-dialog-result [state event ctx]
   (let [choice (-> event :payload :choice)]
@@ -1961,9 +1968,6 @@
                        (let [stopped (ui/stop-propagation! event)]
                          (let [next-state
                                (changed-form-state state (:payload event))]
-                           (when (form-body-replace-needed? state
-                                                            next-state)
-                             (replace-form-body! next-state ctx))
                            (when (not (:new? next-state))
                              (ui/emit! (:view ctx)
                                        :form/draft-change
@@ -2106,29 +2110,44 @@
    :state form-state-binding
    :children children})
 
-(defun root-array-schema? [schema]
-  (= (:type (model-schema/resolved-root-schema schema)) :array))
-
-(defun root-array-view [schema opts]
-  (array-control-view nil
-                      (model-schema/resolved-root-schema schema)
-                      opts
-                      (ui/bind-state :value)))
+(defun root-union-view [schema opts layout]
+  (let [state {:value (ui/bind-state :value)
+               :schema schema
+               :context (:context opts)
+               :field-path-prefix nil
+               :layout layout
+               :render-opts opts
+               :object-style (form-layout/style-option opts
+                                                       :object-style
+                                                       default-object-style)}]
+    {:mode 'pixils/form-object-control
+     :class [:pixils/form-control :pixils/form-object-control]
+     :style (or (form-layout/style-option opts
+                                          :object-control-style
+                                          default-object-control-style)
+                {})
+     :state state
+     :children [(object-control-body-view state (:value opts))]}))
 
 (defun form-children [layout schema opts selection]
-  (if (root-array-schema? schema)
-    [(root-array-view schema opts)]
-    (let [children (layout-item-views (or layout (default-layout schema opts))
-                                      opts)]
-      (cond
-        (nil? selection)
-        children
+  (let [root (model-schema/resolved-root-schema schema)]
+    (if (= (:type root) :array)
+      [(array-control-view nil root opts (ui/bind-state :value))]
+      (let [defaulted-layout (or layout (default-layout schema opts))
+            children (if (= (:type root) :union)
+                       [(root-union-view schema
+                                         opts
+                                         layout)]
+                       (layout-item-views defaulted-layout opts))]
+        (cond
+          (nil? selection)
+          children
 
-        (= (:placement selection) :right)
-        [(fields-view children opts) (selection-control-view selection opts)]
+          (= (:placement selection) :right)
+          [(fields-view children opts) (selection-control-view selection opts)]
 
-        :default
-        (concat [(selection-control-view selection opts)] children)))))
+          :default
+          (concat [(selection-control-view selection opts)] children))))))
 
 (defun form-body-view [layout schema opts selection]
   {:id form-body-id
@@ -2160,14 +2179,6 @@
                      form-body-id
                      (form-body-from-state state))
   state)
-
-(defun form-body-replace-needed? [state next-state]
-  (not= (branch-render-key (:schema state)
-                           (:value state)
-                           (:context state))
-        (branch-render-key (:schema next-state)
-                           (:value next-state)
-                           (:context next-state))))
 
 (defun make [{:keys [schema text layout controls value style class
                      field-style field-label-style row-style separator-style

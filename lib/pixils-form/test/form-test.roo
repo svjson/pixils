@@ -1427,6 +1427,8 @@
     (is (contains? (:on body) :form/draft-change))
     (is (contains? (:on body) :dialog/button))
     (is (= 'pixils/form (:mode item-form)))
+    (is (= "form-body" (-> item-form :children head :id)))
+    (is (= :pixils/form-body (-> item-form :children head :class)))
     (is (= 'ui/dialog-button-row (:mode button-row)))
     (is (= 2 (count (:children button-row))))))
 
@@ -1438,9 +1440,44 @@
                        :field/age 36}})
         item-form (head (:children body))]
     (is (= 1
-           (count (:children item-form))))
+           (count (form-children item-form))))
     (is (= :field/name
-           (-> item-form :children head :state :field-id)))))
+           (-> (form-children item-form) head :state :field-id)))))
+
+(deftest array-item-dialog-body-keeps-default-root-union-layout-dynamic
+  (let [body (form/array-item-dialog-body
+              {:definitions
+               {:rule-base
+                {:type :object
+                 :fields {:type {:type :keyword
+                                 :valid-values [:preferred-position
+                                                :distance-range]}}}
+                :preferred-position-rule
+                {:extends :rule-base
+                 :fields {:point {:type :number}}}
+                :distance-range-rule
+                {:extends :rule-base
+                 :fields {:distance {:type :number}}}
+                :rule
+                {:type :union
+                 :discriminator :type
+                 :base {:ref :rule-base}
+                 :variants {:preferred-position
+                            {:ref :preferred-position-rule}
+                            :distance-range
+                            {:ref :distance-range-rule}}}}
+               :schema {:ref :rule}}
+              {:value {:type :preferred-position
+                       :point 3}})
+        item-form (head (:children body))
+        union-control (head (form-children item-form))
+        union-children (object-control-children union-control)
+        point-view (nth union-children 1)
+        distance-view (nth union-children 2)]
+    (is (nil? (-> item-form :state :form/layout)))
+    (is (nil? (-> union-control :state :layout)))
+    (is (= :point (-> point-view :state :field-id)))
+    (is (nil? distance-view))))
 
 (deftest array-item-dialog-body-preserves-custom-controls
   (let [custom-control (fn [field-id field-schema field-label opts]
@@ -1453,7 +1490,7 @@
               {:controls {:group-membership custom-control}
                :text {:group "Group"}})
         item-form (head (:children body))
-        field-view (head (:children item-form))
+        field-view (head (form-children item-form))
         control (nth (:children field-view) 1)]
     (is (= 'test/custom-control (:mode control)))
     (is (= :group (-> control :state :field-id)))
@@ -1627,8 +1664,15 @@
                                     :edge {:ref :edge-rule}}}}
                          :value {:type :preferred-position
                                  :point 3}})
-        point-view (form-child view 1)
-        target-view (form-child view 2)]
+        union-control (form-child view 0)
+        union-children (object-control-children union-control)
+        type-view (head union-children)
+        point-view (nth union-children 1)
+        target-view (nth union-children 2)]
+    (is (= 'pixils/form-object-control (:mode union-control)))
+    (is (nil? (-> union-control :state :field-path-prefix)))
+    (is (= 2 (count union-children)))
+    (is (= :type (-> type-view :state :field-id)))
     (is (= 'pixils/form-field (:mode point-view)))
     (is (contains? (:state point-view) :form-value))
     (is (= :visible (get-in point-view [:style :visibility])))
@@ -1682,6 +1726,42 @@
     (is (= :visible (get-in kind-view [:style :visibility])))
     (is (= :visible (get-in distance-view [:style :visibility])))
     (is (nil? duration-view))))
+
+(deftest make-renders-active-union-object-field-with-missing-value
+  (let [view (form/make {:schema
+                         {:definitions
+                          {:rule-base
+                           {:type :object
+                            :fields {:type {:type :keyword
+                                            :valid-values [:distance-range]}}}
+                           :distance
+                           {:type :object
+                            :fields {:min {:type :number}
+                                     :max {:type :number}}}
+                           :distance-rule
+                           {:extends :rule-base
+                            :fields {:distance {:ref :distance}}}
+                           :rule
+                           {:type :union
+                            :discriminator :type
+                            :base {:ref :rule-base}
+                            :variants
+                            {:distance-range {:ref :distance-rule}}}}
+                          :schema {:field/rule {:ref :rule}}}
+                         :layout [:field/rule]
+                         :value {:field/rule {:type :distance-range}}})
+        rule-view (form-child view 0)
+        rule-control (nth (:children rule-view) 1)
+        rule-children (object-control-children rule-control)
+        distance-view (nth rule-children 1)
+        distance-control (nth (:children distance-view) 1)
+        distance-children (object-control-children distance-control)
+        min-view (head distance-children)
+        max-view (nth distance-children 1)]
+    (is (= :distance (-> distance-view :state :field-id)))
+    (is (= 'pixils/form-object-control (:mode distance-control)))
+    (is (= :min (-> min-view :state :field-id)))
+    (is (= :max (-> max-view :state :field-id)))))
 
 (deftest make-renders-fields-through-named-definition-references
   (let [view (form/make {:schema {:definitions
