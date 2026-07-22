@@ -1174,7 +1174,9 @@ under `:value`, `:id`, or `:href`. Runs with metadata emit `:rich-text/hover`,
 `{:index n :text text :run original-run :value metadata :anchor source-view
 :anchor-bounds visual-hit-rect}`. Pass `:anchor-bounds` to
 `pixils.ui.popover/open!` when a rich-text run should open a floating popover,
-menu, or tooltip at the hit span.
+menu, or tooltip at the hit span. A map run may also override font styles with
+`:style {:font-styles :bold}` or direct `:font-styles`; supported font style
+keywords are `:bold` and `:underline`.
 
 ```clojure
 {:mode 'ui/rich-text
@@ -1184,7 +1186,10 @@ menu, or tooltip at the hit span.
                 {:text "Blackmere"
                  :marked? true
                  :value {:subject :place/blackmere}}
-                "."]}
+                ", through a "
+                {:text "narrow"
+                 :style {:font-styles :bold}}
+                " pass."]}
  :on {:rich-text/click
       (fn [state event ctx]
         (open-subject! (:value (:payload event)))
@@ -1906,8 +1911,8 @@ immediate stop.
 
 ### Text and fonts
 
-Pixils supports bitmap fonts. A font is declared with `deffont` and references an image
-loaded via a bundle.
+Pixils supports bitmap fonts and rasterized TTF fonts. A font is declared with `deffont`
+and references a resource loaded via a bundle.
 
 **`defbundle`**
 
@@ -1926,8 +1931,8 @@ Bundle resources are referenced as `:bundle-name/resource-id`.
 
 **`deffont`**
 
-`deffont` declares a bitmap font. It references an image loaded by a `defbundle` or a mode's
-`:resources`, and maps characters to their source rects in that image.
+`deffont` declares a font. Bitmap fonts reference an image loaded by a `defbundle` or a
+mode's `:resources`, and map characters to their source rects in that image.
 
 ```clojure
 (pixils/deffont my-font
@@ -1941,10 +1946,15 @@ Bundle resources are referenced as `:bundle-name/resource-id`.
 
 | Key        | Description |
 |------------|-------------|
-| `:type`    | Font type. Currently only `:bitmap` is supported. |
+| `:type`    | Font type: `:bitmap` or `:ttf`. |
 | `:resource`| Qualified keyword `:bundle-name/image-id` pointing to the glyph sheet. |
 | `:spacing` | Extra pixels between characters. Default: 1. |
 | `:glyphs`  | Map from character to `{:x N :y N :w N :h N}` source rect in the sheet. |
+
+Text styles can use `:font-styles :underline`, `:font-styles :bold`, or a vector such as
+`[:bold :underline]`. Underline uses metrics declared in `deffont` under
+`:styles {:underline {:offset N :thickness N}}`. Bold currently uses synthetic bold
+rendering for bitmap and rasterized TTF fonts; see `docs/TEXT_FONT_STYLES.md`.
 
 The declared font is accessible as `:font/my-font`. The `font/` namespace prefix is added
 automatically if the name does not already contain `/`.
@@ -1968,6 +1978,7 @@ Renders a string at a given position and returns the rendered bounds as `{:x N :
 | `:color`  | Text color. Defaults to white. |
 | `:scale`  | Pixel scale multiplier. Accepts fractional values, for example `0.75` or `1.5`. Default: 1. |
 | `:shadow` | Shadow spec `{:offset {:x N :y N} :color {...}}` or a vector of specs for multiple shadows. |
+| `:font-styles` | A style keyword or vector. Supported values: `:bold`, `:underline`. |
 
 **`pixils.render/text-size`**
 
