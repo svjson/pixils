@@ -68,11 +68,12 @@
    :height 18})
 
 (def default-slider-style
-  {:width 220
+  {:width :fill
+   :min-width 220
    :height 18})
 
 (def default-slider-value-style
-  {:width :fill
+  {:width 64
    :height 18})
 
 (def default-selection-style
@@ -149,6 +150,10 @@
 
 (def default-array-dialog-style
   {:width 440
+   :height :shrink})
+
+(def default-array-dialog-form-style
+  {:width :fill
    :height :shrink})
 
 (def default-array-dialog-body-style
@@ -1138,9 +1143,9 @@
                            :schema item-schema
                            :value (:value opts)))]
     {:mode 'pixils/form
-     :class :pixils/form-array-item-form
-     :style (or (form-layout/style-option opts :fields-style default-fields-style)
-                {})
+     :class [:pixils/form :pixils/form-array-item-form]
+     :style (or (:array-dialog-form-style opts)
+                default-array-dialog-form-style)
      :state {:value (ui/bind-state :value)
              :schema item-schema
              :context (:context opts)
@@ -1383,6 +1388,8 @@
                          (:array-summary-value-style opts)
                          :array-toolbar-style (:array-toolbar-style opts)
                          :array-dialog-style (:array-dialog-style opts)
+                         :array-dialog-form-style
+                         (:array-dialog-form-style opts)
                          :array-dialog-body-style
                          (:array-dialog-body-style opts)
                          :array-dialog-button-row-style

@@ -138,6 +138,10 @@
            (:style control)))
     (is (= form/default-slider-style
            (-> control :state :slider-style)))
+    (is (= :fill
+           (-> control :state :slider-style :width)))
+    (is (= 220
+           (-> control :state :slider-style :min-width)))
     (is (= form/default-slider-value-style
            (-> control :state :value-style)))))
 
@@ -1427,10 +1431,27 @@
     (is (contains? (:on body) :form/draft-change))
     (is (contains? (:on body) :dialog/button))
     (is (= 'pixils/form (:mode item-form)))
+    (is (= true
+           (view-class? item-form :pixils/form)))
+    (is (= true
+           (view-class? item-form :pixils/form-array-item-form)))
     (is (= "form-body" (-> item-form :children head :id)))
     (is (= :pixils/form-body (-> item-form :children head :class)))
     (is (= 'ui/dialog-button-row (:mode button-row)))
     (is (= 2 (count (:children button-row))))))
+
+(deftest array-item-dialog-body-keeps-item-form-fill-width-with-theme-styles
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:opacity {:type :slider
+                                  :min 0
+                                  :max 1}}}
+              {:theme-styles? true})
+        item-form (head (:children body))]
+    (is (= [:pixils/form :pixils/form-array-item-form]
+           (:class item-form)))
+    (is (= form/default-array-dialog-form-style
+           (:style item-form)))))
 
 (deftest array-item-dialog-body-uses-configured-layout
   (let [body (form/array-item-dialog-body
