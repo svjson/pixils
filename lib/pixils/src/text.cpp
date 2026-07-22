@@ -1,13 +1,14 @@
 
-#include <pixils/context.h>
 #include <pixils/benchmark/counters.h>
+#include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
-#include <pixils/text.h>
 #include <pixils/sdl_render.h>
+#include <pixils/text.h>
 
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
+#include <algorithm>
 #include <cmath>
 #include <stddef.h>
 
@@ -99,12 +100,11 @@ namespace Pixils
                                           Renderer& renderer,
                                           const std::string& text)
       {
-        SDL_Rect rect{
-          0,
-          0,
-          0,
-          rounded_non_empty_scaled_pixel(renderer.get_line_height() *
-                                         renderer.get_scale_y())};
+        SDL_Rect rect{0,
+                      0,
+                      0,
+                      rounded_non_empty_scaled_pixel(renderer.get_line_height() *
+                                                     renderer.get_scale_y())};
         auto segments = split_marker_segments(text);
         for (const auto& segment : segments)
         {
@@ -189,6 +189,17 @@ namespace Pixils
         return op.shadows;
       }
 
+      bool has_font_style(const std::vector<FontStyle>& font_styles, FontStyle style)
+      {
+        return std::find(font_styles.begin(), font_styles.end(), style) != font_styles.end();
+      }
+
+      int bold_offset(const Renderer& renderer, const std::vector<FontStyle>& font_styles)
+      {
+        if (!has_font_style(font_styles, FontStyle::BOLD)) return 0;
+        return std::max(1, rounded_scaled_pixel(renderer.get_scale_x()));
+      }
+
       int op_line_height(const TextRenderOp& op)
       {
         auto style_height = [](const Renderer& renderer,
@@ -204,11 +215,10 @@ namespace Pixils
             {
               height =
                 std::max(height,
-                         rounded_scaled_pixel(
-                           (font_definition->baseline +
-                            font_definition->underline->offset +
-                            font_definition->underline->thickness) *
-                           renderer.get_scale_y()));
+                         rounded_scaled_pixel((font_definition->baseline +
+                                               font_definition->underline->offset +
+                                               font_definition->underline->thickness) *
+                                              renderer.get_scale_y()));
             }
           }
           return height;
@@ -232,8 +242,7 @@ namespace Pixils
       {
         if (!font_definition)
           return y +
-                 rounded_scaled_pixel(renderer.get_line_height() *
-                                      renderer.get_scale_y()) -
+                 rounded_scaled_pixel(renderer.get_line_height() * renderer.get_scale_y()) -
                  1;
 
         for (auto style : font_styles)
@@ -241,14 +250,13 @@ namespace Pixils
           if (style == FontStyle::UNDERLINE && font_definition->underline)
           {
             return y + rounded_scaled_pixel(
-                       (font_definition->baseline + font_definition->underline->offset) *
-                       renderer.get_scale_y());
+                         (font_definition->baseline + font_definition->underline->offset) *
+                         renderer.get_scale_y());
           }
         }
 
         return y +
-               rounded_scaled_pixel(renderer.get_line_height() * renderer.get_scale_y()) -
-               1;
+               rounded_scaled_pixel(renderer.get_line_height() * renderer.get_scale_y()) - 1;
       }
 
       int underline_thickness(const Renderer& renderer,
@@ -292,6 +300,22 @@ namespace Pixils
         render_fill_rect(rc.renderer, &rect);
       }
 
+      void render_styled_text(RenderContext& rc,
+                              Renderer& renderer,
+                              const std::vector<FontStyle>& font_styles,
+                              const std::string& text,
+                              int x,
+                              int y,
+                              const SDL_Color& color)
+      {
+        renderer.render_text(rc, text, x, y, color);
+        int offset = bold_offset(renderer, font_styles);
+        if (offset > 0)
+        {
+          renderer.render_text(rc, text, x + offset, y, color);
+        }
+      }
+
       int rendered_width_for_segment(RenderContext& rc,
                                      const TextRenderOp& op,
                                      const LayoutSegment& segment)
@@ -330,8 +354,7 @@ namespace Pixils
                                char c,
                                bool use_inline_style)
       {
-        if (!segments.empty() &&
-            segments.back().use_inline_style == use_inline_style)
+        if (!segments.empty() && segments.back().use_inline_style == use_inline_style)
         {
           segments.back().text.push_back(c);
           return;
@@ -906,11 +929,13 @@ namespace Pixils
         {
           SDL_Color shadow_color = shadow.color.to_SDL_Color();
           tint_renderer.set_alt_color(shadow_color);
-          tint_renderer.render_text(rc,
-                                    segment.text,
-                                    cursor_x + shadow.offset.x,
-                                    y + shadow.offset.y,
-                                    shadow_color);
+          render_styled_text(rc,
+                             tint_renderer,
+                             select_font_styles(mutable_op, segment.use_inline_style),
+                             segment.text,
+                             cursor_x + shadow.offset.x,
+                             y + shadow.offset.y,
+                             shadow_color);
           render_underlines(rc,
                             mutable_op,
                             segment.use_inline_style,
@@ -920,7 +945,13 @@ namespace Pixils
                             shadow_color);
         }
 
-        renderer.render_text(rc, segment.text, cursor_x, y, color);
+        render_styled_text(rc,
+                           renderer,
+                           select_font_styles(mutable_op, segment.use_inline_style),
+                           segment.text,
+                           cursor_x,
+                           y,
+                           color);
         render_underlines(rc,
                           mutable_op,
                           segment.use_inline_style,

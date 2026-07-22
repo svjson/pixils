@@ -102,6 +102,7 @@ namespace Pixils::Script::StyleDefinition
       const Roo::sptr_val& value)
     {
       if (!value || value->type != Roo::Value::Type::KEYWORD) return std::nullopt;
+      if (value->str() == "bold") return Pixils::Text::FontStyle::BOLD;
       if (value->str() == "underline") return Pixils::Text::FontStyle::UNDERLINE;
       return std::nullopt;
     }

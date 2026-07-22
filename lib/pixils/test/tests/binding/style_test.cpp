@@ -330,13 +330,13 @@ TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
   Roo::sptr_val result = runtime.eval(R"(
     (pixils.ui.style/make-style
       {:text {:font :font/console
-              :font-styles :underline
+              :font-styles [:bold :underline]
               :shadow {:offset {:x 1 :y 2}
                        :color {:r 3 :g 4 :b 5}}
               :marked-style {:enabled true
                              :marker "@"
                              :scale 2
-                             :font-styles [:underline]}}})
+                             :font-styles [:bold :underline]}}})
   )");
 
   auto style = Roo::obj<Pixils::UI::Style>(*result);
@@ -344,8 +344,9 @@ TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
   ASSERT_NE(style.text->font_styles, std::nullopt);
   ASSERT_NE(style.text->shadows, std::nullopt);
   ASSERT_NE(style.text->marked_style, std::nullopt);
-  ASSERT_EQ(style.text->font_styles->size(), 1u);
-  EXPECT_EQ(style.text->font_styles->at(0), Pixils::Text::FontStyle::UNDERLINE);
+  ASSERT_EQ(style.text->font_styles->size(), 2u);
+  EXPECT_EQ(style.text->font_styles->at(0), Pixils::Text::FontStyle::BOLD);
+  EXPECT_EQ(style.text->font_styles->at(1), Pixils::Text::FontStyle::UNDERLINE);
   ASSERT_EQ(style.text->shadows->size(), 1u);
   EXPECT_EQ(style.text->shadows->at(0).offset, (Pixils::Point{1, 2}));
   EXPECT_EQ(style.text->shadows->at(0).color, (Pixils::Color{3, 4, 5, 255}));
@@ -356,8 +357,10 @@ TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
   ASSERT_NE(style.text->marked_style->scale, std::nullopt);
   EXPECT_EQ(*style.text->marked_style->scale, 2);
   ASSERT_NE(style.text->marked_style->font_styles, std::nullopt);
-  ASSERT_EQ(style.text->marked_style->font_styles->size(), 1u);
+  ASSERT_EQ(style.text->marked_style->font_styles->size(), 2u);
   EXPECT_EQ(style.text->marked_style->font_styles->at(0),
+            Pixils::Text::FontStyle::BOLD);
+  EXPECT_EQ(style.text->marked_style->font_styles->at(1),
             Pixils::Text::FontStyle::UNDERLINE);
 }
 

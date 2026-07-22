@@ -2692,6 +2692,7 @@ namespace Pixils::Script
           throw Roo::TypeError("Text font style must be a keyword");
         }
 
+        if (style_value->str() == "bold") return Text::FontStyle::BOLD;
         if (style_value->str() == "underline") return Text::FontStyle::UNDERLINE;
         throw Roo::TypeError("Unknown text font style: " + style_value->to_string());
       };

@@ -30,6 +30,7 @@ namespace Pixils
     enum class FontStyle : uint8_t
     {
       UNDERLINE,
+      BOLD,
     };
 
     struct Scale

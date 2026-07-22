@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <roo/exception.h>
 #include <roo/exec.h>
 #include <roo/host/object.h>
 #include <roo/runtime.h>
@@ -33,6 +34,7 @@ namespace Pixils::UI::Components
       bool interactive = false;
       Roo::sptr_val source = Roo::Constant::NIL;
       Roo::sptr_val value = Roo::Constant::NIL;
+      std::optional<std::vector<Text::FontStyle>> font_styles = std::nullopt;
     };
 
     struct RichToken
@@ -45,6 +47,7 @@ namespace Pixils::UI::Components
       std::string run_text;
       Roo::sptr_val source = Roo::Constant::NIL;
       Roo::sptr_val value = Roo::Constant::NIL;
+      std::optional<std::vector<Text::FontStyle>> font_styles = std::nullopt;
       int width = 0;
     };
 
@@ -80,6 +83,53 @@ namespace Pixils::UI::Components
     bool has_value(const Roo::sptr_val& value)
     {
       return value && value->type != Roo::Value::Type::NIL;
+    }
+
+    std::optional<Text::FontStyle> parse_font_style_keyword(const Roo::sptr_val& value)
+    {
+      if (!value || value->type != Roo::Value::Type::KEYWORD) return std::nullopt;
+      if (value->str() == "bold") return Text::FontStyle::BOLD;
+      if (value->str() == "underline") return Text::FontStyle::UNDERLINE;
+      return std::nullopt;
+    }
+
+    std::optional<std::vector<Text::FontStyle>> parse_font_styles(const Roo::sptr_val& value)
+    {
+      if (!has_value(value)) return std::nullopt;
+
+      if (auto single = parse_font_style_keyword(value))
+      {
+        return std::vector<Text::FontStyle>{*single};
+      }
+
+      if (value->type != Roo::Value::Type::VECTOR)
+      {
+        throw Roo::TypeError("rich-text run :font-styles must be a keyword or vector");
+      }
+
+      std::vector<Text::FontStyle> styles;
+      for (auto& child : Roo::get_children(*value))
+      {
+        auto parsed = parse_font_style_keyword(child);
+        if (!parsed)
+        {
+          throw Roo::TypeError("unknown rich-text run font style: " + child->to_string());
+        }
+        styles.push_back(*parsed);
+      }
+      return styles;
+    }
+
+    std::optional<std::vector<Text::FontStyle>> rich_run_font_styles(
+      const Roo::sptr_val& entry)
+    {
+      auto style = map_value(entry, "style");
+      if (has_value(style) && style->type == Roo::Value::Type::MAP)
+      {
+        auto styled_font_styles = parse_font_styles(map_value(style, "font-styles"));
+        if (styled_font_styles) return styled_font_styles;
+      }
+      return parse_font_styles(map_value(entry, "font-styles"));
     }
 
     std::string rich_run_text(const Roo::sptr_val& value)
@@ -140,6 +190,7 @@ namespace Pixils::UI::Components
           if (!has_value(run.value)) run.value = map_value(entries[i], "id");
           if (!has_value(run.value)) run.value = map_value(entries[i], "href");
           run.interactive = has_value(run.value);
+          run.font_styles = rich_run_font_styles(entries[i]);
         }
         runs.push_back(run);
       }
@@ -153,6 +204,22 @@ namespace Pixils::UI::Components
         return *op.inline_style->renderer;
       }
       return *op.renderer;
+    }
+
+    Text::TextRenderOp token_render_op(const Text::TextRenderOp& op, const RichToken& token)
+    {
+      auto token_op = op;
+      if (!token.font_styles) return token_op;
+
+      if (token.marked && token_op.inline_style && token_op.inline_style->enabled)
+      {
+        token_op.inline_style->font_styles = *token.font_styles;
+      }
+      else
+      {
+        token_op.font_styles = *token.font_styles;
+      }
+      return token_op;
     }
 
     bool is_rich_text_whitespace(char c)
@@ -173,7 +240,8 @@ namespace Pixils::UI::Components
                         .whitespace = whitespace,
                         .run_text = run.text,
                         .source = run.source,
-                        .value = run.value});
+                        .value = run.value,
+                        .font_styles = run.font_styles});
     }
 
     std::vector<RichToken> tokenize_rich_runs(const std::vector<RichRun>& runs)
@@ -382,9 +450,7 @@ namespace Pixils::UI::Components
                           token.value,
                           run_bounds_on_line(line,
                                              token.run_index,
-                                             line_start_x(line,
-                                                          alignment,
-                                                          available_width),
+                                             line_start_x(line, alignment, available_width),
                                              y,
                                              layout.line_height)};
           x += token.width;
@@ -540,7 +606,7 @@ namespace Pixils::UI::Components
             token_line.text = token.text;
             token_line.segments.push_back({token.text, token.marked, token.width});
             token_line.width = token.width;
-            Text::render_layout_line(rc, *text_op, token_line, x, y);
+            Text::render_layout_line(rc, token_render_op(*text_op, token), token_line, x, y);
             x += token.width;
           }
         }
