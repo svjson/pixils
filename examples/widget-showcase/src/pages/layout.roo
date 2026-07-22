@@ -35,11 +35,14 @@
                   :state (showcase-state/bindings)
                   :runs [{:text "Marked metadata"
                           :marked? true
-                          :value {:subject :showcase/rich-text
-                                  :kind :value
-                                  :title "Marked Metadata"
-                                  :body "This highlighted run carries structured metadata. The popover contents come from that payload."}}
-                         " can sit inline with plain wrapped text, "
+                         :value {:subject :showcase/rich-text
+                                 :kind :value
+                                 :title "Marked Metadata"
+                                 :body "This highlighted run carries structured metadata. The popover contents come from that payload."}}
+                         " can sit "
+                         {:text "inline"
+                          :style {:font-styles :bold}}
+                         " with plain wrapped text, "
                          {:text "identifier spans"
                           :marked? true
                           :id :showcase/identifier-span}

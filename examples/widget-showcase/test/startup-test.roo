@@ -207,11 +207,17 @@
     (let [rich-text (runtime/find-view app "ui/rich-text")]
       (is (not (nil? rich-text)))
       (is (= 56 (:h (:bounds rich-text))))
-      (is (= 6 (count (:runs (runtime/view-state rich-text)))))
+      (is (= 8 (count (:runs (runtime/view-state rich-text)))))
       (is (= "Marked Metadata"
              (-> (runtime/view-state rich-text) :runs (nth 0) :value :title)))
-      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 2) :value :title)))
-      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 4) :value :title))))))
+      (is (= "inline" (-> (runtime/view-state rich-text) :runs (nth 2) :text)))
+      (is (= :bold (-> (runtime/view-state rich-text)
+                       :runs
+                       (nth 2)
+                       :style
+                       :font-styles)))
+      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 4) :value :title)))
+      (is (nil? (-> (runtime/view-state rich-text) :runs (nth 6) :value :title))))))
 
 (deftest layout-tab-rich-text-events-update-status
   (let [app (runtime/make-app {:package-root "."
