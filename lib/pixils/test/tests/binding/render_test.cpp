@@ -2184,6 +2184,37 @@ TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underlin
   EXPECT_EQ(ops[1].rendered_rect.h, 1);
 }
 
+TEST_F(RenderTest, text_with_bold_font_style_renders_second_offset_pass)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+    (pixils/defmode test-mode
+      {:render (fn [state ctx]
+                 (pixils.render/text! "A"
+                                      {:x 10 :y 12}
+                                      {:font :font/test-font
+                                       :color {:r 255 :g 255 :b 255}
+                                       :font-styles :bold}))})
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 10);
+  EXPECT_EQ(ops[1].rendered_rect.x, 11);
+  EXPECT_EQ(ops[0].rendered_rect.y, 12);
+  EXPECT_EQ(ops[1].rendered_rect.y, 12);
+}
+
 TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
 {
   SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};

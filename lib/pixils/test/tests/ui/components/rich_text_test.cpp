@@ -1,5 +1,4 @@
 #include "../../render_fixture.h"
-
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/rect_namespace.h>
 
@@ -177,4 +176,34 @@ TEST_F(RichTextTest, rich_text_anchor_bounds_cover_run_segment_on_line)
   EXPECT_EQ(second_rect.w, first_rect.w);
   EXPECT_EQ(second_rect.h, first_rect.h);
   EXPECT_GT(first_rect.w, 10);
+}
+
+TEST_F(RichTextTest, rich_text_run_font_styles_render_bold_text)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/rich-text
+                   :style {:width 80
+                           :height :shrink
+                           :text {:font :font/test-font}}
+                   :state {:runs [{:text "A"
+                                   :style {:font-styles :bold}}]}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  const auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].rendered_rect.x, ops[0].rendered_rect.x + 1);
+  EXPECT_EQ(ops[1].rendered_rect.y, ops[0].rendered_rect.y);
 }
