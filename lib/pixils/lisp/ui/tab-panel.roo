@@ -115,7 +115,8 @@
                  selected (selected-tab-id tabs (:selected-tab state))]
              (assoc (assoc (assoc (assoc state
                                           :selected-tab selected)
-                                   :rendered-tab selected)
+                                   :rendered-tab (or (:rendered-tab state)
+                                                     selected))
                             :rendered-tabs-signature
                             (tabs-render-signature tabs))
                     :rendered-body-state
@@ -170,11 +171,13 @@
         selected (selected-tab-id tabs selected-tab)
         initial-selected (or selected-tab
                              (:selected-tab state)
-                             selected)]
+                             selected)
+        rendered-selected (selected-tab-id tabs initial-selected)]
     {:mode 'ui/tab-panel
      :style (or style {})
      :state (merge (or state {})
                    {:tabs tabs
-                    :selected-tab initial-selected})
-     :children [(tab-strip-child tabs (selected-tab-id tabs initial-selected))
-                (body-child tabs (selected-tab-id tabs initial-selected) state)]}))
+                    :selected-tab initial-selected
+                    :rendered-tab rendered-selected})
+     :children [(tab-strip-child tabs rendered-selected)
+                (body-child tabs rendered-selected state)]}))
