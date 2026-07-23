@@ -215,7 +215,10 @@
                        :runs
                        (nth 2)
                        :style
+                       :text
                        :font-styles)))
+      (is (= :rich-text/emphasis
+             (-> (runtime/view-state rich-text) :runs (nth 2) :class)))
       (is (nil? (-> (runtime/view-state rich-text) :runs (nth 4) :value :title)))
       (is (nil? (-> (runtime/view-state rich-text) :runs (nth 6) :value :title))))))
 
