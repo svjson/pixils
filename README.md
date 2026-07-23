@@ -1174,9 +1174,8 @@ under `:value`, `:id`, or `:href`. Runs with metadata emit `:rich-text/hover`,
 `{:index n :text text :run original-run :value metadata :anchor source-view
 :anchor-bounds visual-hit-rect}`. Pass `:anchor-bounds` to
 `pixils.ui.popover/open!` when a rich-text run should open a floating popover,
-menu, or tooltip at the hit span. A map run may also override font styles with
-`:style {:font-styles :bold}` or direct `:font-styles`; supported font style
-keywords are `:bold` and `:underline`.
+menu, or tooltip at the hit span. A map run may also provide `:class` for theme
+matching and `:style` for direct run-local text styling.
 
 ```clojure
 {:mode 'ui/rich-text
@@ -1185,15 +1184,24 @@ keywords are `:bold` and `:underline`.
  :state {:runs ["The old road leads to "
                 {:text "Blackmere"
                  :marked? true
+                 :class :subject/place
                  :value {:subject :place/blackmere}}
                 ", through a "
                 {:text "narrow"
-                 :style {:font-styles :bold}}
+                 :style {:text {:font-styles :bold}}}
                 " pass."]}
  :on {:rich-text/click
       (fn [state event ctx]
         (open-subject! (:value (:payload event)))
         state)}}
+```
+
+Run classes match ordinary theme class selectors:
+
+```clojure
+(pixils/deftheme codex-theme
+  {:styles {:subject/place {:text {:color {:r 120 :g 190 :b 255}
+                                   :font-styles :underline}}}})
 ```
 
 Programmatic focus control is also available from hooks:

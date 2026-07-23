@@ -193,7 +193,40 @@ TEST_F(RichTextTest, rich_text_run_font_styles_render_bold_text)
                            :height :shrink
                            :text {:font :font/test-font}}
                    :state {:runs [{:text "A"
-                                   :style {:font-styles :bold}}]}}]})
+                                   :style {:text {:font-styles :bold}}}]}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  const auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].rendered_rect.x, ops[0].rendered_rect.x + 1);
+  EXPECT_EQ(ops[1].rendered_rect.y, ops[0].rendered_rect.y);
+}
+
+TEST_F(RichTextTest, rich_text_run_class_applies_theme_text_style)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+    (pixils/deftheme rich-text-run-theme
+      {:styles {:subject/emphasis {:text {:font-styles :bold}}}})
+    (pixils/defmode root-mode
+      {:theme 'rich-text-run-theme
+       :children [{:mode 'ui/rich-text
+                   :style {:width 80
+                           :height :shrink
+                           :text {:font :font/test-font}}
+                   :state {:runs [{:text "A"
+                                   :class :subject/emphasis}]}}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
