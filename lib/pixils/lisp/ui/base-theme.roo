@@ -358,6 +358,41 @@
                       :border (var :inset-border-style)
                       :text {:color (var :highlight-color)}}
 
+    'ui/color-picker {:width 24
+                      :height 24
+                      :layout {:direction :row}}
+
+    :ui/color-picker-swatch {:width :fill
+                             :height :fill}
+
+    'ui/color-swatch {:background (var :field-bg)
+                      :border (var :inset-border-style)
+                      :padding 2}
+
+    'ui/color-editor {:width 260
+                      :height :shrink
+                      :layout {:direction :column
+                               :gap 8}}
+
+    :ui/color-editor-preview {:width :fill
+                              :height 32
+                              :max-height 32}
+
+    'ui/color-channel-row {:width :fill
+                           :height 24
+                           :layout {:direction :row
+                                    :align-items :center
+                                    :gap 6}}
+
+    :ui/color-channel-label {:width 14
+                             :max-width 14
+                             :text {:wrap :none}}
+
+    :ui/color-channel-slider {:width :fill}
+
+    :ui/color-channel-input {:width 54
+                             :max-width 54}
+
     :ui/split-pane-resizer {:border (var :inset-border-style)}
 
     '(:ui/split-pane-resizer {:axis :x})

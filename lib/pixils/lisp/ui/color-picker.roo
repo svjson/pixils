@@ -1,0 +1,251 @@
+(ns pixils.ui.color-picker
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.dialog :as dialog]))
+
+(def default-color {:r 0 :g 0 :b 0 :a 255})
+
+(def channel-labels
+  {:r "R"
+   :g "G"
+   :b "B"
+   :a "A"})
+
+(defun channel-value [value]
+  (int (max 0 (min 255 (or value 0)))))
+
+(defun normalize-color [color]
+  {:r (channel-value (:r color))
+   :g (channel-value (:g color))
+   :b (channel-value (:b color))
+   :a (channel-value (or (:a color) 255))})
+
+(defun color-for-state [state]
+  (normalize-color (or (:value state) default-color)))
+
+(defun color-with-channel [color channel value]
+  (assoc (normalize-color color) channel (channel-value value)))
+
+(defcomponent ui/color-swatch
+  {:class :ui/color-swatch
+   :render (fn [state ctx]
+             (let [bounds (-> ctx :view :bounds)]
+               (r/rect! {:x 0
+                         :y 0
+                         :w (max 0 (:w bounds))
+                         :h (max 0 (:h bounds))}
+                        {:fill true
+                         :color (color-for-state state)})))})
+
+(defcomponent ui/color-channel-row
+  {:class :ui/color-channel-row
+   :on {:slider/change
+        (fn [state event ctx]
+          (let [value (channel-value (:payload event))]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :color-channel/change
+                      {:channel (:channel state)
+                       :value value})
+            (assoc state :value value)))
+
+        :number-input/change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                value (channel-value (if (= (type-of payload) "map")
+                                       (:value payload)
+                                       payload))]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :color-channel/change
+                      {:channel (:channel state)
+                       :value value})
+            (assoc state :value value)))}})
+
+(defun make-channel-row [channel]
+  {:mode 'ui/color-channel-row
+   :state {:channel channel
+           :value (ui/bind-state :value channel)}
+   :children [{:mode 'ui/text
+               :class :ui/color-channel-label
+               :state {:value (get channel-labels channel)}}
+              {:mode 'ui/slider
+               :class :ui/color-channel-slider
+               :state {:value (ui/bind-state :value)
+                       :min 0
+                       :max 255
+                       :step 1}}
+              {:mode 'ui/number-input
+               :class :ui/color-channel-input
+               :state {:value (ui/bind-state :value)
+                       :min 0
+                       :max 255
+                       :step 1}}]})
+
+(defcomponent ui/color-editor
+  {:class :ui/color-editor
+   :init (fn [state ctx]
+           (assoc state :value (color-for-state state)))
+   :update (fn [state ctx]
+             (assoc state :value (color-for-state state)))
+   :on {:color-channel/change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                color (color-with-channel (:value state)
+                                          (:channel payload)
+                                          (:value payload))]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :color-editor/change
+                      {:value (normalize-color color)})
+            (assoc state :value color)))}})
+
+(defun make-editor [{:keys [value allow-alpha? class style state]}]
+  (merge {:mode 'ui/color-editor
+          :style (or style {})
+          :state (merge (or state {})
+                        {:value value
+                         :allow-alpha? allow-alpha?})
+          :children (concat [{:mode 'ui/color-swatch
+                              :class :ui/color-editor-preview
+                              :state {:value (ui/bind-state :value)}}]
+                            (map (if (= allow-alpha? false)
+                                   [:r :g :b]
+                                   [:r :g :b :a])
+                                 (fn [channel]
+                                   (make-channel-row channel))))}
+         (if class {:class class} {})))
+
+(defmode ui/color-picker-dialog
+  {:focusable true
+   :style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (ui/focus! ctx)
+           (assoc state :value (color-for-state state)))
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/escape
+                    (do
+                      (ui/stop-propagation! event)
+                      (pop-mode! {:choice :dialog/cancel})
+                      state)
+
+                    :default
+                    state))
+   :on-mouse-down (fn [state event ctx]
+                    (ui/preserve-focus! event)
+                    (ui/stop-propagation! event)
+                    state)
+   :on {:color-editor/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (assoc state :value (-> event :payload :value)))
+
+        :dialog/button
+        (fn [state event ctx]
+          (let [choice (-> event :payload :choice)]
+            (ui/stop-propagation! event)
+            (pop-mode! (if (= choice :dialog/ok)
+                         {:choice choice
+                          :value (:value state)}
+                         {:choice choice}))
+            state))}
+   :compose {:render :pass}})
+
+(defun open-dialog! [ctx opts]
+  (push-mode! 'ui/color-picker-dialog
+              {:value (normalize-color (or (:value opts) default-color))}
+              {:origin {:view (:view ctx)
+                        :event (or (:result-event opts)
+                                   :color-picker/dialog-result)}
+               :class (:overlay-class opts)
+               :children [(dialog/make-dialog-window
+                            {:title (or (:title opts) "Color")
+                             :class (:window-class opts)
+                             :style (:window-style opts)
+                             :body (dialog/make-dialog-body
+                                    {:body (make-editor
+                                            {:value (:value opts)
+                                             :allow-alpha? (:allow-alpha? opts)
+                                             :class (:editor-class opts)
+                                             :style (:editor-style opts)})
+                                     :buttons (or (:buttons opts)
+                                                  :dialog/ok-cancel)
+                                     :body-class (:body-class opts)
+                                     :body-style (:body-style opts)
+                                     :button-row-class (:button-row-class opts)
+                                     :button-row-style (:button-row-style opts)})})]})
+  nil)
+
+(defcomponent ui/color-picker
+  {:class :ui/color-picker
+   :init (fn [state ctx]
+           (assoc state :value (color-for-state state)))
+   :update (fn [state ctx]
+             (assoc state :value (color-for-state state)))
+   :on-click (fn [state event ctx]
+               (when (and (= (:button event) :left)
+                          (not (:disabled? state)))
+                 (ui/stop-propagation! event)
+                 (if (= (:editor state) false)
+                   (ui/emit! (:view ctx)
+                             :color-picker/open
+                             {:value (normalize-color (:value state))})
+                   (open-dialog! ctx
+                                 {:value (:value state)
+                                  :title (:dialog-title state)
+                                  :allow-alpha? (:allow-alpha? state)
+                                  :buttons (:dialog-buttons state)
+                                  :window-class (:dialog-window-class state)
+                                  :window-style (:dialog-window-style state)
+                                  :body-class (:dialog-body-class state)
+                                  :body-style (:dialog-body-style state)
+                                  :editor-class (:editor-class state)
+                                  :editor-style (:editor-style state)
+                                  :button-row-class (:dialog-button-row-class state)
+                                  :button-row-style (:dialog-button-row-style state)})))
+               state)
+   :on {:color-picker/dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                color (:value payload)]
+            (ui/stop-propagation! event)
+            (if (and (= (:choice payload) :dialog/ok)
+                     color)
+              (do
+                (ui/emit! (:view ctx)
+                          :color-picker/change
+                          {:value (normalize-color color)})
+                (assoc state :value (normalize-color color)))
+              state)))}})
+
+(defun make [{:keys [value allow-alpha? disabled? editor dialog-title dialog-buttons
+                     dialog-window-class dialog-window-style dialog-body-class
+                     dialog-body-style editor-class editor-style
+                     dialog-button-row-class dialog-button-row-style
+                     class style swatch-class swatch-style state]}]
+  (merge {:mode 'ui/color-picker
+          :style (or style {})
+          :state (merge (or state {})
+                        {:value value
+                         :allow-alpha? allow-alpha?
+                         :disabled? disabled?
+                         :editor editor
+                         :dialog-title dialog-title
+                         :dialog-buttons dialog-buttons
+                         :dialog-window-class dialog-window-class
+                         :dialog-window-style dialog-window-style
+                         :dialog-body-class dialog-body-class
+                         :dialog-body-style dialog-body-style
+                         :editor-class editor-class
+                         :editor-style editor-style
+                         :dialog-button-row-class dialog-button-row-class
+                         :dialog-button-row-style dialog-button-row-style})
+          :children [{:mode 'ui/color-swatch
+                      :class (dialog/merge-classes [:ui/color-picker-swatch]
+                                                   swatch-class)
+                      :style (or swatch-style {})
+                      :state {:value (ui/bind-state :value)}}]}
+         (if class {:class class} {})))

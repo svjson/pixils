@@ -130,6 +130,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/option-box-group` | Data-driven exclusive radio-style option group. |
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
+| `ui/color-picker` | Color swatch control that can open the stock color editor dialog. |
 | `ui/list-box` | Data-driven selectable list with optional multi-select and item reordering. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/popover` | Local or pushed-overlay content panel for contextual UI. |
@@ -422,6 +423,30 @@ range.
          :max 64
          :step 1}}
 ```
+
+`ui/color-picker` is usually created with `pixils.ui.color-picker/make`. The
+default shape is a theme-styled swatch. Clicking it opens a modal color editor
+with RGBA channels and OK/Cancel buttons. The picker emits
+`:color-picker/change` with `{:value {:r N :g N :b N :a N}}` when OK commits the
+dialog. Bind `:value` when an ancestor owns the selected color, and update that
+owner state from the change event.
+
+```clojure
+(pixils/defmode palette-panel
+  {:init (fn [state ctx]
+           {:accent {:r 220 :g 64 :b 48 :a 255}})
+   :children [(pixils.ui.color-picker/make
+               {:value (pixils.ui/bind-state :accent)})]
+   :on {:color-picker/change
+        (fn [state event ctx]
+          (assoc state :accent (-> event :payload :value)))}})
+```
+
+Pass `:allow-alpha? false` to show only RGB channels. Use `:class` for the outer
+picker, `:swatch-class` for the visible swatch, and dialog/editor class or style
+options when a theme needs a specific dialog shape. Pass `:editor false` to
+disable the built-in modal editor; the picker then emits `:color-picker/open`
+instead of opening a dialog.
 
 The scrollbar uses its effective style as its visual default: `:background` for
 the track, arrow buttons, and handle; `:border :color` for outlines; and
