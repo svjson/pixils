@@ -302,6 +302,23 @@
 (defun active-schema-field-ids [schema value]
   (keys (active-schema-fields schema value)))
 
+(defun active-schema-layout [schema value]
+  (let [root (resolved-root-schema schema)]
+    (cond
+      (= (:type root) :object)
+      (:layout root)
+
+      (= (:type root) :union)
+      (let [base-layout (-> (schema-document-with-root schema (:base root))
+                            resolved-root-schema
+                            :layout)
+            variant (union-variant-schema root value)]
+        (or (:layout variant)
+            base-layout
+            (:layout root)))
+
+      :default nil)))
+
 (defun field-visible? [schema field-id value]
   (contains? (active-schema-fields schema value) field-id))
 

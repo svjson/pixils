@@ -1465,6 +1465,69 @@
     (is (= :field/name
            (-> (form-children item-form) head :state :field-id)))))
 
+(deftest array-item-dialog-body-uses-item-schema-layout
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :layout [:field/age :field/name]
+               :fields {:field/name {:type :text}
+                        :field/age {:type :integer}}}
+              {:value {:field/name "Ada"
+                       :field/age 36}})
+        item-form (head (:children body))]
+    (is (= [:field/age :field/name]
+           (map (form-children item-form)
+                (fn [field]
+                  (-> field :state :field-id)))))))
+
+(deftest array-item-dialog-body-renders-schema-sections-as-top-level-sections
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :layout [{:type :section
+                         :title "Identity"
+                         :layout [:field/name]}]
+               :fields {:field/name {:type :text}}}
+              {:value {:field/name "Ada"}})
+        item-form (head (:children body))
+        section (head (form-children item-form))]
+    (is (= 'ui/group-box (:mode section)))
+    (is (= :pixils/form-section (:class section)))
+    (is (= "Identity"
+           (-> section :state :title)))))
+
+(deftest array-item-dialog-body-uses-active-root-union-variant-layout
+  (let [body (form/array-item-dialog-body
+              {:definitions
+               {:rule-base
+                {:type :object
+                 :fields {:type {:type :keyword
+                                 :valid-values [:preferred-position
+                                                :distance-range]}}}
+                :preferred-position-rule
+                {:extends :rule-base
+                 :layout [:point :type]
+                 :fields {:point {:type :number}}}
+                :distance-range-rule
+                {:extends :rule-base
+                 :layout [:distance :type]
+                 :fields {:distance {:type :number}}}
+                :rule
+                {:type :union
+                 :discriminator :type
+                 :base {:ref :rule-base}
+                 :variants {:preferred-position
+                            {:ref :preferred-position-rule}
+                            :distance-range
+                            {:ref :distance-range-rule}}}}
+               :schema {:ref :rule}}
+              {:value {:type :preferred-position
+                       :point 3}})
+        item-form (head (:children body))
+        union-control (head (form-children item-form))]
+    (is (= [:point :type]
+           (map (object-control-children union-control)
+                (fn [field]
+                  (-> field :state :field-id)))))))
+
 (deftest array-item-dialog-body-keeps-default-root-union-layout-dynamic
   (let [body (form/array-item-dialog-body
               {:definitions
@@ -1747,6 +1810,38 @@
     (is (= :visible (get-in kind-view [:style :visibility])))
     (is (= :visible (get-in distance-view [:style :visibility])))
     (is (nil? duration-view))))
+
+(deftest make-renders-nested-union-field-with-active-variant-layout
+  (let [view (form/make {:schema
+                         {:definitions
+                          {:effect-base
+                           {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values [:move :wait]}}}
+                           :move-effect
+                           {:extends :effect-base
+                            :layout [:distance :kind]
+                            :fields {:distance {:type :number}}}
+                           :wait-effect
+                           {:extends :effect-base
+                            :layout [:duration :kind]
+                            :fields {:duration {:type :integer}}}
+                           :effect
+                           {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}
+                                       :wait {:ref :wait-effect}}}}
+                          :schema {:field/effect {:ref :effect}}}
+                         :layout [:field/effect]
+                         :value {:field/effect {:kind :move
+                                                :distance 1.5}}})
+        effect-view (form-child view 0)
+        union-control (nth (:children effect-view) 1)]
+    (is (= [:distance :kind]
+           (map (object-control-children union-control)
+                (fn [field]
+                  (-> field :state :local-field-path head)))))))
 
 (deftest make-renders-active-union-object-field-with-missing-value
   (let [view (form/make {:schema
@@ -2243,6 +2338,24 @@
     (is (= :new? (get-in new-action [:state :disabled-when])))
     (is (= [:and :new? :valid?]
            (get-in save-action [:state :enabled-when])))))
+
+(deftest make-renders-map-row-and-group-layout-children
+  (let [view (form/make
+              {:schema person-schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :layout [{:type :row
+                         :children [{:type :group
+                                     :layout [:field/name]}
+                                    {:type :group
+                                     :layout [:field/age]}]}]})
+        row-view (form-child view 0)
+        left-group (head (:children row-view))
+        right-group (nth (:children row-view) 1)]
+    (is (= :field/name
+           (-> left-group :children head :state :field-id)))
+    (is (= :field/age
+           (-> right-group :children head :state :field-id)))))
 
 (deftest make-supports-vector-layout-shorthand-with-classes
   (let [view (form/make

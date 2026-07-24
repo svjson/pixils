@@ -1139,7 +1139,7 @@
 
 (defun array-item-form-view [item-schema opts]
   (let [item-opts (with-valid-value-options-cache
-                    (assoc (form-layout/section-child-opts opts)
+                    (assoc opts
                            :schema item-schema
                            :value (:value opts)))]
     {:mode 'pixils/form
@@ -1803,7 +1803,9 @@
 
 (defun row-layout-view [item opts]
   (merge {:state form-layout-state-binding
-          :children (layout-item-views (:children item) opts)}
+          :children (layout-item-views
+                     (or (:children item) (:layout item))
+                     opts)}
          (form-layout/style-map
           (or (:style item)
               (when (nil? (:class item))
@@ -1850,7 +1852,8 @@
             (not (nil? child)))))
 
 (defun default-layout [schema opts]
-  (model-schema/active-schema-field-ids schema (:value opts)))
+  (or (model-schema/active-schema-layout schema (:value opts))
+      (model-schema/active-schema-field-ids schema (:value opts))))
 
 (defcomponent pixils/form-selection
   {:init (fn [state ctx]
