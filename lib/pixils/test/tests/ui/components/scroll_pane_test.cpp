@@ -666,6 +666,103 @@ TEST_F(ScrollPaneTest, scroll_pane_preserves_runtime_content_replacement_when_au
   EXPECT_EQ(rows->children.size(), 8u);
 }
 
+TEST_F(ScrollPaneTest, scroll_pane_content_accepts_runtime_child_appends_from_parent_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode appended-row
+      {:style {:width 80 :height 18}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:next-row 0})
+       :update (fn [state ctx]
+                 (if (>= (:next-row state) 3)
+                   state
+                   (let [pane (head (pixils.ui/children ctx))
+                         row (head (pixils.ui/children pane))
+                         viewport (head (pixils.ui/children row))
+                         content (head (pixils.ui/children viewport))]
+                     (pixils.ui/append-child! content
+                                              {:mode 'appended-row
+                                               :id (str "runtime-row-"
+                                                        (:next-row state))})
+                     (assoc state :next-row (+ (:next-row state) 1)))))
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 80 :height 40}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :children []})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_GE(row->children.size(), 1u);
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
+  for (size_t index = 0; index < content->children.size(); index++)
+  {
+    auto appended = content->children[index];
+    ASSERT_NE(appended, nullptr);
+    EXPECT_EQ(appended->id, "runtime-row-" + std::to_string(index));
+    EXPECT_EQ(appended->mode->name, "appended-row");
+  }
+}
+
+TEST_F(ScrollPaneTest, scroll_pane_child_component_accepts_runtime_child_appends)
+{
+  runtime.eval(R"(
+    (pixils/defmode appended-row
+      {:style {:width 80 :height 18}})
+
+    (pixils/defcomponent dynamic-list
+      {:style {:width :fill
+               :height :shrink}
+       :init (fn [state ctx] {:appended? false})
+       :update (fn [state ctx]
+                 (if (:appended? state)
+                   state
+                   (do
+                     (pixils.ui/append-child! (:view ctx)
+                                              {:mode 'appended-row
+                                               :id "runtime-row"})
+                     (assoc state :appended? true))))})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 80 :height 40}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :children [{:mode 'dynamic-list}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  auto content = pane->children[0]->children[0]->children[0];
+  ASSERT_EQ(content->children.size(), 1u);
+  auto list = content->children[0];
+  ASSERT_NE(list, nullptr);
+  ASSERT_EQ(list->children.size(), 1u);
+  EXPECT_EQ(list->children[0]->id, "runtime-row");
+  EXPECT_EQ(list->children[0]->mode->name, "appended-row");
+}
+
 TEST_F(ScrollPaneTest, auto_scrollbar_is_present_on_first_render_from_measured_content)
 {
   runtime.eval(R"(

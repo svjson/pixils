@@ -13,6 +13,12 @@ namespace Pixils::Runtime
 {
   struct View;
 
+  Roo::sptr_val apply_pending_child_mutations(
+    Roo::Runtime& runtime,
+    const std::shared_ptr<View>& view,
+    const Roo::sptr_val& hook_ctx,
+    const Roo::sptr_val& base_state);
+
   Roo::sptr_val invoke_hook(Roo::Runtime& runtime,
                                const std::shared_ptr<View>& view,
                                const Roo::sptr_val& fn,

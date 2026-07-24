@@ -23,68 +23,69 @@ namespace Pixils::Runtime
              !view->pending_child_appends.empty();
     }
 
-    Roo::sptr_val apply_pending_child_mutations(Roo::Runtime& runtime,
-                                                const std::shared_ptr<View>& view,
-                                                const Roo::sptr_val& hook_ctx,
-                                                const Roo::sptr_val& base_state)
-    {
-      if (!has_pending_child_mutations(view))
-      {
-        return base_state;
-      }
-
-      auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
-      auto& render_ctx =
-        Roo::obj<RenderContext>(*runtime.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
-      auto* assets = render_ctx.asset_registry.get();
-      if (!assets)
-      {
-        return base_state;
-      }
-
-      auto parent_state = base_state;
-      auto replacements = std::move(view->pending_child_replacements);
-      auto appends = std::move(view->pending_child_appends);
-      view->pending_child_replacements.clear();
-      view->pending_child_appends.clear();
-
-      for (auto& replacement : replacements)
-      {
-        auto child_it = std::find_if(view->children.begin(),
-                                     view->children.end(),
-                                     [&](const std::shared_ptr<View>& child)
-                                     { return child && child->id == replacement.child_id; });
-        if (child_it == view->children.end())
-        {
-          continue;
-        }
-
-        auto new_child = UI::build_view_tree(replacement.child_slot, modes, runtime);
-        UI::attach_style_view_tree(new_child, view.get());
-        parent_state =
-          UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
-        *child_it = std::move(new_child);
-        view->mark_children_changed();
-      }
-
-      for (auto& append : appends)
-      {
-        auto new_child = UI::build_view_tree(append.child_slot, modes, runtime);
-        UI::attach_style_view_tree(new_child, view.get());
-        parent_state =
-          UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
-        view->children.push_back(std::move(new_child));
-        view->mark_children_changed();
-      }
-
-      for (auto& child : view->children)
-      {
-        UI::restore_view_tree(child, parent_state);
-      }
-
-      return parent_state;
-    }
   } // namespace
+
+  Roo::sptr_val apply_pending_child_mutations(Roo::Runtime& runtime,
+                                              const std::shared_ptr<View>& view,
+                                              const Roo::sptr_val& hook_ctx,
+                                              const Roo::sptr_val& base_state)
+  {
+    if (!has_pending_child_mutations(view))
+    {
+      return base_state;
+    }
+
+    auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
+    auto& render_ctx =
+      Roo::obj<RenderContext>(*runtime.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
+    auto* assets = render_ctx.asset_registry.get();
+    if (!assets)
+    {
+      return base_state;
+    }
+
+    auto parent_state = base_state;
+    auto replacements = std::move(view->pending_child_replacements);
+    auto appends = std::move(view->pending_child_appends);
+    view->pending_child_replacements.clear();
+    view->pending_child_appends.clear();
+
+    for (auto& replacement : replacements)
+    {
+      auto child_it = std::find_if(view->children.begin(),
+                                   view->children.end(),
+                                   [&](const std::shared_ptr<View>& child)
+                                   { return child && child->id == replacement.child_id; });
+      if (child_it == view->children.end())
+      {
+        continue;
+      }
+
+      auto new_child = UI::build_view_tree(replacement.child_slot, modes, runtime);
+      UI::attach_style_view_tree(new_child, view.get());
+      parent_state =
+        UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      *child_it = std::move(new_child);
+      view->mark_children_changed();
+    }
+
+    for (auto& append : appends)
+    {
+      auto new_child = UI::build_view_tree(append.child_slot, modes, runtime);
+      UI::attach_style_view_tree(new_child, view.get());
+      parent_state =
+        UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      view->children.push_back(std::move(new_child));
+      view->mark_children_changed();
+    }
+
+    for (auto& child : view->children)
+    {
+      UI::restore_view_tree(child, parent_state);
+    }
+
+    return parent_state;
+  }
 
   Roo::sptr_val invoke_hook(Roo::Runtime& runtime,
                                const std::shared_ptr<View>& view,
