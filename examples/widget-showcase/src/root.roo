@@ -208,6 +208,11 @@
                                (assoc state
                                       :text-value (-> event :payload :value)
                                       :message "Text input changed.")))
+        :color-picker/change (fn [state event ctx]
+                               (ui/stop-propagation! event)
+                               (assoc state
+                                      :accent-color (-> event :payload :value)
+                                      :message "Color picker changed."))
         :ui/icon-select (fn [state event ctx]
                           (let [item (:payload event)]
                             (do

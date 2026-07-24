@@ -170,6 +170,18 @@
       (is (= true (< (:h (:bounds viewport))
                      (:h (:bounds tab-panel))))))))
 
+(deftest inputs-tab-renders-color-picker
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [pickers (runtime/find-views app "ui/color-picker")]
+      (is (= 1 (count pickers)))
+      (is (= {:r 220 :g 64 :b 48 :a 255}
+             (:value (runtime/view-state (head pickers))))))))
+
 (deftest layout-tab-collapsible-toggles_disclosure_section
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800

@@ -119,6 +119,7 @@
    :number-value (ui/bind-state :number-value)
    :text-value (ui/bind-state :text-value)
    :read-only-value (ui/bind-state :read-only-value)
+   :accent-color (ui/bind-state :accent-color)
    :scrollbar-x (ui/bind-state :scrollbar-x)
    :scrollbar-y (ui/bind-state :scrollbar-y)
    :layout-collapsible-expanded? (ui/bind-state :layout-collapsible-expanded?)
@@ -147,6 +148,7 @@
    :number-value 12
    :text-value "Editable text"
    :read-only-value "Read-only text can be focused and selected."
+   :accent-color {:r 220 :g 64 :b 48 :a 255}
    :scrollbar-x 24
    :scrollbar-y 40
    :layout-collapsible-expanded? true

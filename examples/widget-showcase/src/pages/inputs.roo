@@ -3,6 +3,7 @@
             [pixils.ui.button :as button]
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.combo-box :as combo-box]
+            [pixils.ui.color-picker :as color-picker]
             [pixils.ui.number-input :as number-input]
             [pixils.ui.option-box :as option-box]
             [pixils.ui.progress-bar :as progress-bar]
@@ -163,4 +164,12 @@
                                                 :min 0
                                                 :max 100})
                             {:mode 'ui/text
-                             :state {:value (ui/bind-state :vertical-slider-value)}}]}])]})
+                             :state {:value (ui/bind-state :vertical-slider-value)}}]}])
+              (style/state-section
+               "Color"
+               [(style/field-row
+                 "RGBA"
+                 {:style style/row-style
+                  :state (showcase-state/bindings)
+                  :children [(color-picker/make
+                              {:value (ui/bind-state :accent-color)})]})])]})
