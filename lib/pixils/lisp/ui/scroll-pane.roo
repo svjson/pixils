@@ -521,7 +521,7 @@
                        :content-size (ui/bind-state :content-size)
                        :step (ui/bind-state :step)}}]})
 
-(defun make [{:keys [auto-scroll-y children content-size content-state content-state-key content-width-explicit? content-height-explicit? offset scroll-x? scroll-y? state step style] :as opts}]
+(defun make [{:keys [auto-scroll-y children class content-size content-state content-state-key content-width-explicit? content-height-explicit? offset scroll-x? scroll-y? state step style]}]
   (let [scroll-x? (scroll-pane-scroll-setting scroll-x?)
         scroll-y? (scroll-pane-scroll-setting scroll-y?)
         effective-scroll-y? (scroll-pane-initial-scrollbar? scroll-y?)
@@ -533,35 +533,36 @@
                                    content-height-explicit?)
         viewport-fill-width? (scroll-pane-style-axis-explicit? style :width)
         viewport-fill-height? (scroll-pane-style-axis-explicit? style :height)]
-    {:mode 'ui/scroll-pane
-     :style (scroll-pane-style style scroll-x? scroll-y?)
-     :state (merge {:offset (or offset default-offset)
-                    :content-size (or content-size default-content-size)
-                    :content-width-explicit? content-width-explicit?
-                    :content-height-explicit? content-height-explicit?
-                    :viewport-fill-width? viewport-fill-width?
-                    :viewport-fill-height? viewport-fill-height?
-                    :content-state (or content-state {})
-                    :content-state-key content-state-key
-                    :content-children children
-                    :scroll-x? scroll-x?
-                    :scroll-y? scroll-y?
-                    :effective-scroll-y? effective-scroll-y?
-                    :auto-managed? true
-                    :auto-scroll-y auto-scroll-y
-                    :step (or step 16)}
-                   (or state {}))
-     :children (concat [(scroll-pane-row-child content-size
-                                              content-state-key
-                                              children
-                                              scroll-x?
-                                              scroll-y?
-                                              effective-scroll-y?
-                                              content-width-explicit?
-                                              content-height-explicit?
-                                              viewport-fill-width?
-                                              viewport-fill-height?)]
-                       (if (= scroll-x? false)
-                         []
-                         [(scroll-pane-footer-child scroll-y?
-                                                    effective-scroll-y?)]))}))
+    (merge {:mode 'ui/scroll-pane
+            :style (scroll-pane-style style scroll-x? scroll-y?)
+            :state (merge {:offset (or offset default-offset)
+                           :content-size (or content-size default-content-size)
+                           :content-width-explicit? content-width-explicit?
+                           :content-height-explicit? content-height-explicit?
+                           :viewport-fill-width? viewport-fill-width?
+                           :viewport-fill-height? viewport-fill-height?
+                           :content-state (or content-state {})
+                           :content-state-key content-state-key
+                           :content-children children
+                           :scroll-x? scroll-x?
+                           :scroll-y? scroll-y?
+                           :effective-scroll-y? effective-scroll-y?
+                           :auto-managed? true
+                           :auto-scroll-y auto-scroll-y
+                           :step (or step 16)}
+                          (or state {}))
+            :children (concat [(scroll-pane-row-child content-size
+                                                     content-state-key
+                                                     children
+                                                     scroll-x?
+                                                     scroll-y?
+                                                     effective-scroll-y?
+                                                     content-width-explicit?
+                                                     content-height-explicit?
+                                                     viewport-fill-width?
+                                                     viewport-fill-height?)]
+                              (if (= scroll-x? false)
+                                []
+                                [(scroll-pane-footer-child scroll-y?
+                                                           effective-scroll-y?)]))}
+           (if class {:class class} {}))))

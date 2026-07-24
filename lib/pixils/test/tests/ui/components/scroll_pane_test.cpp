@@ -130,6 +130,35 @@ TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
   EXPECT_EQ(content->bounds.h, 80);
 }
 
+TEST_F(ScrollPaneTest, scroll_pane_make_applies_class_to_root_pane)
+{
+  runtime.eval(R"(
+    (pixils/deftheme scroll-pane-class-theme
+      {:styles {:inventory-scroll-pane
+                {:background {:r 12 :g 34 :b 56 :a 255}}}})
+
+    (pixils/defmode root-mode
+      {:theme 'scroll-pane-class-theme
+       :children [(pixils.ui.scroll-pane/make
+                   {:class :inventory-scroll-pane
+                    :style {:width 50 :height 40}
+                    :content-size {:w 100 :h 80}
+                    :children []})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_TRUE(pane->effective_style.background.has_value());
+  ASSERT_TRUE(pane->effective_style.background->color.has_value());
+  EXPECT_EQ(*pane->effective_style.background->color,
+            (Pixils::Color{12, 34, 56, 255}));
+}
+
 TEST_F(ScrollPaneTest, scroll_pane_clips_translucent_absolute_child_to_viewport)
 {
   runtime.eval(R"(
