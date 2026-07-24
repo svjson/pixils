@@ -172,6 +172,38 @@ coordinate explicit, so Pixils preserves it even when it is off-screen. Pass
 to focus the first enabled focusable descendant inside `ui/window-body`; when no
 body descendant can take focus, the window itself is focused.
 
+Window placement can be made more granular with `:placement`. This is opt-in;
+omitting it preserves the default auto-centering behavior. `:initial` controls
+where an auto-positioned window starts, and `:resize` controls what happens when
+the laid-out window size changes after initial placement:
+
+```clojure
+(pixils.ui.window/make
+  {:placement {:initial {:x :center :y :center}
+               :resize {:x :keep :y :keep}}
+   :body [{:mode 'inventory-panel}]})
+```
+
+Placement values are currently `:center` and `:keep`, specified per axis. An
+explicit `:position` is still the initial coordinate; resize placement only
+applies after the window has been laid out once and its size later changes.
+
+Window constraints are independent from placement and are also opt-in. Use them
+when the final position should be forced into a parent or explicit region,
+including explicit positions and dragged windows:
+
+```clojure
+(pixils.ui.window/make
+  {:position {:x 280 :y 180}
+   :constraints {:bounds :parent
+                 :x :contain
+                 :y :contain}
+   :body [{:mode 'tools-panel}]})
+```
+
+`:bounds` may be `:parent` or a rect `{:x N :y N :w N :h N}`. Axis constraint
+values are `:allow`, `:contain`, and `:center-on-overflow`.
+
 The current chrome variants are:
 
 | `:chrome` | Behavior |
