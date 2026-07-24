@@ -146,11 +146,12 @@
 
 ;; Make functions
 
-(defun make-desktop-icon [{:keys [style init update on on-click on-double-click on-drop] :as opts}]
+(defun make-desktop-icon [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
   (merge {:extend 'ui/desktop-icon
           :style (or style {})
           :state (desktop-icon-state opts)
           :children (desktop-icon-children opts)}
+         (if class {:class class} {})
          (if init {:init init} {})
          (if update {:update update} {})
          (if on {:on on} {})
@@ -158,11 +159,12 @@
          (if on-double-click {:on-double-click on-double-click} {})
          (if on-drop {:on-drop on-drop} {})))
 
-(defun make-desktop-icon-preview [{:keys [style init update on on-click on-double-click on-drop] :as opts}]
+(defun make-desktop-icon-preview [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
   (merge {:extend 'ui/desktop-icon-preview
           :style (or style {})
           :state (desktop-icon-state opts)
           :children (desktop-icon-children opts)}
+         (if class {:class class} {})
          (if init {:init init} {})
          (if update {:update update} {})
          (if on {:on on} {})

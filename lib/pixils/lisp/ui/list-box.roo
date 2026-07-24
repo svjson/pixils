@@ -910,7 +910,7 @@
                    (list-box-managed-style state ctx)))
       (assoc state :rendered-render-key render-key))))
 
-(defun make [{:keys [options style row-height visible-rows max-height fixed-visible-rows? content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
+(defun make [{:keys [options class style row-height visible-rows max-height fixed-visible-rows? content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
   (let [computed-row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
@@ -930,47 +930,48 @@
                             :width :shrink}
                            (or style {}))
         stretch-items? (list-box-stretches-items? final-style)]
-    {:mode 'ui/list-box
-     :style final-style
-     :state (merge (or state {})
-                   {:options options
-                    :item-state-keys item-state-keys
-                    :row-height row-height
-                    :explicit-row-height? explicit-row-height?
-                    :computed-row-height computed-row-height
-                    :auto-row-height? (nil? row-height)
-                    :visible-rows visible-rows
-                    :max-height max-height
-                    :fixed-visible-rows? fixed-visible-rows?
-                    :content-width content-width
-                    :computed-content-width computed-content-width
-                    :auto-content-width? (nil? content-width)
-                    :managed-height? managed-height?
-                    :stretch-items? stretch-items?
-                    :disabled? disabled?
-                    :reorderable? reorderable?
-                    :reorder-drag-threshold reorder-drag-threshold
-                    :reorder-visual-strategy reorder-visual-strategy
-                    :item-child item-child
-                    :hover-highlight? hover-highlight?
-                    :selected-indices selected-indices
-                    :multi-select? multi-select?
-                    :force-selection? force-selection?
-                    :toggle-selected? toggle-selected?})
-     :children [(list-box-scroll-pane-for-state
-                 {:row-height row-height
-                  :computed-row-height computed-row-height
-                  :explicit-row-height? explicit-row-height?
-                  :content-width content-width
-                  :computed-content-width computed-content-width
-                  :options options
-                  :visible-rows visible-rows
-                  :max-height max-height
-                  :fixed-visible-rows? fixed-visible-rows?
-                  :stretch-items? stretch-items?
-                  :disabled? disabled?
-                  :reorderable? reorderable?
-                  :reorder-drag-threshold reorder-drag-threshold
-                  :item-child item-child
-                  :selected-indices selected-indices
-                  :hover-highlight? hover-highlight?})]}))
+    (merge {:mode 'ui/list-box
+            :style final-style
+            :state (merge (or state {})
+                          {:options options
+                           :item-state-keys item-state-keys
+                           :row-height row-height
+                           :explicit-row-height? explicit-row-height?
+                           :computed-row-height computed-row-height
+                           :auto-row-height? (nil? row-height)
+                           :visible-rows visible-rows
+                           :max-height max-height
+                           :fixed-visible-rows? fixed-visible-rows?
+                           :content-width content-width
+                           :computed-content-width computed-content-width
+                           :auto-content-width? (nil? content-width)
+                           :managed-height? managed-height?
+                           :stretch-items? stretch-items?
+                           :disabled? disabled?
+                           :reorderable? reorderable?
+                           :reorder-drag-threshold reorder-drag-threshold
+                           :reorder-visual-strategy reorder-visual-strategy
+                           :item-child item-child
+                           :hover-highlight? hover-highlight?
+                           :selected-indices selected-indices
+                           :multi-select? multi-select?
+                           :force-selection? force-selection?
+                           :toggle-selected? toggle-selected?})
+            :children [(list-box-scroll-pane-for-state
+                        {:row-height row-height
+                         :computed-row-height computed-row-height
+                         :explicit-row-height? explicit-row-height?
+                         :content-width content-width
+                         :computed-content-width computed-content-width
+                         :options options
+                         :visible-rows visible-rows
+                         :max-height max-height
+                         :fixed-visible-rows? fixed-visible-rows?
+                         :stretch-items? stretch-items?
+                         :disabled? disabled?
+                         :reorderable? reorderable?
+                         :reorder-drag-threshold reorder-drag-threshold
+                         :item-child item-child
+                         :selected-indices selected-indices
+                         :hover-highlight? hover-highlight?})]}
+           (if class {:class class} {}))))

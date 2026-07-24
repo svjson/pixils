@@ -134,17 +134,18 @@
               {:mode 'ui/option-box-label
                :state {:label (ui/bind-state :label)}}]})
 
-(defun make [{:keys [label value selected? selection-required? force-selection? disabled? index style state]}]
-  {:mode 'ui/option-box
-   :style (or style {})
-   :state (merge (or state {})
-                 {:label label
-                  :value value
-                  :selected? selected?
-                  :selection-required? selection-required?
-                  :force-selection? force-selection?
-                  :disabled? disabled?
-                  :index index})})
+(defun make [{:keys [label value selected? selection-required? force-selection? disabled? index class style state]}]
+  (merge {:mode 'ui/option-box
+          :style (or style {})
+          :state (merge (or state {})
+                        {:label label
+                         :value value
+                         :selected? selected?
+                         :selection-required? selection-required?
+                         :force-selection? force-selection?
+                         :disabled? disabled?
+                         :index index})}
+         (if class {:class class} {})))
 
 
 ;; Exclusive option box group
@@ -263,7 +264,7 @@
                                               :option option}))
                                  (assoc state :selected selected))))}})
 
-(defun make-group [{:keys [options selected selection-required? force-selection? style option-column-style state]}]
+(defun make-group [{:keys [options selected selection-required? force-selection? class style option-column-style state]}]
   (let [options (or options [])
         selected (or selected (:selected state))
         selection-required? (not (or (= selection-required? false)
@@ -271,14 +272,15 @@
                                      (= (:selection-required? state) false)
                                      (= (:force-selection? state) false)))
         option-column-style (or option-column-style (:option-column-style state))]
-    {:mode 'ui/option-box-group
-     :style (or style {})
-     :state (merge (or state {})
-                   {:options options
-                    :selected selected
-                    :selection-required? selection-required?
-                    :option-column-style option-column-style})
-     :children [(option-box-group-options-child options
-                                                selected
-                                                selection-required?
-                                                option-column-style)]}))
+    (merge {:mode 'ui/option-box-group
+            :style (or style {})
+            :state (merge (or state {})
+                          {:options options
+                           :selected selected
+                           :selection-required? selection-required?
+                           :option-column-style option-column-style})
+            :children [(option-box-group-options-child options
+                                                       selected
+                                                       selection-required?
+                                                       option-column-style)]}
+           (if class {:class class} {}))))

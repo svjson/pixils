@@ -166,18 +166,19 @@
                                              :index index}))
                                 (assoc state :selected-tab selected))))}})
 
-(defun make [{:keys [tabs selected-tab state style]}]
+(defun make [{:keys [tabs selected-tab class state style]}]
   (let [tabs (or tabs [])
         selected (selected-tab-id tabs selected-tab)
         initial-selected (or selected-tab
                              (:selected-tab state)
                              selected)
         rendered-selected (selected-tab-id tabs initial-selected)]
-    {:mode 'ui/tab-panel
-     :style (or style {})
-     :state (merge (or state {})
-                   {:tabs tabs
-                    :selected-tab initial-selected
-                    :rendered-tab rendered-selected})
-     :children [(tab-strip-child tabs rendered-selected)
-                (body-child tabs rendered-selected state)]}))
+    (merge {:mode 'ui/tab-panel
+            :style (or style {})
+            :state (merge (or state {})
+                          {:tabs tabs
+                           :selected-tab initial-selected
+                           :rendered-tab rendered-selected})
+            :children [(tab-strip-child tabs rendered-selected)
+                       (body-child tabs rendered-selected state)]}
+           (if class {:class class} {}))))

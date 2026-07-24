@@ -362,33 +362,35 @@
       :default
       state)))
 
-(defun make-menu-node [{:keys [state menu-definition keymap style] :as opts}]
+(defun make-menu-node [{:keys [state menu-definition keymap class style] :as opts}]
   (let [normalized-menu (normalize-menu menu-definition keymap)]
-    {:mode 'ui/menu-bar
-     :style (or style {})
-     :state (merge (or state {})
-                   {:menu normalized-menu
-                    :menu-scale (or (:menu-scale state)
-                                    (:scale style))
-                    :active-index nil
-                    :pending-open-index nil})
-     :children (for-indexed [index item (:items normalized-menu)]
-                 {:mode 'ui/menu-bar-item
-                  :style {:padding [2 8]}
-                  :state {:node item
-                          :menu-index index
-                          :disabled? (:disabled? item)
-                          :active-index (ui/bind-state :active-index)
-                          :pending-open-index (ui/bind-state :pending-open-index)
-                          :text (:display-text item)
-                          :menu-scale (ui/bind-state :menu-scale)
-                          :option-state (ui/bind-state :option-state)
-                          :game (ui/bind-state :game)
-                          :preferences (ui/bind-state :preferences)}})}))
+    (merge {:mode 'ui/menu-bar
+            :style (or style {})
+            :state (merge (or state {})
+                          {:menu normalized-menu
+                           :menu-scale (or (:menu-scale state)
+                                           (:scale style))
+                           :active-index nil
+                           :pending-open-index nil})
+            :children (for-indexed [index item (:items normalized-menu)]
+                        {:mode 'ui/menu-bar-item
+                         :style {:padding [2 8]}
+                         :state {:node item
+                                 :menu-index index
+                                 :disabled? (:disabled? item)
+                                 :active-index (ui/bind-state :active-index)
+                                 :pending-open-index (ui/bind-state :pending-open-index)
+                                 :text (:display-text item)
+                                 :menu-scale (ui/bind-state :menu-scale)
+                                 :option-state (ui/bind-state :option-state)
+                                 :game (ui/bind-state :game)
+                                 :preferences (ui/bind-state :preferences)}})}
+           (if class {:class class} {}))))
 
 (defun make-menu-options [options menu-definition keymap]
   (merge (if (or (contains? options :state)
-                 (contains? options :style))
+                 (contains? options :style)
+                 (contains? options :class))
            options
            {:state options})
          {:menu-definition menu-definition

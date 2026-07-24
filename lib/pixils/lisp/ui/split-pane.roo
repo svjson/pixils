@@ -270,26 +270,27 @@
       [])))
 
 (defun make [{:keys [axis orientation direction split resizer-size min-first min-second
-                     style state children]}]
-  {:mode 'ui/split-pane
-   :style (or style {})
-   :state (merge {:axis axis
-                  :orientation orientation
-                  :direction direction
-                  :split (or split default-split)
-                  :min-first (or min-first default-min-pane-size)
-                  :min-second (or min-second default-min-pane-size)}
-                 (if resizer-size {:resizer-size resizer-size} {})
-                 (or state {}))
-   :children [{:mode 'ui/split-pane-primary
-               :id "primary"
-               :state (ui/bind-state)
-               :children (split-pane-slot-children children 0)}
-              {:mode 'ui/split-pane-resizer
-               :id "resizer"
-               :state {:axis (ui/bind-state :axis)
-                       :resizer-size (ui/bind-state :resizer-size)}}
-              {:mode 'ui/split-pane-secondary
-               :id "secondary"
-               :state (ui/bind-state)
-               :children (split-pane-slot-children children 1)}]})
+                     class style state children]}]
+  (merge {:mode 'ui/split-pane
+          :style (or style {})
+          :state (merge {:axis axis
+                         :orientation orientation
+                         :direction direction
+                         :split (or split default-split)
+                         :min-first (or min-first default-min-pane-size)
+                         :min-second (or min-second default-min-pane-size)}
+                        (if resizer-size {:resizer-size resizer-size} {})
+                        (or state {}))
+          :children [{:mode 'ui/split-pane-primary
+                      :id "primary"
+                      :state (ui/bind-state)
+                      :children (split-pane-slot-children children 0)}
+                     {:mode 'ui/split-pane-resizer
+                      :id "resizer"
+                      :state {:axis (ui/bind-state :axis)
+                              :resizer-size (ui/bind-state :resizer-size)}}
+                     {:mode 'ui/split-pane-secondary
+                      :id "secondary"
+                      :state (ui/bind-state)
+                      :children (split-pane-slot-children children 1)}]}
+         (if class {:class class} {})))

@@ -329,11 +329,12 @@
 (defcomponent ui/combo-box-popup-panel
   {:class :ui/combo-box-popup-panel})
 
-(defun make [{:keys [options style selected-index row-height max-height disabled?]}]
-  {:mode 'ui/combo-box
-   :style (or style {})
-   :state {:options (or options [])
-           :selected-index selected-index
-           :disabled? disabled?
-           :row-height row-height
-           :max-height max-height}})
+(defun make [{:keys [options class style selected-index row-height max-height disabled?]}]
+  (merge {:mode 'ui/combo-box
+          :style (or style {})
+          :state {:options (or options [])
+                  :selected-index selected-index
+                  :disabled? disabled?
+                  :row-height row-height
+                  :max-height max-height}}
+         (if class {:class class} {})))

@@ -127,10 +127,11 @@
     :style (or label-style {})
     :state {:label (ui/bind-state :label)}}])
 
-(defun make [{:keys [label checked? value style box-style label-style]}]
-  {:mode 'ui/checkbox
-   :style (or style {})
-   :state {:label label
-           :checked? checked?
-           :value value}
-   :children (checkbox-children box-style label-style)})
+(defun make [{:keys [label checked? value class style box-style label-style]}]
+  (merge {:mode 'ui/checkbox
+          :style (or style {})
+          :state {:label label
+                  :checked? checked?
+                  :value value}
+          :children (checkbox-children box-style label-style)}
+         (if class {:class class} {})))

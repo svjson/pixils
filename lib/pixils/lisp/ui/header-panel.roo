@@ -24,7 +24,7 @@
   (concat [(or title-child (header-title-child))]
           (or children [])))
 
-(defun make [{:keys [title init update on state style header-style title-child header-children body-style body-state children]}]
+(defun make [{:keys [title init update on state class style header-style title-child header-children body-style body-state children]}]
   (let [panel-state (merge (or state {})
                            {:title title})]
     (merge {:mode 'ui/header-panel
@@ -41,4 +41,5 @@
                         :children (or children [])}]}
            (if init {:init init} {})
            (if update {:update update} {})
-           (if on {:on on} {}))))
+           (if on {:on on} {})
+           (if class {:class class} {}))))

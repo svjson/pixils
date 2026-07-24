@@ -171,17 +171,18 @@
                                                  :index index}))
                                     (assoc state :selected selected))))}})
 
-(defun make [{:keys [label value toggled? selection-required? force-selection? style state]}]
-  {:mode 'ui/toggle-button
-   :style (or style {})
-   :state (merge (or state {})
-                 {:label label
-                  :value value
-                  :toggled? toggled?
-                  :selection-required? selection-required?
-                  :force-selection? force-selection?})})
+(defun make [{:keys [label value toggled? selection-required? force-selection? class style state]}]
+  (merge {:mode 'ui/toggle-button
+          :style (or style {})
+          :state (merge (or state {})
+                        {:label label
+                         :value value
+                         :toggled? toggled?
+                         :selection-required? selection-required?
+                         :force-selection? force-selection?})}
+         (if class {:class class} {})))
 
-(defun make-group [{:keys [buttons selected selection-required? force-selection? style button-row-style state]}]
+(defun make-group [{:keys [buttons selected selection-required? force-selection? class style button-row-style state]}]
   (let [buttons (or buttons [])
         selected (or selected (:selected state))
         selection-required? (or selection-required?
@@ -189,14 +190,15 @@
                                 (:selection-required? state)
                                 (:force-selection? state))
         button-row-style (or button-row-style (:button-row-style state))]
-    {:mode 'ui/toggle-button-group
-     :style (or style {})
-     :state (merge (or state {})
-                   {:buttons buttons
-                    :selected selected
-                    :selection-required? selection-required?
-                    :button-row-style button-row-style})
-     :children [(toggle-button-group-buttons-child buttons
-                                                   selected
-                                                   selection-required?
-                                                   button-row-style)]}))
+    (merge {:mode 'ui/toggle-button-group
+            :style (or style {})
+            :state (merge (or state {})
+                          {:buttons buttons
+                           :selected selected
+                           :selection-required? selection-required?
+                           :button-row-style button-row-style})
+            :children [(toggle-button-group-buttons-child buttons
+                                                          selected
+                                                          selection-required?
+                                                          button-row-style)]}
+           (if class {:class class} {}))))

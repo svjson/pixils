@@ -809,7 +809,7 @@
                                                 (:payload event)))
                                     state))}})
 
-(defun make [{:keys [roots adapter style row-height visible-rows max-height fixed-visible-rows? content-width selected-id expanded-ids item-child state disabled? indent disclosure-width]}]
+(defun make [{:keys [roots adapter class style row-height visible-rows max-height fixed-visible-rows? content-width selected-id expanded-ids item-child state disabled? indent disclosure-width]}]
   (let [roots (or roots [])
         initial-expanded-ids (resolved-expanded-ids expanded-ids)
         rows (rows-with-disclosure-glyphs
@@ -861,32 +861,33 @@
         base-state (assoc base-state
                           :content-state
                           (tree-view-content-state base-state))]
-    {:mode 'ui/tree-view
-     :style final-style
-     :state (merge (or state {})
-                   base-state)
-     :children [(tree-view-scroll-pane-child
-                 base-state
-                 [{:mode 'ui/tree-view-root
-                   :id "tree-root"
-                   :state {:roots (:roots base-state)
-                           :adapter (ui/bind-state :adapter)
-                           :expanded-ids (ui/bind-state :expanded-ids)
-                           :selected-id (ui/bind-state :selected-id)
-                           :disabled? (ui/bind-state :disabled?)
-                           :row-height (ui/bind-state :row-height)
-                           :computed-row-height
-                           (ui/bind-state :computed-row-height)
-                           :indent (ui/bind-state :indent)
-                           :disclosure-width
-                           (ui/bind-state :disclosure-width)
-                           :item-child (ui/bind-state :item-child)
-                           :stretch-items?
-                           (ui/bind-state :stretch-items?)}
-                   :children (map (or (:roots base-state) [])
-                                  (fn [node]
-                                    (tree-node-child-view
-                                     node
-                                     0
-                                     nil
-                                     (tree-node-child-opts base-state))))}])]}))
+    (merge {:mode 'ui/tree-view
+            :style final-style
+            :state (merge (or state {})
+                          base-state)
+            :children [(tree-view-scroll-pane-child
+                        base-state
+                        [{:mode 'ui/tree-view-root
+                          :id "tree-root"
+                          :state {:roots (:roots base-state)
+                                  :adapter (ui/bind-state :adapter)
+                                  :expanded-ids (ui/bind-state :expanded-ids)
+                                  :selected-id (ui/bind-state :selected-id)
+                                  :disabled? (ui/bind-state :disabled?)
+                                  :row-height (ui/bind-state :row-height)
+                                  :computed-row-height
+                                  (ui/bind-state :computed-row-height)
+                                  :indent (ui/bind-state :indent)
+                                  :disclosure-width
+                                  (ui/bind-state :disclosure-width)
+                                  :item-child (ui/bind-state :item-child)
+                                  :stretch-items?
+                                  (ui/bind-state :stretch-items?)}
+                          :children (map (or (:roots base-state) [])
+                                         (fn [node]
+                                           (tree-node-child-view
+                                            node
+                                            0
+                                            nil
+                                            (tree-node-child-opts base-state))))}])]}
+           (if class {:class class} {}))))

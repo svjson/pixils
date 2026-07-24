@@ -249,15 +249,16 @@
                         state
                         (commit-number-input-text-if-changed state ctx)))))})
 
-(defun make [{:keys [style value min max step allow-negative? allow-fractions? disabled? auto-focus? commit-on]}]
-  {:mode 'ui/number-input
-   :style (or style {})
-   :state {:value value
-           :min min
-           :max max
-           :step step
-           :allow-negative? allow-negative?
-           :allow-fractions? allow-fractions?
-           :disabled? disabled?
-           :auto-focus? auto-focus?
-           :commit-on commit-on}})
+(defun make [{:keys [class style value min max step allow-negative? allow-fractions? disabled? auto-focus? commit-on]}]
+  (merge {:mode 'ui/number-input
+          :style (or style {})
+          :state {:value value
+                  :min min
+                  :max max
+                  :step step
+                  :allow-negative? allow-negative?
+                  :allow-fractions? allow-fractions?
+                  :disabled? disabled?
+                  :auto-focus? auto-focus?
+                  :commit-on commit-on}}
+         (if class {:class class} {})))

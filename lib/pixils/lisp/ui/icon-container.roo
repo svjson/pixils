@@ -262,7 +262,7 @@
     {}
     (or content-state state {})))
 
-(defun make-grid [{:keys [auto-scroll-y bind-content-state? children container-style content-state grid items-key offset reorderable? scroll-state scroll-x? scroll-y? snap-to-grid? state step style]}]
+(defun make-grid [{:keys [auto-scroll-y bind-content-state? children class container-style content-state grid items-key offset reorderable? scroll-state scroll-x? scroll-y? snap-to-grid? state step style]}]
   (let [container-state (icon-grid-state state
                                          (icon-grid-options grid)
                                          snap-to-grid?
@@ -272,6 +272,7 @@
                                            items-key))]
     (scroll-pane/make
      {:style style
+      :class class
       :scroll-x? (if (nil? scroll-x?) false scroll-x?)
       :scroll-y? (if (nil? scroll-y?) :auto scroll-y?)
       :auto-scroll-y auto-scroll-y

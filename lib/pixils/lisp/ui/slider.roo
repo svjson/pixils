@@ -598,22 +598,23 @@
                (draw-slider-track! state ctx)
                (draw-slider-handle! state ctx)))})
 
-(defun make [{:keys [style value min max limit-min limit-max limits-enabled? step axis thumb-shape thumb-length thumb-point-size track-layout track-shape track-thickness track-border? limit-track-color]}]
-  {:mode 'ui/slider
-   :style (or style {})
-   :state {:value value
-           :min min
-           :max max
-           :limit-min limit-min
-           :limit-max limit-max
-           :limits-enabled? limits-enabled?
-           :step step
-           :axis (or axis :x)
-           :thumb-shape thumb-shape
-           :thumb-length thumb-length
-           :thumb-point-size thumb-point-size
-           :track-layout track-layout
-           :track-shape track-shape
-           :track-thickness track-thickness
-           :track-border? track-border?
-           :limit-track-color limit-track-color}})
+(defun make [{:keys [class style value min max limit-min limit-max limits-enabled? step axis thumb-shape thumb-length thumb-point-size track-layout track-shape track-thickness track-border? limit-track-color]}]
+  (merge {:mode 'ui/slider
+          :style (or style {})
+          :state {:value value
+                  :min min
+                  :max max
+                  :limit-min limit-min
+                  :limit-max limit-max
+                  :limits-enabled? limits-enabled?
+                  :step step
+                  :axis (or axis :x)
+                  :thumb-shape thumb-shape
+                  :thumb-length thumb-length
+                  :thumb-point-size thumb-point-size
+                  :track-layout track-layout
+                  :track-shape track-shape
+                  :track-thickness track-thickness
+                  :track-border? track-border?
+                  :limit-track-color limit-track-color}}
+         (if class {:class class} {})))
