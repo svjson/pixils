@@ -114,6 +114,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: svjson/sdl3_mock
+          ref: master
           path: deps/src/sdl3_mock
 
       - name: Build sdl3_mock
