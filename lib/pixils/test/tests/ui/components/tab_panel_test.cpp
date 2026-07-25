@@ -300,6 +300,74 @@ TEST_F(TabPanelTest, tab_panel_body_state_passes_state_to_active_child)
   EXPECT_EQ(value->to_string(), ":from-root");
 }
 
+TEST_F(TabPanelTest, nil_body_state_falls_back_to_panel_state_after_switch)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent first-body {})
+    (pixils/defcomponent second-body {})
+
+    (def manual-tabs
+      [{:id :first
+        :label "First"
+        :child {:mode 'first-body
+                :state {:value (pixils.ui/bind-state :shared-value)}}}
+       {:id :second
+        :label "Second"
+        :child {:mode 'second-body
+                :state {:value (pixils.ui/bind-state :shared-value)}}}])
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:active-tab :first
+                              :shared-value :from-root})
+       :on {:tab-panel/change
+            (fn [state event ctx]
+              (assoc state :active-tab (-> event :payload :tab)))}
+       :children [{:mode 'ui/tab-panel
+                   :state {:active-tab (pixils.ui/bind-state :active-tab)
+                           :selected-tab (pixils.ui/bind-state :active-tab)
+                           :shared-value (pixils.ui/bind-state :shared-value)
+                           :rendered-tab :first
+                           :tabs manual-tabs
+                           :body-state nil}
+                   :children [(pixils.ui.tab-panel/tab-strip-child
+                               manual-tabs
+                               :first)
+                              (pixils.ui.tab-panel/body-child
+                               manual-tabs
+                               :first
+                               nil)]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+  auto second_tab = tab_strip->children[1];
+  ASSERT_NE(second_tab, nullptr);
+
+  input().mouse_down({second_tab->bounds.x + second_tab->bounds.w / 2,
+                      second_tab->bounds.y + second_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({second_tab->bounds.x + second_tab->bounds.w / 2,
+                    second_tab->bounds.y + second_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  tab_panel = session.active_mode->children[0];
+  auto active = active_tab_child(tab_panel);
+  ASSERT_NE(active, nullptr);
+  EXPECT_EQ(active->mode->name, "second-body");
+
+  auto value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), ":from-root");
+}
+
 TEST_F(TabPanelTest, tab_panel_body_refreshes_when_bound_body_state_changes)
 {
   runtime.eval(R"(

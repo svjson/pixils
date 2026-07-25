@@ -101,9 +101,9 @@
    :children [(tab-body-child (selected-tab tabs selected-tab))]})
 
 (defun replacement-body-state [state]
-  (if (contains? (or state {}) :body-state)
-    (ui/bind-state :body-state)
-    (ui/bind-state)))
+  (if (nil? (:body-state (or state {})))
+    (ui/bind-state)
+    (ui/bind-state :body-state)))
 
 (defun rendered-body-state-marker [body-state]
   (if (nil? body-state)
@@ -172,7 +172,8 @@
 
 (defun make [{:keys [tabs selected-tab class state body-state style] :as opts}]
   (let [tabs (or tabs [])
-        has-body-state? (contains? opts :body-state)
+        has-body-state? (and (contains? opts :body-state)
+                             (not (nil? body-state)))
         selected (selected-tab-id tabs selected-tab)
         initial-selected (or selected-tab
                              (:selected-tab state)
