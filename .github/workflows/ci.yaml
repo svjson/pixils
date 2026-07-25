@@ -141,6 +141,22 @@ jobs:
       - name: Build pixils
         run: cmake --build build --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
 
+      - name: Link Pixils Roo packages
+        run: |
+          repo="$HOME/.local/share/roo/pkg"
+          loom="$ROO_ROOT/share/roo/pkg/loom"
+          packages="
+          lib/pixils
+          lib/pixils-form
+          lib/pixils-tilemap
+          lib/pixils-tilemap-project
+          lib/pixils-runner
+          lib/pixils-test
+          "
+          for package_dir in $packages; do
+            roo "$loom" link "$package_dir" --repo "$repo"
+          done
+
       - name: Run CTest suites
         run: ctest --test-dir build --output-on-failure --parallel "$CTEST_PARALLEL_LEVEL"
 
