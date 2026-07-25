@@ -53,6 +53,31 @@
        (fn [view]
          (:text-value (runtime/view-state view)))))
 
+(defun visible-view? [view]
+  (let [bounds (:bounds view)]
+    (and (not (nil? bounds))
+         (> (:w bounds) 0)
+         (or (> (:h bounds) 0)
+             (= "ui/text" (runtime/view-mode-name view))))))
+
+(defun visible-views [app mode-name]
+  (filter (runtime/find-views app mode-name)
+          visible-view?))
+
+(defun visible-view-containing [app mode-name text]
+  (head (filter (runtime/find-views-containing app mode-name text)
+                visible-view?)))
+
+(defun visible-input-with-value [app value]
+  (head (filter (visible-views app "ui/text-input")
+                (fn [view]
+                  (= value (:value (runtime/view-state view)))))))
+
+(defun visible-number-input-with-text [app value]
+  (head (filter (visible-views app "ui/number-input")
+                (fn [view]
+                  (= value (:text-value (runtime/view-state view)))))))
+
 (defun active-person [app]
   (:selected-person (runtime/active-state app)))
 
@@ -262,6 +287,94 @@
                     app
                     "ui/list-box-item"
                     "mary Hopper"))))))
+
+(deftest person-register-renders-selected-person-age
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :people)
+    (is (not (nil? (visible-number-input-with-text app "36"))))
+    (let [grace-row (runtime/find-view-containing app
+                                                  "ui/list-box-item"
+                                                  "Grace Hopper")]
+      (is (not (nil? grace-row)))
+      (runtime/click! app grace-row)
+      (settle-layout! app))
+    (is (= 1 (:selected-person-index (runtime/active-state app))))
+    (is (= 85 (:field/age (active-person app))))
+    (is (not (nil? (visible-number-input-with-text app "85"))))
+    (let [katherine-row (runtime/find-view-containing app
+                                                      "ui/list-box-item"
+                                                      "Katherine Johnson")]
+      (is (not (nil? katherine-row)))
+      (runtime/click! app katherine-row)
+      (settle-layout! app))
+    (is (= 2 (:selected-person-index (runtime/active-state app))))
+    (is (= 101 (:field/age (active-person app))))
+    (is (not (nil? (visible-number-input-with-text app "101"))))))
+
+(deftest person-register-renders-initial-selected-person-fields
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :people)
+    (is (= 0 (:selected-person-index (runtime/active-state app))))
+    (is (= {:person/id :person/ada
+            :field/first-name "Ada"
+            :field/last-name "Lovelace"
+            :field/age 36
+            :field/birth-place "London"
+            :field/newsletter? true}
+           (active-person app)))
+    (is (not (nil? (visible-input-with-value app "Ada"))))
+    (is (not (nil? (visible-input-with-value app "Lovelace"))))
+    (is (not (nil? (visible-input-with-value app "London"))))
+    (is (not (nil? (visible-number-input-with-text app "36"))))))
+
+(deftest person-summary-renders-selected-person-data
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :people)
+    (is (not (nil? (visible-view-containing app "ui/text" "London"))))
+    (is (not (nil? (visible-view-containing app "ui/text" "true"))))
+    (let [grace-row (runtime/find-view-containing app
+                                                  "ui/list-box-item"
+                                                  "Grace Hopper")]
+      (is (not (nil? grace-row)))
+      (runtime/click! app grace-row)
+      (settle-layout! app))
+    (is (not (nil? (visible-view-containing app "ui/text" "New York"))))
+    (is (not (nil? (visible-view-containing app "ui/text" "false"))))))
+
+(deftest program-tab-renders-selected-program-form
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :program)
+    (is (= :program (:selected-form-tab (runtime/active-state app))))
+    (is (= "Summer Conference"
+           (:program/name (active-conference app))))
+    (is (not (nil? (visible-input-with-value app "Summer Conference"))))
+    (is (not (nil? (visible-view-containing app "ui/text" "Agenda entries"))))
+    (is (not (nil? (visible-view-containing app "ui/button" "Add"))))))
+
+(deftest program-entry-edit-keeps-entry-list-visible-after-confirm
+  (let [app (make-form-playground-app)]
+    (switch-tab! app :program)
+    (let [autumn-row (runtime/find-view-containing app
+                                                   "ui/list-box-item"
+                                                   "Autumn Workshop")]
+      (is (not (nil? autumn-row)))
+      (runtime/click! app autumn-row)
+      (settle-layout! app))
+    (is (= 1 (count (:program/entries (active-conference app)))))
+    (let [arrival-row (runtime/find-view-containing app
+                                                    "ui/list-box-item"
+                                                    "Untitled entry")]
+      (is (not (nil? arrival-row)))
+      (runtime/click! app arrival-row)
+      (settle-layout! app))
+    (click-button! app "Edit")
+    (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
+    (click-button! app "OK")
+    (is (= "main-mode" (runtime/active-mode-name app)))
+    (is (= 1 (count (:program/entries (active-conference app)))))
+    (is (not (nil? (visible-view-containing app
+                                            "ui/list-box-item"
+                                            "Untitled entry"))))))
 
 (deftest program-planner-creates-union-entry-referencing-person-data
   (let [app (make-form-playground-app)]

@@ -7,13 +7,16 @@
            :height 18
            :layout {:direction :row
                     :gap 6}}
+   :state {:value binding}
    :children [{:mode 'ui/text
                :class :ui/muted
-               :style {:width 92}
+               :style {:width 92
+                       :height :fill}
                :state {:value label}}
               {:mode 'ui/text
-               :style {:width :fill}
-               :state {:value binding}}]})
+               :style {:width 260
+                       :height :fill}
+               :state {:value (ui/bind-state :value)}}]})
 
 (defcomponent person-summary
   {:class :person-summary

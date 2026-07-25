@@ -34,8 +34,8 @@
 
 (defun form-tabs []
   (tabs/make
-   {:selected-tab :people
-    :state (initial-form-state)
+   {:selected-tab (ui/bind-state :selected-form-tab)
+    :body-state (ui/bind-state)
     :style {:width :fill
             :height :shrink}
     :tabs [{:id :people
