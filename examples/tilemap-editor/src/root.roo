@@ -141,8 +141,8 @@
                                                    (update-fn state))))
 
 (defun apply-form-change [state payload]
-  (case (:field-id payload)
-    :terrain-rule-exclusive
+  (if (or (= (:field-id payload) :terrain-rule-exclusive)
+          (contains? (or (:form-value payload) {}) :exclusive?))
     (editor-workbook/change-to
      state
      "Change terrain rule options"
@@ -151,9 +151,10 @@
       (fn [state]
         (terrain-model/set-selected-terrain-rule-exclusive
          state
-         (:value payload)))))
-
-    :default state))
+         (if (contains? payload :field-id)
+           (:value payload)
+           (-> payload :form-value :exclusive?))))))
+    state))
 
 (defun apply-theme-selection! [state payload]
   (do

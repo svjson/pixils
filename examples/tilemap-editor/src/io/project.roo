@@ -150,11 +150,6 @@
         mask-sets (project-mask-sets project)
         terrain-transitions (project-terrain-transitions project)
         brushes (project-brushes project)]
-    (prn {:loader :open-project
-          :payload-path project-path
-          :payload-directory (:directory payload)
-          :project-directory project-directory
-          :project-filename project-filename})
     (if (valid-project-document? project)
       (remember-project!
        (tilemap/rebuild-terrain-stamp-preview
@@ -220,15 +215,12 @@
   (let [payload (assoc (recent-project-entry payload)
                        :type :confirm
                        :mode :file-dialog/open)]
-    (do
-      (prn {:loader :open-recent-project
-            :payload payload})
-      (open-project! (assoc state
-                            :project-path (:path payload)
-                            :project-directory (:directory payload)
-                            :project-filename (:filename payload)
-                            :last-project-file-dialog-result payload)
-                     payload))))
+    (open-project! (assoc state
+                          :project-path (:path payload)
+                          :project-directory (:directory payload)
+                          :project-filename (:filename payload)
+                          :last-project-file-dialog-result payload)
+                   payload)))
 
 (defun apply-project-file-dialog-result [state payload]
   (if (= (:type payload) :confirm)

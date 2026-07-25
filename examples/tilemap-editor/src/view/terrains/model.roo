@@ -3915,19 +3915,18 @@
         next-value (step-terrain-signature-value terrain-set value step)]
     (set-selected-rule-output-terrain-signature state direction next-value)))
 
-(defun match-condition-index [terrain-set center-terrain-id condition]
+(defun match-condition-index [options condition]
   (let [value (match-condition-option-value condition)
-        match (find-index (match-condition-options terrain-set
-                                                   center-terrain-id)
+        match (find-index options
                           (fn [option]
                             (= (:value option) value)))]
     (or match 0)))
 
 (defun step-match-condition-value [terrain-set center-terrain-id condition step]
-  (let [options (match-condition-options terrain-set center-terrain-id)
-        index (match-condition-index terrain-set
-                                     center-terrain-id
-                                     condition)
+  (let [options (filter (match-condition-options terrain-set center-terrain-id)
+                        (fn [option]
+                          (not= (:value option) :not-same-or-none)))
+        index (match-condition-index options condition)
         next-index (if (empty? options)
                      0
                      (mod (+ index step (count options))

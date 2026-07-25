@@ -47,7 +47,7 @@
                                :tile-size 16
                                :layer-profile :default
                                :layers []}})
-    (let [app (main-window/open-project! :terrain-rule)]
+    (let [app (main-window/open-project-with-buffer! :terrain-rule 1200 600)]
       (main-window/is-open? app)
       app))
 

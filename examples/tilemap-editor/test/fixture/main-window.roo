@@ -4,13 +4,16 @@
             [pixils.test.ui.tab-panel :as tab-panel]
             [tilemap-editor.fixture.io.project :as project]))
 
-(defun make-app []
+(defun make-app-with-buffer [buffer-width buffer-height]
   (runtime/make-app {:package-root "."
-                     :buffer-width 800
-                     :buffer-height 600}))
+                     :buffer-width buffer-width
+                     :buffer-height buffer-height}))
 
-(defun open-project! [project-id]
-  (let [app (make-app)]
+(defun make-app []
+  (make-app-with-buffer 800 600))
+
+(defun open-project-app! [app project-id]
+  (do
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
     (runtime/set-active-state! app
@@ -28,6 +31,13 @@
     (runtime/update! app)
     (runtime/render! app)
     app))
+
+(defun open-project! [project-id]
+  (open-project-app! (make-app) project-id))
+
+(defun open-project-with-buffer! [project-id buffer-width buffer-height]
+  (open-project-app! (make-app-with-buffer buffer-width buffer-height)
+                     project-id))
 
 (defun is-open? [app]
   (let [open? (= "main-mode" (runtime/active-mode-name app))]

@@ -484,7 +484,7 @@
   (if (and (not (blank? file-name))
            (not (blank? project-directory))
            (not (absolute-path? file-name)))
-    (io/join-path project-directory file-name)
+    (io/absolute-path! (io/join-path project-directory file-name))
     file-name))
 
 (defun runtime-image-dependency [dependency & project-directory]
