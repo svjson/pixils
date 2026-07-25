@@ -20,6 +20,9 @@ env:
   ROO_VERSION: 0.1.0-alpha.1
   ROO_PLATFORM: linux-x86_64
   ROO_RELEASE_REPOSITORY: svjson/roo-lang
+  SDL_VERSION: 3.4.10
+  SDL_IMAGE_VERSION: 3.4.4
+  SDL_MIXER_VERSION: 3.2.4
 
 jobs:
   linux:
@@ -37,11 +40,30 @@ jobs:
             build-essential \
             cmake \
             curl \
-            libfreetype-dev \
-            libsdl3-dev \
-            libsdl3-image-dev \
-            libsdl3-mixer-dev \
-            pkg-config
+            libasound2-dev \
+            libdbus-1-dev \
+            libdecor-0-dev \
+            libegl1-mesa-dev \
+            libfreetype6-dev \
+            libgl1-mesa-dev \
+            libibus-1.0-dev \
+            libpipewire-0.3-dev \
+            libpng-dev \
+            libpulse-dev \
+            libudev-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxkbcommon-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libxtst-dev \
+            pkg-config \
+            wayland-protocols \
+            zlib1g-dev
 
       - name: Install Roo release
         run: |
@@ -59,9 +81,12 @@ jobs:
 
           tar -xzf "$archive"
           roo_root="$RUNNER_TEMP/roo-release/roo-${ROO_VERSION}-${ROO_PLATFORM}"
+          deps_root="$GITHUB_WORKSPACE/deps"
 
           echo "ROO_ROOT=$roo_root" >> "$GITHUB_ENV"
-          echo "CMAKE_PREFIX_PATH=$roo_root:$GITHUB_WORKSPACE/deps" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$roo_root:$deps_root" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$roo_root/lib:$deps_root/lib:$deps_root/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
+          echo "PKG_CONFIG_PATH=$deps_root/lib/pkgconfig:$deps_root/lib/x86_64-linux-gnu/pkgconfig:$deps_root/share/pkgconfig" >> "$GITHUB_ENV"
           echo "$roo_root/bin" >> "$GITHUB_PATH"
 
       - name: Verify Roo tools
@@ -69,6 +94,67 @@ jobs:
           roo --version
           rooc --version
           roo proof --version
+
+      - name: Check out SDL
+        uses: actions/checkout@v5
+        with:
+          repository: libsdl-org/SDL
+          ref: release-${{ env.SDL_VERSION }}
+          path: deps/src/SDL
+
+      - name: Build SDL
+        run: |
+          cmake \
+            -S deps/src/SDL \
+            -B deps/build/SDL \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DSDL_EXAMPLES=OFF \
+            -DSDL_TESTS=OFF
+          cmake --build deps/build/SDL --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+          cmake --install deps/build/SDL
+
+      - name: Check out SDL_image
+        uses: actions/checkout@v5
+        with:
+          repository: libsdl-org/SDL_image
+          ref: release-${{ env.SDL_IMAGE_VERSION }}
+          path: deps/src/SDL_image
+
+      - name: Build SDL_image
+        run: |
+          cmake \
+            -S deps/src/SDL_image \
+            -B deps/build/SDL_image \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DSDLIMAGE_SAMPLES=OFF \
+            -DSDLIMAGE_TESTS=OFF \
+            -DSDLIMAGE_VENDORED=OFF
+          cmake --build deps/build/SDL_image --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+          cmake --install deps/build/SDL_image
+
+      - name: Check out SDL_mixer
+        uses: actions/checkout@v5
+        with:
+          repository: libsdl-org/SDL_mixer
+          ref: release-${{ env.SDL_MIXER_VERSION }}
+          path: deps/src/SDL_mixer
+
+      - name: Build SDL_mixer
+        run: |
+          cmake \
+            -S deps/src/SDL_mixer \
+            -B deps/build/SDL_mixer \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DSDLMIXER_SAMPLES=OFF \
+            -DSDLMIXER_TESTS=OFF \
+            -DSDLMIXER_VENDORED=OFF
+          cmake --build deps/build/SDL_mixer --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+          cmake --install deps/build/SDL_mixer
 
       - name: Check out sdl3_mock
         uses: actions/checkout@v5
@@ -82,7 +168,8 @@ jobs:
             -S deps/src/sdl3_mock \
             -B deps/build/sdl3_mock \
             -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
-            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps"
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
           cmake --build deps/build/sdl3_mock --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
           cmake --install deps/build/sdl3_mock
 
