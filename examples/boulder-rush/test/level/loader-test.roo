@@ -1,5 +1,6 @@
 (ns boulder-rush.level.loader-test
   (:require proof.core
+            [roo.io :as io]
             [boulder-rush.level.loader :as level-loader]
             [pixils.resource :as pixils-resource]
             [pixils.tilemap.resources :as tilemap-resources]))
@@ -43,10 +44,14 @@
     (is (= "Game Tiles 2" (:label tileset)))))
 
 (deftest level-pack-resource_dependencies_include_used_sprite_sheet
-  (let [pack (level-loader/load-level-pack)]
+  (let [pack (level-loader/load-level-pack)
+        sprite-sheet-path (io/absolute-path!
+                           (io/join-path
+                            (io/parent-path (level-loader/project-path))
+                            "../assets/simples_pimples.png"))]
     (is (= {:boulder-rush
             {:images {:simples-pimples
-                      {:file-name "assets/simples_pimples.png"
+                      {:file-name sprite-sheet-path
                        :transparency-color "#5a5268"}}}}
            (tilemap-resources/runtime-bundle-dependencies (:resources pack)
                                                           (:tilesets pack))))))
