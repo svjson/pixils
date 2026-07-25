@@ -2008,7 +2008,7 @@
         role-control (nth (:children role-field) 1)]
     (is (= :name (get-in name-field [:state :field-id])))
     (is (= [:name] (get-in name-field [:state :field-path])))
-    (is (= 'ui/text-input (:mode name-control)))
+    (is (= 'pixils/form-text-control (:mode name-control)))
     (is (= :count (get-in count-field [:state :field-id])))
     (is (= [:count] (get-in count-field [:state :field-path])))
     (is (= 'ui/number-input (:mode count-control)))

@@ -538,7 +538,12 @@
 
       new?
       (if (:projected-new? state)
-        (assoc state :projected-item value)
+        (let [selected (selected-item items selected-index)]
+          (if (and (not (nil? selected))
+                   (= value selected)
+                   (not= value (:projected-item state)))
+            (assoc state :value (:projected-item state))
+            (assoc state :projected-item value)))
         (assoc state
                :value (:new-value state)
                :projected-new? true
@@ -718,14 +723,36 @@
                               (-> event :payload :value)
                               true))}})
 
+(defun text-draft-value [value]
+  (if (nil? value) "" value))
+
+(defun synced-text-control-state [state]
+  (let [field-value (text-draft-value (:field-value state))]
+    (if (= field-value (:synced-field-value state))
+      state
+      (assoc (assoc state :value field-value)
+             :synced-field-value
+             field-value))))
+
+(defcomponent pixils/form-text-control
+  {:init (fn [state ctx]
+           (synced-text-control-state state))
+   :update (fn [state ctx]
+             (synced-text-control-state state))
+   :children [{:mode 'ui/text-input
+               :style {:width :fill
+                       :height :fill}
+               :state {:value (ui/bind-state :value)
+                       :auto-focus? (ui/bind-state :auto-focus?)
+                       :emit-blur? (ui/bind-state :emit-blur?)
+                       :read-only? (ui/bind-state :read-only?)}}]})
+
 (defun text-control [field-id field-schema field-label opts]
-  {:mode 'ui/text-input
+  {:mode 'pixils/form-text-control
    :class [:pixils/form-control :pixils/form-text-control]
    :style (or (form-layout/style-option opts :control-style default-control-style)
               {})
-   :state {:value (field-value (:value opts)
-                               field-id
-                               field-schema)
+   :state {:field-value (field-binding field-id field-schema)
            :auto-focus? (:auto-focus? field-schema)
            :emit-blur? true
            :read-only? (:read-only? field-schema)}})
@@ -2008,6 +2035,8 @@
 (defcomponent pixils/form
   {:init (fn [state ctx]
            (form-state state))
+   :update (fn [state ctx]
+             (form-state state))
    :on {:form/edit (fn [state event ctx]
                        (let [stopped (ui/stop-propagation! event)]
                          (let [next-state
