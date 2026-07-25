@@ -28,17 +28,50 @@ namespace Pixils::Asset
       return file_name;
     }
 
-    void apply_transparency_color(SDL_Surface* surface,
-                                  const std::optional<Color>& transparency_color)
+    SDL_Surface* apply_transparency_color(SDL_Surface* surface,
+                                          const std::optional<Color>& transparency_color)
     {
-      if (!surface || !transparency_color) return;
+      if (!surface || !transparency_color) return surface;
+
+      SDL_Surface* rgba_surface = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA32);
+      if (!rgba_surface)
+      {
+        const Color& color = *transparency_color;
+        const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+        if (!format) return surface;
+
+        Uint32 color_key = SDL_MapRGB(format, nullptr, color.r, color.g, color.b);
+        SDL_SetSurfaceColorKey(surface, true, color_key);
+        return surface;
+      }
+
+      SDL_DestroySurface(surface);
 
       const Color& color = *transparency_color;
-      const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
-      if (!format) return;
+      const SDL_PixelFormatDetails* format =
+        SDL_GetPixelFormatDetails(rgba_surface->format);
+      if (!format || !rgba_surface->pixels) return rgba_surface;
+      if (!SDL_LockSurface(rgba_surface)) return rgba_surface;
 
-      Uint32 color_key = SDL_MapRGB(format, nullptr, color.r, color.g, color.b);
-      SDL_SetSurfaceColorKey(surface, true, color_key);
+      auto* pixels = static_cast<Uint32*>(rgba_surface->pixels);
+      const int stride = rgba_surface->pitch / static_cast<int>(sizeof(Uint32));
+
+      for (int y = 0; y < rgba_surface->h; y++)
+      {
+        for (int x = 0; x < rgba_surface->w; x++)
+        {
+          Uint32& pixel = pixels[(y * stride) + x];
+          Uint8 r, g, b;
+          SDL_GetRGBA(pixel, format, nullptr, &r, &g, &b, nullptr);
+          if (r == color.r && g == color.g && b == color.b)
+          {
+            pixel = SDL_MapRGBA(format, nullptr, r, g, b, 0);
+          }
+        }
+      }
+
+      SDL_UnlockSurface(rgba_surface);
+      return rgba_surface;
     }
   } // namespace
 
@@ -56,7 +89,7 @@ namespace Pixils::Asset
     SDL_Surface* img_surface = IMG_Load(resolved.c_str());
     if (img_surface)
     {
-      apply_transparency_color(img_surface, dependency.transparency_color);
+      img_surface = apply_transparency_color(img_surface, dependency.transparency_color);
       texture = create_texture(img_surface);
       bundle.image_sources.emplace(dependency.resource_id, img_surface);
     }

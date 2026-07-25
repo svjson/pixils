@@ -72,6 +72,24 @@ TEST_F(ImageTest, image_dependencies_accept_map_with_transparency_color)
   EXPECT_EQ(height->num().get_int(), 8);
 }
 
+TEST_F(ImageTest, transparency_color_is_baked_into_source_alpha)
+{
+  // Given
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites
+      {:images {:ship {:file-name "ship.png"
+                       :transparency-color "#000000"}}})
+  )");
+
+  // When
+  auto alpha = runtime.eval("(:a (pixils.image/color-at :sprites/ship {:x 0 :y 0}))");
+
+  // Then
+  ASSERT_NE(alpha, nullptr);
+  EXPECT_EQ(alpha->num().get_int(), 0);
+}
+
 TEST_F(ImageTest, resource_dependency_adapter_exposes_images_as_a_map)
 {
   // When
