@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_TYPE: Release
+  CMAKE_BUILD_PARALLEL_LEVEL: "1"
+  CTEST_PARALLEL_LEVEL: "1"
+  ROO_VERSION: 0.1.0-alpha.1
+  ROO_PLATFORM: linux-x86_64
+  ROO_RELEASE_REPOSITORY: svjson/roo-lang
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out pixils
+        uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            curl \
+            libfreetype-dev \
+            libsdl3-dev \
+            libsdl3-image-dev \
+            libsdl3-mixer-dev \
+            pkg-config
+
+      - name: Install Roo release
+        run: |
+          set -euo pipefail
+
+          archive="roo-${ROO_VERSION}-${ROO_PLATFORM}.tar.gz"
+          base_url="https://github.com/${ROO_RELEASE_REPOSITORY}/releases/download/v${ROO_VERSION}"
+
+          mkdir -p "$RUNNER_TEMP/roo-release"
+          cd "$RUNNER_TEMP/roo-release"
+
+          curl -fsSLO "${base_url}/${archive}"
+          curl -fsSLO "${base_url}/SHA256SUMS"
+          grep " ${archive}$" SHA256SUMS | sha256sum -c -
+
+          tar -xzf "$archive"
+          roo_root="$RUNNER_TEMP/roo-release/roo-${ROO_VERSION}-${ROO_PLATFORM}"
+
+          echo "ROO_ROOT=$roo_root" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$roo_root:$GITHUB_WORKSPACE/deps" >> "$GITHUB_ENV"
+          echo "$roo_root/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Roo tools
+        run: |
+          roo --version
+          rooc --version
+          roo proof --version
+
+      - name: Check out sdl3_mock
+        uses: actions/checkout@v5
+        with:
+          repository: svjson/sdl3_mock
+          path: deps/src/sdl3_mock
+
+      - name: Build sdl3_mock
+        run: |
+          cmake \
+            -S deps/src/sdl3_mock \
+            -B deps/build/sdl3_mock \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps"
+          cmake --build deps/build/sdl3_mock --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+          cmake --install deps/build/sdl3_mock
+
+      - name: Configure pixils
+        run: |
+          cmake \
+            -S . \
+            -B build \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
+
+      - name: Build pixils
+        run: cmake --build build --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+
+      - name: Run CTest suites
+        run: ctest --test-dir build --output-on-failure --parallel "$CTEST_PARALLEL_LEVEL"
+
+      - name: Run Roo proof suites
+        run: |
+          sh scripts/run_proof_tests.sh --root lib
+          sh scripts/run_proof_tests.sh --root examples
