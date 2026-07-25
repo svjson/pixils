@@ -272,6 +272,34 @@ TEST_F(TabPanelTest, tab_panel_body_passes_state_to_active_child)
   EXPECT_EQ(value->to_string(), ":from-root");
 }
 
+TEST_F(TabPanelTest, tab_panel_body_state_passes_state_to_active_child)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent value-body {})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:shared-value :from-root})
+       :children [(pixils.ui.tab-panel/make
+                   {:body-state (pixils.ui/bind-state)
+                    :tabs [{:id :value
+                            :label "Value"
+                            :child {:mode 'value-body
+                                    :state {:value (pixils.ui/bind-state :shared-value)}}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto tab_panel = session.active_mode->children[0];
+  auto active = active_tab_child(tab_panel);
+  ASSERT_NE(active, nullptr);
+
+  auto value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), ":from-root");
+}
+
 TEST_F(TabPanelTest, tab_panel_body_refreshes_when_bound_body_state_changes)
 {
   runtime.eval(R"(

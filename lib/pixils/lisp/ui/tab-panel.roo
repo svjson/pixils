@@ -100,8 +100,10 @@
    :state (or body-state (ui/bind-state))
    :children [(tab-body-child (selected-tab tabs selected-tab))]})
 
-(defun replacement-body-state []
-  (ui/bind-state))
+(defun replacement-body-state [state]
+  (if (contains? (or state {}) :body-state)
+    (ui/bind-state :body-state)
+    (ui/bind-state)))
 
 (defun rendered-body-state-marker [body-state]
   (if (nil? body-state)
@@ -136,7 +138,8 @@
                                       "body"
                                       (body-child tabs
                                                   selected
-                                                  (replacement-body-state))))
+                                                  (replacement-body-state
+                                                   state))))
                  (assoc (assoc (assoc state
                                        :selected-tab selected)
                                 :rendered-tab selected)
@@ -159,20 +162,28 @@
                                                      "body"
                                                      (body-child tabs
                                                                  selected
-                                                                 (replacement-body-state)))
+                                                                 (replacement-body-state
+                                                                  state)))
                                   (ui/emit! (:view ctx)
                                             :tab-panel/change
                                             {:tab selected
                                              :index index}))
                                 (assoc state :selected-tab selected))))}})
 
-(defun make [{:keys [tabs selected-tab class state style]}]
+(defun make [{:keys [tabs selected-tab class state body-state style] :as opts}]
   (let [tabs (or tabs [])
+        has-body-state? (contains? opts :body-state)
         selected (selected-tab-id tabs selected-tab)
         initial-selected (or selected-tab
                              (:selected-tab state)
                              selected)
-        rendered-selected (selected-tab-id tabs initial-selected)]
+        rendered-selected (selected-tab-id tabs initial-selected)
+        state (if has-body-state?
+                (assoc (or state {}) :body-state body-state)
+                (or state {}))
+        tab-body-state (if has-body-state?
+                         (ui/bind-state :body-state)
+                         state)]
     (merge {:mode 'ui/tab-panel
             :style (or style {})
             :state (merge (or state {})
@@ -180,5 +191,7 @@
                            :selected-tab initial-selected
                            :rendered-tab rendered-selected})
             :children [(tab-strip-child tabs rendered-selected)
-                       (body-child tabs rendered-selected state)]}
+                       (body-child tabs
+                                   rendered-selected
+                                   tab-body-state)]}
            (if class {:class class} {}))))
