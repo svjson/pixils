@@ -40,6 +40,8 @@ jobs:
             curl \
             git \
             libfreetype6-dev \
+            libgmock-dev \
+            libgtest-dev \
             libsdl3-dev \
             libsdl3-image-dev \
             pkg-config
