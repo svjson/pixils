@@ -83,6 +83,20 @@ jobs:
           roo_root="$RUNNER_TEMP/roo-release/roo-${ROO_VERSION}-${ROO_PLATFORM}"
           deps_root="$GITHUB_WORKSPACE/deps"
 
+          package_repo="$HOME/.local/share/roo/pkg"
+          mkdir -p "$package_repo"
+          for package_dir in "$roo_root"/share/roo/pkg/*; do
+            test -d "$package_dir" || continue
+            package_name="$(basename "$package_dir")"
+            package_version="$(sed -n 's/^[[:space:]]*:version[[:space:]]*"\([^"]*\)".*/\1/p' "$package_dir/package.edn" | head -n 1)"
+            if [ -z "$package_version" ]; then
+              echo "missing package version in $package_dir/package.edn" >&2
+              exit 1
+            fi
+            mkdir -p "$package_repo/$package_name"
+            ln -sfn "$package_dir" "$package_repo/$package_name/$package_version"
+          done
+
           echo "ROO_ROOT=$roo_root" >> "$GITHUB_ENV"
           echo "CMAKE_PREFIX_PATH=$roo_root:$deps_root" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$roo_root/lib:$deps_root/lib:$deps_root/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
@@ -93,7 +107,7 @@ jobs:
         run: |
           roo --version
           rooc --version
-          roo proof --version
+          roo "$ROO_ROOT/share/roo/pkg/proof" --version
 
       - name: Check out SDL
         uses: actions/checkout@v5
