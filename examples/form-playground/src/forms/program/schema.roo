@@ -14,7 +14,9 @@
                      :valid-values [:talk
                                     :workshop
                                     :panel
-                                    :break]}}}
+                                    :break]}
+              :color {:type :color
+                      :allow-alpha? false}}}
 
     :talk-entry
     {:extends :entry-base
@@ -80,6 +82,7 @@
              :program/entries
              {:type :array
               :new-template {:kind :talk
+                             :color {:r 0x4f :g 0x83 :b 0xcc :a 255}
                              :title ""
                              :speaker :person/ada
                              :duration 30}

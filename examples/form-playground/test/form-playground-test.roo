@@ -318,6 +318,7 @@
       (runtime/click! app add-button)
       (settle-layout! app))
     (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
+    (is (not (nil? (head (runtime/find-views app "ui/color-picker")))))
     (let [title-input (input-with-value app "")]
       (is (not (nil? title-input)))
       (runtime/click! app title-input)
@@ -340,11 +341,13 @@
       (settle-layout! app))
     (is (= "main-mode" (runtime/active-mode-name app)))
     (is (= {:kind :talk
+            :color {:r 0x4f :g 0x83 :b 0xcc :a 255}
             :title "keynote"
             :speaker :person/grace
             :duration 30}
            (select-keys (program-entry-at app 0)
                         [:kind
+                         :color
                          :title
                          :speaker
                          :duration])))

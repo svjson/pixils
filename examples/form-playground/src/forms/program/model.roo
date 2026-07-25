@@ -4,6 +4,7 @@
   {:program/name "Program name"
    :program/entries "Agenda entries"
    :kind "Entry type"
+   :color "Color"
    :title "Title"
    :speaker "Speaker"
    :duration "Duration"
@@ -26,6 +27,7 @@
    {:conference/id :conference/autumn
     :program/name "Autumn Workshop"
     :program/entries [{:kind :break
+                       :color {:r 0xd6 :g 0xa5 :b 0x4f :a 255}
                        :label "Arrival"
                        :duration 15}]}])
 
