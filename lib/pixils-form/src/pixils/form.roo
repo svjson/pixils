@@ -7,6 +7,7 @@
             [pixils.schema :as model-schema]
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as checkbox]
+            [pixils.ui.color-picker :as color-picker]
             [pixils.ui.combo-box :as combo-box]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.list-box :as list-box]
@@ -708,6 +709,13 @@
                               event
                               ctx
                               (-> event :payload :checked?)
+                              true))
+        :color-picker/change
+        (fn [state event ctx]
+          (emit-field-change! state
+                              event
+                              ctx
+                              (-> event :payload :value)
                               true))}})
 
 (defun text-control [field-id field-schema field-label opts]
@@ -803,6 +811,31 @@
            :value field-id})
          :class
          [:pixils/form-control :pixils/form-checkbox-control]))
+
+(defun color-control [field-id field-schema field-label opts]
+  (color-picker/make
+   {:class [:pixils/form-control :pixils/form-color-control]
+    :style (or (:color-picker-style opts)
+               (:control-style opts)
+               (:style field-schema)
+               {})
+    :swatch-class (:swatch-class field-schema)
+    :swatch-style (:swatch-style field-schema)
+    :value (field-binding field-id field-schema)
+    :allow-alpha? (:allow-alpha? field-schema)
+    :disabled? (:read-only? field-schema)
+    :editor (:editor field-schema)
+    :dialog-title (or (:dialog-title field-schema)
+                      field-label)
+    :dialog-buttons (:dialog-buttons field-schema)
+    :dialog-window-class (:dialog-window-class field-schema)
+    :dialog-window-style (:dialog-window-style field-schema)
+    :dialog-body-class (:dialog-body-class field-schema)
+    :dialog-body-style (:dialog-body-style field-schema)
+    :editor-class (:editor-class field-schema)
+    :editor-style (:editor-style field-schema)
+    :dialog-button-row-class (:dialog-button-row-class field-schema)
+    :dialog-button-row-style (:dialog-button-row-style field-schema)}))
 
 (defun display-control [field-id field-schema field-label opts]
   (field-value-text field-id field-schema opts))
@@ -1684,6 +1717,7 @@
    :number number-control
    :slider slider-control
    :boolean boolean-control
+   :color color-control
    :display display-control})
 
 (defun field-control-type [field-schema]

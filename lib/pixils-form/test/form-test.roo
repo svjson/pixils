@@ -145,6 +145,58 @@
     (is (= form/default-slider-value-style
            (-> control :state :value-style)))))
 
+(deftest make-renders-color-field-with-built-in-color-picker
+  (let [view (form/make {:schema {:accent {:type :color}}
+                         :value {:accent {:r 12 :g 34 :b 56 :a 255}}})
+        field (form-child view 0)
+        control (nth (:children field) 1)]
+    (is (= 'ui/color-picker
+           (:mode control)))
+    (is (= [:pixils/form-control :pixils/form-color-control]
+           (:class control)))
+    (is (not (nil? (-> control :state :value))))))
+
+(deftest color-field-passes-color-picker-options
+  (let [view (form/make {:schema {:accent {:type :color
+                                           :read-only? true
+                                           :allow-alpha? false
+                                           :editor false
+                                           :dialog-title "Accent Color"
+                                           :swatch-class :paint/accent-swatch
+                                           :swatch-style {:width 32
+                                                          :height 18}}}
+                         :value {:accent {:r 12 :g 34 :b 56}}})
+        field (form-child view 0)
+        control (nth (:children field) 1)
+        swatch (head (:children control))]
+    (is (= true
+           (-> control :state :disabled?)))
+    (is (= false
+           (-> control :state :allow-alpha?)))
+    (is (= false
+           (-> control :state :editor)))
+    (is (= "Accent Color"
+           (-> control :state :dialog-title)))
+    (is (= [:ui/color-picker-swatch :paint/accent-swatch]
+           (:class swatch)))
+    (is (= {:width 32
+            :height 18}
+           (:style swatch)))))
+
+(deftest field-change-payload-accepts-color-values
+  (let [color {:r 10 :g 20 :b 30 :a 255}
+        payload (form/field-change-payload-with-commit
+                 {:field-id :accent
+                  :field-path [:accent]
+                  :local-field-path [:accent]
+                  :field-schema {:type :color}
+                  :form-value {:accent {:r 0 :g 0 :b 0 :a 255}}}
+                 color
+                 true)]
+    (is (= color (:value payload)))
+    (is (= {:accent color}
+           (:form-value payload)))))
+
 (deftest make-renders-top-level-layout-sections-as-group-boxes
   (let [view (form/make {:schema person-schema
                          :value {:field/name "Ada"
