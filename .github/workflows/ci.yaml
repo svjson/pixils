@@ -20,6 +20,7 @@ env:
   ROO_VERSION: 0.1.0-alpha.1
   ROO_PLATFORM: linux-x86_64
   ROO_RELEASE_REPOSITORY: svjson/roo-lang
+  SDL_MIXER_VERSION: 3.2.4
 
 jobs:
   linux:
@@ -41,7 +42,6 @@ jobs:
             libfreetype6-dev \
             libsdl3-dev \
             libsdl3-image-dev \
-            libsdl3-mixer-dev \
             pkg-config
 
       - name: Install Roo release
@@ -87,6 +87,28 @@ jobs:
           roo --version
           rooc --version
           roo "$ROO_ROOT/share/roo/pkg/proof" --version
+
+      - name: Check out SDL_mixer
+        uses: actions/checkout@v5
+        with:
+          repository: libsdl-org/SDL_mixer
+          ref: release-${{ env.SDL_MIXER_VERSION }}
+          path: deps/src/SDL_mixer
+
+      - name: Build SDL_mixer
+        run: |
+          cmake \
+            -S deps/src/SDL_mixer \
+            -B deps/build/SDL_mixer \
+            -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DSDLMIXER_SAMPLES=OFF \
+            -DSDLMIXER_TESTS=OFF \
+            -DSDLMIXER_STRICT=OFF \
+            -DSDLMIXER_VENDORED=OFF
+          cmake --build deps/build/SDL_mixer --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+          cmake --install deps/build/SDL_mixer
 
       - name: Check out sdl3_mock
         uses: actions/checkout@v5
