@@ -779,7 +779,7 @@ namespace Pixils::Runtime
 
     if (active_frame_changed && this->hook_args.events)
     {
-      this->hook_args.events->clear_keyboard_transients();
+      this->hook_args.events->clear_transients();
     }
 
     return active_frame_changed;

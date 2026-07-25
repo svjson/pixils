@@ -247,6 +247,9 @@
   (and (not= :separator (:node-type node))
        (not (:disabled? node))))
 
+(defun submenu-node? [node]
+  (> (count (or (:items node) [])) 0))
+
 (defun first-selectable-index [items]
   (let [indexed (for-indexed [index item items]
                   {:index index
@@ -342,14 +345,14 @@
       (and node
            child-view
            (not (:disabled? node))
-           (not (empty? (:items node))))
+           (submenu-node? node))
       (do
         (open-submenu! node state child-view)
         state)
 
       (and node
            (not (:disabled? node))
-           (empty? (:items node))
+           (not (submenu-node? node))
            (:action node))
       (do
         (ui/emit! (:view ctx)
@@ -413,7 +416,7 @@
       false)))
 
 (defun popup-item-state [node state]
-  (let [has-submenu (not (empty? (:items node)))]
+  (let [has-submenu (submenu-node? node)]
     {:node node
      :index (:index state)
      :highlighted-index (:highlighted-index state)
@@ -503,7 +506,7 @@
                                    {:style {:width :fill}}))}]}])
 
 (defun open-popup-at-position! [items state origin-view position]
-  (when (not (empty? items))
+  (when (> (count (or items [])) 0)
     (push-mode!
      (or (:popup-mode state) 'ui/popup-menu)
      {:items items
@@ -521,7 +524,7 @@
 
 (defun open-popup-at-view! [node state anchor-view placement]
   (when-let [items (:items node)]
-    (when (not (empty? items))
+    (when (submenu-node? node)
       (let [position (popup-position anchor-view placement)]
         (open-popup-at-position! items
                                  (assoc state
@@ -569,7 +572,7 @@
 
                         (and node
                              (not (:disabled? node))
-                             (not (empty? (:items node))))
+                             (submenu-node? node))
                         (assoc (assoc state
                                       :active-index
                                       (:menu-index state))
@@ -634,14 +637,15 @@
                                :highlighted-index (:index state))))
    :on-mouse-down (fn [state event ctx]
                     (do
-                      (when (not (:disabled? state))
+                      (when (and (not (:disabled? state))
+                                 (:has-submenu state))
                         (open-submenu! (:node state) state (:view ctx)))
                       (ui/stop-propagation! event)
                       state))
    :on-mouse-up (fn [state event ctx]
                  (let [node (:node state)]
                     (when (and (not (:disabled? state))
-                               (empty? (:items node)))
+                               (not (:has-submenu state)))
                       (ui/emit! (:view ctx)
                                 :menu/select
                                 {:type :action
@@ -917,16 +921,16 @@
                               child-view (child-view-at (:view ctx) index)]
                           (when (and node
                                      child-view
-                                     (not (empty? (:items node))))
+                                     (submenu-node? node))
                             (open-submenu! node next-state child-view))
                           (if (and (= 0 (:menu-depth next-state))
                                    (or (nil? node)
-                                       (empty? (:items node))))
-                          (do
-                            (pop-mode! {:type :navigate-top
-                                        :direction :right})
-                            next-state)
-                          next-state))))
+                                       (not (submenu-node? node))))
+                            (do
+                              (pop-mode! {:type :navigate-top
+                                          :direction :right})
+                              next-state)
+                            next-state))))
 
                     :key/left
                     (let [next-state (assoc state :input-source :keyboard)]
