@@ -1670,7 +1670,7 @@
     (let [source-key (model-core/path-value parent-value
                                               (or (:field source)
                                                   (:path source)))
-          source-path (get (or (:sources source) {}) source-key)]
+          source-path (get (:sources source) source-key)]
       {:source-key source-key
        :source-path source-path})
 
@@ -1688,6 +1688,49 @@
                                         (:from valid-values))
          {:values valid-values})})))
 
+(defun valid-value-option-value [item valid-values]
+  (let [value-path (:value-path valid-values)]
+    (cond
+      value-path
+      (get-in item value-path)
+
+      (= (type-of item) "map")
+      (if (contains? item :value)
+        (:value item)
+        (:id item))
+
+      :default item)))
+
+(defun valid-value-option-label [item valid-values value]
+  (let [label-path (:label-path valid-values)]
+    (cond
+      label-path
+      (str (get-in item label-path))
+
+      (= (type-of item) "map")
+      (str (or (:label item)
+               (:name item)
+               (:id item)
+               (:value item)
+               value))
+
+      :default
+      (form-layout/keyword-label value))))
+
+(defun valid-value-option [valid-values item]
+  (let [value (valid-value-option-value item valid-values)]
+    {:value value
+     :label (valid-value-option-label item valid-values value)}))
+
+(defun valid-value-options-for-value [context field-schema value]
+  (let [valid-values (:valid-values field-schema)]
+    (map (model-valid-values/valid-values-items context valid-values value)
+         (fn [item]
+           (valid-value-option valid-values item)))))
+
+(defun valid-value-options [context field-schema]
+  (valid-value-options-for-value context field-schema nil))
+
 (defun cache-field-valid-value-options [cache context field-schema parent-value]
   (let [key (valid-value-options-cache-key context field-schema parent-value)]
     (if key
@@ -1695,9 +1738,7 @@
         cache
         (assoc cache
                key
-               (model-valid-values/valid-value-options-for-value context
-                                                           field-schema
-                                                           parent-value)))
+               (valid-value-options-for-value context field-schema parent-value)))
       cache)))
 
 (defun cache-schema-field-valid-value-options [cache schema context value field-id]
@@ -1793,7 +1834,7 @@
     (let [source-key (model-core/path-value (:form-value state)
                                               (or (:field source)
                                                   (:path source)))
-          source-path (get (or (:sources source) {}) source-key)]
+          source-path (get (:sources source) source-key)]
       {:source-key source-key
        :source-path source-path})
 
@@ -1817,9 +1858,7 @@
         cache (:valid-value-options-cache opts)]
     (if (and key (contains? (or cache {}) key))
       (get cache key)
-      (model-valid-values/valid-value-options-for-value (:context opts)
-                                                  field-schema
-                                                  value))))
+      (valid-value-options-for-value (:context opts) field-schema value))))
 
 (defun select-options-for-value [field-schema opts value]
   (let [options (raw-select-options-for-value field-schema opts value)]

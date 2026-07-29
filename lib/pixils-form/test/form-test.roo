@@ -6,7 +6,6 @@
             [zoology.canonical :as canonical]
             [zoology.core :as core]
             [zoology.schema :as model-schema]
-            [zoology.valid-values :as valid-values]
             [zoology.validation :as validation]))
 
 (def person-schema
@@ -324,7 +323,7 @@
                             :label "Dawnkeep Stables"}]}}]
     (is (= [{:value :place/dawnkeep-stables
              :label "Dawnkeep Stables"}]
-           (valid-values/valid-value-options context field-schema)))))
+           (form/valid-value-options context field-schema)))))
 
 (deftest valid-value-options-can-depend-on-sibling-field-values
   (let [field-schema {:type :keyword
@@ -340,7 +339,7 @@
                             :label "Blackmere"}]}]
     (is (= [{:value :blackmere
              :label "Blackmere"}]
-           (valid-values/valid-value-options-for-value
+           (form/valid-value-options-for-value
             context
             field-schema
             {:source :terrain})))))
