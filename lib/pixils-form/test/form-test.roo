@@ -3,7 +3,11 @@
             [pixils.form.actions :as form-actions]
             [pixils.form.selection :as form-selection]
             [pixils.form :as form]
-            [pixils.schema :as schema]))
+            [zoology.canonical :as canonical]
+            [zoology.core :as core]
+            [zoology.schema :as model-schema]
+            [zoology.valid-values :as valid-values]
+            [zoology.validation :as validation]))
 
 (def person-schema
   {:field/name {:type :text
@@ -247,7 +251,7 @@
            (-> inner-body :children head :mode)))))
 
 (deftest validate-reports-required-and-range-errors
-  (let [result (schema/validate person-schema
+  (let [result (validation/validate person-schema
                                 {:field/name ""
                                  :field/age -1
                                  :profile {:city "London"}})]
@@ -261,7 +265,7 @@
     (is (nil? (get-in result [:errors :field/city])))))
 
 (deftest validate-accepts-valid-values-and-field-paths
-  (let [result (schema/validate person-schema
+  (let [result (validation/validate person-schema
                                 {:field/name "Ada"
                                  :field/age 36
                                  :profile {:city "London"}})]
@@ -273,7 +277,7 @@
                                   :valid-values
                                   [:role/stable-lad
                                    :role/stable-master]}}
-        result (schema/validate role-schema
+        result (validation/validate role-schema
                                 {:field/role :role/smith})]
     (is (= false (:valid? result)))
     (is (= [{:rule :valid-values
@@ -293,11 +297,11 @@
                             :label "Dawnkeep Stables"}
                            {:id :place/dawnkeep-smithy
                             :label "Dawnkeep Smithy"}]}}
-        valid-result (schema/validate-with-context
+        valid-result (validation/validate-with-context
                       schema
                       {:field/place :place/dawnkeep-stables}
                       context)
-        invalid-result (schema/validate-with-context
+        invalid-result (validation/validate-with-context
                         schema
                         {:field/place :place/dawnkeep-market}
                         context)]
@@ -320,7 +324,7 @@
                             :label "Dawnkeep Stables"}]}}]
     (is (= [{:value :place/dawnkeep-stables
              :label "Dawnkeep Stables"}]
-           (schema/valid-value-options context field-schema)))))
+           (valid-values/valid-value-options context field-schema)))))
 
 (deftest valid-value-options-can-depend-on-sibling-field-values
   (let [field-schema {:type :keyword
@@ -336,7 +340,7 @@
                             :label "Blackmere"}]}]
     (is (= [{:value :blackmere
              :label "Blackmere"}]
-           (schema/valid-value-options-for-value
+           (valid-values/valid-value-options-for-value
             context
             field-schema
             {:source :terrain})))))
@@ -352,7 +356,7 @@
                       :fields {:point {:type :number}}}}
                     :schema {:ref :point-rule}}]
     (is (= [:type :id :point]
-           (schema/schema-field-ids schema-doc)))))
+           (model-schema/schema-field-ids schema-doc)))))
 
 (deftest validation-uses-active-discriminated-union-variant
   (let [schema-doc {:definitions
@@ -378,23 +382,23 @@
                               {:ref :preferred-position-rule}
                               :edge {:ref :edge-rule}}}}]
     (is (= true
-           (:valid? (schema/validate
+           (:valid? (validation/validate
                      schema-doc
                      {:type :preferred-position
                       :point 10}))))
     (is (= true
-           (:valid? (schema/validate
+           (:valid? (validation/validate
                      schema-doc
                      {:type :edge
                       :target :forest}))))
     (is (= {:target [{:rule :required}]}
-           (:errors (schema/validate
+           (:errors (validation/validate
                      schema-doc
                      {:type :edge}))))
     (is (= {:type [{:rule :valid-values
                     :allowed [:preferred-position :edge]
                     :actual :unknown}]}
-           (:errors (schema/validate
+           (:errors (validation/validate
                      schema-doc
                      {:type :unknown}))))))
 
@@ -775,7 +779,7 @@
   (is (= {:count nil
           :weight nil
           :blank nil}
-         (schema/canonical-value
+         (canonical/canonical-value
           {:type :object
            :fields {:count {:type :integer}
                     :weight {:type :number}
@@ -787,7 +791,7 @@
 (deftest canonical-value-supports-shorthand-field-map-schemas
   (is (= {:id :terrain/forest
           :count 12}
-         (schema/canonical-value
+         (canonical/canonical-value
           {:id {:type :keyword}
            :count {:type :integer}}
           {:id "terrain/forest"
@@ -806,8 +810,8 @@
             :valid-values [:role/stable-lad
                            :role/stable-master]
             :required true
-            :pixils.schema/ref :stable-role}
-           (schema/resolved-field-schema schema-doc :field/role)))))
+            :zoology/ref :stable-role}
+           (model-schema/resolved-field-schema schema-doc :field/role)))))
 
 (deftest schema-resolves-nested-definition-references
   (let [schema-doc {:definitions
@@ -833,9 +837,9 @@
                               {:from [:vocabularies :places]
                                :value-path [:id]
                                :label-path [:label]}
-                              :pixils.schema/ref :place-id}}
-                    :pixils.schema/ref :place-relation}}
-           (schema/resolved-root-schema schema-doc)))))
+                              :zoology/ref :place-id}}
+                    :zoology/ref :place-relation}}
+           (model-schema/resolved-root-schema schema-doc)))))
 
 (deftest prepared-schema-preserves-schema-behavior
   (let [schema-doc {:definitions
@@ -853,17 +857,17 @@
                              :base {:ref :base}
                              :variants {:simple {:ref :simple}
                                         :detailed {:ref :detailed}}}}
-        prepared (schema/prepare-schema schema-doc)
+        prepared (model-schema/prepare-schema schema-doc)
         value {:type :detailed
                :name "Name"
                :note "Note"}]
-    (is (= (schema/resolved-root-schema schema-doc)
-           (schema/resolved-root-schema prepared)))
-    (is (= (schema/resolved-field-schema schema-doc :name)
-           (schema/resolved-field-schema prepared :name)))
-    (is (= (schema/active-schema-field-ids schema-doc value)
-           (schema/active-schema-field-ids prepared value)))
-    (is (schema/field-visible? prepared :note value))))
+    (is (= (model-schema/resolved-root-schema schema-doc)
+           (model-schema/resolved-root-schema prepared)))
+    (is (= (model-schema/resolved-field-schema schema-doc :name)
+           (model-schema/resolved-field-schema prepared :name)))
+    (is (= (model-schema/active-schema-field-ids schema-doc value)
+           (model-schema/active-schema-field-ids prepared value)))
+    (is (model-schema/field-visible? prepared :note value))))
 
 (deftest prepared-schema-leaves-reentrant-references-unresolved
   (let [schema-doc {:definitions
@@ -872,14 +876,14 @@
                                      :children {:type :array
                                                 :items {:ref :node}}}}}
                     :schema {:ref :node}}
-        prepared (schema/prepare-schema schema-doc)]
-    (is (= true (schema/prepared-schema? prepared)))
+        prepared (model-schema/prepare-schema schema-doc)]
+    (is (= true (core/prepared-schema? prepared)))
     (is (= {:type :object
             :fields {:name {:type :text}
                      :children {:type :array
                                 :items {:ref :node}}}
-            :pixils.schema/ref :node}
-           (schema/resolved-root-schema prepared)))))
+            :zoology/ref :node}
+           (model-schema/resolved-root-schema prepared)))))
 
 (deftest prepared-schema-supports-shorthand-type-field
   (let [schema-doc {:definitions
@@ -888,13 +892,13 @@
                                  [:preferred-position :edge]}}
                     :schema {:type {:ref :rule-type}
                              :name {:type :text}}}
-        prepared (schema/prepare-schema schema-doc)]
+        prepared (model-schema/prepare-schema schema-doc)]
     (is (= {:type :keyword
             :valid-values [:preferred-position :edge]
-            :pixils.schema/ref :rule-type}
-           (schema/resolved-field-schema prepared :type)))
+            :zoology/ref :rule-type}
+           (model-schema/resolved-field-schema prepared :type)))
     (is (= [:type :name]
-           (schema/schema-field-ids prepared)))))
+           (model-schema/schema-field-ids prepared)))))
 
 (deftest validate-resolves-field-definition-references
   (let [schema-doc {:definitions
@@ -904,7 +908,7 @@
                                      :role/stable-master]}}
                     :schema
                     {:field/role {:ref :stable-role}}}
-        result (schema/validate schema-doc
+        result (validation/validate schema-doc
                                 {:field/role :role/smith})]
     (is (= false (:valid? result)))
     (is (= [{:rule :valid-values
@@ -918,7 +922,7 @@
                              :fields {:relation {:type :keyword}
                                       :place-id {:type :keyword}}}}]
     (is (= [:relation :place-id]
-           (schema/schema-field-ids schema-doc)))))
+           (model-schema/schema-field-ids schema-doc)))))
 
 (deftest validate-validates-object-root-fields
   (let [schema-doc {:schema {:type :object
@@ -928,7 +932,7 @@
                                       :priority
                                       {:type :integer
                                        :min 1}}}}
-        result (schema/validate schema-doc
+        result (validation/validate schema-doc
                                 {:relation ""
                                  :priority 0})]
     (is (= false (:valid? result)))
@@ -945,7 +949,7 @@
                      :fields {:place-id {:type :keyword
                                          :required true}
                               :anchor {:type :keyword}}}}
-        result (schema/validate schema-doc
+        result (validation/validate schema-doc
                                 {:field/location
                                  {:place-id ""
                                   :anchor :stable/aisle}})]
@@ -963,7 +967,7 @@
                                               :priority
                                               {:type :integer
                                                :min 1}}}}}
-        result (schema/validate schema-doc
+        result (validation/validate schema-doc
                                 [{:relation ""
                                   :priority 0}])]
     (is (= false (:valid? result)))
@@ -981,7 +985,7 @@
                      :items {:type :object
                              :fields {:place-id {:type :keyword
                                                  :required true}}}}}
-        result (schema/validate schema-doc
+        result (validation/validate schema-doc
                                 {:field/relations
                                  [{:place-id :place/dawnkeep-stables}
                                   {:place-id ""}]})]

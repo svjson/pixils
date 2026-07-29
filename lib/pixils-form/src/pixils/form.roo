@@ -4,7 +4,11 @@
             pixils.form.controls.slider
             [pixils.form.layout :as form-layout]
             [pixils.form.selection :as form-selection]
-            [pixils.schema :as model-schema]
+            [zoology.canonical :as model-canonical]
+            [zoology.core :as model-core]
+            [zoology.schema :as model-schema]
+            [zoology.valid-values :as model-valid-values]
+            [zoology.validation :as model-validation]
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.color-picker :as color-picker]
@@ -279,25 +283,25 @@
      :new-value-fn (:new-value-fn selection)}))
 
 (defun field-path [field-id field-schema]
-  (model-schema/field-path field-id field-schema))
+  (model-core/field-path field-id field-schema))
 
 (defun field-value [value field-id field-schema]
-  (model-schema/field-value value field-id field-schema))
+  (model-core/field-value value field-id field-schema))
 
 (defun validate-field [schema value field-id]
-  (model-schema/validate-field schema value field-id))
+  (model-validation/validate-field schema value field-id))
 
 (defun validation-errors [schema value]
-  (model-schema/validation-errors schema value))
+  (model-validation/validation-errors schema value))
 
 (defun validate [schema value]
-  (model-schema/validate schema value))
+  (model-validation/validate schema value))
 
 (defun validate-with-context [schema value context]
-  (model-schema/validate-with-context schema value context))
+  (model-validation/validate-with-context schema value context))
 
 (defun validated-state [state]
-  (let [validation (model-schema/validate-with-context (:schema state)
+  (let [validation (model-validation/validate-with-context (:schema state)
                                                        (:value state)
                                                        (:context state))]
     (assoc state
@@ -399,7 +403,7 @@
 (defun save-new-state [state]
   (let [items (or (:items state) [])
         index (count items)
-        value (model-schema/canonical-value
+        value (model-canonical/canonical-value
                (:schema state)
                (or (:projected-item state)
                    (:value state)))
@@ -578,13 +582,13 @@
 (defun field-change-value [field-schema value commit?]
   (case (:type field-schema)
     :keyword
-    (model-schema/canonical-value field-schema value)
+    (model-canonical/canonical-value field-schema value)
 
     :number
-    (if commit? (model-schema/canonical-value field-schema value) value)
+    (if commit? (model-canonical/canonical-value field-schema value) value)
 
     :integer
-    (if commit? (model-schema/canonical-value field-schema value) value)
+    (if commit? (model-canonical/canonical-value field-schema value) value)
 
     :default
     value))
@@ -975,7 +979,7 @@
 
 (defun schema-ref [schema]
   (get (model-schema/resolved-root-schema schema)
-       model-schema/schema-ref-key))
+       model-core/schema-ref-key))
 
 (defun schema-type [schema]
   (:type (model-schema/resolved-root-schema schema)))
@@ -1221,7 +1225,7 @@
     :enabled-when :can-delete?}])
 
 (defun summary-spec-path [item-schema field-id]
-  (model-schema/field-path field-id
+  (model-core/field-path field-id
                            (model-schema/resolved-field-schema item-schema
                                                                field-id)))
 
@@ -1369,7 +1373,7 @@
       {:type :confirm
        :index (:index state)
        :new? (:new? state)
-       :value (model-schema/canonical-value (:schema state)
+       :value (model-canonical/canonical-value (:schema state)
                                              (:value state))}
       {:type :cancel})))
 
@@ -1477,7 +1481,7 @@
 (defun array-dialog-result-state [state payload]
   (if (= (:type payload) :confirm)
     (let [items (or (:items state) [])
-          value (model-schema/canonical-value
+          value (model-canonical/canonical-value
                  (or (:item-schema state)
                      (:schema state))
                  (:value payload))
@@ -1663,7 +1667,7 @@
     {:source-path source}
 
     (= (type-of source) "map")
-    (let [source-key (model-schema/path-value parent-value
+    (let [source-key (model-core/path-value parent-value
                                               (or (:field source)
                                                   (:path source)))
           source-path (get (or (:sources source) {}) source-key)]
@@ -1691,7 +1695,7 @@
         cache
         (assoc cache
                key
-               (model-schema/valid-value-options-for-value context
+               (model-valid-values/valid-value-options-for-value context
                                                            field-schema
                                                            parent-value)))
       cache)))
@@ -1786,7 +1790,7 @@
     {:source-path source}
 
     (= (type-of source) "map")
-    (let [source-key (model-schema/path-value (:form-value state)
+    (let [source-key (model-core/path-value (:form-value state)
                                               (or (:field source)
                                                   (:path source)))
           source-path (get (or (:sources source) {}) source-key)]
@@ -1813,7 +1817,7 @@
         cache (:valid-value-options-cache opts)]
     (if (and key (contains? (or cache {}) key))
       (get cache key)
-      (model-schema/valid-value-options-for-value (:context opts)
+      (model-valid-values/valid-value-options-for-value (:context opts)
                                                   field-schema
                                                   value))))
 
@@ -2169,7 +2173,7 @@
   (when (not (nil? (:items state)))
     (map (:items state)
          (fn [item]
-           (model-schema/canonical-value (:schema state) item)))))
+           (model-canonical/canonical-value (:schema state) item)))))
 
 (defun form-state-draft-change-payload [next-state]
   {:form-value (:value next-state)
@@ -2179,7 +2183,7 @@
    :new? (:new? next-state)})
 
 (defun form-state-change-payload [next-state]
-  (let [value (model-schema/canonical-value (:schema next-state)
+  (let [value (model-canonical/canonical-value (:schema next-state)
                                             (:value next-state))]
     {:form-value value
      :value value
