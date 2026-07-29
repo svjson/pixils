@@ -20,27 +20,29 @@
                           :context persons-model/people
                           :valid? (ui/bind-state :program-valid?)
                           :errors (ui/bind-state :program-errors)
-                          :layout [[:row.program-main-row
-                                    {:type :form
-                                     :layout model/program-layout}
-                                    [:group.program-list-column
-                                     {:type :selection
-                                      :class :program-list
-                                      :item-label
-                                      model/conference-label}
-                                     [:button.program-new
-                                      :form/new
-                                      {:label "New Conference"
-                                       :disabled-when :new?}]]]
-                                   [:row.program-button-row
-                                    [:button.program-save
-                                     :form/save-new
-                                     {:label "Save"
-                                      :enabled-when [:and :new? :valid?]}]
-                                    [:button.program-cancel
-                                     :form/cancel-new
-                                     {:label "Cancel"
-                                      :enabled-when :new?}]]]})]})
+                          :layout
+                          {:root [[:row.program-main-row
+                                   {:type :form
+                                    :layout model/program-layout}
+                                   [:group.program-list-column
+                                    {:type :selection
+                                     :class :program-list
+                                     :item-label
+                                     model/conference-label}
+                                    [:button.program-new
+                                     :form/new
+                                     {:label "New Conference"
+                                      :disabled-when :new?}]]]
+                                  [:row.program-button-row
+                                   [:button.program-save
+                                    :form/save-new
+                                    {:label "Save"
+                                     :enabled-when [:and :new? :valid?]}]
+                                   [:button.program-cancel
+                                    :form/cancel-new
+                                    {:label "Cancel"
+                                     :enabled-when :new?}]]]
+                           :fragments model/program-layout-fragments}})]})
 
 (defun make []
   {:mode 'program-planner

@@ -20,6 +20,28 @@
   [:program/name
    :program/entries])
 
+(def program-layout-fragments
+  {:talk-entry [:kind
+                :color
+                :title
+                :speaker
+                :duration]
+   :workshop-entry [:kind
+                    :color
+                    :title
+                    :facilitator
+                    :capacity
+                    :hands-on?]
+   :panel-entry [:kind
+                 :color
+                 :topic
+                 :moderator
+                 :panelist]
+   :break-entry [:kind
+                 :color
+                 :label
+                 :duration]})
+
 (def conferences
   [{:conference/id :conference/summer
     :program/name "Summer Conference"
