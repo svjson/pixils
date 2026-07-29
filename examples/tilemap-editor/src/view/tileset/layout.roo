@@ -53,7 +53,14 @@
   (editor-workbook/change-to
    state
    "Duplicate tile"
-   (duplicate-tile-definition! state payload)))
+   (duplicate-tile-definition!
+    state
+    (if (contains? payload :context)
+      (assoc payload
+             :tile-index (-> payload :context :tile-index)
+             :tile-id (:id payload)
+             :tile-name (:name payload))
+      payload))))
 
 (defcomponent tileset-definition-workspace
   {:style {:width :fill

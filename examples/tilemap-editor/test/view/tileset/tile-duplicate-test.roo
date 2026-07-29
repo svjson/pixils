@@ -130,3 +130,18 @@
            (map (get-in state [:tilesets 0 :tiles]) :id)))
     (is (= [:floor]
            (map (get-in undone [:tilesets 0 :tiles]) :id)))))
+
+(deftest duplicate-tile-result-uses-id-name-dialog-payload
+  (let [state (layout/apply-tile-duplicate-dialog-result
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :tiles [{:id :floor
+                                     :name "Floor"}]}]}
+               {:type :confirm
+                :id "custom-floor"
+                :name "Custom Floor"
+                :context {:tile-index 0}})]
+    (is (= [:floor :custom-floor]
+           (map (get-in state [:tilesets 0 :tiles]) :id)))
+    (is (= "Custom Floor"
+           (get-in state [:tilesets 0 :tiles 1 :name])))))

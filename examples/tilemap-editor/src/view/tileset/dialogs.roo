@@ -2,7 +2,6 @@
   (:require pixils
             [roo.io :as io]
             [pixils.image :as img]
-            [pixils.form :as form]
             [pixils.render :as r]
             [pixils.resource :as res]
             [pixils.ui :as ui]
@@ -15,7 +14,7 @@
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
-            [tilemap-editor.model.tile-schemas :as tile-schemas]
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.image-panel :as ip]
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
@@ -97,12 +96,11 @@
                     :align-items :center
                     :gap 8}}
    :on {:slider/change (fn [state event ctx]
-                         (do
-                           (ui/emit! (:view ctx)
-                                     :tileset-create-dialog/tile-size-change
-                                     {:dimension (:dimension state)
-                                      :value (:payload event)})
-                           state))}
+                         (ui/emit! (:view ctx)
+                                   :tileset-create-dialog/tile-size-change
+                                   {:dimension (:dimension state)
+                                    :value (:payload event)})
+                         state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 58}
@@ -117,17 +115,16 @@
 
 (defun open-tileset-create-dialog! [state ctx]
   (let [id (unique-tileset-id (:tilesets state))]
-    (do
-	      (push-mode! 'tileset-create-dialog-modal
-	                  {:tileset-id id
-	                   :tileset-label (label-from-id id)
-	                   :tile-size data/tile-dim
-	                   :tile-proportion data/tile-dim
-	                   :lock-tile-proportion? true
-	                   :confirm-label "Create"}
-                  {:origin {:view (:view ctx)
-                            :event :tileset/dialog-result}})
-      state)))
+    (push-mode! 'tileset-create-dialog-modal
+                {:tileset-id id
+                 :tileset-label (label-from-id id)
+                 :tile-size data/tile-dim
+                 :tile-proportion data/tile-dim
+                 :lock-tile-proportion? true
+                 :confirm-label "Create"}
+                {:origin {:view (:view ctx)
+                          :event :tileset/dialog-result}})
+    state))
 
 (defun open-tileset-edit-dialog! [state ctx tileset-index]
   (let [tilesets (or (:tilesets state) [])
@@ -169,27 +166,26 @@
     (if tileset
       (let [label (duplicate-tileset-label tilesets tileset)
             id (unique-id-from tilesets (kebab-case label) nil)]
-        (do
-          (push-mode! 'tileset-duplicate-dialog-modal
-                      {:source-tileset-index index
-                       :tileset-id id
-                       :tileset-label label
-	                       :tile-size (data/map-tile-dim
-	                                   (or (:tile-size tileset)
-	                                       data/tile-dim))
-	                       :tile-proportion (data/map-tile-dim
-	                                         (or (:tile-size tileset)
-	                                             data/tile-dim))
-	                       :lock-tile-proportion? true
-	                       :confirm-label "Duplicate"}
-                      {:origin {:view (:view ctx)
-                                :event :tileset/duplicate-dialog-result}})
-          (assoc state
-                 :selected-tileset-definition-index index
-                 :selected-tileset-tile-index
-                 (if (empty? (or (:tiles tileset) [])) nil 0)
-                 :selected-tileset-tile-indices
-                 (if (empty? (or (:tiles tileset) [])) [] [0]))))
+        (push-mode! 'tileset-duplicate-dialog-modal
+                    {:source-tileset-index index
+                     :tileset-id id
+                     :tileset-label label
+                     :tile-size (data/map-tile-dim
+                                 (or (:tile-size tileset)
+                                     data/tile-dim))
+                     :tile-proportion (data/map-tile-dim
+                                       (or (:tile-size tileset)
+                                           data/tile-dim))
+                     :lock-tile-proportion? true
+                     :confirm-label "Duplicate"}
+                    {:origin {:view (:view ctx)
+                              :event :tileset/duplicate-dialog-result}})
+        (assoc state
+               :selected-tileset-definition-index index
+               :selected-tileset-tile-index
+               (if (empty? (or (:tiles tileset) [])) nil 0)
+               :selected-tileset-tile-indices
+               (if (empty? (or (:tiles tileset) [])) [] [0])))
 	      state)))
 
 (defun open-tileset-properties-dialog! [state ctx tileset-index]
@@ -268,20 +264,19 @@
                (nth tiles first-index))
         id-root (if tile (keyword-label (:id tile)) "tile")
         name-root (if tile (or (:name tile) (label-from-id id-root)) "Tile")]
-    (do
-      (push-mode! 'tile-batch-rename-dialog-modal
-                  {:tile-indices indices
-                   :tile-id-root id-root
-                   :tile-name-root name-root
-                   :tile-char (or (:char tile) "")
-                   :numbered? true
-                   :start-number 1
-                   :confirm-label "Rename"}
-                  {:origin {:view (:view ctx)
-                            :event :tile/batch-rename-dialog-result}})
-      (assoc state
-             :selected-tileset-tile-index first-index
-             :selected-tileset-tile-indices indices))))
+    (push-mode! 'tile-batch-rename-dialog-modal
+                {:tile-indices indices
+                 :tile-id-root id-root
+                 :tile-name-root name-root
+                 :tile-char (or (:char tile) "")
+                 :numbered? true
+                 :start-number 1
+                 :confirm-label "Rename"}
+                {:origin {:view (:view ctx)
+                          :event :tile/batch-rename-dialog-result}})
+    (assoc state
+           :selected-tileset-tile-index first-index
+           :selected-tileset-tile-indices indices)))
 
 (defun open-tile-rename-dialog! [state ctx tile-indices]
   (let [tiles (selected-tileset-tiles state)
@@ -328,15 +323,16 @@
                (nth tiles index))]
     (if tile
       (let [identity (tile-duplicate-identity tiles tile)]
-        (do
-          (push-mode! 'tile-duplicate-dialog-modal
-                      {:tile-index index
-                       :identity identity}
-                      {:origin {:view (:view ctx)
-                                :event :tile/duplicate-dialog-result}})
-          (assoc state
-                 :selected-tileset-tile-index index
-                 :selected-tileset-tile-indices [index])))
+        (id-name-dialog/open!
+         ctx
+         {:title "Duplicate Tile"
+          :id (:id identity)
+          :name (:name identity)
+          :context {:tile-index index}
+          :result-event :tile/duplicate-dialog-result})
+        (assoc state
+               :selected-tileset-tile-index index
+               :selected-tileset-tile-indices [index]))
       state)))
 
 (defun open-color-range-dialog! [state ctx]
@@ -393,18 +389,17 @@
         state))))
 
 (defun open-add-from-file-dialog! [state ctx multi-file?]
-  (do
-    (file-dialog/open-file-dialog!
-     ctx
-     {:title (if multi-file?
-               "Add Tiles from Images"
-               "Add Tiles from Image")
-      :mode :file-dialog/open
-      :path (image-file-dialog-path state)
-      :filters image-file-filters
-      :multi-file? multi-file?
-      :result-event :tile/file-dialog-result})
-    state))
+  (file-dialog/open-file-dialog!
+   ctx
+   {:title (if multi-file?
+             "Add Tiles from Images"
+             "Add Tiles from Image")
+    :mode :file-dialog/open
+    :path (image-file-dialog-path state)
+    :filters image-file-filters
+    :multi-file? multi-file?
+    :result-event :tile/file-dialog-result})
+  state)
 
 (defun image-file-dialog-result? [payload]
   (and (= (:type payload) :confirm)
@@ -433,19 +428,18 @@
                   :key (image-resource-key bundle-id resource-id)
                   :name (:name dependency)
                   :file-name path}]
-    (do
-      (res/create-bundle! bundle-id)
-      (res/add-image! (image-resource-key bundle-id resource-id)
-                      {:file-name path})
-      (assoc
-       (assoc-in state
-                 [:resources :bundles bundle-id :images resource-id]
-                 dependency)
-       :selected-resource-bundle bundle-id
-       :selected-image-resource resource-id
-       :last-imported-image-resources
-       (concat (or (:last-imported-image-resources state) [])
-               [resource])))))
+    (res/create-bundle! bundle-id)
+    (res/add-image! (image-resource-key bundle-id resource-id)
+                    {:file-name path})
+    (assoc
+     (assoc-in state
+               [:resources :bundles bundle-id :images resource-id]
+               dependency)
+     :selected-resource-bundle bundle-id
+     :selected-image-resource resource-id
+     :last-imported-image-resources
+     (concat (or (:last-imported-image-resources state) [])
+             [resource]))))
 
 (defun import-file-resources! [state paths]
   (reduce (or paths [])
@@ -520,46 +514,42 @@
            :layout {:direction :row
                     :gap :space-between}}
    :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tileset-create-dialog/cancel)
-                             state))}
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Cancel"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tileset-create-dialog/cancel)
+	                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label (ui/bind-state :confirm-label)
-                       :disabled? (ui/bind-state :invalid?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tileset-create-dialog/confirm)
-                             state))}]})
+	               :state {:label (ui/bind-state :confirm-label)
+	                       :disabled? (ui/bind-state :invalid?)}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tileset-create-dialog/confirm)
+	                           state)}]})
 
 (defmode tileset-create-dialog-modal
-  {:on {:tileset-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tileset-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tileset-id state))
-                    (blank? (:tileset-label state)))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :tileset-id (:tileset-id state)
-                            :tileset-label (:tileset-label state)
-	                            :tile-size (data/map-tile-dim (:tile-size state))
-                            :tileset-index (:tileset-index state)})
-                state))))}
+	  {:on {:tileset-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tileset-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tileset-id state))
+	                  (blank? (:tileset-label state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tileset-id (:tileset-id state)
+	                          :tileset-label (:tileset-label state)
+	                          :tile-size (data/map-tile-dim (:tile-size state))
+	                          :tileset-index (:tileset-index state)})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "New Tile Set"}
 	                       :state {:tileset-id (ui/bind-state :tileset-id)
@@ -580,26 +570,24 @@
 	                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defmode tileset-edit-dialog-modal
-  {:on {:tileset-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tileset-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tileset-id state))
-                    (blank? (:tileset-label state)))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :tileset-index (:tileset-index state)
-                            :tileset-id (:tileset-id state)
-                            :tileset-label (:tileset-label state)
-	                            :tile-size (data/map-tile-dim (:tile-size state))})
-                state))))}
+	  {:on {:tileset-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tileset-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tileset-id state))
+	                  (blank? (:tileset-label state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tileset-index (:tileset-index state)
+	                          :tileset-id (:tileset-id state)
+	                          :tileset-label (:tileset-label state)
+	                          :tile-size (data/map-tile-dim (:tile-size state))})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Edit Tile Set"}
                        :state {:tileset-index (ui/bind-state :tileset-index)
@@ -622,26 +610,24 @@
                                        :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defmode tileset-duplicate-dialog-modal
-  {:on {:tileset-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tileset-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tileset-id state))
-                    (blank? (:tileset-label state)))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :source-tileset-index (:source-tileset-index state)
-                            :tileset-id (:tileset-id state)
-                            :tileset-label (:tileset-label state)
-	                            :tile-size (data/map-tile-dim (:tile-size state))})
-                state))))}
+	  {:on {:tileset-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tileset-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tileset-id state))
+	                  (blank? (:tileset-label state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :source-tileset-index (:source-tileset-index state)
+	                          :tileset-id (:tileset-id state)
+	                          :tileset-label (:tileset-label state)
+	                          :tile-size (data/map-tile-dim (:tile-size state))})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Duplicate Tile Set"}
                        :state {:source-tileset-index
@@ -671,23 +657,21 @@
            :layout {:direction :row
                     :gap :space-between}}
    :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tileset-properties-dialog/cancel)
-                             state))}
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Cancel"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tileset-properties-dialog/cancel)
+	                           state)}
               {:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Save"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tileset-properties-dialog/confirm)
-                             state))}]})
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Save"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tileset-properties-dialog/confirm)
+	                           state)}]})
 
 (defcomponent tileset-properties-dialog-body
   {:class :ui/content
@@ -723,57 +707,53 @@
               {:mode 'tileset-properties-dialog-buttons}]})
 
 (defmode tileset-properties-dialog-modal
-  {:on {:tileset-properties-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tileset-properties-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :confirm
-                        :tileset-index (:tileset-index state)
-                        :property-sets
-                        (:property-sets (:dialog-tileset state))
-                        :properties
-                        (:properties (:dialog-tileset state))})
-            state))
-        :property-set/assignment-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (do
-              (ui/stop-propagation! event)
-              (case (:kind payload)
-                :tileset
-                (update state
-                        :dialog-tileset
-                        (fn [tileset]
-                          (property-model/attach-property-set-with-values
-                           tileset
-                           (:property-sets state)
-                           (:property-set-id payload)
-                           (:attached? payload))))
+	  {:on {:tileset-properties-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tileset-properties-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :confirm
+	                      :tileset-index (:tileset-index state)
+	                      :property-sets
+	                      (:property-sets (:dialog-tileset state))
+	                      :properties
+	                      (:properties (:dialog-tileset state))})
+	          state)
+	        :property-set/assignment-change
+	        (fn [state event ctx]
+	          (let [payload (:payload event)]
+	            (ui/stop-propagation! event)
+	            (case (:kind payload)
+	              :tileset
+	              (update state
+	                      :dialog-tileset
+	                      (fn [tileset]
+	                        (property-model/attach-property-set-with-values
+	                         tileset
+	                         (:property-sets state)
+	                         (:property-set-id payload)
+	                         (:attached? payload))))
 
-                :default state))))
-        :property-value/change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (do
-              (ui/stop-propagation! event)
-              (case (:kind payload)
-                :tileset-default
-                (update state
-                        :dialog-tileset
-                        (fn [tileset]
-                          (property-model/set-target-property-default-value
-                           tileset
-                           (:property-sets state)
-                           (:property-id payload)
-                           (:value payload))))
+	              :default state)))
+	        :property-value/change
+	        (fn [state event ctx]
+	          (let [payload (:payload event)]
+	            (ui/stop-propagation! event)
+	            (case (:kind payload)
+	              :tileset-default
+	              (update state
+	                      :dialog-tileset
+	                      (fn [tileset]
+	                        (property-model/set-target-property-default-value
+	                         tileset
+	                         (:property-sets state)
+	                         (:property-id payload)
+	                         (:value payload))))
 
-                :default state))))}
+	              :default state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Tile Set Properties"}
                        :state {:tileset-index (ui/bind-state :tileset-index)
@@ -849,24 +829,22 @@
            :layout {:direction :row
                     :gap :space-between}}
    :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tile-create-dialog/cancel)
-                             state))}
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Cancel"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tile-create-dialog/cancel)
+	                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label (ui/bind-state :confirm-label)
-                       :disabled? (ui/bind-state :invalid?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tile-create-dialog/confirm)
-                             state))}]})
+	               :state {:label (ui/bind-state :confirm-label)
+	                       :disabled? (ui/bind-state :invalid?)}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tile-create-dialog/confirm)
+	                           state)}]})
 
 (defcomponent tile-batch-rename-dialog-body
   {:class :ui/content
@@ -935,86 +913,25 @@
                        :confirm-label
                        (ui/bind-state :confirm-label)}}]})
 
-(defcomponent tile-duplicate-dialog-body
-  {:class :ui/content
-   :style {:width 300
-           :height :shrink
-           :padding 10
-           :layout {:direction :column
-                    :gap 8}}
-   :update (fn [state ctx]
-             (let [identity (:identity state)]
-               (assoc state
-                      :invalid? (or (blank? (:id identity))
-                                    (blank? (:name identity))))))
-   :children [(form/make {:schema tile-schemas/tile-identity-schema
-                          :text {:id "Id"
-                                 :name "Name"}
-                          :layout [[:id :name]]
-                          :style {:width :fill
-                                  :height :shrink
-                                  :layout {:direction :column
-                                           :gap 8}}
-                          :row-style {:width :fill
-                                      :height :shrink
-                                      :layout {:direction :row
-                                               :align-items :start
-                                               :gap 8}}
-                          :field-style {:width :fill
-                                        :height :shrink
-                                        :layout {:direction :column
-                                                 :gap 3}}
-                          :value (ui/bind-state :identity)})
-              {:style {:width :fill
-                       :height 24
-                       :layout {:direction :row
-                                :gap :space-between}}
-               :state {:identity (ui/bind-state :identity)
-                       :invalid? (ui/bind-state :invalid?)}
-               :children [{:mode 'ui/button
-                           :style {:width 78
-                                   :height 24}
-                           :state {:label "Cancel"}
-                           :on-click (fn [state event ctx]
-                                       (do
-                                         (ui/emit! (:view ctx)
-                                                   :tile-duplicate-dialog/cancel)
-                                         state))}
-                          {:mode 'ui/button
-                           :style {:width 78
-                                   :height 24}
-                           :state {:label "Duplicate"
-                                   :identity (ui/bind-state :identity)
-                                   :disabled? (ui/bind-state :invalid?)}
-                           :on-click (fn [state event ctx]
-                                       (do
-                                         (when (not (:disabled? state))
-                                           (ui/emit! (:view ctx)
-                                                     :tile-duplicate-dialog/confirm
-                                                     (:identity state)))
-                                         state))}]}]})
-
 (defmode tile-create-dialog-modal
-  {:on {:tile-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tile-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tile-id state))
-                    (blank? (:tile-name state)))
-              state
-              (do
-                        (pop-mode! {:type :confirm
-                                    :tile-id (:tile-id state)
-                                    :tile-name (:tile-name state)
-                                    :tile-char (:tile-char state)
-                                    :tile-type :color})
-                        state))))}
+	  {:on {:tile-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tile-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tile-id state))
+	                  (blank? (:tile-name state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tile-id (:tile-id state)
+	                          :tile-name (:tile-name state)
+	                          :tile-char (:tile-char state)
+	                          :tile-type :color})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "New Tile"}
                                :state {:tile-id (ui/bind-state :tile-id)
@@ -1028,26 +945,24 @@
                                                :confirm-label "Create"}}]})]})
 
 (defmode tile-rename-dialog-modal
-  {:on {:tile-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tile-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tile-id state))
-                    (blank? (:tile-name state)))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :tile-index (:tile-index state)
-                            :tile-id (:tile-id state)
-                            :tile-name (:tile-name state)
-                            :tile-char (:tile-char state)})
-                state))))}
+	  {:on {:tile-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tile-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tile-id state))
+	                  (blank? (:tile-name state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tile-index (:tile-index state)
+	                          :tile-id (:tile-id state)
+	                          :tile-name (:tile-name state)
+	                          :tile-char (:tile-char state)})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Rename Tile"}
                        :state {:tile-index (ui/bind-state :tile-index)
@@ -1063,58 +978,29 @@
                                        :confirm-label
                                        (ui/bind-state :confirm-label)}}]})]})
 
-(defmode tile-duplicate-dialog-modal
-  {:on {:tile-duplicate-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tile-duplicate-dialog/confirm
-        (fn [state event ctx]
-          (let [identity (:payload event)]
-            (do
-              (ui/stop-propagation! event)
-              (if (or (blank? (:id identity))
-                      (blank? (:name identity)))
-                state
-                (do
-                  (pop-mode! {:type :confirm
-                              :tile-index (:tile-index state)
-                              :tile-id (:id identity)
-                              :tile-name (:name identity)})
-                  state)))))}
-   :compose {:render :pass}
-   :children [(w/make {:title-bar {:title "Duplicate Tile"}
-                       :state {:identity (ui/bind-state :identity)}
-                       :body [{:mode 'tile-duplicate-dialog-body
-                               :state {:identity (ui/bind-state :identity)}}]})]})
-
 (defmode tile-batch-rename-dialog-modal
-  {:on {:tile-create-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tile-create-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tile-id-root state))
-                    (blank? (:tile-name-root state))
-                    (and (:numbered? state)
-                         (nil? (:start-number state))))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :tile-indices (:tile-indices state)
-                            :tile-id-root (:tile-id-root state)
-                            :tile-name-root (:tile-name-root state)
-                            :tile-char (:tile-char state)
-                            :numbered? (:numbered? state)
-                            :start-number (:start-number state)})
-                state))))}
+	  {:on {:tile-create-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tile-create-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tile-id-root state))
+	                  (blank? (:tile-name-root state))
+	                  (and (:numbered? state)
+	                       (nil? (:start-number state))))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tile-indices (:tile-indices state)
+	                          :tile-id-root (:tile-id-root state)
+	                          :tile-name-root (:tile-name-root state)
+	                          :tile-char (:tile-char state)
+	                          :numbered? (:numbered? state)
+	                          :start-number (:start-number state)})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Batch Rename Tiles"}
                        :state {:tile-indices (ui/bind-state :tile-indices)
@@ -1217,15 +1103,14 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 8}}
-   :on {:slider/change (fn [state event ctx]
-                         (do
-                           (ui/stop-propagation! event)
-                           (ui/emit! (:view ctx)
-                                     :color-range/channel-change
-                                     {:color-key (:color-key state)
-                                      :channel (:channel state)
-                                      :value (:payload event)})
-                           state))}
+	   :on {:slider/change (fn [state event ctx]
+	                         (ui/stop-propagation! event)
+	                         (ui/emit! (:view ctx)
+	                                   :color-range/channel-change
+	                                   {:color-key (:color-key state)
+	                                    :channel (:channel state)
+	                                    :value (:payload event)})
+	                         state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 18}
@@ -1248,14 +1133,13 @@
 (defcomponent color-range-color-swatch
   {:style {:width 34
            :height 82}
-   :render (fn [state ctx]
-             (let [color (or (:color state) default-tile-color)]
-               (do
-                 (r/rect! {:x 0 :y 0 :w 34 :h 82}
-                          {:fill true
-                           :color color})
-                 (r/rect! {:x 0 :y 0 :w 34 :h 82}
-                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+	   :render (fn [state ctx]
+	             (let [color (or (:color state) default-tile-color)]
+	               (r/rect! {:x 0 :y 0 :w 34 :h 82}
+	                        {:fill true
+	                         :color color})
+	               (r/rect! {:x 0 :y 0 :w 34 :h 82}
+	                        {:color {:r 0x00 :g 0x00 :b 0x00}})))})
 
 (defcomponent color-range-color-editor
   {:style {:width :fill
@@ -1298,25 +1182,24 @@
    :style {:width color-range-preview-width
            :height color-range-preview-height}
    :render (fn [state ctx]
-             (let [from-color (or (:from-color state) default-tile-color)
-                   to-color (or (:to-color state) default-tile-color)
-                   count (max 1 (or (:count state) 1))
-                   step-width (/ color-range-preview-width count)]
-               (do
-                 (for [index (range 0 (dec count))]
-                   (r/rect! {:x (* index step-width)
-                             :y 0
-                             :w (+ step-width 1)
-                             :h color-range-preview-height}
-                            {:fill true
-                             :color (lerp-color from-color
-                                                to-color
-                                                index
-                                                count)}))
-                 (r/rect! {:x 0 :y 0
-                           :w color-range-preview-width
-                           :h color-range-preview-height}
-                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+	             (let [from-color (or (:from-color state) default-tile-color)
+	                   to-color (or (:to-color state) default-tile-color)
+	                   count (max 1 (or (:count state) 1))
+	                   step-width (/ color-range-preview-width count)]
+	               (for [index (range 0 (dec count))]
+	                 (r/rect! {:x (* index step-width)
+	                           :y 0
+	                           :w (+ step-width 1)
+	                           :h color-range-preview-height}
+	                          {:fill true
+	                           :color (lerp-color from-color
+	                                              to-color
+	                                              index
+	                                              count)}))
+	               (r/rect! {:x 0 :y 0
+	                         :w color-range-preview-width
+	                         :h color-range-preview-height}
+	                        {:color {:r 0x00 :g 0x00 :b 0x00}})))})
 
 (defcomponent color-range-dialog-buttons
   {:style {:width :fill
@@ -1324,47 +1207,43 @@
            :layout {:direction :row
                     :gap :space-between}}
    :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :color-range-dialog/cancel)
-                             state))}
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Cancel"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :color-range-dialog/cancel)
+	                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label "Create"
-                       :disabled? (ui/bind-state :invalid?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :color-range-dialog/confirm)
-                             state))}]})
+	               :state {:label "Create"
+	                       :disabled? (ui/bind-state :invalid?)}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :color-range-dialog/confirm)
+	                           state)}]})
 
 (defmode color-range-dialog-modal
-  {:on {:color-range-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :color-range-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (if (or (blank? (:tile-id state))
-                    (blank? (:tile-name state)))
-              state
-              (do
-                (pop-mode! {:type :confirm
-                            :tile-id (:tile-id state)
-                            :tile-name (:tile-name state)
-                            :count (:count state)
-                            :from-color (:from-color state)
-                            :to-color (:to-color state)})
-                state))))}
+	  {:on {:color-range-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :color-range-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (if (or (blank? (:tile-id state))
+	                  (blank? (:tile-name state)))
+	            state
+	            (do
+	              (pop-mode! {:type :confirm
+	                          :tile-id (:tile-id state)
+	                          :tile-name (:tile-name state)
+	                          :count (:count state)
+	                          :from-color (:from-color state)
+	                          :to-color (:to-color state)})
+	              state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "New Color Tile Range"}
                        :state {:tile-id (ui/bind-state :tile-id)
@@ -1485,17 +1364,16 @@
                                                  dim
                                                  (tile-import-snap-enabled?
                                                   state)
-                                                 (tile-import-snap-interval
-                                                  state))]
-                (do
-                  (ui/stop-propagation! event)
-                  (if (and source
-                           (import-source-included? state image source))
-                    (assoc state
-                           :selected-sources
-                           (toggle-source (:selected-sources state) source)
-                           :selected-source-indices [])
-                    state))))))}
+	                                                 (tile-import-snap-interval
+	                                                  state))]
+	                (ui/stop-propagation! event)
+	                (if (and source
+	                         (import-source-included? state image source))
+		                  (assoc state
+		                         :selected-sources
+		                         (toggle-source (:selected-sources state) source)
+		                         :selected-source-indices [])
+		                  state)))))}
    :children [(ip/make {:width tile-import-preview-width
                         :height tile-import-preview-height
                         :image (ui/bind-state :image)
@@ -1685,48 +1563,44 @@
            :layout {:direction :row
                     :gap :space-between}}
    :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tile-import-dialog/cancel)
-                             state))}
+	               :style {:width 78
+	                       :height 24}
+	               :state {:label "Cancel"}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tile-import-dialog/cancel)
+	                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label "Add"
-                       :disabled? (ui/bind-state :invalid?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tile-import-dialog/confirm)
-                             state))}]})
+	               :state {:label "Add"
+	                       :disabled? (ui/bind-state :invalid?)}
+	               :on-click (fn [state event ctx]
+	                           (ui/emit! (:view ctx)
+	                                     :tile-import-dialog/confirm)
+	                           state)}]})
 
 (defmode tile-import-dialog-modal
-  {:on {:tile-import-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel})
-            state))
-        :tile-import-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (let [resource (selected-resource-option state)
-                  dim (when resource (img/size (:key resource)))
-                  sources (when (and resource dim)
-                            (import-source-rects state (:key resource) dim))]
-              (if (or (nil? resource)
-                      (empty? (or sources [])))
-                state
-                (do
-                  (pop-mode! {:type :confirm
-                              :resource resource
-                              :sources sources})
-                  state)))))}
+	  {:on {:tile-import-dialog/cancel
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (pop-mode! {:type :cancel})
+	          state)
+	        :tile-import-dialog/confirm
+	        (fn [state event ctx]
+	          (ui/stop-propagation! event)
+	          (let [resource (selected-resource-option state)
+	                dim (when resource (img/size (:key resource)))
+	                sources (when (and resource dim)
+	                          (import-source-rects state (:key resource) dim))]
+	            (if (or (nil? resource)
+	                    (empty? (or sources [])))
+	              state
+	              (do
+	                (pop-mode! {:type :confirm
+	                            :resource resource
+	                            :sources sources})
+	                state))))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Add Tiles from Resource"}
                                :state {:resources (ui/bind-state :resources)
@@ -1776,24 +1650,22 @@
                                        :tile-size (ui/bind-state :tile-size)}}]})]})
 
 (defcomponent tile-add-menu-button
-  {:extend 'ui/button
-   :class :ui/toolbar-button
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (when (not (:disabled? state))
-                      (menu/open-context-menu!
-                       (tile-add-menu (:has-project-image-resources? state))
-                       (:global-position event)
-                       state
-                       ctx))
-                    state))
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :tile/add-command
-                                       (-> payload :payload)))))
-                       state)}})
+	  {:extend 'ui/button
+	   :class :ui/toolbar-button
+	   :on-mouse-up (fn [state event ctx]
+	                  (ui/stop-propagation! event)
+	                  (when (not (:disabled? state))
+	                    (menu/open-context-menu!
+	                     (tile-add-menu (:has-project-image-resources? state))
+	                     (:global-position event)
+	                     state
+	                     ctx))
+	                  state)
+	   :on {:menu/select (fn [state event ctx]
+	                       (let [payload (:payload event)]
+	                         (ui/stop-propagation! event)
+	                         (when (= (:type payload) :action)
+	                           (ui/emit! (:view ctx)
+	                                     :tile/add-command
+	                                     (-> payload :payload))))
+	                       state)}})
