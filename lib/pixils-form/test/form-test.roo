@@ -509,14 +509,17 @@
         move-key (form/branch-render-key schema-doc
                                          {:kind :move
                                           :distance 1}
+                                         {}
                                          {})
         edited-move-key (form/branch-render-key schema-doc
                                                 {:kind :move
                                                  :distance 2}
+                                                {}
                                                 {})
         wait-key (form/branch-render-key schema-doc
                                          {:kind :wait
                                           :duration 5}
+                                         {}
                                          {})]
     (is (= move-key edited-move-key))
     (is (not (= move-key wait-key)))))
@@ -802,7 +805,8 @@
     (is (= {:type :keyword
             :valid-values [:role/stable-lad
                            :role/stable-master]
-            :required true}
+            :required true
+            :pixils.schema/ref :stable-role}
            (schema/resolved-field-schema schema-doc :field/role)))))
 
 (deftest schema-resolves-nested-definition-references
@@ -828,7 +832,9 @@
                               :valid-values
                               {:from [:vocabularies :places]
                                :value-path [:id]
-                               :label-path [:label]}}}}}
+                               :label-path [:label]}
+                              :pixils.schema/ref :place-id}}
+                    :pixils.schema/ref :place-relation}}
            (schema/resolved-root-schema schema-doc)))))
 
 (deftest prepared-schema-preserves-schema-behavior
@@ -871,7 +877,8 @@
     (is (= {:type :object
             :fields {:name {:type :text}
                      :children {:type :array
-                                :items {:ref :node}}}}
+                                :items {:ref :node}}}
+            :pixils.schema/ref :node}
            (schema/resolved-root-schema prepared)))))
 
 (deftest prepared-schema-supports-shorthand-type-field
@@ -883,7 +890,8 @@
                              :name {:type :text}}}
         prepared (schema/prepare-schema schema-doc)]
     (is (= {:type :keyword
-            :valid-values [:preferred-position :edge]}
+            :valid-values [:preferred-position :edge]
+            :pixils.schema/ref :rule-type}
            (schema/resolved-field-schema prepared :type)))
     (is (= [:type :name]
            (schema/schema-field-ids prepared)))))
@@ -1517,13 +1525,14 @@
     (is (= :field/name
            (-> (form-children item-form) head :state :field-id)))))
 
-(deftest array-item-dialog-body-uses-item-schema-layout
+(deftest array-item-dialog-body-uses-global-fragment-layout
   (let [body (form/array-item-dialog-body
               {:type :object
-               :layout [:field/age :field/name]
                :fields {:field/name {:type :text}
                         :field/age {:type :integer}}}
-              {:value {:field/name "Ada"
+              {:layout {:fragments
+                        {:object [:field/age :field/name]}}
+               :value {:field/name "Ada"
                        :field/age 36}})
         item-form (head (:children body))]
     (is (= [:field/age :field/name]
@@ -1531,14 +1540,15 @@
                 (fn [field]
                   (-> field :state :field-id)))))))
 
-(deftest array-item-dialog-body-renders-schema-sections-as-top-level-sections
+(deftest array-item-dialog-body-renders-fragment-sections-as-top-level-sections
   (let [body (form/array-item-dialog-body
               {:type :object
-               :layout [{:type :section
-                         :title "Identity"
-                         :layout [:field/name]}]
                :fields {:field/name {:type :text}}}
-              {:value {:field/name "Ada"}})
+              {:layout {:fragments
+                        {:object [{:type :section
+                                   :title "Identity"
+                                   :layout [:field/name]}]}}
+               :value {:field/name "Ada"}})
         item-form (head (:children body))
         section (head (form-children item-form))]
     (is (= 'ui/group-box (:mode section)))
@@ -1556,11 +1566,9 @@
                                                 :distance-range]}}}
                 :preferred-position-rule
                 {:extends :rule-base
-                 :layout [:point :type]
                  :fields {:point {:type :number}}}
                 :distance-range-rule
                 {:extends :rule-base
-                 :layout [:distance :type]
                  :fields {:distance {:type :number}}}
                 :rule
                 {:type :union
@@ -1569,9 +1577,15 @@
                  :variants {:preferred-position
                             {:ref :preferred-position-rule}
                             :distance-range
-                            {:ref :distance-range-rule}}}}
+                             {:ref :distance-range-rule}}}}
                :schema {:ref :rule}}
-              {:value {:type :preferred-position
+              {:layout {:fragments
+                        {:rule {:cases
+                                [{:where {:variant :preferred-position}
+                                  :layout [:point :type]}
+                                 {:where {:variant :distance-range}
+                                  :layout [:distance :type]}]}}}
+               :value {:type :preferred-position
                        :point 3}})
         item-form (head (:children body))
         union-control (head (form-children item-form))]
@@ -1872,11 +1886,9 @@
                                             :valid-values [:move :wait]}}}
                            :move-effect
                            {:extends :effect-base
-                            :layout [:distance :kind]
                             :fields {:distance {:type :number}}}
                            :wait-effect
                            {:extends :effect-base
-                            :layout [:duration :kind]
                             :fields {:duration {:type :integer}}}
                            :effect
                            {:type :union
@@ -1885,13 +1897,62 @@
                             :variants {:move {:ref :move-effect}
                                        :wait {:ref :wait-effect}}}}
                           :schema {:field/effect {:ref :effect}}}
-                         :layout [:field/effect]
+                         :layout {:root [:field/effect]
+                                  :fragments
+                                  {:effect
+                                   {:cases
+                                    [{:where {:variant :move}
+                                      :layout [:distance :kind]}
+                                     {:where {:variant :wait}
+                                      :layout [:duration :kind]}]}}}
                          :value {:field/effect {:kind :move
                                                 :distance 1.5}}})
         effect-view (form-child view 0)
         union-control (nth (:children effect-view) 1)]
     (is (= [:distance :kind]
            (map (object-control-children union-control)
+                (fn [field]
+                  (-> field :state :local-field-path head)))))))
+
+(deftest make-renders-fragment-case-matching-any-selector
+  (let [view (form/make {:schema
+                         {:definitions
+                          {:effect-base
+                           {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values [:move]}}}
+                           :move-effect
+                           {:extends :effect-base
+                            :fields {:distance {:type :number}}}
+                           :effect
+                           {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}}}}
+                          :schema {:primary {:ref :effect}
+                                   :secondary {:ref :effect}}}
+                         :layout {:root [:primary :secondary]
+                                  :fragments
+                                  {:effect
+                                   {:default [:kind]
+                                    :cases
+                                    [{:where [{:path [:secondary]}
+                                              {:path [:alternate]}]
+                                      :layout [:distance :kind]}]}}}
+                         :value {:primary {:kind :move
+                                           :distance 1.5}
+                                 :secondary {:kind :move
+                                             :distance 2.5}}})
+        primary-view (form-child view 0)
+        primary-control (nth (:children primary-view) 1)
+        secondary-view (form-child view 1)
+        secondary-control (nth (:children secondary-view) 1)]
+    (is (= [:kind]
+           (map (object-control-children primary-control)
+                (fn [field]
+                  (-> field :state :local-field-path head)))))
+    (is (= [:distance :kind]
+           (map (object-control-children secondary-control)
                 (fn [field]
                   (-> field :state :local-field-path head)))))))
 

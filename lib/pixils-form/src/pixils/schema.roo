@@ -1,6 +1,7 @@
 (ns pixils.schema)
 
 (def prepared-schema-key :pixils.schema/prepared?)
+(def schema-ref-key :pixils.schema/ref)
 
 (defun prepared-schema? [schema]
   (and (= (type-of schema) "map")
@@ -192,10 +193,12 @@
       (if (or (nil? definition)
               (ref-seen? seen-refs ref-id))
         schema-node
-        (merge (resolve-schema-node schema
-                                    definition
-                                    next-seen-refs)
-               (ref-overrides schema-node))))
+        (assoc (merge (resolve-schema-node schema
+                                           definition
+                                           next-seen-refs)
+                      (ref-overrides schema-node))
+               schema-ref-key
+               ref-id)))
 
     (contains? schema-node :extends)
     (resolve-nested-schema
@@ -301,23 +304,6 @@
 
 (defun active-schema-field-ids [schema value]
   (keys (active-schema-fields schema value)))
-
-(defun active-schema-layout [schema value]
-  (let [root (resolved-root-schema schema)]
-    (cond
-      (= (:type root) :object)
-      (:layout root)
-
-      (= (:type root) :union)
-      (let [base-layout (-> (schema-document-with-root schema (:base root))
-                            resolved-root-schema
-                            :layout)
-            variant (union-variant-schema root value)]
-        (or (:layout variant)
-            base-layout
-            (:layout root)))
-
-      :default nil)))
 
 (defun field-visible? [schema field-id value]
   (contains? (active-schema-fields schema value) field-id))

@@ -896,6 +896,137 @@
     (path-tail (or path []) (count (or prefix [])))
     path))
 
+(defun path-pattern-matches-at? [path pattern index]
+  (cond
+    (>= index (count pattern)) true
+    (>= index (count path)) false
+    (or (= (nth pattern index) :*)
+        (= (nth pattern index) (nth path index)))
+    (path-pattern-matches-at? path pattern (inc index))
+    :default false))
+
+(defun path-pattern-matches? [path pattern]
+  (and (= (count (or path [])) (count (or pattern [])))
+       (path-pattern-matches-at? (or path []) (or pattern []) 0)))
+
+(defun path-under-pattern? [path pattern]
+  (and (>= (count (or path [])) (count (or pattern [])))
+       (path-pattern-matches-at? (or path []) (or pattern []) 0)))
+
+(defun selector-items [where]
+  (cond
+    (nil? where) []
+    (= (type-of where) "map") [where]
+    :default where))
+
+(defun selector-matches? [ctx selector]
+  (and
+   (or (not (contains? selector :path))
+       (path-pattern-matches? (:path ctx) (:path selector)))
+   (or (not (contains? selector :under))
+       (path-under-pattern? (:path ctx) (:under selector)))
+   (or (not (contains? selector :ref))
+       (or (= (:ref ctx) (:ref selector))
+           (= (:variant-ref ctx) (:ref selector))))
+   (or (not (contains? selector :type))
+       (or (= (:type ctx) (:type selector))
+           (= (:variant-type ctx) (:type selector))))
+   (or (not (contains? selector :variant))
+       (= (:variant ctx) (:variant selector)))
+   (or (not (contains? selector :field))
+       (= (:field-id ctx) (:field selector)))))
+
+(defun fragment-case-where [case]
+  (or (:where case)
+      (let [selector (dissoc case :layout)]
+        (when (not (empty? selector))
+          [selector]))))
+
+(defun fragment-case-matches? [ctx case]
+  (reduce (selector-items (fragment-case-where case))
+          false
+          (fn [matched selector]
+            (or matched
+                (selector-matches? ctx selector)))))
+
+(defun matching-fragment-case [ctx cases]
+  (reduce (or cases [])
+          nil
+          (fn [matched case]
+            (or matched
+                (when (fragment-case-matches? ctx case)
+                  case)))))
+
+(defun configured-fragment-layout [entry ctx]
+  (cond
+    (sequential? entry)
+    entry
+
+    (= (type-of entry) "map")
+    (let [case (matching-fragment-case ctx (:cases entry))]
+      (or (:layout case)
+          (:default entry)))
+
+    :default nil))
+
+(defun active-variant-schema [root value]
+  (when (= (:type root) :union)
+    (model-schema/union-variant-schema root value)))
+
+(defun schema-ref [schema]
+  (get (model-schema/resolved-root-schema schema)
+       model-schema/schema-ref-key))
+
+(defun schema-type [schema]
+  (:type (model-schema/resolved-root-schema schema)))
+
+(defun fragment-id-candidates [schema opts]
+  (let [root (model-schema/resolved-root-schema schema)
+        variant (active-variant-schema root (:value opts))
+        variant-schema (when variant
+                         (model-schema/schema-document-with-root schema
+                                                                 variant))]
+    (filter [(:fragment opts)
+             (when variant-schema (schema-ref variant-schema))
+             (when variant-schema (schema-type variant-schema))
+             (schema-ref schema)
+             (:fragment-field-id opts)
+             (:type root)]
+            (fn [id]
+              (not (nil? id))))))
+
+(defun fragment-context [schema opts]
+  (let [root (model-schema/resolved-root-schema schema)
+        variant (active-variant-schema root (:value opts))
+        variant-schema (when variant
+                         (model-schema/schema-document-with-root schema
+                                                                 variant))]
+    {:path (or (:fragment-path opts) [])
+     :ref (schema-ref schema)
+     :type (:type root)
+     :variant-ref (when variant-schema
+                    (schema-ref variant-schema))
+     :variant-type (when variant-schema
+                     (schema-type variant-schema))
+     :variant (when (= (:type root) :union)
+                (model-schema/union-discriminator-value root (:value opts)))
+     :field-id (:fragment-field-id opts)}))
+
+(defun fragment-layout-for-ids [fragments ids ctx]
+  (reduce (or ids [])
+          nil
+          (fn [layout id]
+            (or layout
+                (configured-fragment-layout (get (or fragments {}) id)
+                                            ctx)))))
+
+(defun fragment-layout [schema opts]
+  (let [fragments (:layout/fragments opts)]
+    (when fragments
+      (fragment-layout-for-ids fragments
+                               (fragment-id-candidates schema opts)
+                               (fragment-context schema opts)))))
+
 (defun direct-valid-value-options-cache-for-schema [cache schema context value]
   (reduce (model-schema/active-schema-field-ids schema value)
           cache
@@ -907,9 +1038,14 @@
                                                field-schema
                                                value)))))
 
-(defun branch-render-key [schema value context]
+(defun branch-render-key [schema value context opts]
   (let [schema (model-schema/prepare-schema schema)]
     {:fields (model-schema/active-schema-field-ids schema value)
+     :layout (fragment-layout schema
+                              (assoc (or opts {})
+                                     :schema schema
+                                     :value value
+                                     :context context))
      :valid-value-options-cache
      (direct-valid-value-options-cache-for-schema {} schema context value)}))
 
@@ -970,10 +1106,12 @@
                 next-state (assoc state :value next-value)]
             (when (not= (branch-render-key (:schema state)
                                            (:value state)
-                                           (:context state))
+                                           (:context state)
+                                           (:render-opts state))
                         (branch-render-key (:schema next-state)
                                            (:value next-state)
-                                           (:context next-state)))
+                                           (:context next-state)
+                                           (:render-opts next-state)))
               (replace-object-control-body! next-state ctx))
             next-state))}})
 
@@ -985,12 +1123,15 @@
                                                field-id
                                                field-schema)
                            :field-path-prefix
+                           (event-field-path opts field-id field-schema)
+                           :fragment-field-id field-id
+                           :fragment-path
                            (event-field-path opts field-id field-schema))
         state {:value (field-binding field-id field-schema)
                :schema schema
                :context (:context opts)
                :field-path-prefix (:field-path-prefix object-opts)
-               :layout (:layout field-schema)
+               :layout nil
                :render-opts object-opts
                :object-style (form-layout/style-option opts
                                                        :object-style
@@ -1198,10 +1339,14 @@
                     (form-actions/action-view action opts)))})
 
 (defun array-item-form-view [item-schema opts]
-  (let [item-opts (with-valid-value-options-cache
+  (let [layout (form-layout/root-layout (:layout opts))
+        layout-fragments (or (:layout/fragments opts)
+                             (form-layout/layout-fragments (:layout opts)))
+        item-opts (with-valid-value-options-cache
                     (assoc opts
                            :schema item-schema
-                           :value (:value opts)))]
+                           :value (:value opts)
+                           :layout/fragments layout-fragments))]
     {:mode 'pixils/form
      :class [:pixils/form :pixils/form-array-item-form]
      :style (or (:array-dialog-form-style opts)
@@ -1211,9 +1356,9 @@
              :context (:context opts)
              :valid? (ui/bind-state :valid?)
              :errors (ui/bind-state :errors)
-             :form/layout (:layout item-opts)
+             :form/layout layout
              :form/render-opts item-opts}
-     :children [(form-body-view (:layout item-opts)
+     :children [(form-body-view layout
                                 item-schema
                                 item-opts
                                 nil)]}))
@@ -1405,7 +1550,13 @@
                                (move-item-state state
                                                 (-> event :payload :from-index)
                                                 (-> event :payload :to-index)))]
-                          (emit-array-items-change! state next-state ctx)))}})
+                        (emit-array-items-change! state next-state ctx)))}})
+
+(defun array-item-fragment-path [field-id field-schema opts]
+  (concat (if field-id
+            (event-field-path opts field-id field-schema)
+            (or (:fragment-path opts) []))
+          [:items]))
 
 (defun array-control-view [field-id field-schema opts items-binding]
   (let [item-schema (array-item-schema field-schema opts)
@@ -1454,6 +1605,12 @@
                          (:array-dialog-body-style opts)
                          :array-dialog-button-row-style
                          (:array-dialog-button-row-style opts)
+                         :layout/fragments (:layout/fragments opts)
+                         :fragment-field-id field-id
+                         :fragment-path
+                         (array-item-fragment-path field-id
+                                                   field-schema
+                                                   opts)
                          :theme-styles? (:theme-styles? opts)}
              :new-template (or (:new-template field-schema)
                                (:new-value field-schema)
@@ -1832,9 +1989,14 @@
                      (:text opts)))))
 
 (defun form-layout-view [item opts]
-  (let [opts (model-layout-opts opts item)
+  (let [item-layout (:layout item)
+        item-root-layout (form-layout/root-layout item-layout)
+        item-fragments (or (form-layout/layout-fragments item-layout)
+                           (:layout/fragments opts))
+        opts (assoc (model-layout-opts opts item)
+                    :layout/fragments item-fragments)
         schema (:schema opts)
-        children (layout-item-views (or (:layout item)
+        children (layout-item-views (or item-root-layout
                                         (default-layout schema opts))
                                     opts)]
     (merge {:state form-layout-state-binding
@@ -1913,7 +2075,7 @@
             (not (nil? child)))))
 
 (defun default-layout [schema opts]
-  (or (model-schema/active-schema-layout schema (:value opts))
+  (or (fragment-layout schema opts)
       (model-schema/active-schema-field-ids schema (:value opts))))
 
 (defcomponent pixils/form-selection
@@ -2257,11 +2419,14 @@
                      field-style field-label-style row-style separator-style
                      control-style valid? errors selection models projection]
               :as opts}]
-  (let [projection (projection-entry models
+  (let [layout-root (form-layout/root-layout layout)
+        layout-fragments (or (form-layout/layout-fragments layout)
+                             (:layout/fragments opts))
+        projection (projection-entry models
                                      (or projection
                                          (form-layout/layout-projection
-                                          layout)))
-        layout-selection (form-layout/layout-selection layout)
+                                          layout-root)))
+        layout-selection (form-layout/layout-selection layout-root)
         direct-state-selection
         (let [result {}
               result (if (contains? opts :items)
@@ -2299,8 +2464,11 @@
                                    (and direct-state-selection
                                         (nil? layout-selection)))
                            state-selection)
-        opts (assoc (assoc opts :projection projection)
-                    :form/selection state-selection)
+        opts (assoc (assoc (assoc opts
+                                  :projection projection)
+                           :form/selection state-selection)
+                    :layout/fragments layout-fragments
+                    :fragment-path [])
         state (normalized-form-state opts state-selection)
         schema (model-schema/prepare-schema (:schema state))
         opts (with-valid-value-options-cache
@@ -2312,14 +2480,17 @@
                      :form/selection state-selection
                      :form/render-selection render-selection
                      :form/actions
-                     (concat (form-layout/layout-actions layout)
+                     (concat (form-layout/layout-actions layout-root)
                              (form-selection/actions
                               (or state-selection {})))
-                     :form/layout layout
+                     :form/layout layout-root
                      :form/render-opts opts)]
     (merge {:mode 'pixils/form
             :state state
-            :children [(form-body-view layout schema opts render-selection)]}
+            :children [(form-body-view layout-root
+                                       schema
+                                       opts
+                                       render-selection)]}
            (form-layout/style-map
             (form-layout/defaultable-style
              style

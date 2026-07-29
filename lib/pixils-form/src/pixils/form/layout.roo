@@ -30,6 +30,20 @@
   {:width :fill
    :height 18})
 
+(defun layout-config? [layout]
+  (and (= (type-of layout) "map")
+       (or (contains? layout :root)
+           (contains? layout :fragments))))
+
+(defun root-layout [layout]
+  (if (layout-config? layout)
+    (:root layout)
+    layout))
+
+(defun layout-fragments [layout]
+  (when (layout-config? layout)
+    (:fragments layout)))
+
 (defun class-list [class]
   (cond
     (nil? class) []
