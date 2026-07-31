@@ -17,25 +17,15 @@
     (keyword? condition) (get state condition)
 
     (= (type-of condition) "vector")
-    (let [op (nth condition 0)]
-      (cond
-        (= op :not)
-        (not (form-truthy? (condition-value state (nth condition 1))))
-
-        (= op :and)
-        (and (form-truthy? (condition-value state (nth condition 1)))
-             (form-truthy? (condition-value state (nth condition 2))))
-
-        (= op :or)
-        (or (form-truthy? (condition-value state (nth condition 1)))
-            (form-truthy? (condition-value state (nth condition 2))))
-
-        (= op :=)
-        (= (condition-value state (nth condition 1))
-           (nth condition 2))
-
-        :default condition))
-
+    (case (head condition)
+      :not (not (form-truthy? (condition-value state (nth condition 1))))
+      :and (and (form-truthy? (condition-value state (nth condition 1)))
+                (form-truthy? (condition-value state (nth condition 2))))
+      :or (or (form-truthy? (condition-value state (nth condition 1)))
+              (form-truthy? (condition-value state (nth condition 2))))
+      := (= (condition-value state (nth condition 1))
+            (nth condition 2))
+      :default condition)
     :default condition))
 
 (defun condition-true? [state condition]
@@ -62,13 +52,12 @@
   (reduce (or actions [])
           {}
           (fn [result action]
-            (let [event-id (action-event-id action)]
-              (if event-id
-                (assoc result
-                       event-id
-                       (action-disabled? (action-state form-state
-                                                       action)))
-                result)))))
+            (if-let [event-id (action-event-id action)]
+              (assoc result
+                     event-id
+                     (action-disabled? (action-state form-state
+                                                     action)))
+              result))))
 
 (defun derived-state [state actions]
   (assoc state

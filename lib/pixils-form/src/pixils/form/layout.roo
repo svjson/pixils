@@ -3,6 +3,8 @@
             [pixils.ui :as ui]
             [pixils.ui.group-box :as group-box]))
 
+(def LAYOUT-VECTOR-TYPES [:row :group :section :form :selection :action])
+
 (def default-section-style
   {:width :fill
    :height :shrink})
@@ -31,7 +33,7 @@
    :height 18})
 
 (defun layout-config? [layout]
-  (and (= (type-of layout) "map")
+  (and (map? layout)
        (or (contains? layout :root)
            (contains? layout :fragments))))
 
@@ -114,13 +116,7 @@
     (:type (layout-token (nth item 0)))))
 
 (defun dsl-layout-vector? [item]
-  (let [type (layout-vector-type item)]
-    (or (= type :row)
-        (= type :group)
-        (= type :section)
-        (= type :form)
-        (= type :selection)
-        (= type :action))))
+  (contains? LAYOUT-VECTOR-TYPES (layout-vector-type item)))
 
 (defun vector-tail [items start]
   (if (>= start (count items))
@@ -197,9 +193,8 @@
   (let [item (normalize-layout-item item)]
     (cond
       (nil? item) nil
-      (= (type-of item) "map")
-      (or (:projection item)
-          (layout-projection (layout-child-items item)))
+      (map? item) (or (:projection item)
+                      (layout-projection (layout-child-items item)))
       (= (type-of item) "vector") (layout-projection item)
       :default nil)))
 
@@ -214,10 +209,9 @@
   (let [item (normalize-layout-item item)]
     (cond
       (nil? item) nil
-      (= (type-of item) "map")
-      (if (= (:type item) :selection)
-        item
-        (layout-selection (layout-child-items item)))
+      (map? item) (if (= (:type item) :selection)
+                    item
+                    (layout-selection (layout-child-items item)))
       (= (type-of item) "vector") (layout-selection item)
       :default nil)))
 
@@ -232,10 +226,9 @@
   (let [item (normalize-layout-item item)]
     (cond
       (nil? item) nil
-      (= (type-of item) "map")
-      (if (= (:type item) :form)
-        (:layout item)
-        (layout-form-layout (layout-child-items item)))
+      (map? item) (if (= (:type item) :form)
+                    (:layout item)
+                    (layout-form-layout (layout-child-items item)))
       (= (type-of item) "vector") (layout-form-layout item)
       :default nil)))
 
@@ -251,7 +244,7 @@
     (cond
       (nil? item) []
 
-      (= (type-of item) "map")
+      (map? item)
       (if (= (:type item) :action)
         [item]
         (layout-actions (layout-child-items item)))
