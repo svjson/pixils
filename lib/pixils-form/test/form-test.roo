@@ -4,7 +4,6 @@
             [pixils.form.selection :as form-selection]
             [pixils.form :as form]
             [zoology.canonical :as canonical]
-            [zoology.core :as core]
             [zoology.schema :as model-schema]
             [zoology.validation :as validation]))
 
@@ -876,7 +875,7 @@
                                                 :items {:ref :node}}}}}
                     :schema {:ref :node}}
         prepared (model-schema/prepare-schema schema-doc)]
-    (is (= true (core/prepared-schema? prepared)))
+    (is (:zoology/prepared? prepared))
     (is (= {:type :object
             :fields {:name {:type :text}
                      :children {:type :array

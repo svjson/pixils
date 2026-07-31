@@ -1,7 +1,7 @@
 {:name pixils-form
  :version "0.1.0"
  :description "Declarative form rendering helpers for Pixils UI."
- :dependencies {pixils {:path "../pixils"}
+ :dependencies {pixils "0.1.0"
                 zoology "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src"]

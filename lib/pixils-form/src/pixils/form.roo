@@ -5,7 +5,6 @@
             [pixils.form.layout :as form-layout]
             [pixils.form.selection :as form-selection]
             [zoology.canonical :as model-canonical]
-            [zoology.core :as model-core]
             [zoology.schema :as model-schema]
             [zoology.valid-values :as model-valid-values]
             [zoology.validation :as model-validation]
@@ -283,10 +282,10 @@
      :new-value-fn (:new-value-fn selection)}))
 
 (defun field-path [field-id field-schema]
-  (model-core/field-path field-id field-schema))
+  (model-schema/field-path field-id field-schema))
 
 (defun field-value [value field-id field-schema]
-  (model-core/field-value value field-id field-schema))
+  (model-schema/field-value value field-id field-schema))
 
 (defun validate-field [schema value field-id]
   (model-validation/validate-field schema value field-id))
@@ -979,7 +978,7 @@
 
 (defun schema-ref [schema]
   (get (model-schema/resolved-root-schema schema)
-       model-core/schema-ref-key))
+       :zoology/ref))
 
 (defun schema-type [schema]
   (:type (model-schema/resolved-root-schema schema)))
@@ -1225,7 +1224,7 @@
     :enabled-when :can-delete?}])
 
 (defun summary-spec-path [item-schema field-id]
-  (model-core/field-path field-id
+  (model-schema/field-path field-id
                            (model-schema/resolved-field-schema item-schema
                                                                field-id)))
 
@@ -1667,7 +1666,7 @@
     {:source-path source}
 
     (= (type-of source) "map")
-    (let [source-key (model-core/path-value parent-value
+    (let [source-key (model-schema/path-value parent-value
                                               (or (:field source)
                                                   (:path source)))
           source-path (get (:sources source) source-key)]
@@ -1831,7 +1830,7 @@
     {:source-path source}
 
     (= (type-of source) "map")
-    (let [source-key (model-core/path-value (:form-value state)
+    (let [source-key (model-schema/path-value (:form-value state)
                                               (or (:field source)
                                                   (:path source)))
           source-path (get (:sources source) source-key)]

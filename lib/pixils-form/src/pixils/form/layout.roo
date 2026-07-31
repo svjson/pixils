@@ -71,10 +71,11 @@
   (if style {:style style} {}))
 
 (defun keyword-label [value]
-  (let [text (str value)]
-    (if (= ":" (substr text 0 1))
-      (substr text 1)
-      text)))
+  (if (keyword? value)
+    (if-let [qualifier (qualifier value)]
+      (str qualifier "/" (name value))
+      (name value))
+    (str value)))
 
 (defun text-index-of [text needle index]
   (cond
