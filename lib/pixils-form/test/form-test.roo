@@ -2404,7 +2404,11 @@
          (form-actions/action-disabled?
           {:form-state {:new? true
                         :valid? true}
-           :enabled-when [:and :new? :valid?]}))))
+           :enabled-when [:and :new? :valid?]})))
+  (is (= false
+         (form-actions/action-disabled?
+          {:form-state {:selected-index 0}
+           :enabled-when :selected-index}))))
 
 (deftest make-supports-action-layout-nodes
   (let [view (form/make

@@ -8,34 +8,27 @@
   {:width 96
    :height 24})
 
-(defun form-truthy? [value]
-  (and (not (nil? value))
-       (not (= false value))))
-
 (defun condition-value [state condition]
   (cond
     (keyword? condition) (get state condition)
 
     (= (type-of condition) "vector")
     (case (head condition)
-      :not (not (form-truthy? (condition-value state (nth condition 1))))
-      :and (and (form-truthy? (condition-value state (nth condition 1)))
-                (form-truthy? (condition-value state (nth condition 2))))
-      :or (or (form-truthy? (condition-value state (nth condition 1)))
-              (form-truthy? (condition-value state (nth condition 2))))
+      :not (not (condition-value state (nth condition 1)))
+      :and (and (condition-value state (nth condition 1))
+                (condition-value state (nth condition 2)))
+      :or (or (condition-value state (nth condition 1))
+              (condition-value state (nth condition 2)))
       := (= (condition-value state (nth condition 1))
             (nth condition 2))
       :default condition)
     :default condition))
 
-(defun condition-true? [state condition]
-  (form-truthy? (condition-value state condition)))
-
 (defun action-disabled? [state]
   (let [form-state (:form-state state)]
-    (or (condition-true? form-state (:disabled-when state))
+    (or (condition-value form-state (:disabled-when state))
         (and (not (nil? (:enabled-when state)))
-             (not (condition-true? form-state
+             (not (condition-value form-state
                                    (:enabled-when state)))))))
 
 (defun action-event-id [action]
