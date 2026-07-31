@@ -434,6 +434,133 @@ TEST_F(GeneratedImageTest, create_image_restores_existing_render_target)
   EXPECT_EQ(render_ctx.current_render_target, previous_target);
 }
 
+TEST_F(GeneratedImageTest, redraw_image_reuses_existing_generated_image_texture)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 4 :h 4}}
+      (fn []
+        (pixils.render/rect!
+          {:x 0 :y 0 :w 1 :h 1}
+          {:fill true
+           :color {:r 255 :g 0 :b 0}})))
+  )");
+  SDL_Texture* before = render_ctx.asset_registry->get_image("project-assets", "brush");
+  ASSERT_NE(before, nullptr);
+
+  // When
+  auto resource = runtime.eval(R"(
+    (pixils.resource/redraw-image!
+      :project-assets/brush
+      {:size {:w 4 :h 4}}
+      (fn []
+        (pixils.render/rect!
+          {:x 1 :y 2 :w 3 :h 4}
+          {:fill true
+           :color {:r 0 :g 0 :b 255}})))
+  )");
+  SDL_Texture* after = render_ctx.asset_registry->get_image("project-assets", "brush");
+  runtime.eval("(pixils.render/image! :project-assets/brush {:pos {:x 5 :y 6}})");
+
+  // Then
+  ASSERT_NE(resource, nullptr);
+  EXPECT_EQ(resource->to_string(), ":project-assets/brush");
+  EXPECT_EQ(after, before);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  ASSERT_EQ(ops[0].sub_ops.size(), 1u);
+  EXPECT_EQ(ops[0].sub_ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.x, 1);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 2);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 3);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.h, 4);
+}
+
+TEST_F(GeneratedImageTest, redraw_image_preserves_readback_policy_by_default)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  SDL_Texture* texture = SDL_CreateTexture(render_ctx.renderer,
+                                           SDL_PIXELFORMAT_RGBA8888,
+                                           SDL_TEXTUREACCESS_TARGET,
+                                           4,
+                                           4);
+  SDL_Surface* surface = SDL_CreateSurface(4, 4, SDL_PIXELFORMAT_RGBA8888);
+  render_ctx.asset_registry->add_generated_image("project-assets",
+                                                 "brush",
+                                                 texture,
+                                                 surface,
+                                                 Pixils::Dimension{4, 4});
+
+  // When
+  auto update = render_ctx.asset_registry->update_generated_image("project-assets",
+                                                                  "brush",
+                                                                  Pixils::Dimension{4, 4});
+  SDL_Surface* replacement = SDL_CreateSurface(4, 4, SDL_PIXELFORMAT_RGBA8888);
+  render_ctx.asset_registry->replace_generated_image_source("project-assets",
+                                                            "brush",
+                                                            replacement);
+
+  // Then
+  EXPECT_EQ(update.texture, texture);
+  EXPECT_TRUE(update.readback);
+  EXPECT_EQ(render_ctx.asset_registry->get_image_surface("project-assets", "brush"),
+            replacement);
+}
+
+TEST_F(GeneratedImageTest, generated_image_readback_can_be_disabled_for_render_buffers)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+
+  // When
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 4 :h 4}
+       :readback? false}
+      (fn []
+        (pixils.render/rect!
+          {:x 0 :y 0 :w 4 :h 4}
+          {:fill true
+           :color {:r 255 :g 0 :b 0}})))
+  )");
+  auto update = render_ctx.asset_registry->update_generated_image("project-assets",
+                                                                  "brush",
+                                                                  Pixils::Dimension{4, 4});
+
+  // Then
+  EXPECT_NE(update.texture, nullptr);
+  EXPECT_FALSE(update.readback);
+  EXPECT_EQ(render_ctx.asset_registry->get_image_surface("project-assets", "brush"),
+            nullptr);
+}
+
+TEST_F(GeneratedImageTest, redraw_image_requires_existing_size)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 4 :h 4}}
+      (fn [] nil))
+  )");
+
+  // Then
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils.resource/redraw-image!
+      :project-assets/brush
+      {:size {:w 5 :h 4}}
+      (fn [] nil))
+  )"),
+               std::runtime_error);
+}
+
 TEST_F(GeneratedImageTest, create_image_requires_dynamic_bundle)
 {
   // Given

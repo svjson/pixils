@@ -24,7 +24,12 @@ namespace Pixils::Asset
     {
       Runtime::ResourceDependencies declaration;
       Bundle bundle;
-      std::unordered_map<std::string, Dimension> generated_images;
+      struct GeneratedImage
+      {
+        Dimension size;
+        bool readback = true;
+      };
+      std::unordered_map<std::string, GeneratedImage> generated_images;
       bool loaded = false;
       bool mutable_bundle = false;
     };
@@ -56,7 +61,20 @@ namespace Pixils::Asset
                              const std::string& resource_id,
                              SDL_Texture* texture,
                              SDL_Surface* surface,
-                             Dimension size);
+                             Dimension size,
+                             bool readback = true);
+    struct GeneratedImageUpdate
+    {
+      SDL_Texture* texture = nullptr;
+      bool readback = true;
+    };
+    GeneratedImageUpdate update_generated_image(const std::string& bundle_id,
+                                                const std::string& resource_id,
+                                                Dimension size,
+                                                std::optional<bool> readback = std::nullopt);
+    void replace_generated_image_source(const std::string& bundle_id,
+                                        const std::string& resource_id,
+                                        SDL_Surface* surface);
     void remove_image(const std::string& bundle_id, const std::string& resource_id);
     std::vector<Runtime::ImageDependency> image_dependencies(
       const std::string& bundle_id) const;

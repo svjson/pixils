@@ -5,11 +5,11 @@
 #include <pixils/runtime/mode.h>
 
 #include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
-#include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_surface.h>
+#include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <algorithm>
 #include <stdexcept>
 
@@ -41,8 +41,7 @@ namespace Pixils::Asset
     {
       if (!source) return nullptr;
 
-      SDL_Surface* mask =
-        SDL_CreateSurface(source->w, source->h, SDL_PIXELFORMAT_RGBA8888);
+      SDL_Surface* mask = SDL_CreateSurface(source->w, source->h, SDL_PIXELFORMAT_RGBA8888);
       if (!mask) return duplicate_texture(loader, source);
 
       if (!source->pixels || !mask->pixels || source->w <= 0 || source->h <= 0)
@@ -93,8 +92,7 @@ namespace Pixils::Asset
       Uint8 bg_r = 0, bg_g = 0, bg_b = 0, bg_a = 0;
       read_surface_rgba(source, 0, 0, bg_r, bg_g, bg_b, bg_a);
 
-      const SDL_PixelFormatDetails* mask_format =
-        SDL_GetPixelFormatDetails(mask->format);
+      const SDL_PixelFormatDetails* mask_format = SDL_GetPixelFormatDetails(mask->format);
       if (!mask_format)
       {
         SDL_UnlockSurface(mask);
@@ -354,7 +352,8 @@ namespace Pixils::Asset
                                      const std::string& resource_id,
                                      SDL_Texture* texture,
                                      SDL_Surface* surface,
-                                     Dimension size)
+                                     Dimension size,
+                                     bool readback)
   {
     auto record = this->bundles.find(bundle_id);
     if (record == this->bundles.end())
@@ -380,7 +379,101 @@ namespace Pixils::Asset
     destroy_image_asset(record->second.bundle, resource_id);
     record->second.bundle.images.emplace(resource_id, texture);
     if (surface) record->second.bundle.image_sources.emplace(resource_id, surface);
-    record->second.generated_images[resource_id] = size;
+    record->second.generated_images[resource_id] = {.size = size, .readback = readback};
+  }
+
+  Registry::GeneratedImageUpdate Registry::update_generated_image(
+    const std::string& bundle_id,
+    const std::string& resource_id,
+    Dimension size,
+    std::optional<bool> readback)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+
+    auto generated_image = record->second.generated_images.find(resource_id);
+    if (generated_image == record->second.generated_images.end())
+    {
+      throw std::runtime_error("Generated image does not exist: " + bundle_id + "/" +
+                               resource_id);
+    }
+    if (generated_image->second.size.w != size.w || generated_image->second.size.h != size.h)
+    {
+      throw std::runtime_error("Generated image size mismatch: " + bundle_id + "/" +
+                               resource_id);
+    }
+    if (readback) generated_image->second.readback = *readback;
+    if (!record->second.loaded)
+    {
+      record->second.bundle = this->loader.load_bundle_assets(record->second.declaration);
+      record->second.loaded = true;
+    }
+
+    auto image = record->second.bundle.images.find(resource_id);
+    if (image == record->second.bundle.images.end() || !image->second)
+    {
+      throw std::runtime_error("Generated image texture is missing: " + bundle_id + "/" +
+                               resource_id);
+    }
+
+    auto source = record->second.bundle.image_sources.find(resource_id);
+    if (source != record->second.bundle.image_sources.end())
+    {
+      if (source->second) SDL_DestroySurface(source->second);
+      record->second.bundle.image_sources.erase(source);
+    }
+
+    auto tint_mask = record->second.bundle.tint_masks.find(resource_id);
+    if (tint_mask != record->second.bundle.tint_masks.end())
+    {
+      if (tint_mask->second) SDL_DestroyTexture(tint_mask->second);
+      record->second.bundle.tint_masks.erase(tint_mask);
+    }
+
+    return {.texture = image->second, .readback = generated_image->second.readback};
+  }
+
+  void Registry::replace_generated_image_source(const std::string& bundle_id,
+                                                const std::string& resource_id,
+                                                SDL_Surface* surface)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+    if (record->second.generated_images.find(resource_id) ==
+        record->second.generated_images.end())
+    {
+      throw std::runtime_error("Generated image does not exist: " + bundle_id + "/" +
+                               resource_id);
+    }
+
+    auto source = record->second.bundle.image_sources.find(resource_id);
+    if (source != record->second.bundle.image_sources.end())
+    {
+      if (source->second) SDL_DestroySurface(source->second);
+      record->second.bundle.image_sources.erase(source);
+    }
+    if (surface) record->second.bundle.image_sources.emplace(resource_id, surface);
+
+    auto tint_mask = record->second.bundle.tint_masks.find(resource_id);
+    if (tint_mask != record->second.bundle.tint_masks.end())
+    {
+      if (tint_mask->second) SDL_DestroyTexture(tint_mask->second);
+      record->second.bundle.tint_masks.erase(tint_mask);
+    }
   }
 
   void Registry::remove_image(const std::string& bundle_id, const std::string& resource_id)
@@ -423,7 +516,12 @@ namespace Pixils::Asset
     {
       throw std::runtime_error("Unknown bundle: " + bundle_id);
     }
-    return record->second.generated_images;
+    std::unordered_map<std::string, Dimension> sizes;
+    for (const auto& [resource_id, generated_image] : record->second.generated_images)
+    {
+      sizes[resource_id] = generated_image.size;
+    }
+    return sizes;
   }
 
   void Registry::load(const std::string& bundle_id,

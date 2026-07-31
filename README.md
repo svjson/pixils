@@ -2193,7 +2193,8 @@ Accepts the same `:font` and `:scale` options as `text!`.
 |-----------------------------|-------------|
 | `create-bundle!`            | Create or update a dynamic bundle at runtime. Args: bundle keyword, optional resource dependency map. |
 | `add-image!`                | Add or replace a file-backed image in a dynamic bundle. Args: qualified image keyword and file dependency. |
-| `create-image!`             | Create or replace a generated image in a dynamic bundle. Args: qualified image keyword, `{:size {:w :h} :clear color}`, and a zero-arg drawing function. Drawing commands inside the function target the new image. |
+| `create-image!`             | Create or replace a generated image in a dynamic bundle. Args: qualified image keyword, `{:size {:w :h} :clear color :readback? bool}`, and a zero-arg drawing function. Drawing commands inside the function target the new image. `:readback?` defaults to true; pass false for render-buffer images that do not need CPU-side image inspection. |
+| `redraw-image!`             | Redraw an existing generated image without reallocating its texture. Args match `create-image!`, but the image must already exist and the size must match. Redraw uses the image's existing readback policy unless `:readback?` is supplied. |
 | `remove-image!`             | Remove a file-backed or generated image from a dynamic bundle. Args: qualified image keyword. |
 | `list-images`               | List image resources in a bundle. Generated images include `:source :generated` and `:size`. |
 | `make-resource-dependencies`| Declare resource dependencies explicitly. Takes `{:images {:id "file.png"} :sounds {:id "file.wav"} :music {:id "file.mp3"}}`. The plain map form in `:resources` is equivalent and preferred. |

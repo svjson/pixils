@@ -1,7 +1,7 @@
 {:name pixils-runner
  :version "0.1.0"
  :description "Pixils application runner package."
- :dependencies {pixils {:path "../pixils"}}
+ :dependencies {pixils "0.1.0"}
  :load-roots ["src"]
  :native-libraries [{:name "pixils-runner-native"
                      :version "0.1.0"

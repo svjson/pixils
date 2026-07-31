@@ -16,6 +16,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__CREATE_BUNDLE_BANG = "create-bundle!";
   inline constexpr std::string_view FN__ADD_IMAGE_BANG = "add-image!";
   inline constexpr std::string_view FN__CREATE_IMAGE_BANG = "create-image!";
+  inline constexpr std::string_view FN__REDRAW_IMAGE_BANG = "redraw-image!";
   inline constexpr std::string_view FN__REMOVE_IMAGE_BANG = "remove-image!";
   inline constexpr std::string_view FN__LIST_IMAGES = "list-images";
   inline constexpr std::string_view FN__CAN_CREATE_IMAGES = "can-create-images?";
@@ -33,6 +34,7 @@ namespace Pixils::Script
     FUNC(CreateBundleBang, create_bundle);
     FUNC(AddImageBang, add_image);
     FUNC(CreateImageBang, create_image);
+    FUNC(RedrawImageBang, redraw_image);
     FUNC(RemoveImageBang, remove_image);
     FUNC(ListImages, list_images);
     FUNC(CanCreateImages, can_create_images);

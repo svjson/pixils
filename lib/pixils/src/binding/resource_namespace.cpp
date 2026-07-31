@@ -12,12 +12,12 @@
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_surface.h>
+#include <memory>
 #include <roo/exception.h>
 #include <roo/host/accessor.h>
 #include <roo/host/schema.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <memory>
 #include <stdexcept>
 
 namespace Pixils::Script
@@ -37,6 +37,8 @@ namespace Pixils::Script
 
   namespace
   {
+    using SurfacePtr = std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)>;
+
     struct RenderTargetGuard
     {
       RenderContext& rc;
@@ -52,6 +54,17 @@ namespace Pixils::Script
       ~RenderTargetGuard() { rc.set_render_target(previous_target); }
     };
 
+    SurfacePtr read_render_target_surface(SDL_Renderer* renderer, Dimension size)
+    {
+      SDL_Rect read_rect{0, 0, size.w, size.h};
+      SDL_Surface* readback = SDL_RenderReadPixels(renderer, &read_rect);
+      if (!readback) return SurfacePtr(nullptr, SDL_DestroySurface);
+
+      SDL_Surface* converted = SDL_ConvertSurface(readback, SDL_PIXELFORMAT_RGBA8888);
+      SDL_DestroySurface(readback);
+      return SurfacePtr(converted, SDL_DestroySurface);
+    }
+
     Runtime::ImageDependency parse_image_dependency(Roo::Context& ctx,
                                                     const std::string& resource_id,
                                                     const Roo::sptr_val& value)
@@ -64,11 +77,11 @@ namespace Pixils::Script
       if (value->type != Roo::Value::Type::MAP)
       {
         throw Roo::TypeError("Image resource dependency must be a file name string "
-                                "or a map");
+                             "or a map");
       }
 
       static Roo::MapSchema image_schema({{"file-name", &Roo::Type::STRING}},
-                                            {{"transparency-color", &HostType::COLOR}});
+                                         {{"transparency-color", &HostType::COLOR}});
 
       auto opts = image_schema.bind(ctx, *value);
       Runtime::ImageDependency dep{resource_id, opts.str("file-name")};
@@ -83,10 +96,10 @@ namespace Pixils::Script
                                                               const Roo::sptr_val& value)
     {
       static Roo::MapSchema resources_schema({},
-                                                {{"images", &Roo::Type::MAP},
-                                                 {"music", &Roo::Type::MAP},
-                                                 {"sounds", &Roo::Type::MAP},
-                                                 {"fonts", &Roo::Type::MAP}});
+                                             {{"images", &Roo::Type::MAP},
+                                              {"music", &Roo::Type::MAP},
+                                              {"sounds", &Roo::Type::MAP},
+                                              {"fonts", &Roo::Type::MAP}});
 
       auto opts = resources_schema.bind(ctx, *value);
 
@@ -150,30 +163,28 @@ namespace Pixils::Script
     }
 
     Roo::sptr_val image_dependency_map(const std::string& bundle_id,
-                                          const Runtime::ImageDependency& dep)
+                                       const Runtime::ImageDependency& dep)
     {
       auto result = Roo::map({});
       Roo::Dict::set_property(result,
-                                 MapKey::ID,
-                                 Roo::keyword(bundle_id + "/" + dep.resource_id));
+                              MapKey::ID,
+                              Roo::keyword(bundle_id + "/" + dep.resource_id));
       Roo::Dict::set_property(result, MapKey::FILE_NAME, Roo::string(dep.file_name));
       return result;
     }
 
     Roo::sptr_val generated_image_map(const std::string& bundle_id,
-                                         const std::string& resource_id,
-                                         const Dimension& size)
+                                      const std::string& resource_id,
+                                      const Dimension& size)
     {
       auto result = Roo::map({});
       Roo::Dict::set_property(result,
-                                 MapKey::ID,
-                                 Roo::keyword(bundle_id + "/" + resource_id));
+                              MapKey::ID,
+                              Roo::keyword(bundle_id + "/" + resource_id));
+      Roo::Dict::set_property(result, MapKey::RESOURCE_SOURCE, Roo::keyword("generated"));
       Roo::Dict::set_property(result,
-                                 MapKey::RESOURCE_SOURCE,
-                                 Roo::keyword("generated"));
-      Roo::Dict::set_property(result,
-                                 MapKey::SIZE,
-                                 DimensionAdapter::make_unique(size.w, size.h));
+                              MapKey::SIZE,
+                              DimensionAdapter::make_unique(size.w, size.h));
       return result;
     }
 
@@ -192,15 +203,14 @@ namespace Pixils::Script
       return result;
     }
 
-    Roo::sptr_val image_dependencies_map(
-      const std::vector<Runtime::ImageDependency>& images)
+    Roo::sptr_val image_dependencies_map(const std::vector<Runtime::ImageDependency>& images)
     {
       auto result = Roo::map({});
       for (const auto& dep : images)
       {
         Roo::Dict::set_property(result,
-                                   Roo::keyword(dep.resource_id),
-                                   image_dependency_value(dep));
+                                Roo::keyword(dep.resource_id),
+                                image_dependency_value(dep));
       }
       return result;
     }
@@ -211,8 +221,8 @@ namespace Pixils::Script
       for (const auto& dep : deps)
       {
         Roo::Dict::set_property(result,
-                                   Roo::keyword(dep.resource_id),
-                                   Roo::string(dep.file_name));
+                                Roo::keyword(dep.resource_id),
+                                Roo::string(dep.file_name));
       }
       return result;
     }
@@ -244,8 +254,7 @@ namespace Pixils::Script
                                              ? parse_resource_dependencies(ctx, args[1])
                                              : Runtime::ResourceDependencies{};
 
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->create_dynamic_bundle(bundle_id, deps);
       return args[0];
     }
@@ -260,34 +269,32 @@ namespace Pixils::Script
     {
       auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
 
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->add_image(bundle_id,
                                    parse_image_dependency(ctx, resource_id, args[1]));
       return args[0];
     }
 
     FUNC_IMPL(CreateImageBang,
-              SIG((FN_ARGS((&Roo::Type::KEYWORD),
-                           (&Roo::Type::MAP),
-                           (&Roo::Type::FUNCTION)),
+              SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP), (&Roo::Type::FUNCTION)),
                    EXEC_DISPATCH(&CreateImageBang::exec_create_image))));
 
     EXEC_BODY(CreateImageBang, exec_create_image)
     {
-      static Roo::MapSchema create_image_opts_schema({{"size", &HostType::DIMENSION}},
-                                                        {{"clear", &HostType::COLOR}});
+      static Roo::MapSchema create_image_opts_schema(
+        {{"size", &HostType::DIMENSION}},
+        {{"clear", &HostType::COLOR}, {"readback?", &Roo::Type::BOOL}});
 
       auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
       auto opts = create_image_opts_schema.bind(ctx, *args[1]);
       const Dimension& size = opts.obj<Dimension>("size");
+      bool readback = opts.boolean("readback?", true);
       if (size.w <= 0 || size.h <= 0)
       {
         throw Roo::TypeError("Generated image size must be positive");
       }
 
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       if (!rc.asset_registry->is_dynamic_bundle(bundle_id))
       {
         throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
@@ -312,14 +319,7 @@ namespace Pixils::Script
 
       SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
 
-      std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> surface(
-        SDL_CreateSurface(size.w, size.h, SDL_PIXELFORMAT_RGBA8888),
-        SDL_DestroySurface);
-      if (!surface)
-      {
-        throw std::runtime_error("Failed to create generated image surface: " + bundle_id +
-                                 "/" + resource_id);
-      }
+      SurfacePtr surface(nullptr, SDL_DestroySurface);
 
       {
         RenderTargetGuard target_guard(rc, texture.get());
@@ -332,25 +332,7 @@ namespace Pixils::Script
         Roo::sptr_val_v callback_args;
         args[2]->exec().execute(ctx, callback_args);
 
-        SDL_Rect read_rect{0, 0, size.w, size.h};
-        SDL_Surface* readback = SDL_RenderReadPixels(rc.renderer, &read_rect);
-        if (!readback)
-        {
-          surface.reset();
-        }
-        else
-        {
-          SDL_Surface* converted = SDL_ConvertSurface(readback, SDL_PIXELFORMAT_RGBA8888);
-          SDL_DestroySurface(readback);
-          if (!converted)
-          {
-            surface.reset();
-          }
-          else
-          {
-            surface.reset(converted);
-          }
-        }
+        if (readback) surface = read_render_target_surface(rc.renderer, size);
       }
 
       SDL_Texture* committed_texture = texture.get();
@@ -359,9 +341,65 @@ namespace Pixils::Script
                                              resource_id,
                                              committed_texture,
                                              committed_surface,
-                                             size);
+                                             size,
+                                             readback);
       texture.release();
       if (committed_surface) surface.release();
+      return args[0];
+    }
+
+    FUNC_IMPL(RedrawImageBang,
+              SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP), (&Roo::Type::FUNCTION)),
+                   EXEC_DISPATCH(&RedrawImageBang::exec_redraw_image))));
+
+    EXEC_BODY(RedrawImageBang, exec_redraw_image)
+    {
+      static Roo::MapSchema create_image_opts_schema(
+        {{"size", &HostType::DIMENSION}},
+        {{"clear", &HostType::COLOR}, {"readback?", &Roo::Type::BOOL}});
+
+      auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
+      auto opts = create_image_opts_schema.bind(ctx, *args[1]);
+      const Dimension& size = opts.obj<Dimension>("size");
+      if (size.w <= 0 || size.h <= 0)
+      {
+        throw Roo::TypeError("Generated image size must be positive");
+      }
+
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      if (!rc.renderer)
+      {
+        throw std::runtime_error("Cannot redraw image without an SDL renderer");
+      }
+
+      std::optional<bool> readback = opts.contains("readback?")
+                                       ? std::optional<bool>(opts.boolean("readback?"))
+                                       : std::nullopt;
+      auto update =
+        rc.asset_registry->update_generated_image(bundle_id, resource_id, size, readback);
+
+      {
+        RenderTargetGuard target_guard(rc, update.texture);
+
+        Color clear = opts.optional_obj<Color>("clear").value_or(Color{0, 0, 0, 0});
+        SDL_SetRenderDrawColor(rc.renderer, clear.r, clear.g, clear.b, clear.a);
+        SDL_RenderClear(rc.renderer);
+        SDL_SetRenderDrawColor(rc.renderer, 0xff, 0xff, 0xff, 0xff);
+
+        Roo::sptr_val_v callback_args;
+        args[2]->exec().execute(ctx, callback_args);
+
+        if (update.readback)
+        {
+          SurfacePtr surface = read_render_target_surface(rc.renderer, size);
+          SDL_Surface* committed_surface = surface.get();
+          rc.asset_registry->replace_generated_image_source(bundle_id,
+                                                            resource_id,
+                                                            committed_surface);
+          if (committed_surface) surface.release();
+        }
+      }
+
       return args[0];
     }
 
@@ -373,8 +411,7 @@ namespace Pixils::Script
     {
       auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
 
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->remove_image(bundle_id, resource_id);
       return args[0];
     }
@@ -386,8 +423,7 @@ namespace Pixils::Script
     EXEC_BODY(ListImages, exec_list_images)
     {
       std::string bundle_id = parse_bundle_keyword(args[0]);
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       Roo::sptr_val_v resources;
       for (const auto& dep : rc.asset_registry->image_dependencies(bundle_id))
@@ -407,8 +443,7 @@ namespace Pixils::Script
 
     EXEC_BODY(CanCreateImages, exec_can_create_images)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       return (rc.asset_registry && rc.renderer) ? Roo::Constant::BOOL_TRUE
                                                 : Roo::Constant::BOOL_FALSE;
     }
@@ -447,6 +482,7 @@ namespace Pixils::Script
     values.emplace(FN__CREATE_BUNDLE_BANG, Function::CreateBundleBang::make());
     values.emplace(FN__ADD_IMAGE_BANG, Function::AddImageBang::make());
     values.emplace(FN__CREATE_IMAGE_BANG, Function::CreateImageBang::make());
+    values.emplace(FN__REDRAW_IMAGE_BANG, Function::RedrawImageBang::make());
     values.emplace(FN__REMOVE_IMAGE_BANG, Function::RemoveImageBang::make());
     values.emplace(FN__LIST_IMAGES, Function::ListImages::make());
     values.emplace(FN__CAN_CREATE_IMAGES, Function::CanCreateImages::make());
