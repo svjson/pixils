@@ -60,7 +60,7 @@
                                            (-> ctx :view :bounds)
                                            (count tiles)
                                            tile-size)
-        tile (when (not (nil? index)) (nth tiles index))]
+        tile (when-let [index index] (nth tiles index))]
     (if (or (nil? index)
             (lb/held-shift? ctx))
       {:kind :tileset/tile-selection}
@@ -96,12 +96,11 @@
       (select-tile-grid-drag-range state event ctx))))
 
 (defun emit-tile-drag-end! [state event ctx]
-  (do
-    (when (= (-> event :payload :kind) :tileset/tile)
-      (ui/emit! (:view ctx) :tile/drag-end nil))
-    (assoc state
-           :tile-grid-selecting? false
-           :tile-grid-dragging? false)))
+  (when (= (-> event :payload :kind) :tileset/tile)
+    (ui/emit! (:view ctx) :tile/drag-end nil))
+  (assoc state
+         :tile-grid-selecting? false
+         :tile-grid-dragging? false))
 
 (defun tile-drop-payload [target-tileset-index payload]
   (when (and (= (:kind payload) :tileset/tile)
@@ -123,43 +122,37 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-drop (fn [state event ctx]
-              (let [payload (tile-drop-payload (:value state) (:payload event))]
-                (if payload
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :tile/move-to-tileset
-                              payload)
-                    state)
-                  state)))
+              (when-let [payload (tile-drop-payload (:value state) (:payload event))]
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :tile/move-to-tileset
+                          payload))
+              state)
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! tileset-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! tileset-context-menu
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :tileset/context-command
-                                       {:tileset-index (:value state)
-                                        :command (-> payload :payload :command)}))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :tileset/context-command
+                                     {:tileset-index (:value state)
+                                      :command (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -203,15 +196,14 @@
    :update (fn [state ctx]
              (let [tilesets (or (:tilesets state) [])
                    options (data/tileset-options tilesets)]
-               (do
-                 (when (not= options (:tileset-list-options state))
-                   (ui/replace-child! (:view ctx)
-                                      "list-box"
-                                      (merge {:id "list-box"}
-                                             (tileset-list-box-child tilesets))))
-                 (assoc state
-                        :tileset-list-options options
-                        :selected-indices (selected-tileset-definition-indices state)))))
+               (when (not= options (:tileset-list-options state))
+                 (ui/replace-child! (:view ctx)
+                                    "list-box"
+                                    (merge {:id "list-box"}
+                                           (tileset-list-box-child tilesets))))
+               (assoc state
+                      :tileset-list-options options
+                      :selected-indices (selected-tileset-definition-indices state))))
    :on {:list-box/change (fn [state event ctx]
                            (assoc state
                                   :selected-tileset-definition-index
@@ -270,7 +262,7 @@
     (tr/draw-tile! tile (tile-cell-rect index columns tile-size))))
 
 (defun draw-selected-tile-cell! [index columns tile-size]
-  (when (not (nil? index))
+  (when-let [index index]
     (r/rect! (selected-tile-border-rect (tile-cell-rect index
                                                         columns
                                                         tile-size))
@@ -328,38 +320,36 @@
                                                              (-> ctx :view :bounds)
                                                              (count tiles)
                                                              tile-size)]
-                      (do
-                        (ui/stop-propagation! event)
-                        (ui/focus! ctx)
-                        (cond
-                          (nil? index)
+                      (ui/stop-propagation! event)
+                      (ui/focus! ctx)
+                      (cond
+                        (nil? index)
+                        state
+
+                        (= (:button event) :right)
+                        (if (contains? (selected-tileset-tile-selection state)
+                                       index)
                           state
+                          (select-tileset-tile-index state index))
 
-                          (= (:button event) :right)
-                          (if (contains? (selected-tileset-tile-selection state)
-                                         index)
-                            state
-                            (select-tileset-tile-index state index))
-
-                          :default
-                          (if (lb/held-shift? ctx)
-                            (assoc (select-tileset-tile-index state index)
-                                   :tile-grid-selecting? true)
-                            (assoc (select-tileset-tile-index state index)
-                                   :tile-grid-dragging? true))))))
+                        :default
+                        (if (lb/held-shift? ctx)
+                          (assoc (select-tileset-tile-index state index)
+                                 :tile-grid-selecting? true)
+                          (assoc (select-tileset-tile-index state index)
+                                 :tile-grid-dragging? true)))))
    :on-drag-start emit-tile-drag-start!
    :on-drag emit-tile-drag-move!
    :on-drag-end emit-tile-drag-end!
    :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (when (and (= (:button event) :right)
-                               (not (empty? (selected-tileset-tile-selection state))))
-                      (menu/open-context-menu! (tile-context-menu state)
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    (assoc state :tile-grid-selecting? false)))
+                  (ui/stop-propagation! event)
+                  (when (and (= (:button event) :right)
+                             (not (empty? (selected-tileset-tile-selection state))))
+                    (menu/open-context-menu! (tile-context-menu state)
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  (assoc state :tile-grid-selecting? false))
    :on-key-down (fn [state event ctx]
                   (let [tiles (selected-tileset-tiles state)
                         tile-size (selected-tileset-tile-size state)
@@ -380,7 +370,7 @@
                         (ui/stop-propagation! event)
                         (if (= delta :delete)
                           (do
-                            (when (not (empty? (selected-tileset-tile-selection state)))
+                            (unless (empty? (selected-tileset-tile-selection state))
                               (ui/emit! (:view ctx)
                                         :tile/context-command
                                         {:command :delete
@@ -394,14 +384,13 @@
                             (select-tileset-tile-index state index)))))))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :tile/context-command
-                                       {:command (-> payload :payload :command)
-                                        :tile-indices
-                                        (selected-tileset-tile-selection state)}))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :tile/context-command
+                                     {:command (-> payload :payload :command)
+                                      :tile-indices
+                                      (selected-tileset-tile-selection state)})))
                        state)}
    :render (fn [state ctx]
              (let [tiles (selected-tileset-tiles state)
@@ -409,10 +398,9 @@
                    selection (selected-tileset-tile-selection state)
                    columns (tile-grid-columns (-> ctx :view :bounds)
                                               tile-size)]
-               (do
-                 (for-indexed [index tile tiles]
-                   (draw-tile-cell! tile index columns tile-size))
-                 (draw-selected-tile-cells! selection columns tile-size))))})
+               (for-indexed [index tile tiles]
+                 (draw-tile-cell! tile index columns tile-size))
+               (draw-selected-tile-cells! selection columns tile-size)))})
 
 (def default-tile-grid-scrollbar-size 14)
 
@@ -469,12 +457,11 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (do
-                 (when (> (count children) 0)
-                   (ui/style! (nth children 0)
-                              (tileset-tile-grid-scroll-content-style
-                               state)))
-                 state)))
+               (when (> (count children) 0)
+                 (ui/style! (nth children 0)
+                            (tileset-tile-grid-scroll-content-style
+                             state)))
+               state))
    :children [(tileset-tile-grid-content-child)]})
 
 (defcomponent tileset-tile-grid-scroll-pane
@@ -523,18 +510,17 @@
 	                   tile-size (data/map-tile-dim
 	                              (or (:tile-size preview) tile-grid-cell-size))
                    visible? (not (nil? preview))]
-               (do
-                 (ui/style! (:view ctx)
-                            (if visible?
-                              {:hidden false
-                               :left (:x position)
-                               :top (:y position)
-	                               :width (:w tile-size)
-	                               :height (:h tile-size)}
-                              {:hidden true}))
-                 (assoc state
-                        :tile (:tile preview)
-                        :tile-size tile-size))))
+               (ui/style! (:view ctx)
+                          (if visible?
+                            {:hidden false
+                             :left (:x position)
+                             :top (:y position)
+	                           :width (:w tile-size)
+	                           :height (:h tile-size)}
+                            {:hidden true}))
+               (assoc state
+                      :tile (:tile preview)
+                      :tile-size tile-size)))
    :render (fn [state ctx]
              (let [tile (:tile state)
 	                   tile-size (data/map-tile-dim
@@ -557,17 +543,16 @@
                    inset (if (and (>= width 32) (>= height 32)) 8 2)
                    tile-width (max 1 (- width (* inset 2)))
                    tile-height (max 1 (- height (* inset 2)))]
-               (do
-                 (r/rect! {:x 0 :y 0 :w width :h height}
-                          {:fill true
-                           :color {:r 0x12 :g 0x15 :b 0x18}})
-                 (when tile
-                   (tr/draw-tile! tile {:x inset
-                                        :y inset
-                                        :w tile-width
-                                        :h tile-height}))
-                 (r/rect! {:x 0 :y 0 :w width :h height}
-                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+               (r/rect! {:x 0 :y 0 :w width :h height}
+                        {:fill true
+                         :color {:r 0x12 :g 0x15 :b 0x18}})
+               (when tile
+                 (tr/draw-tile! tile {:x inset
+                                      :y inset
+                                      :w tile-width
+                                      :h tile-height}))
+               (r/rect! {:x 0 :y 0 :w width :h height}
+                        {:color {:r 0x00 :g 0x00 :b 0x00}})))})
 
 (defcomponent tile-definition-row {})
 
@@ -601,11 +586,10 @@
                     (tile-type-index (:tile state))
                     :disabled? (nil? (:tile state))))
    :on {:combo-box/change (fn [state event ctx]
-                            (do
-                              (ui/emit! (:view ctx)
-                                        :tile-definition/type-change
-                                        (-> event :payload :value))
-                              state))}
+                            (ui/emit! (:view ctx)
+                                      :tile-definition/type-change
+                                      (-> event :payload :value))
+                            state)}
    :children [(cb/make {:options tile-type-options
                         :selected-index (ui/bind-state :selected-index)
                         :disabled? (ui/bind-state :disabled?)})]})
@@ -617,12 +601,11 @@
                     :align-items :center
                     :gap 8}}
    :on {:slider/change (fn [state event ctx]
-                         (do
-                           (ui/emit! (:view ctx)
-                                     :tile-definition/color-channel-change
-                                     {:channel (:channel state)
-                                      :value (:payload event)})
-                           state))}
+                         (ui/emit! (:view ctx)
+                                   :tile-definition/color-channel-change
+                                   {:channel (:channel state)
+                                    :value (:payload event)})
+                         state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 18}
@@ -648,15 +631,14 @@
                     :gap 6}}
    :update (fn [state ctx]
              (let [color (or (:color (:tile state)) default-tile-color)]
-               (do
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if (= (:type (:tile state)) :color) :visible :none))
-                 (assoc state
-                        :color color
-                        :r (:r color)
-                        :g (:g color)
-                        :b (:b color)))))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if (= (:type (:tile state)) :color) :visible :none))
+               (assoc state
+                      :color color
+                      :r (:r color)
+                      :g (:g color)
+                      :b (:b color))))
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value "RGB"}}
@@ -709,41 +691,37 @@
                    sprite? (= (:type tile) :sprite)
                    snap-to-grid? (sse/source-position-snap-enabled? state)
                    snap-interval (sse/source-position-snap-interval state)]
-               (do
-                 (when (not= sprite? (:sprite-editor-visible? state))
-                   (ui/replace-child! (:view ctx)
-                                      "sprite-source-editor-child"
-                                      (if sprite?
-                                        (tile-sprite-editor-child)
-                                        (tile-sprite-editor-placeholder-child))))
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if sprite? :visible :none))
-                 (assoc state
-                        :sprite-editor-visible? sprite?
-                        :tile-size tile-size
-                        :source-snap-to-grid? snap-to-grid?
-                        :source-snap-interval snap-interval
-                        :source-snap-interval-label (str snap-interval)))))
+               (when (not= sprite? (:sprite-editor-visible? state))
+                 (ui/replace-child! (:view ctx)
+                                    "sprite-source-editor-child"
+                                    (if sprite?
+                                      (tile-sprite-editor-child)
+                                      (tile-sprite-editor-placeholder-child))))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if sprite? :visible :none))
+               (assoc state
+                      :sprite-editor-visible? sprite?
+                      :tile-size tile-size
+                      :source-snap-to-grid? snap-to-grid?
+                      :source-snap-interval snap-interval
+                      :source-snap-interval-label (str snap-interval))))
    :on {:checkbox/change (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :tile-definition/source-snap-change
-                                       (-> event :payload :checked?))
-                             state))
-        :slider/change (fn [state event ctx]
-                         (do
                            (ui/emit! (:view ctx)
-                                      :tile-definition/source-snap-interval-change
-                                     (:payload event))
-                           state))
+                                     :tile-definition/source-snap-change
+                                     (-> event :payload :checked?))
+                           state)
+        :slider/change (fn [state event ctx]
+                         (ui/emit! (:view ctx)
+                                   :tile-definition/source-snap-interval-change
+                                   (:payload event))
+                         state)
         :sprite-source-editor/change
         (fn [state event ctx]
-          (do
-            (ui/emit! (:view ctx)
-                      :tile-definition/sprite-source-change
-                      (:payload event))
-            state))}
+          (ui/emit! (:view ctx)
+                    :tile-definition/sprite-source-change
+                    (:payload event))
+          state)}
    :children [(tile-sprite-editor-placeholder-child)]})
 
 (defun tile-definition-tile-tab-children []
@@ -873,11 +851,10 @@
                     :seed (tile-substitution-seed (:tile state))
                     :disabled? (nil? (:tile state))))
    :on {:number-input/change (fn [state event ctx]
-                               (do
-                                 (ui/emit! (:view ctx)
-                                           :tile-substitution/seed-change
-                                           (-> event :payload :value))
-                                 state))}
+                               (ui/emit! (:view ctx)
+                                         :tile-substitution/seed-change
+                                         (-> event :payload :value))
+                               state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 58}
@@ -903,10 +880,9 @@
                       :selected-indices
                       (tile-substitution-choice-indices state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      (ui/focus! ctx)
-                      state))
+                    (ui/stop-propagation! event)
+                    (ui/focus! ctx)
+                    state)
    :on-mouse-up (fn [state event ctx]
                   (let [tiles (selected-tileset-tiles state)
                         tile-size (selected-tileset-tile-size state)
@@ -917,43 +893,40 @@
                                                            tile-size)
                         columns (tile-grid-columns (-> ctx :view :bounds)
                                                    tile-size)]
-                    (do
-                      (ui/stop-propagation! event)
-                      (if (or (:disabled? state)
-                              (not= (:button event) :left)
-                              (nil? index))
-                        state
-                        (let [selection (if (and (lb/held-shift? ctx)
-                                                 (not (nil? (:selection-anchor state))))
-                                          (add-selection-range
-                                           (:selected-indices state)
-                                           (:selection-anchor state)
-                                           index
-                                           columns
-                                           item-count)
-                                          (toggle-selection-index
-                                           (:selected-indices state)
-                                           index
-                                           item-count))]
-                          (do
-                            (ui/emit! (:view ctx)
-                                      :tile-substitution/choices-change
-                                      (tile-ids-for-selection-indices
-                                       state
-                                       selection))
-                            (assoc state
-                                   :selected-indices selection
-                                   :selection-anchor index)))))))
+                    (ui/stop-propagation! event)
+                    (if (or (:disabled? state)
+                            (not= (:button event) :left)
+                            (nil? index))
+                      state
+                      (let [selection (if (and (lb/held-shift? ctx)
+                                               (not (nil? (:selection-anchor state))))
+                                        (add-selection-range
+                                         (:selected-indices state)
+                                         (:selection-anchor state)
+                                         index
+                                         columns
+                                         item-count)
+                                        (toggle-selection-index
+                                         (:selected-indices state)
+                                         index
+                                         item-count))]
+                        (ui/emit! (:view ctx)
+                                  :tile-substitution/choices-change
+                                  (tile-ids-for-selection-indices
+                                   state
+                                   selection))
+                        (assoc state
+                               :selected-indices selection
+                               :selection-anchor index)))))
    :render (fn [state ctx]
              (let [tiles (selected-tileset-tiles state)
                    tile-size (selected-tileset-tile-size state)
                    selection (tile-substitution-choice-indices state)
                    columns (tile-grid-columns (-> ctx :view :bounds)
                                               tile-size)]
-               (do
-                 (for-indexed [index tile tiles]
-                   (draw-tile-cell! tile index columns tile-size))
-                 (draw-selected-tile-cells! selection columns tile-size))))})
+               (for-indexed [index tile tiles]
+                 (draw-tile-cell! tile index columns tile-size))
+               (draw-selected-tile-cells! selection columns tile-size)))})
 
 (defun tile-substitution-grid-scroll-content-size [state ctx]
   (let [tiles (selected-tileset-tiles state)
@@ -982,12 +955,11 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (do
-                 (when (> (count children) 0)
-                   (ui/style! (nth children 0)
-                              (tileset-tile-grid-scroll-content-style
-                               state)))
-                 state)))
+               (when (> (count children) 0)
+                 (ui/style! (nth children 0)
+                            (tileset-tile-grid-scroll-content-style
+                             state)))
+               state))
    :children [(tile-substitution-choice-grid-child)]})
 
 (defcomponent tile-substitution-choice-grid-scroll-pane
@@ -1055,12 +1027,11 @@
                       :weight (or (:weight choice) 1)
                       :disabled? (nil? (:tile state)))))
    :on {:number-input/change (fn [state event ctx]
-                               (do
-                                 (ui/emit! (:view ctx)
-                                           :tile-substitution/choice-weight-change
-                                           {:index (:choice-index state)
-                                            :weight (-> event :payload :value)})
-                                 state))}
+                               (ui/emit! (:view ctx)
+                                         :tile-substitution/choice-weight-change
+                                         {:index (:choice-index state)
+                                          :weight (-> event :payload :value)})
+                               state)}
    :children [(ni/make {:value (ui/bind-state :weight)
                         :min 0
                         :step 1
@@ -1128,13 +1099,12 @@
                     :gap 6}}
    :update (fn [state ctx]
              (let [choices (tile-substitution-choices (:tile state))]
-               (do
-                 (when (not= choices (:rendered-choices state))
-                   (ui/replace-child!
-                    (:view ctx)
-                    "tile-substitution-choices-content"
-                    (tile-substitution-choices-content-child choices)))
-                 (assoc state :rendered-choices choices))))
+               (when (not= choices (:rendered-choices state))
+                 (ui/replace-child!
+                  (:view ctx)
+                  "tile-substitution-choices-content"
+                  (tile-substitution-choices-content-child choices)))
+               (assoc state :rendered-choices choices)))
    :children [(tile-substitution-choices-content-child [])]})
 
 (defun tile-definition-variants-tab-children []
@@ -1288,24 +1258,22 @@
                                                           (:weight payload))))
         :tab-panel/change
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (assoc state
-                   :tile-definition-detail-tab
-                   (-> event :payload :tab))))
+          (ui/stop-propagation! event)
+          (assoc state
+                 :tile-definition-detail-tab
+                 (-> event :payload :tab)))
         :property-value/change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (do
-              (ui/stop-propagation! event)
-              (case (:kind payload)
-                :tile
-                (property-model/set-selected-tile-property-value
-                 state
-                 (:property-id payload)
-                 (:value payload))
+            (ui/stop-propagation! event)
+            (case (:kind payload)
+              :tile
+              (property-model/set-selected-tile-property-value
+               state
+               (:property-id payload)
+               (:value payload))
 
-                :default state))))}
+              :default state)))}
    :children [{:mode 'tile-definition-row
                :style {:width :fill
                        :height 76
@@ -1360,12 +1328,11 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (do
-                 (when (> (count children) 0)
-                   (ui/style! (nth children 0)
-                              (tile-definition-panel-scroll-content-style
-                               state)))
-                 state)))
+               (when (> (count children) 0)
+                 (ui/style! (nth children 0)
+                            (tile-definition-panel-scroll-content-style
+                             state)))
+               state))
    :children [(tile-definition-panel-content-child)]})
 
 (defcomponent tile-definition-panel-scroll-row

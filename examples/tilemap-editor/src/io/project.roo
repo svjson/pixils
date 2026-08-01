@@ -12,7 +12,7 @@
   (if (not (blank? (:directory payload)))
     (:directory payload)
     (let [directory (io/parent-path (:path payload))]
-      (when (not (blank? directory))
+      (unless (blank? directory)
         directory))))
 
 (defun save-project-result? [payload]
@@ -26,11 +26,10 @@
        (not (nil? (:path payload)))))
 
 (defun save-project! [state payload]
-  (do
-    (io/spit-edn! (:path payload)
-                  (data/project-document (maps/commit-active-map state))
-                  project-save-edn-options)
-    payload))
+  (io/spit-edn! (:path payload)
+                (data/project-document (maps/commit-active-map state))
+                project-save-edn-options)
+  payload)
 
 (defun recent-project-entry [payload]
   {:path (:path payload)
@@ -70,17 +69,15 @@
      max-recent-projects)))
 
 (defun write-recent-projects! [path projects]
-  (do
-    (when path
-      (io/spit-edn! path (recent-project-document projects)))
-    projects))
+  (when path
+    (io/spit-edn! path (recent-project-document projects)))
+  projects)
 
 (defun remember-project! [state payload]
   (let [projects (promote-recent-project (:recent-projects state)
                                          (recent-project-entry payload))]
-    (do
-      (write-recent-projects! (:project-history-path state) projects)
-      (assoc state :recent-projects projects))))
+    (write-recent-projects! (:project-history-path state) projects)
+    (assoc state :recent-projects projects)))
 
 (defun valid-project-document? [project]
   (= (:format project) data/project-format))

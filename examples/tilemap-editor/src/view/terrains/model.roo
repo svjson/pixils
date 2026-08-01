@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.terrains.model
-  (:require [pixils.tilemap.project.model :as data]
+  (:require [roo.string :as string]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]))
 
 (defun terrain-set-options [terrain-sets]
@@ -38,9 +39,9 @@
   (:terrain-set transition))
 
 (defun transition-id-label [value]
-  (when (not (nil? value))
+  (unless (nil? value)
     (let [text (str value)]
-      (if (= ":" (substr text 0 1))
+      (if (string/starts-with? text ":")
         (substr text 1)
         text))))
 
@@ -276,7 +277,7 @@
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
@@ -312,7 +313,7 @@
       id)))
 
 (defun id-from-input [items value exclude-index]
-  (when (not (blank? value))
+  (unless (blank? value)
     (unique-id-from-except items (kebab-case value) exclude-index nil)))
 
 (defun unique-terrain-set-id [terrain-sets]
@@ -601,8 +602,8 @@
           mask-index (selected-mask-index mask-set
                                           (:selected-mask-index state))
           masks (or (:masks mask-set) [])
-          mask (when (not (nil? mask-index))
-                 (nth masks mask-index))
+          mask (when-let [index mask-index]
+                 (nth masks index))
           duplicate (when mask
                       (duplicate-mask-with-id masks mask id label))]
       (if duplicate
@@ -975,8 +976,8 @@
           terrain-index (selected-terrain-index terrain-set
                                                 (:selected-terrain-index state))
           terrains (or (:terrains terrain-set) [])
-          terrain (when (not (nil? terrain-index))
-                    (nth terrains terrain-index))
+          terrain (when-let [index terrain-index]
+                    (nth terrains index))
           duplicate (when terrain
                       (duplicate-terrain-with-id terrains terrain name id))]
       (if duplicate
@@ -1880,8 +1881,8 @@
           terrain-index (selected-terrain-index terrain-set
                                                 (:selected-terrain-index state))
           terrains (or (:terrains terrain-set) [])
-          terrain (when (not (nil? terrain-index))
-                    (nth terrains terrain-index))]
+          terrain (when-let [index terrain-index]
+                    (nth terrains index))]
       (if terrain
         (let [terrain-set-id (:id terrain-set)
               terrain-id (:id terrain)
@@ -2092,8 +2093,8 @@
                        :down (when (and index (< index (dec (count rules))))
                                (inc index))
                        :default nil)]
-    (:id (when (not (nil? target-index))
-           (nth rules target-index)))))
+    (:id (when-let [index target-index]
+           (nth rules index)))))
 
 (defun move-selected-terrain-rule [state direction]
   (let [ruleset-id (selected-terrain-ruleset-id state)
@@ -2154,8 +2155,8 @@
         remaining (remove-rule-by-id rules rule-id)
         next-index (when (> (count remaining) 0)
                      (min (or index 0) (dec (count remaining))))
-        next-rule-id (:id (when (not (nil? next-index))
-                            (nth remaining next-index)))]
+        next-rule-id (:id (when-let [index next-index]
+                            (nth remaining index)))]
     (if (and ruleset-id rule-id)
       (assoc (assoc state
                     :rulesets (update-ruleset

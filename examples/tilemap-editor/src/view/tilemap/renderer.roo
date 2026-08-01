@@ -98,14 +98,13 @@
   (let [tiles (:tiles layer)]
     (dotimes [y height]
       (dotimes [x width]
-        (let [tile-ref (nth (nth tiles y) x)]
-          (when (not (nil? tile-ref))
-            (let [tile (layer-cell-tile tileset-definitions
-                                        terrain-sets
-                                        layer
-                                        tile-ref)]
-              (when tile
-                (draw-tile! tile (tile-rect x y offset zoom))))))))))
+        (when-let [tile-ref (nth (nth tiles y) x)]
+          (let [tile (layer-cell-tile tileset-definitions
+                                      terrain-sets
+                                      layer
+                                      tile-ref)]
+            (when tile
+              (draw-tile! tile (tile-rect x y offset zoom)))))))))
 
 (defun render-grid-overlay! [offset zoom width height]
   (let [tile-size (tm/scaled-tile-size {:tile-size data/tile-size} zoom)
@@ -117,28 +116,26 @@
         color {:r 0x12 :g 0x15 :b 0x18}]
     (when (and (> width 0)
                (> height 0))
-	      (do
-	        (dotimes [x-index (inc width)]
-	          (let [x (grid-line-position x-index width (:w tile-size) (:x offset))]
-	            (r/line! {:x x :y top}
-	                     {:x x :y bottom}
-	                     color)))
-	        (dotimes [y-index (inc height)]
-	          (let [y (grid-line-position y-index height (:h tile-size) (:y offset))]
-	            (r/line! {:x left :y y}
-	                     {:x right :y y}
-	                     color)))))))
+	      (dotimes [x-index (inc width)]
+	        (let [x (grid-line-position x-index width (:w tile-size) (:x offset))]
+	          (r/line! {:x x :y top}
+	                   {:x x :y bottom}
+	                   color)))
+	      (dotimes [y-index (inc height)]
+	        (let [y (grid-line-position y-index height (:h tile-size) (:y offset))]
+	          (r/line! {:x left :y y}
+	                   {:x right :y y}
+	                   color))))))
 
 (defun render-layers! [tileset-definitions terrain-sets layers hidden-layer-indices offset zoom show-grid? width height]
-  (do
-    (for-indexed [index layer layers]
-      (when (not (contains? (or hidden-layer-indices []) index))
-        (render-layer! tileset-definitions
-                       terrain-sets
-                       layer
-                       offset
-                       zoom
-                       width
-                       height)))
-    (when show-grid?
-      (render-grid-overlay! offset zoom width height))))
+  (for-indexed [index layer layers]
+    (unless (contains? (or hidden-layer-indices []) index)
+      (render-layer! tileset-definitions
+                     terrain-sets
+                     layer
+                     offset
+                     zoom
+                     width
+                     height)))
+  (when show-grid?
+    (render-grid-overlay! offset zoom width height)))

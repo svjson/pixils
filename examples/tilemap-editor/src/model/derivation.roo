@@ -1,5 +1,6 @@
 (ns tilemap-editor.model.derivation
-  (:require [pixils.tilemap.project.model :as data]))
+  (:require [roo.string :as string]
+            [pixils.tilemap.project.model :as data]))
 
 (def north-bit 1)
 (def east-bit 2)
@@ -551,10 +552,8 @@
 
 (defun source-terrain-signature-row [source-layer y]
   (dotimes [x data/map-width]
-    (let [terrain (cell-at source-layer x y)]
-      (if terrain
-        (solid-terrain-signature terrain)
-        nil))))
+    (when-let [terrain (cell-at source-layer x y)]
+      (solid-terrain-signature terrain))))
 
 (defun source-terrain-signatures [source-layer]
   (dotimes [y data/map-height]
@@ -772,7 +771,7 @@
 
 (defun id-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
@@ -841,7 +840,7 @@
                                         tile-fn
                                         signature-fn
                                         source-mask-fn)]
-    (when (not (empty? cells))
+    (unless (empty? cells)
       {:source-layer (:id source-layer)
        :source-position {:x source-x :y source-y}
        :ruleset (:id ruleset)

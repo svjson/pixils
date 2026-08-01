@@ -48,7 +48,7 @@
                                                    :property-set-panel-disabled?)}
                                :on-click (fn [state event ctx]
                                            (do
-                                             (when (not (:disabled? state))
+                                             (unless (:disabled? state)
                                                (ui/emit! (:view ctx)
                                                          :property-definition/add))
                                              state))}]

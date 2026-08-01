@@ -248,7 +248,7 @@
               (concat ids [(:layer-id pos)])))))
 
 (defun dirty-render-rect [positions]
-  (when (not (empty? (or positions [])))
+  (unless (empty? (or positions []))
     (let [first-pos (head positions)
           bounds (reduce positions
                          {:min-x (:x first-pos)

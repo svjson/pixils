@@ -16,7 +16,7 @@
            (append! result key)))
     (map (keys (or after {}))
          (fn [key]
-           (when (not (contains? result key))
+           (unless (contains? result key)
              (append! result key))))
     result))
 

@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.property-sets.model
-  (:require [pixils.tilemap.project.model :as data]
+  (:require [roo.string :as string]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.terrains.model :as terrains]
             [tilemap-editor.view.tileset.model :as tilesets]))
 
@@ -15,12 +16,12 @@
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
 (defun label-from-id [id]
-  (capitalize (tilesets/clean-name-separators (keyword-label id) 0 "")))
+  (capitalize (tilesets/clean-name-separators (keyword-label id))))
 
 (defun id-exists? [items id]
   (> (count (filter (or items [])
@@ -57,7 +58,7 @@
       candidate)))
 
 (defun id-from-input [items value exclude-index]
-  (when (not (blank? value))
+  (unless (blank? value)
     (unique-id-from-except items (kebab-case value) exclude-index nil)))
 
 (defun unique-property-set-id [property-sets]
@@ -464,7 +465,7 @@
 
 (defun enum-value-token [value]
   (let [label (trim (property-value-label value))]
-    (when (not (blank? label))
+    (unless (blank? label)
       (if (string-contains? label "/" 0)
         label
         (kebab-case label)))))
@@ -746,8 +747,8 @@
   (let [set-index (selected-property-set-index (:property-sets state)
                                                (:selected-property-set-index
                                                 state))
-        property-set (when (not (nil? set-index))
-                       (nth (:property-sets state) set-index))
+        property-set (when-let [index set-index]
+                       (nth (:property-sets state) index))
         property-index (selected-property-index
                         property-set
                         (:selected-property-definition-index state))]

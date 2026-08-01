@@ -14,15 +14,14 @@
            :layout {:direction :row
                     :align-items :center}}
    :on {:checkbox/change (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         :property-set/assignment-change
-                                         {:kind (:kind state)
-                                          :property-set-id (:property-set-id state)
-                                          :attached?
-                                          (-> event :payload :checked?)}))
-                             state))}
+                           (unless (:disabled? state)
+                             (ui/emit! (:view ctx)
+                                       :property-set/assignment-change
+                                       {:kind (:kind state)
+                                        :property-set-id (:property-set-id state)
+                                        :attached?
+                                        (-> event :payload :checked?)}))
+                           state)}
    :children [(chk/make {:label (ui/bind-state :label)
                          :checked? (ui/bind-state :attached?)
                          :value (ui/bind-state :property-set-id)
@@ -73,25 +72,24 @@
   {:style {:width :fill
            :height :shrink}
    :update (fn [state ctx]
-             (do
-               (when (or (not= (:property-sets state)
-                               (:rendered-property-sets state))
-                         (not= (:kind state)
-                               (:rendered-kind state))
-                         (not= (:assigned-property-set-ids state)
-                               (:rendered-assigned-property-set-ids state))
-                         (not= (:disabled? state)
-                               (:rendered-disabled? state)))
-                 (ui/replace-child! (:view ctx)
-                                    "property-set-assignment-list-content"
-                                    (property-set-assignment-list-content-child
-                                     state)))
-               (assoc state
-                      :rendered-property-sets (:property-sets state)
-                      :rendered-kind (:kind state)
-                      :rendered-assigned-property-set-ids
-                      (:assigned-property-set-ids state)
-                      :rendered-disabled? (:disabled? state))))
+             (when (or (not= (:property-sets state)
+                             (:rendered-property-sets state))
+                       (not= (:kind state)
+                             (:rendered-kind state))
+                       (not= (:assigned-property-set-ids state)
+                             (:rendered-assigned-property-set-ids state))
+                       (not= (:disabled? state)
+                             (:rendered-disabled? state)))
+               (ui/replace-child! (:view ctx)
+                                  "property-set-assignment-list-content"
+                                  (property-set-assignment-list-content-child
+                                   state)))
+             (assoc state
+                    :rendered-property-sets (:property-sets state)
+                    :rendered-kind (:kind state)
+                    :rendered-assigned-property-set-ids
+                    (:assigned-property-set-ids state)
+                    :rendered-disabled? (:disabled? state)))
    :children [(property-set-assignment-list-content-child {})]})
 
 (defcomponent property-value-text-control
@@ -99,13 +97,12 @@
            :height 22}
    :on {:text-input/change (fn [state event ctx]
                              (let [value (-> event :payload :value)]
-                               (do
-                                 (ui/emit! (:view ctx)
-                                           :property-value/change
-                                           {:kind (:kind state)
-                                            :property-id (:property-id state)
-                                            :value value})
-                                 (assoc state :value value))))}
+                               (ui/emit! (:view ctx)
+                                         :property-value/change
+                                         {:kind (:kind state)
+                                          :property-id (:property-id state)
+                                          :value value})
+                               (assoc state :value value)))}
    :children [{:mode 'ui/text-input
                :style {:width :fill
                        :height 22}
@@ -133,13 +130,12 @@
                                      (empty? options)))))
    :on {:combo-box/change (fn [state event ctx]
                             (let [value (-> event :payload :value)]
-                              (do
-                                (ui/emit! (:view ctx)
-                                          :property-value/change
-                                          {:kind (:kind state)
-                                           :property-id (:property-id state)
-                                           :value value})
-                                (assoc state :value value))))}
+                              (ui/emit! (:view ctx)
+                                        :property-value/change
+                                        {:kind (:kind state)
+                                         :property-id (:property-id state)
+                                         :value value})
+                              (assoc state :value value)))}
    :children [(cb/make {:options (ui/bind-state :options)
                         :selected-index (ui/bind-state :selected-index)
                         :disabled? (ui/bind-state :disabled?)})]})
@@ -149,13 +145,12 @@
            :height 22}
    :on {:number-input/change (fn [state event ctx]
                                (let [value (-> event :payload :value)]
-                                 (do
-                                   (ui/emit! (:view ctx)
-                                             :property-value/change
-                                             {:kind (:kind state)
-                                              :property-id (:property-id state)
-                                              :value value})
-                                   (assoc state :value value))))}
+                                 (ui/emit! (:view ctx)
+                                           :property-value/change
+                                           {:kind (:kind state)
+                                            :property-id (:property-id state)
+                                            :value value})
+                                 (assoc state :value value)))}
    :children [(ni/make {:value (ui/bind-state :value)
                         :step 1
                         :allow-negative? true
@@ -204,21 +199,20 @@
                            (:default-values state)
                            (:override-values state))
                    value (get values (:id property))]
-               (do
-                 (when (or (not= (:kind state) (:rendered-kind state))
-                           (not= property (:rendered-property state)))
-                   (ui/replace-child! (:view ctx)
-                                      "property-value-control"
-                                      (merge {:id "property-value-control"}
-                                             (property-value-control-child
-                                              property))))
-                 (assoc state
-                        :label (or (:label property)
-                                   (model/keyword-label (:id property)))
-                        :value value
-                        :value-label (model/property-value-label value)
-                        :rendered-kind (:kind state)
-                        :rendered-property property))))})
+               (when (or (not= (:kind state) (:rendered-kind state))
+                         (not= property (:rendered-property state)))
+                 (ui/replace-child! (:view ctx)
+                                    "property-value-control"
+                                    (merge {:id "property-value-control"}
+                                           (property-value-control-child
+                                            property))))
+               (assoc state
+                      :label (or (:label property)
+                                 (model/keyword-label (:id property)))
+                      :value value
+                      :value-label (model/property-value-label value)
+                      :rendered-kind (:kind state)
+                      :rendered-property property)))})
 
 (defun property-value-row-child [property]
   {:mode 'property-value-row
@@ -259,20 +253,19 @@
            :layout {:direction :column
                     :gap 4}}
    :update (fn [state ctx]
-             (do
-               (when (or (not= (:property-sets state)
-                               (:rendered-property-sets state))
-                         (not= (:property-set-ids state)
-                               (:rendered-property-set-ids state)))
-                 (ui/replace-child! (:view ctx)
-                                    "property-value-list-rows"
-                                    (property-value-list-rows-child
-                                     (:property-sets state)
-                                     (:property-set-ids state))))
-               (assoc state
-                      :title-label (or (:title state) "Properties")
-                      :rendered-property-sets (:property-sets state)
-                      :rendered-property-set-ids (:property-set-ids state))))
+             (when (or (not= (:property-sets state)
+                             (:rendered-property-sets state))
+                       (not= (:property-set-ids state)
+                             (:rendered-property-set-ids state)))
+               (ui/replace-child! (:view ctx)
+                                  "property-value-list-rows"
+                                  (property-value-list-rows-child
+                                   (:property-sets state)
+                                   (:property-set-ids state))))
+             (assoc state
+                    :title-label (or (:title state) "Properties")
+                    :rendered-property-sets (:property-sets state)
+                    :rendered-property-set-ids (:property-set-ids state)))
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value (ui/bind-state :title-label)}}

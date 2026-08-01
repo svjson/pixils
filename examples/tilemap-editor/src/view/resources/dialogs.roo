@@ -529,7 +529,7 @@
         image (if (:previous-resource-id state)
                 (image-resource-key (:bundle-id state)
                                     (:previous-resource-id state))
-                (when (not (blank? file-name))
+                (unless (blank? file-name)
                   (do
                     (res/create-bundle! transparency-picker-bundle-id)
                     (res/add-image!

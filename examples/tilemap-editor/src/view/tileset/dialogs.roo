@@ -1654,7 +1654,7 @@
 	   :class :ui/toolbar-button
 	   :on-mouse-up (fn [state event ctx]
 	                  (ui/stop-propagation! event)
-	                  (when (not (:disabled? state))
+	                  (unless (:disabled? state)
 	                    (menu/open-context-menu!
 	                     (tile-add-menu (:has-project-image-resources? state))
 	                     (:global-position event)

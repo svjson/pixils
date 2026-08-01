@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.resources.model
   (:require pixils
             [roo.io :as io]
+            [roo.string :as string]
             [pixils.resource :as res]
             [tilemap-editor.model.maps :as maps]))
 
@@ -12,31 +13,23 @@
       (substr name 0 (- (count name) (count extension))))))
 
 (defun file-directory [path]
-  (when (not (blank? path))
+  (unless (blank? path)
     (let [directory (io/parent-path path)]
-      (when (not (blank? directory))
+      (unless (blank? directory)
         directory))))
 
 (defun absolute-path? [path]
   (and (not (blank? path))
-       (or (= (substr path 0 1) "/")
+       (or (string/starts-with? path "/")
            (and (> (count path) 1)
                 (= (substr path 1 1) ":")))))
 
-(defun path-separator [ch]
-  (if (= ch "\\") "/" ch))
-
-(defun normalize-path-separators [path index out]
-  (if (>= index (count path))
-    out
-    (normalize-path-separators
-     path
-     (inc index)
-     (str out (path-separator (substr path index 1))))))
+(defun normalize-path-separators [path]
+  (string/replace path "\\" "/"))
 
 (defun trim-trailing-path-separator [path]
   (if (and (> (count path) 1)
-           (= (substr path (dec (count path)) 1) "/"))
+           (string/ends-with? path "/"))
     (trim-trailing-path-separator (substr path 0 (dec (count path))))
     path))
 
@@ -116,10 +109,10 @@
                  path
 
                  :default
-                 (let [normalized-path (normalize-path-separators path 0 "")
+                 (let [normalized-path (normalize-path-separators path)
                        normalized-project-directory
                        (trim-trailing-path-separator
-                        (normalize-path-separators project-directory 0 ""))
+                        (normalize-path-separators project-directory))
                        path-parts (path-segments normalized-path 0 "" [])
                        project-parts (path-segments normalized-project-directory 0 "" [])]
                    (if (different-windows-drives? path-parts project-parts)
@@ -170,7 +163,7 @@
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
@@ -224,13 +217,13 @@
   (let [value (or value "")]
     (cond
       (and (= (count value) 7)
-           (= (substr value 0 1) "#"))
+           (string/starts-with? value "#"))
       {:r (hex-pair-value value 1)
        :g (hex-pair-value value 3)
        :b (hex-pair-value value 5)}
 
       (and (= (count value) 4)
-           (= (substr value 0 1) "#"))
+           (string/starts-with? value "#"))
       {:r (short-hex-value value 1)
        :g (short-hex-value value 2)
        :b (short-hex-value value 3)}

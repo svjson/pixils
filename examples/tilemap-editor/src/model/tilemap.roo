@@ -352,7 +352,7 @@
 
 (defun tile-ref-layer-index-by-id [layers layer-id]
   (let [index (layer-index-by-id layers layer-id)
-        layer (when (not (nil? index))
+        layer (when-let [index index]
                 (nth layers index))]
     (if (= (:data-kind layer) :tile-ref)
       index
@@ -1306,8 +1306,8 @@
         tile-y (:y tile-pos)
         layer-index (selected-index (:layers state)
                                     (:selected-layer-index state))
-        layer (when (not (nil? layer-index))
-                (nth (or (:layers state) []) layer-index))]
+        layer (when-let [index layer-index]
+                (nth (or (:layers state) []) index))]
     (if (and layer
              (in-map-bounds-for? state tile-x tile-y))
       (assoc (dissoc (dissoc state :last-map-paint-sample) :map-line)

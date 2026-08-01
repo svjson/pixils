@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.tileset.model
   (:require pixils
             [roo.io :as io]
+            [roo.string :as string]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]))
 
@@ -20,24 +21,15 @@
 
 (def default-import-bundle :project-assets)
 
-(defun clean-name-separators [value index out]
-  (if (>= index (count value))
-    (trim out)
-    (let [ch (substr value index 1)]
-      (clean-name-separators
-       value
-       (inc index)
-       (str out
-            (if (or (= ch "-") (= ch "_"))
-              " "
-              ch))))))
+(defun clean-name-separators [value]
+  (trim (string/replace (string/replace value "-" " ") "_" " ")))
 
 (defun label-from-id [id]
-  (capitalize (clean-name-separators id 0 "")))
+  (capitalize (clean-name-separators id)))
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
@@ -108,14 +100,14 @@
       (substr name 0 (- (count name) (count extension))))))
 
 (defun file-directory [path]
-  (when (not (blank? path))
+  (unless (blank? path)
     (let [directory (io/parent-path path)]
-      (when (not (blank? directory))
+      (unless (blank? directory)
         directory))))
 
 (defun absolute-path? [path]
   (and (not (blank? path))
-       (or (= (substr path 0 1) "/")
+       (or (string/starts-with? path "/")
            (and (> (count path) 1)
                 (= (substr path 1 1) ":")))))
 
@@ -925,7 +917,7 @@
   (let [tile-ref (remove-deleted-tile-ref (:tile choice)
                                           deleted-ids
                                           deleted-indices)]
-    (when (not (data/absent-tile-ref? tile-ref))
+    (unless (data/absent-tile-ref? tile-ref)
       (assoc choice :tile tile-ref))))
 
 (defun remove-deleted-tile-refs-in-tile-substitution

@@ -151,7 +151,7 @@
                    (ui/stop-propagation! event)
                    state)
                  (do
-                   (when (not (:disabled? state))
+                   (unless (:disabled? state)
                      (ui/emit! (:view ctx)
                                :list-box/item-click
                                {:index (:index state)

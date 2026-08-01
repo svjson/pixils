@@ -78,35 +78,33 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (case (:context-kind state)
-                        :terrain-set
-                        (menu/open-context-menu! terrain-set-context-menu
-                                                 (:global-position event)
-                                                 state
-                                                 ctx)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (case (:context-kind state)
+                      :terrain-set
+                      (menu/open-context-menu! terrain-set-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx)
 
-                        :terrain
-                        (menu/open-context-menu! terrain-context-menu
-                                                 (:global-position event)
-                                                 state
-                                                 ctx)
+                      :terrain
+                      (menu/open-context-menu! terrain-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx)
 
-                        :default
-                        nil))
-                    state))
+                      :default
+                      nil))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (do
@@ -157,24 +155,22 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! mask-set-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! mask-set-context-menu
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (do
@@ -209,34 +205,31 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! mask-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! mask-context-menu
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :terrain/mask-context-command
-                                       {:mask-index (:index state)
-                                        :command
-                                        (-> payload :payload :command)}))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :terrain/mask-context-command
+                                     {:mask-index (:index state)
+                                      :command
+                                      (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -278,25 +271,23 @@
    :update (fn [state ctx]
              (let [terrain-sets (or (:terrain-sets state) [])
                    selected-index (:selected-terrain-set-index state)]
-               (do
-                 (when (or (not= terrain-sets (:rendered-terrain-sets state))
-                           (not= selected-index (:rendered-selected-index state)))
-                   (ui/replace-child! (:view ctx)
-                                      "terrain-set-list-box"
-                                      (merge {:id "terrain-set-list-box"}
-                                             (terrain-set-list-child
-                                              terrain-sets
-                                              selected-index))))
-                 (assoc state
-                        :rendered-terrain-sets terrain-sets
-                        :rendered-selected-index selected-index))))
+               (when (or (not= terrain-sets (:rendered-terrain-sets state))
+                         (not= selected-index (:rendered-selected-index state)))
+                 (ui/replace-child! (:view ctx)
+                                    "terrain-set-list-box"
+                                    (merge {:id "terrain-set-list-box"}
+                                           (terrain-set-list-child
+                                            terrain-sets
+                                            selected-index))))
+               (assoc state
+                      :rendered-terrain-sets terrain-sets
+                      :rendered-selected-index selected-index)))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :terrain/set-select
-                                       (-> event :payload :value))
-                             state))}
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :terrain/set-select
+                                     (-> event :payload :value))
+                           state)}
    :children [(merge {:id "terrain-set-list-box"}
                      (terrain-set-list-child [] nil))]})
 
@@ -330,27 +321,25 @@
                                 (:selected-terrain-set-index state))
                    selected-index (:selected-terrain-index state)
                    disabled? (:terrain-list-panel-disabled? state)]
-               (do
-                 (when (or (not= terrain-set (:rendered-terrain-set state))
-                           (not= selected-index (:rendered-selected-index state))
-                           (not= disabled? (:rendered-disabled? state)))
-                   (ui/replace-child! (:view ctx)
-                                      "terrain-list-box"
-                                      (merge {:id "terrain-list-box"}
-                                             (terrain-list-child terrain-set
-                                                                 selected-index
-                                                                 disabled?))))
-                 (assoc state
-                        :rendered-terrain-set terrain-set
-                        :rendered-selected-index selected-index
-                        :rendered-disabled? disabled?))))
+               (when (or (not= terrain-set (:rendered-terrain-set state))
+                         (not= selected-index (:rendered-selected-index state))
+                         (not= disabled? (:rendered-disabled? state)))
+                 (ui/replace-child! (:view ctx)
+                                    "terrain-list-box"
+                                    (merge {:id "terrain-list-box"}
+                                           (terrain-list-child terrain-set
+                                                               selected-index
+                                                               disabled?))))
+               (assoc state
+                      :rendered-terrain-set terrain-set
+                      :rendered-selected-index selected-index
+                      :rendered-disabled? disabled?)))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :terrain/select
-                                       (-> event :payload :value))
-                             state))}
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :terrain/select
+                                     (-> event :payload :value))
+                           state)}
    :children [(merge {:id "terrain-list-box"}
                      (terrain-list-child nil nil true))]})
 
@@ -365,10 +354,9 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
-                                             (ui/emit! (:view ctx)
-                                                       :terrain/add-set)
-                                             state))}]
+                                           (ui/emit! (:view ctx)
+                                                     :terrain/add-set)
+                                           state)}]
             :body-style {:padding 8
                          :height :fill}
             :state {:terrain-sets (ui/bind-state :terrain-sets)
@@ -396,11 +384,10 @@
                                        (ui/bind-state
                                         :terrain-list-panel-disabled?)}
                                :on-click (fn [state event ctx]
-                                           (do
-                                             (when (not (:disabled? state))
-                                               (ui/emit! (:view ctx)
-                                                         :terrain/add))
-                                             state))}]
+                                           (unless (:disabled? state)
+                                             (ui/emit! (:view ctx)
+                                                       :terrain/add))
+                                           state)}]
             :body-style {:padding 8
                          :height :fill}
             :state {:terrain-sets (ui/bind-state :terrain-sets)
@@ -434,12 +421,11 @@
                     :align-items :center
                     :gap 8}}
    :on {:text-input/change (fn [state event ctx]
-                             (do
-                               (ui/emit! (:view ctx)
-                                         :terrain/edit-field-change
-                                         {:field (:field state)
-                                          :value (-> event :payload :value)})
-                               state))}
+                             (ui/emit! (:view ctx)
+                                       :terrain/edit-field-change
+                                       {:field (:field state)
+                                        :value (-> event :payload :value)})
+                             state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 72}
@@ -487,26 +473,23 @@
            :height 48
            :cursor :pointer}
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (when (not (:disabled? state))
-                      (ui/emit! (:view ctx)
-                                :terrain/base-tile-open
-                                {:position (:global-position event)}))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (unless (:disabled? state)
+                    (ui/emit! (:view ctx)
+                              :terrain/base-tile-open
+                              {:position (:global-position event)}))
+                  state)
    :render (fn [state ctx]
-             (do
-               (r/rect! {:x 0 :y 0 :w 48 :h 48}
-                        {:fill true
-                         :color {:r 0x12 :g 0x15 :b 0x18}})
-               (when (:tile state)
-                 (tr/draw-tile! (:tile state) {:x 8 :y 8 :w 32 :h 32}))
-               (r/rect! {:x 0 :y 0 :w 48 :h 48}
-                        {:color {:r 0x00 :g 0x00 :b 0x00}})))})
+             (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                      {:fill true
+                       :color {:r 0x12 :g 0x15 :b 0x18}})
+             (when (:tile state)
+               (tr/draw-tile! (:tile state) {:x 8 :y 8 :w 32 :h 32}))
+             (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                      {:color {:r 0x00 :g 0x00 :b 0x00}}))})
 
 (defcomponent terrain-preview-tileset-selector
   {:style {:width 220
@@ -523,11 +506,10 @@
                       :disabled? (or (nil? terrain-set)
                                      (empty? tilesets)))))
    :on {:combo-box/change (fn [state event ctx]
-                            (do
-                              (ui/emit! (:view ctx)
-                                        :terrain/tileset-change
-                                        (-> event :payload :selected-index))
-                              state))}
+                            (ui/emit! (:view ctx)
+                                      :terrain/tileset-change
+                                      (-> event :payload :selected-index))
+                            state)}
    :children [(cb/make {:options (ui/bind-state :tileset-options)
                         :selected-index
                         (ui/bind-state :selected-preview-tileset-index)
@@ -645,10 +627,9 @@
                                                :disabled?
                                                (ui/bind-state :terrain-disabled?)}
                                        :on-click (fn [state event ctx]
-                                                   (do
-                                                     (ui/emit! (:view ctx)
-                                                               :terrain/edit)
-                                                     state))}]}
+                                                   (ui/emit! (:view ctx)
+                                                             :terrain/edit)
+                                                   state)}]}
                           (terrain-identity-summary-field
                            "Name"
                            (ui/bind-state :terrain-label))]}]})
@@ -662,9 +643,8 @@
     :state {:label "Edit"
             :disabled? (ui/bind-state :set-disabled?)}
     :on-click (fn [state event ctx]
-                (do
-                  (ui/emit! (:view ctx) :terrain/set-edit)
-                  state))}
+                (ui/emit! (:view ctx) :terrain/set-edit)
+                state)}
    {:mode 'ui/text
     :class :ui/muted
     :state {:value "Preview tileset"}}
@@ -858,76 +838,70 @@
            {:color color}))
 
 (defun draw-rule-grid-cell-cross! [color]
-  (do
-    (r/line! {:x 5 :y 5}
-             {:x (- terrain-rule-grid-cell-size 6)
-              :y (- terrain-rule-grid-cell-size 6)}
-             color)
-    (r/line! {:x (- terrain-rule-grid-cell-size 6) :y 5}
-             {:x 5 :y (- terrain-rule-grid-cell-size 6)}
-             color)))
+  (r/line! {:x 5 :y 5}
+           {:x (- terrain-rule-grid-cell-size 6)
+            :y (- terrain-rule-grid-cell-size 6)}
+           color)
+  (r/line! {:x (- terrain-rule-grid-cell-size 6) :y 5}
+           {:x 5 :y (- terrain-rule-grid-cell-size 6)}
+           color))
 
 (defun draw-match-any-other! []
   (let [color {:r 0x5d :g 0xc9 :b 0x9a}
         center (/ terrain-rule-grid-cell-size 2)]
-    (do
-      (r/rect! {:x 9 :y 9 :w 14 :h 14} {:color color})
-      (r/line! {:x center :y 4} {:x center :y 9} color)
-      (r/line! {:x center :y 23} {:x center :y 28} color)
-      (r/line! {:x 4 :y center} {:x 9 :y center} color)
-      (r/line! {:x 23 :y center} {:x 28 :y center} color)
-      (r/text! "?" {:x 12 :y 9} {:color color}))))
+    (r/rect! {:x 9 :y 9 :w 14 :h 14} {:color color})
+    (r/line! {:x center :y 4} {:x center :y 9} color)
+    (r/line! {:x center :y 23} {:x center :y 28} color)
+    (r/line! {:x 4 :y center} {:x 9 :y center} color)
+    (r/line! {:x 23 :y center} {:x 28 :y center} color)
+    (r/text! "?" {:x 12 :y 9} {:color color})))
 
 (defun draw-match-none! []
   (let [color {:r 0xe0 :g 0x66 :b 0x66}]
-    (do
-      (r/line! {:x 8 :y 24} {:x 24 :y 8} color)
-      (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color}))))
+    (r/line! {:x 8 :y 24} {:x 24 :y 8} color)
+    (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})))
 
 (defun draw-match-any-terrain! []
   (let [color {:r 0x5d :g 0xc9 :b 0x9a}]
-    (do
-      (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})
-      (r/text! "A" {:x 12 :y 9} {:color color}))))
+    (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})
+    (r/text! "A" {:x 12 :y 9} {:color color})))
 
 (defun draw-match-different-terrain! []
   (let [color {:r 0xf0 :g 0xb4 :b 0x4f}]
-    (do
-      (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})
-      (r/text! "!=" {:x 9 :y 9} {:color color}))))
+    (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})
+    (r/text! "!=" {:x 9 :y 9} {:color color})))
 
 (defun draw-match-cell! [state ctx]
   (let [condition (:condition state)
         tile (:tile state)]
-    (do
-      (draw-rule-grid-cell-background!)
-      (when tile
-        (tr/draw-tile! tile
-                       {:x 4
-                        :y 4
-                        :w (- terrain-rule-grid-cell-size 8)
-                        :h (- terrain-rule-grid-cell-size 8)}))
-      (when (= condition :ignore)
-        (draw-rule-grid-cell-cross! {:r 0x86 :g 0x91 :b 0x9b}))
-      (when (= condition :none)
-        (draw-match-none!))
-      (when (= condition :any-terrain)
-        (draw-match-any-terrain!))
-      (when (= condition :not-same)
-        (draw-match-different-terrain!))
-      (when (= condition :other-terrain)
-        (draw-match-different-terrain!))
-      (when (= condition :not-same-or-none)
-        (draw-match-different-terrain!))
-      (draw-rule-grid-cell-border! (cond
-                                     (:center? state)
-                                     {:r 0xff :g 0xcc :b 0x66}
+    (draw-rule-grid-cell-background!)
+    (when tile
+      (tr/draw-tile! tile
+                     {:x 4
+                      :y 4
+                      :w (- terrain-rule-grid-cell-size 8)
+                      :h (- terrain-rule-grid-cell-size 8)}))
+    (when (= condition :ignore)
+      (draw-rule-grid-cell-cross! {:r 0x86 :g 0x91 :b 0x9b}))
+    (when (= condition :none)
+      (draw-match-none!))
+    (when (= condition :any-terrain)
+      (draw-match-any-terrain!))
+    (when (= condition :not-same)
+      (draw-match-different-terrain!))
+    (when (= condition :other-terrain)
+      (draw-match-different-terrain!))
+    (when (= condition :not-same-or-none)
+      (draw-match-different-terrain!))
+    (draw-rule-grid-cell-border! (cond
+                                   (:center? state)
+                                   {:r 0xff :g 0xcc :b 0x66}
 
-                                     (:selected? state)
-                                     {:r 0x5a :g 0x9d :b 0xff}
+                                   (:selected? state)
+                                   {:r 0x5a :g 0x9d :b 0xff}
 
-                                     :default
-                                     {:r 0x1f :g 0x26 :b 0x2d})))))
+                                   :default
+                                   {:r 0x1f :g 0x26 :b 0x2d}))))
 
 (defcomponent terrain-match-tile-cell
   {:class :ui/canvas
@@ -949,31 +923,29 @@
                               (terrain-rule-main-tile state)
                               (match-cell-tile state condition)))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      (when (and (:center? state)
-                                 (secondary-mouse-button? event))
-                        (menu/open-context-menu! terrain-rule-transform-menu
-                                                 (:global-position event)
-                                                 state
-                                                 ctx))
-                      (when (and (not (:center? state))
-                                 (:direction state))
-                        (ui/emit! (:view ctx)
-                                  :terrain/rule-match-cycle
-                                  {:direction (:direction state)
-                                   :step (if (= (:button event) :right)
-                                           1
-                                           -1)}))
-                      state))
+                    (ui/stop-propagation! event)
+                    (when (and (:center? state)
+                               (secondary-mouse-button? event))
+                      (menu/open-context-menu! terrain-rule-transform-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    (when (and (not (:center? state))
+                               (:direction state))
+                      (ui/emit! (:view ctx)
+                                :terrain/rule-match-cycle
+                                {:direction (:direction state)
+                                 :step (if (= (:button event) :right)
+                                         1
+                                         -1)}))
+                    state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :terrain/rule-transform
-                                       (-> payload :payload :command)))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :terrain/rule-transform
+                                     (-> payload :payload :command))))
                        state)}
    :render draw-match-cell!})
 
@@ -1041,7 +1013,7 @@
   (or (-> (model/selected-terrain-rule state) :output :anchor) {:x 1 :y 1}))
 
 (defun stamp-grid-tile [state tile-ref]
-  (when (not (nil? tile-ref))
+  (when-let [tile-ref tile-ref]
     (let [layer (stamp-layer-for-selected-rule state)]
       (data/tile-in (:tilesets state) (:tileset layer) tile-ref))))
 
@@ -1057,24 +1029,22 @@
          (= y (:y pos)))))
 
 (defun emit-stamp-grid-cell-paint! [state event ctx]
-  (let [mask-ref (when (not (secondary-mouse-button? event))
+  (let [mask-ref (unless (secondary-mouse-button? event)
                    (model/mask-ref-with-polarity
                     (:terrain-rule-selected-mask state)
                     (:terrain-rule-mask-polarity state)))
         tile-ref (when (and (nil? mask-ref)
                             (not (secondary-mouse-button? event)))
                    (model/selected-rule-stamp-tile state))]
-    (if (:visible? state)
-      (do
-        (ui/stop-propagation! event)
-        (ui/emit! (:view ctx)
-                  :terrain/rule-stamp-paint
-                  {:x (:stamp-x state)
-                   :y (:stamp-y state)
-                   :tile tile-ref
-                   :mask mask-ref})
-        state)
-      state)))
+    (when (:visible? state)
+      (ui/stop-propagation! event)
+      (ui/emit! (:view ctx)
+                :terrain/rule-stamp-paint
+                {:x (:stamp-x state)
+                 :y (:stamp-y state)
+                 :tile tile-ref
+                 :mask mask-ref})))
+  state)
 
 (defun emit-stamp-grid-cell-drop! [state event ctx]
   (let [payload (:payload event)]
@@ -1113,39 +1083,37 @@
           tile-ref (nth (or (nth rows y) []) x)
           tile (stamp-grid-tile state tile-ref)
           mask-ref (nth (or (nth (or (:transition-masks layer) []) y) []) x)]
-      (do
-        (r/rect! {:x 0
-                  :y 0
-                  :w terrain-rule-grid-cell-size
-                  :h terrain-rule-grid-cell-size}
-                 {:fill true
-                  :color {:r 0x0b :g 0x0d :b 0x10}})
-        (when tile
-          (tr/draw-tile! tile
-                         {:x 4
-                          :y 4
-                          :w (- terrain-rule-grid-cell-size 8)
-                          :h (- terrain-rule-grid-cell-size 8)}))
-        (when (and (not tile) mask-ref)
-          (do
-            (r/rect! {:x 7
-                      :y 7
-                      :w (- terrain-rule-grid-cell-size 14)
-                      :h (- terrain-rule-grid-cell-size 14)}
-                     {:color {:r 0x5d :g 0xc9 :b 0x9a}})
-            (r/text! "M"
-                     {:x 15 :y 13}
-                     {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
-        (r/rect! {:x 0
-                  :y 0
-                  :w terrain-rule-grid-cell-size
-                  :h terrain-rule-grid-cell-size}
-                 {:color (if (and (= x (:x anchor))
-                                  (= y (:y anchor)))
-                           {:r 0xff :g 0xcc :b 0x66}
-                           (if (stamp-grid-cell-selected? state x y)
-                             {:r 0x5a :g 0x9d :b 0xff}
-                             {:r 0x1f :g 0x26 :b 0x2d}))})))))
+      (r/rect! {:x 0
+                :y 0
+                :w terrain-rule-grid-cell-size
+                :h terrain-rule-grid-cell-size}
+               {:fill true
+                :color {:r 0x0b :g 0x0d :b 0x10}})
+      (when tile
+        (tr/draw-tile! tile
+                       {:x 4
+                        :y 4
+                        :w (- terrain-rule-grid-cell-size 8)
+                        :h (- terrain-rule-grid-cell-size 8)}))
+      (when (and (not tile) mask-ref)
+        (r/rect! {:x 7
+                  :y 7
+                  :w (- terrain-rule-grid-cell-size 14)
+                  :h (- terrain-rule-grid-cell-size 14)}
+                 {:color {:r 0x5d :g 0xc9 :b 0x9a}})
+        (r/text! "M"
+                 {:x 15 :y 13}
+                 {:color {:r 0x5d :g 0xc9 :b 0x9a}}))
+      (r/rect! {:x 0
+                :y 0
+                :w terrain-rule-grid-cell-size
+                :h terrain-rule-grid-cell-size}
+               {:color (if (and (= x (:x anchor))
+                                (= y (:y anchor)))
+                         {:r 0xff :g 0xcc :b 0x66}
+                         (if (stamp-grid-cell-selected? state x y)
+                           {:r 0x5a :g 0x9d :b 0xff}
+                           {:r 0x1f :g 0x26 :b 0x2d}))}))))
 
 (defcomponent terrain-stamp-grid-cell
   {:focusable true
@@ -1160,20 +1128,19 @@
                    local-y (or (:stamp-local-y state) 0)
                    visible? (and (< local-x (:w unit))
                                  (< local-y (:h unit)))]
-               (do
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if visible? :visible :none))
-                 (assoc-in! ctx
-                            [:view :style :width]
-                            (if visible? terrain-rule-grid-cell-size 0))
-                 (assoc-in! ctx
-                            [:view :style :height]
-                            (if visible? terrain-rule-grid-cell-size 0))
-                 (assoc state
-                        :stamp-x (+ (:x anchor) local-x)
-                        :stamp-y (+ (:y anchor) local-y)
-                        :visible? visible?))))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if visible? :visible :none))
+               (assoc-in! ctx
+                          [:view :style :width]
+                          (if visible? terrain-rule-grid-cell-size 0))
+               (assoc-in! ctx
+                          [:view :style :height]
+                          (if visible? terrain-rule-grid-cell-size 0))
+               (assoc state
+                      :stamp-x (+ (:x anchor) local-x)
+                      :stamp-y (+ (:y anchor) local-y)
+                      :visible? visible?)))
    :on-mouse-down emit-stamp-grid-cell-paint!
    :on-click emit-stamp-grid-cell-paint!
    :on-drag emit-stamp-grid-cell-paint!
@@ -1216,15 +1183,14 @@
              (let [unit (model/selected-terrain-unit state)
                    visible? (< local-y (:h unit))
                    size (terrain-stamp-grid-size-for-unit unit)]
-               (do
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if visible? :visible :none))
-                 (assoc-in! ctx [:view :style :width] (:w size))
-                 (assoc-in! ctx
-                            [:view :style :height]
-                            (if visible? terrain-rule-grid-cell-size 0))
-                 state)))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if visible? :visible :none))
+               (assoc-in! ctx [:view :style :width] (:w size))
+               (assoc-in! ctx
+                          [:view :style :height]
+                          (if visible? terrain-rule-grid-cell-size 0))
+               state))
    :state (ui/bind-state)
    :children [(terrain-stamp-grid-cell-child 0 local-y)
               (terrain-stamp-grid-cell-child 1 local-y)]})
@@ -1237,10 +1203,9 @@
    :update (fn [state ctx]
              (let [size (terrain-stamp-grid-size-for-unit
                          (model/selected-terrain-unit state))]
-               (do
-                 (assoc-in! ctx [:view :style :width] (:w size))
-                 (assoc-in! ctx [:view :style :height] (:h size))
-                 state)))
+               (assoc-in! ctx [:view :style :width] (:w size))
+               (assoc-in! ctx [:view :style :height] (:h size))
+               state))
    :children [(terrain-stamp-grid-row 0)
               (terrain-stamp-grid-row 1)]})
 
@@ -1258,29 +1223,27 @@
 
 (defun draw-terrain-signature-unknown! []
   (let [color {:r 0x86 :g 0x91 :b 0x9b}]
-    (do
-      (draw-rule-grid-cell-cross! color)
-      (r/text! "?" {:x 12 :y 9} {:color color}))))
+    (draw-rule-grid-cell-cross! color)
+    (r/text! "?" {:x 12 :y 9} {:color color})))
 
 (defun draw-terrain-signature-cell! [state ctx]
   (let [value (:signature-value state)
         tile (:signature-tile state)]
-    (do
-      (draw-rule-grid-cell-background!)
-      (when tile
-        (tr/draw-tile! tile
-                       {:x 4
-                        :y 4
-                        :w (- terrain-rule-grid-cell-size 8)
-                        :h (- terrain-rule-grid-cell-size 8)}))
-      (when (= value :none)
-        (draw-terrain-signature-none!))
-      (when (nil? value)
-        (draw-terrain-signature-unknown!))
-      (draw-rule-grid-cell-border!
-       (if (:center? state)
-         {:r 0xff :g 0xcc :b 0x66}
-         {:r 0x1f :g 0x26 :b 0x2d})))))
+    (draw-rule-grid-cell-background!)
+    (when tile
+      (tr/draw-tile! tile
+                     {:x 4
+                      :y 4
+                      :w (- terrain-rule-grid-cell-size 8)
+                      :h (- terrain-rule-grid-cell-size 8)}))
+    (when (= value :none)
+      (draw-terrain-signature-none!))
+    (when (nil? value)
+      (draw-terrain-signature-unknown!))
+    (draw-rule-grid-cell-border!
+     (if (:center? state)
+       {:r 0xff :g 0xcc :b 0x66}
+       {:r 0x1f :g 0x26 :b 0x2d}))))
 
 (defcomponent terrain-signature-cell
   {:class :ui/canvas
@@ -1293,16 +1256,15 @@
                       :signature-value value
                       :signature-tile (terrain-signature-tile state value))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      (when (:direction state)
-                        (ui/emit! (:view ctx)
-                                  :terrain/rule-output-signature-cycle
-                                  {:direction (:direction state)
-                                   :step (if (= (:button event) :right)
-                                           -1
-                                           1)}))
-                      state))
+                    (ui/stop-propagation! event)
+                    (when (:direction state)
+                      (ui/emit! (:view ctx)
+                                :terrain/rule-output-signature-cycle
+                                {:direction (:direction state)
+                                 :step (if (= (:button event) :right)
+                                         -1
+                                         1)}))
+                    state)
    :render draw-terrain-signature-cell!})
 
 (defun terrain-signature-cell-child [direction]
@@ -1443,7 +1405,7 @@
     (if (nil? index) [] [index])))
 
 (defun terrain-stamp-tile-at-picker-index [state index]
-  (when (not (nil? index))
+  (when-let [index index]
     (nth (terrain-stamp-tile-options state) index)))
 
 (defun terrain-stamp-tile-drag-payload [state event ctx]
@@ -1466,30 +1428,27 @@
 
 (defun emit-terrain-stamp-tile-drag-start! [state event ctx]
   (let [payload (:payload event)]
-    (do
-      (when payload
-        (ui/emit! (:view ctx)
-                  :terrain/stamp-tile-drag-start
-                  (assoc payload
-                         :position
-                         (terrain-stamp-tile-drag-position event payload))))
-      state)))
+    (when payload
+      (ui/emit! (:view ctx)
+                :terrain/stamp-tile-drag-start
+                (assoc payload
+                       :position
+                       (terrain-stamp-tile-drag-position event payload))))
+    state))
 
 (defun emit-terrain-stamp-tile-drag-move! [state event ctx]
   (let [payload (:payload event)]
-    (do
-      (when payload
-        (ui/emit! (:view ctx)
-                  :terrain/stamp-tile-drag-move
-                  (assoc payload
-                         :position
-                         (terrain-stamp-tile-drag-position event payload))))
-      state)))
+    (when payload
+      (ui/emit! (:view ctx)
+                :terrain/stamp-tile-drag-move
+                (assoc payload
+                       :position
+                       (terrain-stamp-tile-drag-position event payload))))
+    state))
 
 (defun emit-terrain-stamp-tile-drag-end! [state event ctx]
-  (do
-    (ui/emit! (:view ctx) :terrain/stamp-tile-drag-end nil)
-    state))
+  (ui/emit! (:view ctx) :terrain/stamp-tile-drag-end nil)
+  state)
 
 (defun select-terrain-stamp-tile-at-event! [state event ctx]
   (let [options (terrain-stamp-tile-options state)
@@ -1498,52 +1457,49 @@
                (-> ctx :view :bounds)
                (count options))
         option (terrain-stamp-tile-at-picker-index state index)]
-    (do
-      (ui/stop-propagation! event)
-      (ui/focus! ctx)
-      (when (not (nil? index))
-        (ui/emit! (:view ctx)
-                  :terrain/rule-stamp-tile-select
-                  {:tile (:value option)
-                   :output-tab (terrain-standard-output-tab state)}))
-      state)))
+    (ui/stop-propagation! event)
+    (ui/focus! ctx)
+    (when-let [index index]
+      (ui/emit! (:view ctx)
+                :terrain/rule-stamp-tile-select
+                {:tile (:value option)
+                 :output-tab (terrain-standard-output-tab state)}))
+    state))
 
 (defun draw-no-tile-picker-mark! [rect]
   (let [color {:r 0x86 :g 0x91 :b 0x9b}
         inset 7]
-    (do
-      (r/line! {:x (+ (:x rect) inset)
-                :y (+ (:y rect) inset)}
-               {:x (- (+ (:x rect) (:w rect)) inset)
-                :y (- (+ (:y rect) (:h rect)) inset)}
-               color)
-      (r/line! {:x (- (+ (:x rect) (:w rect)) inset)
-                :y (+ (:y rect) inset)}
-               {:x (+ (:x rect) inset)
-                :y (- (+ (:y rect) (:h rect)) inset)}
-               color))))
+    (r/line! {:x (+ (:x rect) inset)
+              :y (+ (:y rect) inset)}
+             {:x (- (+ (:x rect) (:w rect)) inset)
+              :y (- (+ (:y rect) (:h rect)) inset)}
+             color)
+    (r/line! {:x (- (+ (:x rect) (:w rect)) inset)
+              :y (+ (:y rect) inset)}
+             {:x (+ (:x rect) inset)
+              :y (- (+ (:y rect) (:h rect)) inset)}
+             color)))
 
 (defun draw-terrain-stamp-tile-picker-cell! [state option index columns]
   (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
-        tile (when (not (nil? (:value option)))
+        tile (when-let [tile-ref (:value option)]
                (data/tile-in (:tilesets state)
                              (model/selected-rule-stamp-tileset state)
-                             (:value option)))]
-    (do
-      (r/rect! rect {:fill true
-                     :color {:r 0x12 :g 0x15 :b 0x18}})
-      (when tile
-        (tr/draw-tile! tile
-                       {:x (+ (:x rect) 4)
-                        :y (+ (:y rect) 4)
-                        :w (- (:w rect) 8)
-                        :h (- (:h rect) 8)}))
-      (when (nil? (:value option))
-        (draw-no-tile-picker-mark! rect))
-      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
-      (when (contains? (:selected-indices state) index)
-        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
-                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+                             tile-ref))]
+    (r/rect! rect {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+    (when tile
+      (tr/draw-tile! tile
+                     {:x (+ (:x rect) 4)
+                      :y (+ (:y rect) 4)
+                      :w (- (:w rect) 8)
+                      :h (- (:h rect) 8)}))
+    (when (nil? (:value option))
+      (draw-no-tile-picker-mark! rect))
+    (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+    (when (contains? (:selected-indices state) index)
+      (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+               {:color {:r 0xff :g 0xcc :b 0x66}}))))
 
 (defun terrain-stamp-tile-drag-preview-tile [state]
   (let [preview (:drag-preview state)]
@@ -1563,36 +1519,34 @@
              (let [preview (:drag-preview state)
                    position (:position preview)
                    visible? (not (nil? preview))]
-               (do
-                 (ui/style! (:view ctx)
-                            (if visible?
-                              {:hidden false
-                               :left (:x position)
-                               :top (:y position)}
-                              {:hidden true}))
-                 (assoc state
-                        :tile (terrain-stamp-tile-drag-preview-tile state)
-                        :empty-tile? (and visible?
-                                          (nil? (:tile preview)))))))
+               (ui/style! (:view ctx)
+                          (if visible?
+                            {:hidden false
+                             :left (:x position)
+                             :top (:y position)}
+                            {:hidden true}))
+               (assoc state
+                      :tile (terrain-stamp-tile-drag-preview-tile state)
+                      :empty-tile? (and visible?
+                                        (nil? (:tile preview))))))
    :render (fn [state ctx]
              (when (:drag-preview state)
                (let [rect {:x 0
                            :y 0
                            :w terrain-stamp-tile-picker-cell-size
                            :h terrain-stamp-tile-picker-cell-size}]
-                 (do
-                   (r/rect! rect {:fill true
-                                  :color {:r 0x12 :g 0x15 :b 0x18}})
-                   (when (:tile state)
-                     (tr/draw-tile!
-                      (:tile state)
-                      {:x 4
-                       :y 4
-                       :w (- terrain-stamp-tile-picker-cell-size 8)
-                       :h (- terrain-stamp-tile-picker-cell-size 8)}))
-                   (when (:empty-tile? state)
-                     (draw-no-tile-picker-mark! rect))
-                   (r/rect! rect {:color {:r 0x5a :g 0x9d :b 0xff}})))))})
+                 (r/rect! rect {:fill true
+                                :color {:r 0x12 :g 0x15 :b 0x18}})
+                 (when (:tile state)
+                   (tr/draw-tile!
+                    (:tile state)
+                    {:x 4
+                     :y 4
+                     :w (- terrain-stamp-tile-picker-cell-size 8)
+                     :h (- terrain-stamp-tile-picker-cell-size 8)}))
+                 (when (:empty-tile? state)
+                   (draw-no-tile-picker-mark! rect))
+                 (r/rect! rect {:color {:r 0x5a :g 0x9d :b 0xff}}))))})
 
 (defcomponent terrain-stamp-tile-picker
   {:focusable true
@@ -1689,7 +1643,7 @@
     (if (nil? index) [] [index])))
 
 (defun terrain-base-tile-at-picker-index [state index]
-  (when (not (nil? index))
+  (when-let [index index]
     (nth (terrain-base-tile-options state) index)))
 
 (defun select-terrain-base-tile-at-event! [state event ctx]
@@ -1699,14 +1653,13 @@
                (-> ctx :view :bounds)
                (count options))
         option (terrain-base-tile-at-picker-index state index)]
-    (do
-      (ui/stop-propagation! event)
-      (ui/focus! ctx)
-      (when option
-        (ui/emit! (:view ctx)
-                  :terrain/base-tile-select
-                  (:value option)))
-      state)))
+    (ui/stop-propagation! event)
+    (ui/focus! ctx)
+    (when option
+      (ui/emit! (:view ctx)
+                :terrain/base-tile-select
+                (:value option)))
+    state))
 
 (defun draw-terrain-base-tile-picker-cell! [state option index columns]
   (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
@@ -1716,19 +1669,18 @@
         tile (data/tile-in (:tilesets state)
                            (:tileset terrain-set)
                            (:value option))]
-    (do
-      (r/rect! rect {:fill true
-                     :color {:r 0x12 :g 0x15 :b 0x18}})
-      (when tile
-        (tr/draw-tile! tile
-                       {:x (+ (:x rect) 4)
-                        :y (+ (:y rect) 4)
-                        :w (- (:w rect) 8)
-                        :h (- (:h rect) 8)}))
-      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
-      (when (contains? (:selected-indices state) index)
-        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
-                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+    (r/rect! rect {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+    (when tile
+      (tr/draw-tile! tile
+                     {:x (+ (:x rect) 4)
+                      :y (+ (:y rect) 4)
+                      :w (- (:w rect) 8)
+                      :h (- (:h rect) 8)}))
+    (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+    (when (contains? (:selected-indices state) index)
+      (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+               {:color {:r 0xff :g 0xcc :b 0x66}}))))
 
 (defcomponent terrain-base-tile-picker
   {:focusable true
@@ -1796,29 +1748,26 @@
 
 (defmode terrain-base-tile-popup
   {:on-mouse-down (fn [state event ctx]
-                    (do
-                      (pop-mode! {:type :dismiss})
-                      state))
+                    (pop-mode! {:type :dismiss})
+                    state)
    :on {:terrain/base-tile-select
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :confirm
-                        :tile (:payload event)})
-            state))}
+          (ui/stop-propagation! event)
+          (pop-mode! {:type :confirm
+                      :tile (:payload event)})
+          state)}
    :compose {:render :pass}})
 
 (defun open-terrain-base-tile-popup! [state ctx position]
-  (do
-    (push-mode! 'terrain-base-tile-popup
-                {:terrain-sets (:terrain-sets state)
-                 :selected-terrain-set-index (:selected-terrain-set-index state)
-                 :selected-terrain-index (:selected-terrain-index state)
-                 :tilesets (:tilesets state)}
-                {:origin {:view (:view ctx)
-                          :event :terrain/base-tile-popup-result}
-                 :children (terrain-base-tile-popup-children position)})
-    state))
+  (push-mode! 'terrain-base-tile-popup
+              {:terrain-sets (:terrain-sets state)
+               :selected-terrain-set-index (:selected-terrain-set-index state)
+               :selected-terrain-index (:selected-terrain-index state)
+               :tilesets (:tilesets state)}
+              {:origin {:view (:view ctx)
+                        :event :terrain/base-tile-popup-result}
+               :children (terrain-base-tile-popup-children position)})
+  state)
 
 (defcomponent terrain-rule-arrow
   {:class :ui/canvas
@@ -1827,10 +1776,9 @@
    :render (fn [state ctx]
              (let [color {:r 0xe6 :g 0xea :b 0xee}
                    y (/ (* terrain-rule-grid-cell-size 3) 2)]
-               (do
-                 (r/line! {:x 5 :y y} {:x 30 :y y} color)
-                 (r/line! {:x 23 :y (- y 7)} {:x 30 :y y} color)
-                 (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color))))})
+               (r/line! {:x 5 :y y} {:x 30 :y y} color)
+               (r/line! {:x 23 :y (- y 7)} {:x 30 :y y} color)
+               (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color)))})
 
 (defun terrain-rule-application-options-child []
   (form/make {:schema terrain-rule-options-schema
@@ -1880,12 +1828,11 @@
                     :disabled? (nil? (model/selected-terrain-rule state))))
    :on {:combo-box/change
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (ui/emit! (:view ctx)
-                      :terrain/rule-output-tileset-change
-                      (-> event :payload :value))
-            state))}
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :terrain/rule-output-tileset-change
+                    (-> event :payload :value))
+          state)}
    :children [(cb/make {:options (ui/bind-state :tileset-options)
                         :selected-index
                         (ui/bind-state :selected-output-tileset-index)
@@ -1903,12 +1850,11 @@
                     :disabled? (nil? (model/selected-terrain-rule state))))
    :on {:combo-box/change
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (ui/emit! (:view ctx)
-                      :terrain/rule-output-target-layer-change
-                      (-> event :payload :value))
-            state))}
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :terrain/rule-output-target-layer-change
+                    (-> event :payload :value))
+          state)}
    :children [(cb/make {:options (ui/bind-state :target-layer-options)
                         :selected-index
                         (ui/bind-state :selected-target-layer-index)
@@ -2130,23 +2076,22 @@
              (let [selected-rule (model/selected-terrain-rule state)
                    has-rule? (not (nil? selected-rule))
                    rule-add-disabled? (= (:rule-add-disabled? state) true)]
-               (do
-                 (when (or (not= has-rule? (:rendered-has-rule? state))
-                           (not= rule-add-disabled?
-                                 (:rendered-rule-add-disabled? state)))
-                   (ui/replace-child!
-                    (:view ctx)
-                    "terrain-rule-visual-editor-content"
-                    (terrain-rule-visual-editor-child
-                     (assoc state
-                            :selected-terrain-rule selected-rule
-                            :rule-add-disabled?
-                            rule-add-disabled?))))
-                 (assoc state
-                        :selected-terrain-rule selected-rule
-                        :rendered-has-rule? has-rule?
-                        :rendered-rule-add-disabled? rule-add-disabled?
-                        :rule-add-disabled? rule-add-disabled?))))
+               (when (or (not= has-rule? (:rendered-has-rule? state))
+                         (not= rule-add-disabled?
+                               (:rendered-rule-add-disabled? state)))
+                 (ui/replace-child!
+                  (:view ctx)
+                  "terrain-rule-visual-editor-content"
+                  (terrain-rule-visual-editor-child
+                   (assoc state
+                          :selected-terrain-rule selected-rule
+                          :rule-add-disabled?
+                          rule-add-disabled?))))
+               (assoc state
+                      :selected-terrain-rule selected-rule
+                      :rendered-has-rule? has-rule?
+                      :rendered-rule-add-disabled? rule-add-disabled?
+                      :rule-add-disabled? rule-add-disabled?)))
    :children [(terrain-rule-visual-editor-child {})]})
 
 (def terrain-standard-slot-tile-size 40)
@@ -2255,11 +2200,10 @@
             [])
           nil
           (fn [result direction]
-            (do
-              (if-let [rect (terrain-standard-role-marker-rect direction)]
-                (r/rect! rect {:color terrain-standard-slot-marker-color})
-                nil)
-              result))))
+            (if-let [rect (terrain-standard-role-marker-rect direction)]
+              (r/rect! rect {:color terrain-standard-slot-marker-color})
+              nil)
+            result)))
 
 (defun terrain-standard-preview-opposing-terrain [state]
   (let [opposing (or (:terrain-standard-role-cache-opposing state)
@@ -2295,16 +2239,15 @@
        0))))
 
 (defun draw-terrain-standard-mask-fallback! [rect]
-  (do
-    (r/rect! {:x (+ (:x rect) 7)
-              :y (+ (:y rect) 7)
-              :w (- (:w rect) 14)
-              :h (- (:h rect) 14)}
-             {:color {:r 0x5d :g 0xc9 :b 0x9a}})
-    (r/text! "M"
-             {:x (+ (:x rect) 15)
-              :y (+ (:y rect) 13)}
-             {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
+  (r/rect! {:x (+ (:x rect) 7)
+            :y (+ (:y rect) 7)
+            :w (- (:w rect) 14)
+            :h (- (:h rect) 14)}
+           {:color {:r 0x5d :g 0xc9 :b 0x9a}})
+  (r/text! "M"
+           {:x (+ (:x rect) 15)
+            :y (+ (:y rect) 13)}
+           {:color {:r 0x5d :g 0xc9 :b 0x9a}}))
 
 (defun terrain-standard-transition-preview-size [tile]
   (or (-> tile :mask-source :size)
@@ -2334,13 +2277,12 @@
                 (tilemap-renderer/ensure-transition-overlay-image!
                  preview-tile
                  size))]
-    (do
-      (when base
-        (tilemap-renderer/draw-tile! base rect nil 1))
-      (if (and image
-               (tilemap-renderer/transition-image-exists? image))
-        (r/image! image {:target rect})
-        (tilemap-renderer/draw-tile! preview-tile rect nil 1)))))
+    (when base
+      (tilemap-renderer/draw-tile! base rect nil 1))
+    (if (and image
+             (tilemap-renderer/transition-image-exists? image))
+      (r/image! image {:target rect})
+      (tilemap-renderer/draw-tile! preview-tile rect nil 1))))
 
 (defun draw-terrain-standard-transition-preview! [state mask-ref rect]
   (if-let [tile (terrain-standard-transition-preview-tile state mask-ref)]
@@ -2354,43 +2296,42 @@
         overlay-tile (:overlay-tile state)
         label (:label state)
         tile-rect (terrain-standard-role-tile-rect state)]
-    (do
-      (r/rect! tile-rect
-               {:fill true
-                :color {:r 0x0b :g 0x0d :b 0x10}})
-      (when tile
-        (tr/draw-tile! tile
-                       {:x (+ (:x tile-rect) 4)
-                        :y (+ (:y tile-rect) 4)
-                        :w (- (:w tile-rect) 8)
-                        :h (- (:h tile-rect) 8)}))
-      (when (and (not tile)
-                 (not mask-ref)
-                 (not overlay-ref)
-                 (not (terrain-standard-role-uses-surround-markers? state)))
-        (r/text! label
-                 {:x (+ (:x tile-rect) 8)
-                  :y (+ (:y tile-rect) 13)}
-                 {:color {:r 0x86 :g 0x91 :b 0x9b}}))
-      (when (and (not tile) overlay-tile)
-        (tr/draw-tile! overlay-tile
-                       {:x (+ (:x tile-rect) 4)
-                        :y (+ (:y tile-rect) 4)
-                        :w (- (:w tile-rect) 8)
-                        :h (- (:h tile-rect) 8)}))
-      (when (and (not tile) mask-ref)
-        (draw-terrain-standard-transition-preview!
-         state
-         mask-ref
-         {:x (+ (:x tile-rect) 4)
-          :y (+ (:y tile-rect) 4)
-          :w (- (:w tile-rect) 8)
-          :h (- (:h tile-rect) 8)}))
-      (draw-terrain-standard-role-markers! state)
-      (r/rect! tile-rect
-               {:color (if (:selected? state)
-                         {:r 0x5a :g 0x9d :b 0xff}
-                         terrain-standard-slot-border-color)}))))
+    (r/rect! tile-rect
+             {:fill true
+              :color {:r 0x0b :g 0x0d :b 0x10}})
+    (when tile
+      (tr/draw-tile! tile
+                     {:x (+ (:x tile-rect) 4)
+                      :y (+ (:y tile-rect) 4)
+                      :w (- (:w tile-rect) 8)
+                      :h (- (:h tile-rect) 8)}))
+    (when (and (not tile)
+               (not mask-ref)
+               (not overlay-ref)
+               (not (terrain-standard-role-uses-surround-markers? state)))
+      (r/text! label
+               {:x (+ (:x tile-rect) 8)
+                :y (+ (:y tile-rect) 13)}
+               {:color {:r 0x86 :g 0x91 :b 0x9b}}))
+    (when (and (not tile) overlay-tile)
+      (tr/draw-tile! overlay-tile
+                     {:x (+ (:x tile-rect) 4)
+                      :y (+ (:y tile-rect) 4)
+                      :w (- (:w tile-rect) 8)
+                      :h (- (:h tile-rect) 8)}))
+    (when (and (not tile) mask-ref)
+      (draw-terrain-standard-transition-preview!
+       state
+       mask-ref
+       {:x (+ (:x tile-rect) 4)
+        :y (+ (:y tile-rect) 4)
+        :w (- (:w tile-rect) 8)
+        :h (- (:h tile-rect) 8)}))
+    (draw-terrain-standard-role-markers! state)
+    (r/rect! tile-rect
+             {:color (if (:selected? state)
+                       {:r 0x5a :g 0x9d :b 0xff}
+                       terrain-standard-slot-border-color)})))
 
 (defcomponent terrain-standard-role-slot
   {:focusable true
@@ -2400,98 +2341,96 @@
    :update (fn [state ctx]
              (let [rule-id (terrain-standard-role-slot-rule-id state)
                    slot-size (terrain-standard-role-slot-size (:setup-id state))]
-               (do
-                 (assoc-in! ctx [:view :style :width] slot-size)
-                 (assoc-in! ctx [:view :style :height] slot-size)
-                 (assoc state
-                        :rule-id rule-id
-                        :tile (terrain-standard-role-slot-tile state)
-                        :mask-ref (terrain-standard-role-slot-mask-ref state)
-                        :overlay-ref (terrain-standard-role-slot-overlay-ref state)
-                        :overlay-tile (terrain-standard-role-slot-overlay-tile state)
-                        :selected? (and rule-id
-                                        (= rule-id
-                                           (:selected-terrain-rule-id
-                                            state)))))))
+               (assoc-in! ctx [:view :style :width] slot-size)
+               (assoc-in! ctx [:view :style :height] slot-size)
+               (assoc state
+                      :rule-id rule-id
+                      :tile (terrain-standard-role-slot-tile state)
+                      :mask-ref (terrain-standard-role-slot-mask-ref state)
+                      :overlay-ref (terrain-standard-role-slot-overlay-ref state)
+                      :overlay-tile (terrain-standard-role-slot-overlay-tile state)
+                      :selected? (and rule-id
+                                      (= rule-id
+                                         (:selected-terrain-rule-id
+                                          state))))))
    :on-mouse-down
    (fn [state event ctx]
-     (do
-      (ui/stop-propagation! event)
-      (if (secondary-mouse-button? event)
-        (case (terrain-standard-output-tab state)
-           :masks
+     (ui/stop-propagation! event)
+     (if (secondary-mouse-button? event)
+       (case (terrain-standard-output-tab state)
+         :masks
+         (ui/emit! (:view ctx)
+                   :terrain/standard-role-mask-change
+                   {:setup-id (:setup-id state)
+                    :role-id (:role-id state)
+                    :opposing (:terrain-standard-role-cache-opposing state)
+                    :mask nil})
+
+         :overlays
+         (ui/emit! (:view ctx)
+                   :terrain/standard-role-overlay-change
+                   {:setup-id (:setup-id state)
+                    :role-id (:role-id state)
+                    :opposing (:terrain-standard-role-cache-opposing state)
+                    :overlay nil})
+
+         :tiles
+         (ui/emit! (:view ctx)
+                   :terrain/standard-role-tile-change
+                   {:setup-id (:setup-id state)
+                    :role-id (:role-id state)
+                    :opposing (:terrain-standard-role-cache-opposing state)
+                    :tile nil})
+
+         :default
+         nil)
+       (case (if (:terrain-rule-selected-tile state)
+               (terrain-standard-selected-tile-output-tab state)
+               (terrain-standard-output-tab state))
+         :masks
+         (if-let [mask-ref (:terrain-rule-selected-mask state)]
            (ui/emit! (:view ctx)
                      :terrain/standard-role-mask-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask nil})
+                      :mask (model/mask-ref-with-polarity
+                             mask-ref
+                             (:terrain-rule-mask-polarity state))})
+           (when (:rule-id state)
+             (ui/emit! (:view ctx)
+                       :terrain/rule-select
+                       (:rule-id state))))
 
-           :overlays
+         :overlays
+         (if-let [tile-ref (:terrain-rule-selected-tile state)]
            (ui/emit! (:view ctx)
                      :terrain/standard-role-overlay-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :overlay nil})
+                      :overlay tile-ref})
+           (when (:rule-id state)
+             (ui/emit! (:view ctx)
+                       :terrain/rule-select
+                       (:rule-id state))))
 
-           :tiles
+         :tiles
+         (if-let [tile-ref (:terrain-rule-selected-tile state)]
            (ui/emit! (:view ctx)
                      :terrain/standard-role-tile-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :tile nil})
-
-           :default
-           nil)
-        (case (if (:terrain-rule-selected-tile state)
-                (terrain-standard-selected-tile-output-tab state)
-                (terrain-standard-output-tab state))
-           :masks
-           (if-let [mask-ref (:terrain-rule-selected-mask state)]
+                      :tile tile-ref})
+           (when (:rule-id state)
              (ui/emit! (:view ctx)
-                       :terrain/standard-role-mask-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :mask (model/mask-ref-with-polarity
-                               mask-ref
-                               (:terrain-rule-mask-polarity state))})
-             (when (:rule-id state)
-               (ui/emit! (:view ctx)
-                         :terrain/rule-select
-                         (:rule-id state))))
+                       :terrain/rule-select
+                       (:rule-id state))))
 
-           :overlays
-           (if-let [tile-ref (:terrain-rule-selected-tile state)]
-             (ui/emit! (:view ctx)
-                       :terrain/standard-role-overlay-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :overlay tile-ref})
-             (when (:rule-id state)
-               (ui/emit! (:view ctx)
-                         :terrain/rule-select
-                         (:rule-id state))))
-
-           :tiles
-           (if-let [tile-ref (:terrain-rule-selected-tile state)]
-             (ui/emit! (:view ctx)
-                       :terrain/standard-role-tile-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :tile tile-ref})
-             (when (:rule-id state)
-               (ui/emit! (:view ctx)
-                         :terrain/rule-select
-                         (:rule-id state))))
-
-           :default
-           nil))
-       state))
+         :default
+         nil))
+     state)
    :on-drop
    (fn [state event ctx]
      (let [payload (:payload event)]
@@ -2616,32 +2555,30 @@
            :height 22}
    :on-mouse-up
    (fn [state event ctx]
-     (do
-       (ui/stop-propagation! event)
-       (when (and (= (:button event) :left)
-                  (not (:disabled? state)))
-         (menu/open-context-menu!
-          terrain-standard-setup-menu
-          (:global-position event)
-          (assoc state
-                 :option-state
-                 (terrain-standard-setup-menu-option-state state))
-          ctx))
-       state))
+     (ui/stop-propagation! event)
+     (when (and (= (:button event) :left)
+                (not (:disabled? state)))
+       (menu/open-context-menu!
+        terrain-standard-setup-menu
+        (:global-position event)
+        (assoc state
+               :option-state
+               (terrain-standard-setup-menu-option-state state))
+        ctx))
+     state)
    :on {:menu/select
         (fn [state event ctx]
           (let [payload (:payload event)
                 setup-id (-> payload :payload)]
-            (do
-              (ui/stop-propagation! event)
-              (when (= (:type payload) :action)
-                (ui/emit! (:view ctx)
-                          :terrain/standard-setup-visibility-change
-                          {:setup-id setup-id
-                           :visible? (not (model/terrain-standard-setup-visible?
-                                           state
-                                           setup-id))}))
-              state)))}})
+            (ui/stop-propagation! event)
+            (when (= (:type payload) :action)
+              (ui/emit! (:view ctx)
+                        :terrain/standard-setup-visibility-change
+                        {:setup-id setup-id
+                         :visible? (not (model/terrain-standard-setup-visible?
+                                         state
+                                         setup-id))}))
+            state))}})
 
 (defcomponent terrain-standard-setup-panel
   {:style {:width :shrink
@@ -2652,17 +2589,16 @@
              (let [visible? (model/terrain-standard-setup-visible?
                              state
                              (:setup-id state))]
-               (do
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if visible? :visible :none))
-                 (assoc-in! ctx
-                            [:view :style :width]
-                            (if visible? :shrink 0))
-                 (assoc-in! ctx
-                            [:view :style :height]
-                            (if visible? :shrink 0))
-                 state)))})
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if visible? :visible :none))
+               (assoc-in! ctx
+                          [:view :style :width]
+                          (if visible? :shrink 0))
+               (assoc-in! ctx
+                          [:view :style :height]
+                          (if visible? :shrink 0))
+               state))})
 
 (defun terrain-standard-setup-panel-state [setup]
   {:setup-id (:id setup)
@@ -2723,12 +2659,11 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (do
-                 (when (> (count children) 0)
-                   (ui/style! (nth children 0)
-                              (terrain-standard-setup-panel-scroll-content-style
-                               state)))
-                 state)))
+               (when (> (count children) 0)
+                 (ui/style! (nth children 0)
+                            (terrain-standard-setup-panel-scroll-content-style
+                             state)))
+               state))
    :children [(terrain-standard-setup-panel-groups-content-child)]})
 
 (defcomponent terrain-standard-setup-panel-scroll-row
@@ -2849,38 +2784,36 @@
                     :disabled? (nil? (model/selected-terrain-id state))))
    :on-mouse-up
    (fn [state event ctx]
-     (do
-       (ui/stop-propagation! event)
-       (when (and (= (:button event) :left)
-                  (not (:disabled? state)))
-         (menu/open-context-menu!
-          (terrain-standard-opposing-menu state)
-          (:global-position event)
-          (assoc state
-                 :option-state
-                 (terrain-standard-opposing-menu-option-state state))
-          ctx))
-       state))
+     (ui/stop-propagation! event)
+     (when (and (= (:button event) :left)
+                (not (:disabled? state)))
+       (menu/open-context-menu!
+        (terrain-standard-opposing-menu state)
+        (:global-position event)
+        (assoc state
+               :option-state
+               (terrain-standard-opposing-menu-option-state state))
+        ctx))
+     state)
    :on {:menu/select
         (fn [state event ctx]
           (let [payload (:payload event)
                 action-payload (-> payload :payload)
                 action (:action action-payload)]
-            (do
-              (ui/stop-propagation! event)
-              (when (= (:type payload) :action)
-                (ui/emit! (:view ctx)
-                          :terrain/standard-opposing-change
-                          (case action
-                            :set-opposing (:opposing action-payload)
-                            :toggle-terrain
-                            (model/toggle-terrain-standard-opposing
-                             state
-                             (:terrain-id action-payload))
-                            :default
-                            (model/selected-terrain-standard-opposing
-                             state))))
-              state)))}})
+            (ui/stop-propagation! event)
+            (when (= (:type payload) :action)
+              (ui/emit! (:view ctx)
+                        :terrain/standard-opposing-change
+                        (case action
+                          :set-opposing (:opposing action-payload)
+                          :toggle-terrain
+                          (model/toggle-terrain-standard-opposing
+                           state
+                           (:terrain-id action-payload))
+                          :default
+                          (model/selected-terrain-standard-opposing
+                           state))))
+            state))}})
 
 (defun terrain-standard-mask-drag-payload? [payload]
   (= (:kind payload) :terrain-rule/mask-output))
@@ -2909,7 +2842,7 @@
    :mask-sets (:mask-sets state)})
 
 (defun terrain-standard-mask-at-picker-index [state index]
-  (when (not (nil? index))
+  (when-let [index index]
     (nth (terrain-standard-mask-options state) index)))
 
 (defun terrain-standard-mask-option-from-drag [state event ctx]
@@ -2936,34 +2869,32 @@
                (-> ctx :view :bounds)
                (count (terrain-standard-mask-options state)))
         option (terrain-standard-mask-at-picker-index state index)]
-    (do
-      (ui/stop-propagation! event)
-      (ui/focus! ctx)
-      (when option
-        (ui/emit! (:view ctx)
-                  :terrain/rule-stamp-mask-select
-                  (:value option)))
-      state)))
+    (ui/stop-propagation! event)
+    (ui/focus! ctx)
+    (when option
+      (ui/emit! (:view ctx)
+                :terrain/rule-stamp-mask-select
+                (:value option)))
+    state))
 
 (defun draw-terrain-standard-mask-picker-cell! [state option index columns]
   (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
         mask-ref (model/mask-ref-with-polarity
                   (:value option)
                   (:terrain-rule-mask-polarity state))]
-    (do
-      (r/rect! rect {:fill true
-                     :color {:r 0x12 :g 0x15 :b 0x18}})
-      (draw-terrain-standard-transition-preview!
-       state
-       mask-ref
-       {:x (+ (:x rect) 4)
-        :y (+ (:y rect) 4)
-        :w (- (:w rect) 8)
-        :h (- (:h rect) 8)})
-      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
-      (when (contains? (:selected-indices state) index)
-        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
-                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+    (r/rect! rect {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+    (draw-terrain-standard-transition-preview!
+     state
+     mask-ref
+     {:x (+ (:x rect) 4)
+      :y (+ (:y rect) 4)
+      :w (- (:w rect) 8)
+      :h (- (:h rect) 8)})
+    (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+    (when (contains? (:selected-indices state) index)
+      (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+               {:color {:r 0xff :g 0xcc :b 0x66}}))))
 
 (defcomponent terrain-standard-mask-picker-grid
   {:focusable true
@@ -3133,11 +3064,10 @@
                     :gap 12}}
    :on {:tab-panel/change
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (assoc state
-                   :terrain-standard-output-picker-tab
-                   (-> event :payload :tab))))}
+          (ui/stop-propagation! event)
+          (assoc state
+                 :terrain-standard-output-picker-tab
+                 (-> event :payload :tab)))}
    :children [{:style {:width :fill
                        :height :fill
                        :layout {:direction :column
@@ -3187,33 +3117,30 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! terrain-rule-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! terrain-rule-context-menu
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :terrain/rule-context-command
-                                       {:rule-id (:value state)
-                                        :command (-> payload :payload :command)}))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :terrain/rule-context-command
+                                     {:rule-id (:value state)
+                                      :command (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -3260,37 +3187,34 @@
                                                     state)]
                                       [index]
                                       [])]
-               (do
-                 (when (or (not= rulesets (:rendered-rulesets state))
-                           (not= terrain-set-index
-                                 (:rendered-terrain-set-index state))
-                           (not= terrain-index (:rendered-terrain-index state))
-                           (not= ruleset-id (:rendered-ruleset-id state)))
-                   (ui/replace-child! (:view ctx)
-                                      "terrain-rule-list-box"
-                                      (merge {:id "terrain-rule-list-box"}
-                                             (terrain-rule-list-child
-                                              state))))
-                 (assoc state
-                        :rendered-rulesets rulesets
-                        :rendered-terrain-set-index terrain-set-index
-                        :rendered-terrain-index terrain-index
-                        :rendered-ruleset-id ruleset-id
-                        :selected-indices selected-indices))))
+               (when (or (not= rulesets (:rendered-rulesets state))
+                         (not= terrain-set-index
+                               (:rendered-terrain-set-index state))
+                         (not= terrain-index (:rendered-terrain-index state))
+                         (not= ruleset-id (:rendered-ruleset-id state)))
+                 (ui/replace-child! (:view ctx)
+                                    "terrain-rule-list-box"
+                                    (merge {:id "terrain-rule-list-box"}
+                                           (terrain-rule-list-child
+                                            state))))
+               (assoc state
+                      :rendered-rulesets rulesets
+                      :rendered-terrain-set-index terrain-set-index
+                      :rendered-terrain-index terrain-index
+                      :rendered-ruleset-id ruleset-id
+                      :selected-indices selected-indices)))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :terrain/rule-select
-                                       (-> event :payload :value))
-                             state))
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :terrain/rule-select
+                                     (-> event :payload :value))
+                           state)
         :list-box/reorder (fn [state event ctx]
-                            (do
-                              (ui/stop-propagation! event)
-                              (ui/emit! (:view ctx)
-                                        :terrain/rule-reorder
-                                        (:payload event))
-                             state))}
+                            (ui/stop-propagation! event)
+                            (ui/emit! (:view ctx)
+                                      :terrain/rule-reorder
+                                      (:payload event))
+                            state)}
    :children [(merge {:id "terrain-rule-list-box"}
                      (terrain-rule-list-child {}))]})
 
@@ -3307,26 +3231,24 @@
       "")))
 
 (defun open-terrain-name-dialog! [state ctx operation terrain-index title name id]
-  (do
-    (id-name-dialog/open! ctx
-                          {:title title
-                           :id id
-                           :name name
-                           :result-event :terrain/name-dialog-result
-                           :context {:operation operation
-                                     :terrain-index terrain-index}})
-    state))
+  (id-name-dialog/open! ctx
+                        {:title title
+                         :id id
+                         :name name
+                         :result-event :terrain/name-dialog-result
+                         :context {:operation operation
+                                   :terrain-index terrain-index}})
+  state)
 
 (defun open-terrain-set-add-dialog! [state ctx]
   (let [terrain-set (model/make-terrain-set (:terrain-sets state)
                                             (:tilesets state))]
-    (do
-      (id-name-dialog/open! ctx
-                            {:title "Add Terrain Set"
-                             :id (model/keyword-label (:id terrain-set))
-                             :name (or (:label terrain-set) "")
-                             :result-event :terrain/set-add-dialog-result})
-      state)))
+    (id-name-dialog/open! ctx
+                          {:title "Add Terrain Set"
+                           :id (model/keyword-label (:id terrain-set))
+                           :name (or (:label terrain-set) "")
+                           :result-event :terrain/set-add-dialog-result})
+    state))
 
 (defun open-terrain-add-dialog! [state ctx]
   (if-let [set-index (model/selected-terrain-set-index
@@ -3334,15 +3256,14 @@
                       (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
           terrain (model/make-terrain terrain-set (:tilesets state))]
-      (do
-        (id-name-dialog/open! ctx
-                              {:title "Add Terrain"
-                               :id (model/keyword-label (:id terrain))
-                               :name (or (:label terrain) "")
-                               :result-event :terrain/name-dialog-result
-                               :context {:operation :add
-                                         :terrain-set-index set-index}})
-        state))
+      (id-name-dialog/open! ctx
+                            {:title "Add Terrain"
+                             :id (model/keyword-label (:id terrain))
+                             :name (or (:label terrain) "")
+                             :result-event :terrain/name-dialog-result
+                             :context {:operation :add
+                                       :terrain-set-index set-index}})
+      state)
     state))
 
 (defun open-terrain-set-edit-dialog! [state ctx]
@@ -3376,13 +3297,12 @@
 
 (defun open-mask-set-add-dialog! [state ctx]
   (let [mask-set (model/make-mask-set (:mask-sets state))]
-    (do
-      (id-name-dialog/open! ctx
-                            {:title "Add Mask Set"
-                             :id (model/keyword-label (:id mask-set))
-                             :name (or (:label mask-set) "")
-                             :result-event :terrain/mask-set-add-dialog-result})
-      state)))
+    (id-name-dialog/open! ctx
+                          {:title "Add Mask Set"
+                           :id (model/keyword-label (:id mask-set))
+                           :name (or (:label mask-set) "")
+                           :result-event :terrain/mask-set-add-dialog-result})
+    state))
 
 (defun open-mask-set-edit-dialog! [state ctx]
   (let [mask-set (model/selected-mask-set (:mask-sets state)
@@ -3925,7 +3845,7 @@
            :disabled? (ui/bind-state :mask-tile-add-disabled?)}
    :on-click (fn [state event ctx]
                (do
-                 (when (not (:disabled? state))
+                 (unless (:disabled? state)
                    (ui/emit! (:view ctx) :terrain/mask-tile-item-add))
                  state))})
 
@@ -4184,7 +4104,7 @@
            :disabled? disabled?}
    :on-click (fn [state event-ctx ctx]
                (do
-                 (when (not (:disabled? state))
+                 (unless (:disabled? state)
                    (ui/emit! (:view ctx) event))
                  state))})
 

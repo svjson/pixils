@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.tilemap.controls
   (:require pixils
+            [roo.string :as string]
             [pixils.form :as form]
             [pixils.render :as r]
             [pixils.ui :as ui]
@@ -248,7 +249,7 @@
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 

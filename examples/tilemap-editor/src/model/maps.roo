@@ -1,5 +1,6 @@
 (ns tilemap-editor.model.maps
-  (:require [pixils.tilemap.project.model :as data]
+  (:require [roo.string :as string]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]))
 
 (def map-ui-state-keys
@@ -183,7 +184,7 @@
 
 (defun strip-leading-colon [text]
   (let [text (str text)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 

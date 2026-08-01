@@ -72,17 +72,16 @@
 
 (defun open-tileset-shortcut-dialog! [state ctx]
   (let [id (tileset-model/unique-tileset-id (:tilesets state))]
-    (do
-	      (push-mode! 'tileset-create-dialog-modal
-	                  {:tileset-id id
-	                   :tileset-label (tileset-model/label-from-id id)
-	                   :tile-size (data/map-tile-dim (:tile-size state))
-	                   :tile-proportion (data/map-tile-dim (:tile-size state))
-	                   :lock-tile-proportion? true
-	                   :confirm-label "Create"}
-                  {:origin {:view (:view ctx)
-                            :event :tileset/shortcut-dialog-result}})
-      (assoc state :pending-tileset-shortcut-dialog? false))))
+	  (push-mode! 'tileset-create-dialog-modal
+	              {:tileset-id id
+	               :tileset-label (tileset-model/label-from-id id)
+	               :tile-size (data/map-tile-dim (:tile-size state))
+	               :tile-proportion (data/map-tile-dim (:tile-size state))
+	               :lock-tile-proportion? true
+	               :confirm-label "Create"}
+                {:origin {:view (:view ctx)
+                          :event :tileset/shortcut-dialog-result}})
+    (assoc state :pending-tileset-shortcut-dialog? false)))
 
 (defun open-pending-tileset-shortcut-dialog! [state ctx]
   (if (and (:pending-tileset-shortcut-dialog? state)
@@ -157,11 +156,10 @@
     state))
 
 (defun apply-theme-selection! [state payload]
-  (do
-    (if (contains? payload :variant)
-      (pixils/set-theme! (:theme payload) (:variant payload))
-      (pixils/set-theme! (:theme payload)))
-    (assoc state :application-theme (:value payload))))
+  (if (contains? payload :variant)
+    (pixils/set-theme! (:theme payload) (:variant payload))
+    (pixils/set-theme! (:theme payload)))
+  (assoc state :application-theme (:value payload)))
 
 (defun map-coordinate-status [cell]
   (if cell
@@ -318,8 +316,8 @@
                                              (min (or (:selected-tileset-definition-index state)
                                                       0)
                                                   (dec (count tilesets))))
-                  tileset-definition (when (not (nil? tileset-definition-index))
-                                       (nth tilesets tileset-definition-index))
+                  tileset-definition (when-let [index tileset-definition-index]
+                                       (nth tilesets index))
                   tileset-tile-count (count (or (:tiles tileset-definition) []))
                   tileset-tile-index (when (> tileset-tile-count 0)
                                        (min (or (:selected-tileset-tile-index state) 0)
@@ -739,9 +737,8 @@
                       "Paste map selection"
                       (tilemap/paste-map-clipboard state)))
        :form/change (fn [state event ctx]
-                      (do
-                        (ui/stop-propagation! event)
-                        (apply-form-change state (:payload event))))
+                      (ui/stop-propagation! event)
+                      (apply-form-change state (:payload event)))
        :tab-panel/change (fn [state event ctx]
                            (select-workspace-tab state
                                                  (-> event :payload :tab)))

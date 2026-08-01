@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.brushes.model
   (:require pixils
+            [roo.string :as string]
             [pixils.tilemap.project.model :as data]))
 
 (def default-pattern-size {:w 3 :h 3})
@@ -7,21 +8,12 @@
 
 (defun keyword-label [value]
   (let [text (str value)]
-    (if (= ":" (substr text 0 1))
+    (if (string/starts-with? text ":")
       (substr text 1)
       text)))
 
-(defun clean-name-separators [value index out]
-  (if (>= index (count value))
-    (trim out)
-    (let [ch (substr value index 1)]
-      (clean-name-separators
-       value
-       (inc index)
-       (str out
-            (if (or (= ch "-") (= ch "_"))
-              " "
-              ch))))))
+(defun clean-name-separators [value]
+  (trim (string/replace (string/replace value "-" " ") "_" " ")))
 
 (defun ensure-keyword [value]
   (if (keyword? value)
@@ -80,7 +72,7 @@
       id)))
 
 (defun brush-label-from-id [id]
-  (capitalize (clean-name-separators (keyword-label id) 0 "")))
+  (capitalize (clean-name-separators (keyword-label id))))
 
 (defun duplicate-label [items label label-key suffix]
   (let [root (str (or label "Item") " Copy")
@@ -522,8 +514,8 @@
         index (selected-brush-index brushes (:selected-brush-index state))
         brush (selected-brush brushes index)
         label (:name payload)
-        id (when (not (nil? index))
-             (requested-id brushes payload label index))]
+        id (when-let [selected-index index]
+             (requested-id brushes payload label selected-index))]
     (if (and brush id (not (blank? label)))
       (assoc state :brushes (replace-selected-brush brushes
                                                     index
@@ -633,8 +625,8 @@
         layers (or (-> brush :pattern :layers) [])
         source-option (source-layer-option state (:source-layer-index payload))
         label (:name payload)
-        id (when (not (nil? layer-index))
-             (requested-pattern-layer-id layers payload label layer-index))]
+        id (when-let [selected-layer-index layer-index]
+             (requested-pattern-layer-id layers payload label selected-layer-index))]
     (if (and brush source-option id (not (blank? label)))
       (let [layer (pattern-layer-from-source
                    (assoc (nth layers layer-index)

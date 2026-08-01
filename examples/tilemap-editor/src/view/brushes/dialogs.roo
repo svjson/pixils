@@ -81,9 +81,8 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx) :brush-dialog/cancel)
-                             state))}
+                           (ui/emit! (:view ctx) :brush-dialog/cancel)
+                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -95,12 +94,11 @@
                        (ui/bind-state :selected-brush-index)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         :brush-dialog/confirm
-                                         (:identity state)))
-                             state))}]})
+                           (unless (:disabled? state)
+                             (ui/emit! (:view ctx)
+                                       :brush-dialog/confirm
+                                       (:identity state)))
+                           state)}]})
 
 (defcomponent brush-dialog-body
   {:class :ui/content
@@ -147,9 +145,8 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx) :brush-layer-dialog/cancel)
-                             state))}
+                           (ui/emit! (:view ctx) :brush-layer-dialog/cancel)
+                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -163,15 +160,14 @@
                        (ui/bind-state :source-layer-index)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         :brush-layer-dialog/confirm
-                                         {:id (get-in state [:identity :id])
-                                          :name (get-in state [:identity :name])
-                                          :source-layer-index
-                                          (:source-layer-index state)}))
-                             state))}]})
+                           (unless (:disabled? state)
+                             (ui/emit! (:view ctx)
+                                       :brush-layer-dialog/confirm
+                                       {:id (get-in state [:identity :id])
+                                        :name (get-in state [:identity :name])
+                                        :source-layer-index
+                                        (:source-layer-index state)}))
+                           state)}]})
 
 (defcomponent brush-layer-dialog-body
   {:class :ui/content
@@ -254,10 +250,9 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :brush-layer-source-dialog/cancel)
-                             state))}
+                           (ui/emit! (:view ctx)
+                                     :brush-layer-source-dialog/cancel)
+                           state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -266,13 +261,12 @@
                        :source-index (ui/bind-state :source-index)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         :brush-layer-source-dialog/confirm
-                                         {:operation (:operation state)
-                                          :source-index (:source-index state)}))
-                             state))}]})
+                           (unless (:disabled? state)
+                             (ui/emit! (:view ctx)
+                                       :brush-layer-source-dialog/confirm
+                                       {:operation (:operation state)
+                                        :source-index (:source-index state)}))
+                           state)}]})
 
 (defcomponent brush-layer-source-dialog-body
   {:class :ui/content
@@ -293,19 +287,17 @@
 (defmode brush-dialog-modal
   {:on {:brush-dialog/cancel
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel
-                        :operation (:operation state)})
-            state))
+          (ui/stop-propagation! event)
+          (pop-mode! {:type :cancel
+                      :operation (:operation state)})
+          state)
         :brush-dialog/confirm
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! (merge {:type :confirm
-                               :operation (:operation state)}
-                              (:payload event)))
-            state))}
+          (ui/stop-propagation! event)
+          (pop-mode! (merge {:type :confirm
+                             :operation (:operation state)}
+                            (:payload event)))
+          state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -328,19 +320,17 @@
 (defmode brush-layer-dialog-modal
   {:on {:brush-layer-dialog/cancel
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel
-                        :operation (:operation state)})
-            state))
+          (ui/stop-propagation! event)
+          (pop-mode! {:type :cancel
+                      :operation (:operation state)})
+          state)
         :brush-layer-dialog/confirm
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! (merge {:type :confirm
-                               :operation (:operation state)}
-                              (:payload event)))
-            state))}
+          (ui/stop-propagation! event)
+          (pop-mode! (merge {:type :confirm
+                             :operation (:operation state)}
+                            (:payload event)))
+          state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -378,18 +368,16 @@
 (defmode brush-layer-source-dialog-modal
   {:on {:brush-layer-source-dialog/cancel
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel
-                        :operation (:operation state)})
-            state))
+          (ui/stop-propagation! event)
+          (pop-mode! {:type :cancel
+                      :operation (:operation state)})
+          state)
         :brush-layer-source-dialog/confirm
         (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! (merge {:type :confirm}
-                              (:payload event)))
-            state))}
+          (ui/stop-propagation! event)
+          (pop-mode! (merge {:type :confirm}
+                            (:payload event)))
+          state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -406,49 +394,46 @@
                                        (ui/bind-state :source-index)}}]})]})
 
 (defun open-brush-dialog! [state ctx operation title identity confirm-label]
-  (do
-    (push-mode! 'brush-dialog-modal
-                {:title title
-                 :operation operation
-                 :identity identity
-                 :confirm-label confirm-label
-                 :brushes (:brushes state)
-                 :selected-brush-index (:selected-brush-index state)}
-                {:origin {:view (:view ctx)
-                          :event :brush/dialog-result}})
-    state))
+  (push-mode! 'brush-dialog-modal
+              {:title title
+               :operation operation
+               :identity identity
+               :confirm-label confirm-label
+               :brushes (:brushes state)
+               :selected-brush-index (:selected-brush-index state)}
+              {:origin {:view (:view ctx)
+                        :event :brush/dialog-result}})
+  state)
 
 (defun open-brush-layer-dialog! [state ctx operation title identity source-layer-index confirm-label]
-  (do
-    (push-mode! 'brush-layer-dialog-modal
-                {:title title
-                 :operation operation
-                 :identity identity
-                 :confirm-label confirm-label
-                 :layer-profiles (:layer-profiles state)
-                 :selected-layer-profile-id (:selected-layer-profile-id state)
-                 :layers (:layers state)
-                 :brush-layers (or (-> (model/selected-brush
-                                         (:brushes state)
-                                         (:selected-brush-index state))
-                                        :pattern
-                                        :layers)
-                                   [])
-                 :selected-layer-index
-                 (:selected-brush-layer-index state)
-                 :source-layer-index source-layer-index}
-                {:origin {:view (:view ctx)
-                          :event :brush/layer-dialog-result}})
-    state))
+  (push-mode! 'brush-layer-dialog-modal
+              {:title title
+               :operation operation
+               :identity identity
+               :confirm-label confirm-label
+               :layer-profiles (:layer-profiles state)
+               :selected-layer-profile-id (:selected-layer-profile-id state)
+               :layers (:layers state)
+               :brush-layers (or (-> (model/selected-brush
+                                      (:brushes state)
+                                      (:selected-brush-index state))
+                                     :pattern
+                                     :layers)
+                                 [])
+               :selected-layer-index
+               (:selected-brush-layer-index state)
+               :source-layer-index source-layer-index}
+              {:origin {:view (:view ctx)
+                        :event :brush/layer-dialog-result}})
+  state)
 
 (defun open-brush-layer-source-dialog! [state ctx operation title source-index]
-  (do
-    (push-mode! 'brush-layer-source-dialog-modal
-                {:title title
-                 :operation operation
-                 :tilesets (:tilesets state)
-                 :terrain-sets (:terrain-sets state)
-                 :source-index source-index}
-                {:origin {:view (:view ctx)
-                          :event :brush/layer-source-dialog-result}})
-    state))
+  (push-mode! 'brush-layer-source-dialog-modal
+              {:title title
+               :operation operation
+               :tilesets (:tilesets state)
+               :terrain-sets (:terrain-sets state)
+               :source-index source-index}
+              {:origin {:view (:view ctx)
+                        :event :brush/layer-source-dialog-result}})
+  state)

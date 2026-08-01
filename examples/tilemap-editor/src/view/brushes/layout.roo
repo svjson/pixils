@@ -43,33 +43,30 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! (brush-context-menu)
-                                               (:global-position event)
-                                               state
-                                               ctx))
-                    state))
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! (brush-context-menu)
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :brush/context-command
-                                       {:index (:index state)
-                                        :command (-> payload :payload :command)}))))
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :brush/context-command
+                                     {:index (:index state)
+                                      :command (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -117,24 +114,22 @@
    :update (fn [state ctx]
              (let [brushes (or (:brushes state) [])
                    selected-index (:selected-brush-index state)]
-               (do
-                 (when (or (not= brushes (:rendered-brushes state))
-                           (not= selected-index (:rendered-selected-index state)))
-                   (ui/replace-child! (:view ctx)
-                                      "list-box"
-                                      (merge {:id "list-box"}
-                                             (brush-list-child brushes
-                                                               selected-index))))
-                 (assoc state
-                        :rendered-brushes brushes
-                        :rendered-selected-index selected-index))))
+               (when (or (not= brushes (:rendered-brushes state))
+                         (not= selected-index (:rendered-selected-index state)))
+                 (ui/replace-child! (:view ctx)
+                                    "list-box"
+                                    (merge {:id "list-box"}
+                                           (brush-list-child brushes
+                                                             selected-index))))
+               (assoc state
+                      :rendered-brushes brushes
+                      :rendered-selected-index selected-index)))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :brush/select
-                                       (-> event :payload :value))
-                             state))}
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :brush/select
+                                     (-> event :payload :value))
+                           state)}
    :children [(merge {:id "list-box"}
                      (brush-list-child [] nil))]})
 
@@ -149,10 +144,9 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
-                                             (ui/emit! (:view ctx)
-                                                       :brush/add)
-                                             state))}]
+                                           (ui/emit! (:view ctx)
+                                                     :brush/add)
+                                           state)}]
             :body-style {:padding 8
                          :height :fill}
             :state {:brushes (ui/bind-state :brushes)
@@ -172,12 +166,11 @@
                     :align-items :center
                     :gap 6}}
    :on {:number-input/change (fn [state event ctx]
-                               (do
-                                 (ui/emit! (:view ctx)
-                                           :brush/size-change
-                                           {:dimension (:dimension state)
-                                            :value (-> event :payload :value)})
-                                 state))}
+                               (ui/emit! (:view ctx)
+                                         :brush/size-change
+                                         {:dimension (:dimension state)
+                                          :value (-> event :payload :value)})
+                               state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 48}
@@ -202,12 +195,11 @@
                     :align-items :center
                     :gap 6}}
    :on {:number-input/change (fn [state event ctx]
-                               (do
-                                 (ui/emit! (:view ctx)
-                                           :brush/anchor-change
-                                           {:dimension (:dimension state)
-                                            :value (-> event :payload :value)})
-                                 state))}
+                               (ui/emit! (:view ctx)
+                                         :brush/anchor-change
+                                         {:dimension (:dimension state)
+                                          :value (-> event :payload :value)})
+                               state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 48}
@@ -238,40 +230,35 @@
             :selected-layer-label
             (ui/bind-state :selected-layer-label)}
     :on {:layer/select (fn [state event ctx]
-                         (do
-                           (ui/stop-propagation! event)
-                           (ui/emit! (:view ctx)
-                                     :brush/layer-select
-                                     (:payload event))
-                           state))
+                         (ui/stop-propagation! event)
+                         (ui/emit! (:view ctx)
+                                   :brush/layer-select
+                                   (:payload event))
+                         state)
          :layer/add (fn [state event ctx]
-                      (do
-                        (ui/emit! (:view ctx)
-                                  :brush/layer-add)
-                        state))
+                      (ui/emit! (:view ctx)
+                                :brush/layer-add)
+                      state)
          :layer/reorder (fn [state event ctx]
-                          (do
-                            (ui/stop-propagation! event)
-                            (ui/emit! (:view ctx)
-                                      :brush/layer-reorder
-                                      (:payload event))
-                            state))
+                          (ui/stop-propagation! event)
+                          (ui/emit! (:view ctx)
+                                    :brush/layer-reorder
+                                    (:payload event))
+                          state)
          :layer/toggle-visible
          (fn [state event ctx]
-           (do
-             (ui/stop-propagation! event)
-             (ui/emit! (:view ctx)
-                       :brush/layer-toggle-visible
-                       (:payload event))
-             state))
+           (ui/stop-propagation! event)
+           (ui/emit! (:view ctx)
+                     :brush/layer-toggle-visible
+                     (:payload event))
+           state)
          :layer/context-command
          (fn [state event ctx]
-           (do
-             (ui/stop-propagation! event)
-             (ui/emit! (:view ctx)
-                       :brush/layer-context-command
-                       (:payload event))
-             state))}}))
+           (ui/stop-propagation! event)
+           (ui/emit! (:view ctx)
+                     :brush/layer-context-command
+                     (:payload event))
+           state)}}))
 
 (defcomponent pattern-controls
   {:style {:width 188
@@ -301,9 +288,8 @@
                        brush
                        (:selected-brush-layer-index state)))))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             state))}
+                           (ui/stop-propagation! event)
+                           state)}
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value "Pattern"}}
@@ -338,12 +324,11 @@
                       :palette-layer-index 0
                       :palette-disabled? disabled?)))
    :on {:tile-select/change (fn [state event ctx]
-                              (do
-                                (ui/stop-propagation! event)
-                                (ui/emit! (:view ctx)
-                                          :brush/tile-select
-                                          (-> event :payload :value))
-                                state))}
+                              (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        :brush/tile-select
+                                        (-> event :payload :value))
+                              state)}
    :children [{:mode 'tile-palette-list
                :state {:selected-tile (ui/bind-state :brush-selected-tile)
                        :tilesets (ui/bind-state :tilesets)
@@ -381,8 +366,8 @@
   (let [layer-index (model/selected-pattern-layer-index
                      brush
                      (:selected-brush-layer-index state))
-        layer (when (not (nil? layer-index))
-                (nth (or (-> brush :pattern :layers) []) layer-index))]
+        layer (when-let [index layer-index]
+                (nth (or (-> brush :pattern :layers) []) index))]
     (if layer
       (pattern-layer-tile-size state layer)
       data/tile-dim)))
@@ -638,7 +623,7 @@
                      brush
                      (:selected-brush-layer-index state))
         layers (or (-> brush :pattern :layers) [])
-        layer (when (not (nil? layer-index)) (nth layers layer-index))
+        layer (when-let [index layer-index] (nth layers index))
         label (or (:label layer) (str (:id layer)))]
     (if (and layer (> (count layers) 1))
       (do
@@ -730,7 +715,7 @@
         index (model/selected-pattern-layer-index
                brush
                (:selected-brush-layer-index state))]
-    (when (not (nil? index))
+    (when-let [index index]
       (nth (or (-> brush :pattern :layers) []) index))))
 
 (defun open-brush-layer-add-dialog! [state ctx]
