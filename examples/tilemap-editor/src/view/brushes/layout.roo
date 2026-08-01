@@ -625,22 +625,20 @@
         layers (or (-> brush :pattern :layers) [])
         layer (when-let [index layer-index] (nth layers index))
         label (or (:label layer) (str (:id layer)))]
-    (if (and layer (> (count layers) 1))
-      (do
-        (dialog/open-confirm!
-         ctx
-         {:title "Delete Brush Layer"
-          :body {:mode 'ui/text
-                 :style {:width :fill}
-                 :state {:value (str "Delete brush layer \"" label "\"?")}}
-          :buttons [:dialog/cancel
-                    {:type :dialog/ok
-                     :label "Delete"}]
-          :result-event :brush/layer-delete-confirm-result
-          :payload {:operation :delete-pattern-layer
-                    :index layer-index}})
-        state)
-      state)))
+    (when (and layer (> (count layers) 1))
+      (dialog/open-confirm!
+       ctx
+       {:title "Delete Brush Layer"
+        :body {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (str "Delete brush layer \"" label "\"?")}}
+        :buttons [:dialog/cancel
+                  {:type :dialog/ok
+                   :label "Delete"}]
+        :result-event :brush/layer-delete-confirm-result
+        :payload {:operation :delete-pattern-layer
+                  :index layer-index}}))
+    state))
 
 (defun open-brush-add-dialog! [state ctx]
   (let [id (model/unique-brush-id (:brushes state))]
@@ -690,24 +688,21 @@
       state)))
 
 (defun open-brush-delete-confirm-dialog! [state ctx]
-  (let [brush (model/selected-brush (:brushes state)
-                                    (:selected-brush-index state))]
-    (if brush
-      (do
-        (dialog/open-confirm!
-         ctx
-         {:title "Delete Brush"
-          :body {:mode 'ui/text
-                 :style {:width :fill}
-                 :state {:value (str "Delete brush \""
-                                     (or (:label brush) (:id brush))
-                                     "\"?")}}
-          :buttons [:dialog/cancel
-                    {:type :dialog/ok
-                     :label "Delete"}]
-          :result-event :brush/delete-confirm-result})
-        state)
-      state)))
+  (when-let [brush (model/selected-brush (:brushes state)
+                                         (:selected-brush-index state))]
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Brush"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete brush \""
+                                 (or (:label brush) (:id brush))
+                                 "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :brush/delete-confirm-result}))
+  state)
 
 (defun selected-pattern-layer-details [state]
   (let [brush (model/selected-brush (:brushes state)

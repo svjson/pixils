@@ -380,16 +380,14 @@
   (let [tile-ref (mask-palette-tile-at-position state
                                                 (:position event)
                                                 (-> ctx :view :bounds))]
-    (if (and (= (:button event) :left)
-             (lb/held-shift? ctx)
-             (not (nil? tile-ref)))
-      (do
-        (ui/stop-propagation! event)
-        (ui/emit! (:view ctx)
-                  :mask/tile-item-tile-change
-                  tile-ref)
-        state)
-      state)))
+    (when (and (= (:button event) :left)
+               (lb/held-shift? ctx)
+               (not (nil? tile-ref)))
+      (ui/stop-propagation! event)
+      (ui/emit! (:view ctx)
+                :mask/tile-item-tile-change
+                tile-ref))
+    state))
 
 (defun draw-mask-palette-cell! [state option index columns]
   (let [rect (mask-palette-cell-rect index columns)

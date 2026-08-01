@@ -203,16 +203,13 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-drop (fn [state event ctx]
-              (let [payload (image-resource-drop-payload (:value state)
-                                                         (:payload event))]
-                (if payload
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :resource/move-image-to-bundle
-                              payload)
-                    state)
-                  state)))
+              (when-let [payload (image-resource-drop-payload (:value state)
+                                                              (:payload event))]
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :resource/move-image-to-bundle
+                          payload))
+              state)
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)

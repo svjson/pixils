@@ -2443,35 +2443,32 @@
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask (:mask payload)})
-           state)
+                      :mask (:mask payload)}))
 
          :default
-         (if (terrain-stamp-tile-drag-payload? payload)
-           (do
-             (ui/stop-propagation! event)
-             (case (or (:output-tab payload)
-                       (terrain-standard-output-tab state))
-               :overlays
-               (ui/emit! (:view ctx)
-                         :terrain/standard-role-overlay-change
-                         {:setup-id (:setup-id state)
-                          :role-id (:role-id state)
-                          :opposing (:terrain-standard-role-cache-opposing state)
-                          :overlay (:tile payload)})
+         (when (terrain-stamp-tile-drag-payload? payload)
+           (ui/stop-propagation! event)
+           (case (or (:output-tab payload)
+                     (terrain-standard-output-tab state))
+             :overlays
+             (ui/emit! (:view ctx)
+                       :terrain/standard-role-overlay-change
+                       {:setup-id (:setup-id state)
+                        :role-id (:role-id state)
+                        :opposing (:terrain-standard-role-cache-opposing state)
+                        :overlay (:tile payload)})
 
-               :tiles
-               (ui/emit! (:view ctx)
-                         :terrain/standard-role-tile-change
-                         {:setup-id (:setup-id state)
-                          :role-id (:role-id state)
-                          :opposing (:terrain-standard-role-cache-opposing state)
-                          :tile (:tile payload)})
+             :tiles
+             (ui/emit! (:view ctx)
+                       :terrain/standard-role-tile-change
+                       {:setup-id (:setup-id state)
+                        :role-id (:role-id state)
+                        :opposing (:terrain-standard-role-cache-opposing state)
+                        :tile (:tile payload)})
 
-               :default
-               nil)
-             state)
-           state))))
+             :default
+             nil)))
+     state))
    :render draw-terrain-standard-role-slot!})
 
 (defun terrain-standard-role-slot-child [setup-id role-id label]
@@ -3251,9 +3248,9 @@
     state))
 
 (defun open-terrain-add-dialog! [state ctx]
-  (if-let [set-index (model/selected-terrain-set-index
-                      (:terrain-sets state)
-                      (:selected-terrain-set-index state))]
+  (when-let [set-index (model/selected-terrain-set-index
+                        (:terrain-sets state)
+                        (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
           terrain (model/make-terrain terrain-set (:tilesets state))]
       (id-name-dialog/open! ctx
@@ -3262,23 +3259,19 @@
                              :name (or (:label terrain) "")
                              :result-event :terrain/name-dialog-result
                              :context {:operation :add
-                                       :terrain-set-index set-index}})
-      state)
-    state))
+                                       :terrain-set-index set-index}})))
+  state)
 
 (defun open-terrain-set-edit-dialog! [state ctx]
-  (let [terrain-set (model/selected-terrain-set
-                     (:terrain-sets state)
-                     (:selected-terrain-set-index state))]
-    (if terrain-set
-      (do
-        (id-name-dialog/open! ctx
-                              {:title "Rename Terrain Set"
-                               :id (model/keyword-label (:id terrain-set))
-                               :name (or (:label terrain-set) "")
-                               :result-event :terrain/set-edit-dialog-result})
-        state)
-      state)))
+  (when-let [terrain-set (model/selected-terrain-set
+                          (:terrain-sets state)
+                          (:selected-terrain-set-index state))]
+    (id-name-dialog/open! ctx
+                          {:title "Rename Terrain Set"
+                           :id (model/keyword-label (:id terrain-set))
+                           :name (or (:label terrain-set) "")
+                           :result-event :terrain/set-edit-dialog-result}))
+  state)
 
 (defun open-terrain-set-delete-confirm-dialog! [state ctx terrain-set-index name]
   (do
@@ -3305,89 +3298,74 @@
     state))
 
 (defun open-mask-set-edit-dialog! [state ctx]
-  (let [mask-set (model/selected-mask-set (:mask-sets state)
-                                          (:selected-mask-set-index state))]
-    (if mask-set
-      (do
-        (id-name-dialog/open! ctx
-                              {:title "Rename Mask Set"
-                               :id (model/keyword-label (:id mask-set))
-                               :name (or (:label mask-set) "")
-                               :result-event
-                               :terrain/mask-set-edit-dialog-result})
-        state)
-      state)))
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))]
+    (id-name-dialog/open! ctx
+                          {:title "Rename Mask Set"
+                           :id (model/keyword-label (:id mask-set))
+                           :name (or (:label mask-set) "")
+                           :result-event
+                           :terrain/mask-set-edit-dialog-result}))
+  state)
 
 (defun open-mask-set-delete-confirm-dialog! [state ctx]
-  (let [mask-set (model/selected-mask-set (:mask-sets state)
-                                          (:selected-mask-set-index state))]
-    (if mask-set
-      (do
-        (dialog/open-confirm!
-         ctx
-         {:title "Delete Mask Set"
-          :body {:mode 'ui/text
-                 :style {:width :fill}
-                 :state {:value (str "Delete mask set \""
-                                     (model/mask-set-label mask-set)
-                                     "\"?")}}
-          :buttons [:dialog/cancel
-                    {:type :dialog/ok
-                     :label "Delete"}]
-          :result-event :terrain/mask-set-delete-confirm-result
-          :payload {:mask-set-index (:selected-mask-set-index state)}})
-        state)
-      state)))
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))]
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Mask Set"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete mask set \""
+                                 (model/mask-set-label mask-set)
+                                 "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :terrain/mask-set-delete-confirm-result
+      :payload {:mask-set-index (:selected-mask-set-index state)}}))
+  state)
 
 (defun open-mask-add-dialog! [state ctx]
-  (let [mask-set (model/selected-mask-set (:mask-sets state)
-                                          (:selected-mask-set-index state))]
-    (if mask-set
-      (let [mask (model/make-mask (:masks mask-set))]
-        (do
-          (id-name-dialog/open! ctx
-                                {:title "Add Mask"
-                                 :id (model/keyword-label (:id mask))
-                                 :name (or (:label mask) "")
-                                 :result-event :terrain/mask-add-dialog-result})
-          state))
-      state)))
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))]
+    (let [mask (model/make-mask (:masks mask-set))]
+      (id-name-dialog/open! ctx
+                            {:title "Add Mask"
+                             :id (model/keyword-label (:id mask))
+                             :name (or (:label mask) "")
+                             :result-event :terrain/mask-add-dialog-result})))
+  state)
 
 (defun open-mask-edit-dialog! [state ctx]
   (let [mask-set (model/selected-mask-set (:mask-sets state)
-                                          (:selected-mask-set-index state))
-        mask (model/selected-mask mask-set (:selected-mask-index state))]
-    (if mask
-      (do
-        (id-name-dialog/open! ctx
-                              {:title "Rename Mask"
-                               :id (model/keyword-label (:id mask))
-                               :name (or (:label mask) "")
-                               :result-event :terrain/mask-edit-dialog-result})
-        state)
-      state)))
+                                          (:selected-mask-set-index state))]
+    (when-let [mask (model/selected-mask mask-set (:selected-mask-index state))]
+      (id-name-dialog/open! ctx
+                            {:title "Rename Mask"
+                             :id (model/keyword-label (:id mask))
+                             :name (or (:label mask) "")
+                             :result-event :terrain/mask-edit-dialog-result}))
+    state))
 
 (defun open-mask-delete-confirm-dialog! [state ctx]
   (let [mask-set (model/selected-mask-set (:mask-sets state)
-                                          (:selected-mask-set-index state))
-        mask (model/selected-mask mask-set (:selected-mask-index state))]
-    (if mask
-      (do
-        (dialog/open-confirm!
-         ctx
-         {:title "Delete Mask"
-          :body {:mode 'ui/text
-                 :style {:width :fill}
-                 :state {:value (str "Delete mask \""
-                                     (model/mask-label mask)
-                                     "\"?")}}
-          :buttons [:dialog/cancel
-                    {:type :dialog/ok
-                     :label "Delete"}]
-          :result-event :terrain/mask-delete-confirm-result
-          :payload {:mask-index (:selected-mask-index state)}})
-        state)
-      state)))
+                                          (:selected-mask-set-index state))]
+    (when-let [mask (model/selected-mask mask-set (:selected-mask-index state))]
+      (dialog/open-confirm!
+       ctx
+       {:title "Delete Mask"
+        :body {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (str "Delete mask \""
+                                   (model/mask-label mask)
+                                   "\"?")}}
+        :buttons [:dialog/cancel
+                  {:type :dialog/ok
+                   :label "Delete"}]
+        :result-event :terrain/mask-delete-confirm-result
+        :payload {:mask-index (:selected-mask-index state)}}))
+    state))
 
 (defun open-terrain-delete-confirm-dialog! [state ctx terrain-index name]
   (do

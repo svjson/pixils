@@ -214,16 +214,13 @@
                       (ip/offset-or-zero
                        (:sprite-source-preview-offset state)))))
    :on-key-down (fn [state event ctx]
-                  (let [source (sprite-source-preview-key-source state event)]
-                    (if source
-                      (do
-                        (ui/stop-propagation! event)
-                        (emit-sprite-source-change! state
-                                                    ctx
-                                                    (:image state)
-                                                    source)
-                        state)
-                      state)))
+                  (when-let [source (sprite-source-preview-key-source state event)]
+                    (ui/stop-propagation! event)
+                    (emit-sprite-source-change! state
+                                                ctx
+                                                (:image state)
+                                                source))
+                  state)
    :on {:image-panel/source-click
         (fn [state event ctx]
           (let [payload (:payload event)

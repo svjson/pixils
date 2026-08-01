@@ -7,17 +7,14 @@
             [tilemap-editor.view.property-sets.panels :as panels]))
 
 (defun open-property-set-edit-dialog! [state ctx]
-  (let [property-set (model/selected-property-set state)]
-    (if property-set
-      (do
-        (id-name-dialog/open!
-         ctx
-         {:title "Edit Property Set"
-          :id (model/keyword-label (:id property-set))
-          :name (or (:label property-set) "")
-          :result-event :property-set/edit-dialog-result})
-        state)
-      state)))
+  (when-let [property-set (model/selected-property-set state)]
+    (id-name-dialog/open!
+     ctx
+     {:title "Edit Property Set"
+      :id (model/keyword-label (:id property-set))
+      :name (or (:label property-set) "")
+      :result-event :property-set/edit-dialog-result}))
+  state)
 
 (defun open-property-set-delete-confirm-dialog! [state ctx property-set-index name]
   (do
