@@ -54,12 +54,13 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 
   runtime.eval("(ns pixils.package-test-runner "
                "(:require proof.core "
+               "proof.reporter "
                "pixils.package-test "
                "pixils.ui.window-test "
                "pixils.ui.scroll-pane-test "
                "pixils.ui.group-box-test))");
 
-  auto summary = runtime.eval("(result-summary (run))");
+  auto summary = runtime.eval("(proof.reporter/result-summary (run))");
 
   EXPECT_EQ(summary->to_string(), "{:total 33 :passed 33 :failed 0}");
 }
@@ -119,9 +120,9 @@ TEST(PixilsRooPackageTest, pixils_test_package_runs_proof_tests)
   Roo::Package::load_autoloads(runtime, plan);
 
   runtime.eval("(ns pixils.test-package-proof-runner "
-               "(:require proof.core pixils.test.package-test))");
+               "(:require proof.core proof.reporter pixils.test.package-test))");
 
-  auto summary = runtime.eval("(result-summary (run))");
+  auto summary = runtime.eval("(proof.reporter/result-summary (run))");
 
   EXPECT_EQ(summary->to_string(), "{:total 5 :passed 5 :failed 0}");
 }
