@@ -39,14 +39,14 @@
               (fn [tab]
                 (= (tab-id tab) id))))
 
-(defun selected-tab-id [tabs selected-tab]
-  (let [selected (tab-by-id tabs selected-tab)]
+(defun selected-tab-id [tabs requested-tab-id]
+  (let [selected (tab-by-id tabs requested-tab-id)]
     (if (selectable-tab? selected)
-      selected-tab
+      requested-tab-id
       (tab-id (first-selectable-tab tabs)))))
 
-(defun selected-tab [tabs selected-tab]
-  (tab-by-id tabs (selected-tab-id tabs selected-tab)))
+(defun selected-tab [tabs requested-tab-id]
+  (tab-by-id tabs (selected-tab-id tabs requested-tab-id)))
 
 (defun tab-body-child [tab]
   (or (:child tab)
@@ -88,17 +88,17 @@
            :disabled? (tab-disabled? tab)
            :selected? (= (tab-id tab) selected-tab)}})
 
-(defun tab-strip-child [tabs selected-tab]
+(defun tab-strip-child [tabs requested-tab-id]
   {:mode 'ui/tab-strip
    :id "tab-strip"
    :children (for-indexed [index tab (or tabs [])]
-               (tab-child index tab selected-tab))})
+               (tab-child index tab requested-tab-id))})
 
-(defun body-child [tabs selected-tab body-state]
+(defun body-child [tabs requested-tab-id body-state]
   {:mode 'ui/tab-panel-body
    :id "body"
    :state (or body-state (ui/bind-state))
-   :children [(tab-body-child (selected-tab tabs selected-tab))]})
+   :children [(tab-body-child (selected-tab tabs requested-tab-id))]})
 
 (defun replacement-body-state [state]
   (if (nil? (:body-state (or state {})))
