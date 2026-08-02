@@ -62,7 +62,7 @@
       1))
 
 (defun button-image-scale [ctx image]
-  (or (when (not (keyword? image))
+  (or (unless (keyword? image)
         (:scale image))
       (button-style-image-scale ctx)
       1))

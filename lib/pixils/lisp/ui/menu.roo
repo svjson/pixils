@@ -172,10 +172,7 @@
 (defun shortcut-key-name [key]
   (if-let [name (get shortcut-key-names key)]
     name
-    (let [raw (str key)
-          value (if (= ":key/" (substr raw 0 5))
-                  (substr raw 5)
-                  raw)]
+    (let [value (name key)]
       (if (= 1 (count value))
         (upper-case value)
         value))))

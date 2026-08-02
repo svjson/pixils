@@ -33,7 +33,7 @@
                 {:pos (centered-image-pos (-> ctx :view :bounds)
                                           (or (img/size image)
                                               {:w 9 :h 9}))})
-      (when (not (keyword? marker))
+      (unless (keyword? marker)
         (let [label (or marker (if (:expanded? state) "v" ">"))
               args (reduce-kv (or (-> ctx :view :effective-style :text) {})
                               {}
@@ -45,7 +45,7 @@
                                                        v
                                                        (keyword v))
                                                      v)}))))]
-          (when (not (empty? label))
+          (unless (empty? label)
             (r/text! label
                      (centered-image-pos (-> ctx :view :bounds)
                                          (r/text-size label args))

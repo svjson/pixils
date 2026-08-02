@@ -13,5 +13,5 @@
 (defun ensure-generated-image! [bundle id opts draw!]
   (when (can-create-generated-images?)
     (res/create-bundle! bundle)
-    (when (not (generated-image-exists? bundle id))
+    (unless (generated-image-exists? bundle id)
       (res/create-image! id opts draw!))))

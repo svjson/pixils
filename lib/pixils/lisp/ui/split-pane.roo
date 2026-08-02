@@ -109,7 +109,7 @@
          true)))
 
 (defun split-pane-style-if-changed! [view style]
-  (when (not (split-pane-style-matches? view style))
+  (unless (split-pane-style-matches? view style)
     (ui/style! view style)))
 
 (defun split-pane-apply-layout! [state ctx]

@@ -267,14 +267,12 @@
                                       :pending-path (-> event :payload :value)
                                       :path-error nil)))}
    :on-key-down (fn [state event ctx]
-                  (if (= (:key event) :key/enter)
-                    (do
-                      (ui/stop-propagation! event)
-                      (ui/emit! (:view ctx)
-                                :file-dialog/commit-path
-                                {:path (:pending-path state)})
-                      state)
-                    state))})
+                  (when (= (:key event) :key/enter)
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :file-dialog/commit-path
+                              {:path (:pending-path state)}))
+                  state)})
 
 (defcomponent ui/file-dialog-name-row
   {:style {:width :fill

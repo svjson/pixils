@@ -680,22 +680,20 @@
              (assoc state :selected (selected-index? (:selected-indices state)
                                                      (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
+                    (ui/stop-propagation! event)
+                    state)
    :on-click (fn [state event ctx]
-               (do
-                 (when (not (:disabled? state))
-                   (ui/emit! (:view ctx)
-                             :list-box/item-click
-                             {:index (:index state)
-                              :value (:value state)
-                              :shift? (held-shift? ctx)
-                              :ctrl? (held-ctrl? ctx)}))
-                 state))
+               (unless (:disabled? state)
+                 (ui/emit! (:view ctx)
+                           :list-box/item-click
+                           {:index (:index state)
+                            :value (:value state)
+                            :shift? (held-shift? ctx)
+                            :ctrl? (held-ctrl? ctx)}))
+               state)
    :on-double-click (fn [state event ctx]
                       (do
-                        (when (not (:disabled? state))
+                        (unless (:disabled? state)
                           (ui/emit! (:view ctx)
                                     :list-box/item-activate
                                     {:index (:index state)

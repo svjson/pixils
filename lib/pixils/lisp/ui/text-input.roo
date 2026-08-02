@@ -315,7 +315,7 @@
          true)))
 
 (defun text-input-style-if-changed! [view style]
-  (when (not (text-input-style-matches? view style))
+  (unless (text-input-style-matches? view style)
     (ui/style! view style)))
 
 (defun position-text-input-children! [ctx scroll-x cursor-y cursor-x cursor-h show-caret?]

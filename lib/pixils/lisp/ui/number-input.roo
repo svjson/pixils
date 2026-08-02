@@ -1,5 +1,6 @@
 (ns pixils.ui.number-input
   (:require pixils
+            [roo.string :as string]
             [pixils.ui :as ui]
             pixils.ui.text-input))
 
@@ -14,7 +15,7 @@
 (defun partial-fraction-text? [text state]
   (or (= text ".")
       (and (= text "-.") (allows-negative? state))
-      (= (substr text (- (count text) 1) 1) ".")))
+      (string/ends-with? text ".")))
 
 (defun text-contains? [text needle index]
   (cond
@@ -115,7 +116,7 @@
 
 (defun commit-number-input-text [state text ctx]
   (let [parsed (parsed-number text state)
-        value (when (not (nil? parsed)) (clamp-number parsed state))
+        value (unless (nil? parsed) (clamp-number parsed state))
         normalized-text (if (nil? value)
                           text
                           (if (and (allows-fractions? state)

@@ -300,7 +300,7 @@
             style (if (scrollbar-track-has-geometry? state ctx)
                     (scrollbar-track-handle-style state ctx)
                     (scrollbar-track-handle-base-style state))]
-        (when (not (scrollbar-track-handle-style-matches? handle style))
+        (unless (scrollbar-track-handle-style-matches? handle style)
           (ui/style! handle style)))))
   state)
 
