@@ -19,14 +19,14 @@
            :height 12}
    :update (fn [state ctx]
              (let [top (or (:top state) 0)]
-               (do
+
                  (ui/style! (:view ctx)
                             {:position :absolute
                              :left 8
                              :top top
                              :width :fill
                              :height 12})
-                 state)))
+                 state))
    :children [{:mode 'ui/text
                :state {:value (ui/bind-state :message)}}]})
 
@@ -40,16 +40,16 @@
                     :status-top
                     (- (or (-> ctx :view :bounds :h) 0) 16)))
    :on {:workbench/icon-open (fn [state event ctx]
-                               (do
+
                                  (ui/emit! (:view ctx)
                                            :workbench/open-path
                                            (:payload event))
-                                 state))
+                                 state)
         :ui/icon-drop (fn [state event ctx]
                         (let [payload (:payload event)
                               entry (:item payload)
                               path (:target payload)]
-                          (do
+
                             (ui/stop-propagation! event)
                             (when (and entry
                                        path
@@ -60,7 +60,7 @@
                                         {:entry entry
                                          :target-path path
                                          :position (:position payload)}))
-                            state)))}
+                            state))}
    :children [{:mode 'workbench-icon-container
                :state {:entries (ui/bind-state :desktop-entries)
                        :selected-id (ui/bind-state :desktop-selected-id)
@@ -133,9 +133,7 @@
                                   (assoc state
                                          :backend backend
                                          :desktop-entries (fs/desktop-entries backend)
-                                         :desktop-selected-id (if (= target-path fs/desktop-path)
-                                                                (:id entry)
-                                                                nil)
+                                         :desktop-selected-id (when (= target-path fs/desktop-path) (:id entry))
                                          :window (assoc (:window state)
                                                         :entries (fs/drawer-entries backend
                                                                                    window-path)

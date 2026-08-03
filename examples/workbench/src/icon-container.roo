@@ -26,19 +26,19 @@
 (defcomponent workbench-icon-container
   {:extend 'ui/icon-container
    :on {:ui/icon-select (fn [state event ctx]
-                          (do
+
                             (ui/stop-propagation! event)
-                            (assoc state :selected-id (:id (:payload event)))))
+                            (assoc state :selected-id (:id (:payload event))))
         :ui/icon-activate (fn [state event ctx]
                             (let [entry (:payload event)
                                   now (now-ms)]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (maybe-open-icon! state event ctx entry now)
                                 (assoc state
                                        :selected-id (:id entry)
                                        :last-click-id (:id entry)
-                                       :last-click-time now))))}
+                                       :last-click-time now)))}
    :children (dotimes [index max-icons]
                (workbench.icon/workbench-icon
                 {:state {:item (ui/bind-state :entries index)

@@ -16,7 +16,7 @@
            :height 230}
    :update (fn [state ctx]
              (let [pos (or (:position state) {:x 160 :y 70})]
-               (do
+
                  (ui/style! (:view ctx)
                             {:position :absolute
                              :left (:x pos)
@@ -24,20 +24,20 @@
                              :width 430
                              :height 230
                              :hidden (nil? (:path state))})
-                 state)))
+                 state))
    :on {:window/move-by (fn [state event ctx]
-                          (do
+
                             (ui/stop-propagation! event)
                             (update state :position
                                     (fn [pos]
                                       (pt/+ (or pos {:x 160 :y 70})
-                                            (:payload event))))))
+                                            (:payload event)))))
         :workbench/icon-open (fn [state event ctx]
-                               (do
+
                                  (ui/emit! (:view ctx)
                                            :workbench/open-path
                                            (:payload event))
-                                 state))}
+                                 state)}
    :children [{:mode 'ui/window-title-bar
               :state {:title (ui/bind-state :title)}}
               {:mode 'ui/window-body
