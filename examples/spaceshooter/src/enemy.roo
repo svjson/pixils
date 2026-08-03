@@ -80,11 +80,7 @@
   (reduce
    (map spawners
         (fn [spawner]
-          (let [spawner-fn (get spawner-types (:type spawner))]
-            (if spawner-fn
-              ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
-              (apply spawner-fn [spawner])
-              spawner))))
+          (if-let [spawner-fn (get spawner-types (:type spawner))] (apply spawner-fn [spawner]) spawner)))
    {:spawners []
     :enemies []}
    (fn [result spawner]
