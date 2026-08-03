@@ -2,7 +2,7 @@
   (:require [pixils.point :as pt]
             [pixils.render :as r]))
 
-(def top!_---_ [{:x 7 :y 2}
+(def top-round-cap [{:x 7 :y 2}
                 {:x 5 :y 0}
                 {:x 2 :y 0}
                 {:x 0 :y 2}])
@@ -10,27 +10,27 @@
 (def top!>---< [{:x 5 :y 0}
                 {:x 2 :y 0}])
 
-(def top!----_ [{:x 7 :y 2}
+(def top-left-cap [{:x 7 :y 2}
                 {:x 5 :y 0}
                 {:x 0 :y 0}])
 
-(def top!_---- [{:x 7 :y 0}
+(def top-right-cap [{:x 7 :y 0}
                 {:x 2 :y 0}
                 {:x 0 :y 2}])
 
 
-(def low!-___- [{:x 7 :y 7}
+(def low-round-cap [{:x 7 :y 7}
                 {:x 5 :y 9}
                 {:x 2 :y 9}
                 {:x 0 :y 7}])
 
-(def low!>___< [{:x 5 :y 9}
+(def low-center-line [{:x 5 :y 9}
                 {:x 2 :y 9}])
 
-(def low!_____ [{:x 0 :y 9}
+(def low-flat-line [{:x 0 :y 9}
                 {:x 7 :y 9}])
 
-(def low!____- [{:x 7 :y 7}
+(def low-left-cap [{:x 7 :y 7}
                 {:x 5 :y 9}
                 {:x 0 :y 9}])
 
@@ -40,18 +40,18 @@
 (def mid!----< [{:x 0 :y 4}
                 {:x 4 :y 4}])
 
-(def mid!____< [{:x 0 :y 5}
+(def mid-left-line-lower [{:x 0 :y 5}
                 {:x 4 :y 5}])
 
-(def mid!____- [{:x 0 :y 5}
+(def mid-right-bend [{:x 0 :y 5}
                 {:x 5 :y 5}
                 {:x 7 :y 3}
                 {:x 7 :y 2}])
 
-(def top!_-<<< [{:x 2 :y 0}
+(def top-left-stem [{:x 2 :y 0}
                 {:x 0 :y 2}])
 
-(def top!>>>-_ [{:x 7 :y 2}
+(def top-right-stem [{:x 7 :y 2}
                 {:x 5 :y 0}])
 
 
@@ -70,13 +70,13 @@
 (def mid!>>|<< [{:x 4 :y 2}
                 {:x 4 :y 7}])
 
-(def mid!>>>-_ [{:x 5 :y 5}
+(def mid-right-diag-down [{:x 5 :y 5}
                 {:x 7 :y 7}])
 
-(def mid!>>>_- [{:x 4 :y 6}
+(def mid-right-diag-up [{:x 4 :y 6}
                 {:x 7 :y 3}])
 
-(def mid!-_<<<[{:x 0 :y 2}
+(def mid-left-diag-down[{:x 0 :y 2}
                {:x 3 :y 5}])
 
 
@@ -92,7 +92,7 @@
 (def low!>>>>| [{:x 7 :y 7}
                 {:x 7 :y 9}])
 
-(def low!>>>_- [{:x 5 :y 9}
+(def low-right-stem [{:x 5 :y 9}
                 {:x 7 :y 7}])
 
 (def ring [{:x 1 :y 0}
@@ -215,98 +215,98 @@
          {:x 5 :y 5}
          {:x 7 :y 3}]]
 
-   'A' [top!_---_
+   'A' [top-round-cap
         mid!|<<<<
         mid!>>>>|
         mid!-----
-        low!>>>_-
+        low-right-stem
         low!|<<<<]
 
-   'C' [top!_---_
+   'C' [top-round-cap
         mid!|<<<<
-        low!-___-]
+        low-round-cap]
 
-   'D' [top!----_
+   'D' [top-left-cap
         top!|<<<<
         mid!|<<<<
         low!|<<<<
         mid!>>>>|
-        low!____-]
+        low-left-cap]
 
-   'E' [top!_---_
+   'E' [top-round-cap
         mid!|<<<<
         low!|<<<<
-        low!____-
-        mid!____<]
+        low-left-cap
+        mid-left-line-lower]
 
-   'G' [top!_---_
+   'G' [top-round-cap
         mid!|<<<<
-        mid!>>>-_
-        low!-___-]
+        mid-right-diag-down
+        low-round-cap]
 
-   'H' [top!_-<<<
+   'H' [top-left-stem
         top!>>>>|
         mid!|<<<<
         mid!>>>>|
         mid!-----
         low!|<<<<
-        low!>>>_-]
+        low-right-stem]
 
    'I' [top!>---<
         top!>>|<<
         mid!>>|<<
         low!>>|<<
-        low!>___<
+        low-center-line
         [{:x 5 :y 0} {:x 6 :y 0}]
         [{:x 5 :y 9} {:x 6 :y 9}]]
 
-   'L' [top!_-<<<
+   'L' [top-left-stem
         mid!|<<<<
         low!|<<<<
-        low!_____]
+        low-flat-line]
 
-   'M' [top!_----
+   'M' [top-right-cap
         top!>>>>|
         top!>>|<<
         mid!|<<<<
         mid!>>|<<
         mid!>>>>|
         low!|<<<<
-        low!>>>_-]
+        low-right-stem]
 
-   'O' [top!_---_
+   'O' [top-round-cap
         mid!|<<<<
         mid!>>>>|
-        low!-___-]
+        low-round-cap]
 
-   'P' [top!----_
+   'P' [top-left-cap
         top!|<<<<
-        mid!____-
+        mid-right-bend
         mid!|<<<<
         low!|<<<<]
 
-   'R' [top!----_
+   'R' [top-left-cap
         top!|<<<<
-        mid!____-
+        mid-right-bend
         mid!|<<<<
         low!|<<<<
         [{:x 3 :y 5}
          {:x 7 :y 9}]]
-   'S' [top!_---_
+   'S' [top-round-cap
         [{:x 0 :y 2}
          {:x 7 :y 7}]
-        low!-___-]
+        low-round-cap]
 
-   'T' [top!_----
+   'T' [top-right-cap
         top!>>|<<
         mid!>>|<<
         low!>>|<<]
 
-   'U' [top!_-<<<
+   'U' [top-left-stem
         top!>>>>|
         mid!|<<<<
         mid!>>>>|
-        low!-___-]
+        low-round-cap]
 
    'V' [[{:x 2 :y 0}
          {:x 0 :y 2}
@@ -315,21 +315,21 @@
          {:x 7 :y 4}
          {:x 7 :y 0}]]
 
-   'W' [top!_-<<<
+   'W' [top-left-stem
         top!>>>>|
         mid!|<<<<
         mid!>>|<<
         mid!>>>>|
         low!|<<<<
         low!>>|<<
-        low!____-]
+        low-left-cap]
 
-   'Y' [top!_-<<<
+   'Y' [top-left-stem
         top!>>>>|
-        mid!-_<<<
-        mid!>>>_-
+        mid-left-diag-down
+        mid-right-diag-up
         low!>>|<<
-        low!>___<
+        low-center-line
         [{:x 5 :y 9} {:x 6 :y 9}]]
 
    ':' [(map ring (fn [p] (pt/+ p {:x 3 :y 2})))

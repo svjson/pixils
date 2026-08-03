@@ -6,7 +6,7 @@
             [asteroids.debris :as debris]
             [asteroids.player :as plr]))
 
-(def MAX_RADIANS 6.28318531)
+(def MAX-RADIANS 6.28318531)
 
 
 ;; Asteroid Colors
@@ -49,7 +49,7 @@
 
 (defun make-asteroid-shape [size points]
   (let [pt {:x 0 :y (- 0 size) }
-        step-size (/ MAX_RADIANS points)]
+        step-size (/ MAX-RADIANS points)]
     (map (range 1 points)
          (fn [i] (pt/rotate (pt/+ pt
                                   {:x 0 :y (rnd (/ (abs (:y pt)) 2))})
@@ -61,10 +61,10 @@
   (let [{:keys [base-radius points]} (-> ASTEROID-TYPES (get type) :shape)]
     {:shape (make-asteroid-shape base-radius points)
      :size type
-     :rotation (/ (rnd (* 100 MAX_RADIANS)) 100)
+     :rotation (/ (rnd (* 100 MAX-RADIANS)) 100)
      :rotation-factor (rand-nth [0.03 -0.03])
      :pos (or pos {:x (rnd (:w area)) :y (rnd (:h area))})
-     :move (pt/rotate {:x 0 :y -1} (/ (rnd (* 100 MAX_RADIANS)) 100))}))
+     :move (pt/rotate {:x 0 :y -1} (/ (rnd (* 100 MAX-RADIANS)) 100))}))
 
 
 (defun make-asteroids [amount area]

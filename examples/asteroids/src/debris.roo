@@ -3,7 +3,7 @@
             [pixils.render :as r]
             [pixils.point :as pt]))
 
-(def MAX_RADIANS 6.28318531)
+(def MAX-RADIANS 6.28318531)
 
 
 ;; Particle Colors
@@ -46,7 +46,7 @@
                         {:r 255 :g 235 :b 120}]
                        c/make-color))
 
-(def FLAME-INTENSITY [{:cd 6 :off -2 :color (nth FLAME-COLORS 0)}
+(def FLAME-INTENSITY [{:cd 6 :off -2 :color (head FLAME-COLORS)}
                       {:cd 4 :off -1.5 :color (nth FLAME-COLORS 1)}
                       {:cd 3 :off -1 :color (nth FLAME-COLORS 2)}
                       {:cd 2 :off -0.5 :color (nth FLAME-COLORS 3)}
@@ -54,7 +54,7 @@
                       {:cd 2 :off 0.5 :color (nth FLAME-COLORS 2)}
                       {:cd 3 :off 1 :color (nth FLAME-COLORS 2)}
                       {:cd 4 :off 1.5 :color (nth FLAME-COLORS 1)}
-                      {:cd 6 :off 2 :color (nth FLAME-COLORS 0)}])
+                      {:cd 6 :off 2 :color (head FLAME-COLORS)}])
 
 
 
@@ -64,7 +64,7 @@
   (map (range 1 particle-count)
        (fn [n]
          (let [countdown (rnd 25 55)
-               dir (/ (rnd (* 100 MAX_RADIANS)) 100)]
+               dir (/ (rnd (* 100 MAX-RADIANS)) 100)]
            {:pos (pt/+ origin
                        (pt/rotate {:x 0 :y (- 0 (rnd radius))} dir))
             :move

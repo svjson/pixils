@@ -65,7 +65,7 @@ and player score to aligned to the top right."
 
 (defun apply-level-state [{:keys [player asteroids level] :as state}]
   (cond
-    (= (count asteroids) 0)
+    (empty? asteroids)
     (let [next-level (+ 1 level)]
       (push-mode! 'get-ready-mode {:type :next-level
                                    :level next-level
