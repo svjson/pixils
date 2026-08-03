@@ -10,7 +10,7 @@
             [pixils.ui.number-input :as ni]
             [pixils.ui.tab-panel :as tabs]
             [pixils.tilemap.project.model :as data]
-            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.model :as model]))
 
@@ -1037,7 +1037,7 @@
 
 (defun open-mask-set-add-dialog! [state ctx]
   (let [mask-set (model/make-mask-set (:mask-sets state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Add Mask Set"
                            :id (model/keyword-label (:id mask-set))
                            :name (or (:label mask-set) "")
@@ -1047,7 +1047,7 @@
 (defun open-mask-set-edit-dialog! [state ctx]
   (when-let [mask-set (model/selected-mask-set (:mask-sets state)
                                           (:selected-mask-set-index state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Rename Mask Set"
                            :id (model/keyword-label (:id mask-set))
                            :name (or (:label mask-set) "")
@@ -1077,7 +1077,7 @@
   (when-let [mask-set (model/selected-mask-set (:mask-sets state)
                                                (:selected-mask-set-index state))
              mask (when mask-set (model/make-mask (:masks mask-set)))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Add Mask"
                            :id (model/keyword-label (:id mask))
                            :name (or (:label mask) "")
@@ -1088,7 +1088,7 @@
   (when-let [mask-set (model/selected-mask-set (:mask-sets state)
                                           (:selected-mask-set-index state))
              mask (model/selected-mask mask-set (:selected-mask-index state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Rename Mask"
                            :id (model/keyword-label (:id mask))
                            :name (or (:label mask) "")
@@ -1101,7 +1101,7 @@
              masks (or (:masks mask-set) [])
              mask (model/selected-mask mask-set (:selected-mask-index state))
              name (when mask (model/duplicate-mask-name masks mask))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Duplicate Mask"
                            :id (kebab-case name)
                            :name name

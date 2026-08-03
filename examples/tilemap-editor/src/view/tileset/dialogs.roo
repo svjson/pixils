@@ -14,7 +14,7 @@
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
-            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.image-panel :as ip]
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
@@ -323,7 +323,7 @@
                (nth tiles index))]
     (if tile
       (let [identity (tile-duplicate-identity tiles tile)]
-        (id-name-dialog/open!
+        (identity-dialog/open!
          ctx
          {:title "Duplicate Tile"
           :id (:id identity)

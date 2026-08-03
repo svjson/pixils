@@ -18,7 +18,7 @@
             [tilemap-editor.model.map-schemas :as map-schemas]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.workbook :as editor-workbook]
-            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.layers.controls :as layer-controls]
             [tilemap-editor.view.tilemap.dimensions-dialog :as dimensions-dialog]))
 
@@ -139,14 +139,14 @@
 
 (defun open-map-dialog! [state ctx operation title id name]
 
-    (id-name-dialog/open!
+    (identity-dialog/open!
      ctx
      {:title title
       :id id
       :name name
       :context {:operation operation
                 :map-id (:selected-map-id state)}
-      :result-event :map/id-name-dialog-result})
+      :result-event :map/identity-dialog-result})
     state)
 
 (defun open-map-add-dialog! [state ctx]

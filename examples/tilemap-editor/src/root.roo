@@ -769,7 +769,7 @@
                      (if (> (count (or (:maps state) [])) 1)
                        (controls/open-map-delete-confirm-dialog! state ctx)
                        state))
-       :map/id-name-dialog-result
+       :map/identity-dialog-result
        (fn [state event ctx]
          (apply-map-dialog-result state (:payload event)))
        :map/delete-dialog-result

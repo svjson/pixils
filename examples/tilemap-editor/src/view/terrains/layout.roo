@@ -18,7 +18,7 @@
             [pixils.tilemap.project.model :as data]
             [pixils.tilemap.renderer :as tilemap-renderer]
             [tilemap-editor.model.tilemap :as tilemap]
-            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tilemap.renderer :as tr]
@@ -3220,7 +3220,7 @@
       "")))
 
 (defun open-terrain-name-dialog! [state ctx operation terrain-index title name id]
-  (id-name-dialog/open! ctx
+  (identity-dialog/open! ctx
                         {:title title
                          :id id
                          :name name
@@ -3232,7 +3232,7 @@
 (defun open-terrain-set-add-dialog! [state ctx]
   (let [terrain-set (model/make-terrain-set (:terrain-sets state)
                                             (:tilesets state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Add Terrain Set"
                            :id (model/keyword-label (:id terrain-set))
                            :name (or (:label terrain-set) "")
@@ -3245,7 +3245,7 @@
                         (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
           terrain (model/make-terrain terrain-set (:tilesets state))]
-      (id-name-dialog/open! ctx
+      (identity-dialog/open! ctx
                             {:title "Add Terrain"
                              :id (model/keyword-label (:id terrain))
                              :name (or (:label terrain) "")
@@ -3258,7 +3258,7 @@
   (when-let [terrain-set (model/selected-terrain-set
                           (:terrain-sets state)
                           (:selected-terrain-set-index state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Rename Terrain Set"
                            :id (model/keyword-label (:id terrain-set))
                            :name (or (:label terrain-set) "")
@@ -3282,7 +3282,7 @@
 
 (defun open-mask-set-add-dialog! [state ctx]
   (let [mask-set (model/make-mask-set (:mask-sets state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Add Mask Set"
                            :id (model/keyword-label (:id mask-set))
                            :name (or (:label mask-set) "")
@@ -3292,7 +3292,7 @@
 (defun open-mask-set-edit-dialog! [state ctx]
   (when-let [mask-set (model/selected-mask-set (:mask-sets state)
                                                (:selected-mask-set-index state))]
-    (id-name-dialog/open! ctx
+    (identity-dialog/open! ctx
                           {:title "Rename Mask Set"
                            :id (model/keyword-label (:id mask-set))
                            :name (or (:label mask-set) "")
@@ -3322,7 +3322,7 @@
   (when-let [mask-set (model/selected-mask-set (:mask-sets state)
                                                (:selected-mask-set-index state))]
     (let [mask (model/make-mask (:masks mask-set))]
-      (id-name-dialog/open! ctx
+      (identity-dialog/open! ctx
                             {:title "Add Mask"
                              :id (model/keyword-label (:id mask))
                              :name (or (:label mask) "")
@@ -3333,7 +3333,7 @@
   (let [mask-set (model/selected-mask-set (:mask-sets state)
                                           (:selected-mask-set-index state))]
     (when-let [mask (model/selected-mask mask-set (:selected-mask-index state))]
-      (id-name-dialog/open! ctx
+      (identity-dialog/open! ctx
                             {:title "Rename Mask"
                              :id (model/keyword-label (:id mask))
                              :name (or (:label mask) "")

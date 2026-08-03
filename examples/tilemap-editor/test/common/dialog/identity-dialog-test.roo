@@ -1,0 +1,31 @@
+(ns tilemap-editor.common.dialog.identity-dialog-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]))
+
+(deftest identity-dialog-uses-pixils-form-for-identity
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 400
+                               :buffer-height 300
+                               :render-backend false})]
+    (runtime/push-mode-with-state! app
+                                   'identity-dialog-modal
+                                   {:title "Rename"
+                                    :identity {:id :demo
+                                               :name "Demo"}
+                                    :context {:source :test}})
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [identity-form (runtime/find-view app "pixils/form")
+          buttons (runtime/find-view app "identity-dialog-buttons")
+          form-state (runtime/view-state identity-form)]
+      (is (= "identity-dialog-modal" (runtime/active-mode-name app)))
+      (is (not (nil? identity-form)))
+      (is (= "Id" (get-in form-state [:form/render-opts :text :id])))
+      (is (= "Name" (get-in form-state [:form/render-opts :text :name])))
+      (is (= [:id :name] (head (:form/layout form-state))))
+      (is (= true (get-in form-state [:schema :id :auto-focus?])))
+      (is (not (nil? buttons)))
+      (is (= {:id :demo
+              :name "Demo"}
+             (:identity (runtime/view-state buttons)))))))

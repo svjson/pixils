@@ -131,7 +131,7 @@
     (is (= [:floor]
            (map (get-in undone [:tilesets 0 :tiles]) :id)))))
 
-(deftest duplicate-tile-result-uses-id-name-dialog-payload
+(deftest duplicate-tile-result-uses-identity-dialog-payload
   (let [state (layout/apply-tile-duplicate-dialog-result
                {:selected-tileset-definition-index 0
                 :tilesets [{:id :terrain

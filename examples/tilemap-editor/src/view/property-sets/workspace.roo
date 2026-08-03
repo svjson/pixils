@@ -2,13 +2,13 @@
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.dialog :as dialog]
-            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.property-sets.model :as model]
             [tilemap-editor.view.property-sets.panels :as panels]))
 
 (defun open-property-set-edit-dialog! [state ctx]
   (when-let [property-set (model/selected-property-set state)]
-    (id-name-dialog/open!
+    (identity-dialog/open!
      ctx
      {:title "Edit Property Set"
       :id (model/keyword-label (:id property-set))
@@ -48,7 +48,7 @@
                             (let [property-set (model/make-property-set
                                                 (:property-sets state))]
 
-                                (id-name-dialog/open!
+                                (identity-dialog/open!
                                  ctx
                                  {:title "Add Property Set"
                                   :id (model/keyword-label (:id property-set))
@@ -116,7 +116,7 @@
           (if-let [property-set (model/selected-property-set state)]
             (let [property (model/make-property (:properties property-set))]
 
-                (id-name-dialog/open!
+                (identity-dialog/open!
                  ctx
                  {:title "Add Property"
                   :id (model/keyword-label (:id property))
