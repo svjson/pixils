@@ -16,14 +16,11 @@
            (init/init-level state))
 
    :update (fn [state ctx]
-             (let [update-fn (case (:phase state)
+             (if-let [update-fn (case (:phase state)
                                :phase/level-start start-phase/update
                                :phase/main main-phase/update
                                :phase/death death-phase/update
-                               :phase/level-complete complete-phase/update)]
-               (if update-fn
-                 (apply update-fn [state ctx])
-                 state)))
+                               :phase/level-complete complete-phase/update)] (apply update-fn [state ctx]) state))
 
    :render (fn [state ctx]
              (tilemap-renderer/render-map! (:level-map state)

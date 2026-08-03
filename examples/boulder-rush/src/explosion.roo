@@ -41,9 +41,7 @@
                              (:pos explosion-event)
                              phase)]
     {:level-map level-map
-     :event (if (= phase :empty)
-              nil
-              {:pos (:pos explosion-event)
+     :event (unless (= phase :empty) {:pos (:pos explosion-event)
                :state :explosion
                :phase phase
                :timer (timer/make {:interval-ms interval-ms})})}))

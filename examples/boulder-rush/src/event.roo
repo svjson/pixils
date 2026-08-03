@@ -5,9 +5,7 @@
 (defun upsert [events event]
   (let [existing-index (find-index events (fn [existing]
                                             (= (:pos existing) (:pos event))))
-        existing (if existing-index
-                   (nth events existing-index)
-                   nil)
+        existing (when existing-index (nth events existing-index))
         without-existing (remove events (fn [existing]
                                           (= (:pos existing) (:pos event))))]
     (concat without-existing

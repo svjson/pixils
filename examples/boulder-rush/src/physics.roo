@@ -96,7 +96,7 @@
 (defun exclude-pos [events pos]
   (filter events
           (fn [candidate]
-            (not (= (:pos candidate) pos)))))
+            (not= (:pos candidate) pos))))
 
 (defun exposed-events-around [level-map pos target]
   (exclude-pos (events-around level-map pos)

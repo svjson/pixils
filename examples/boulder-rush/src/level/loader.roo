@@ -19,10 +19,10 @@
 
 (defun load-level-pack! []
   (let [pack (load-level-pack)]
-    (do
+
       (tilemap-resources/ensure-resource-bundles! (:resources pack)
                                                   (:tilesets pack))
-      pack)))
+      pack))
 
 (defun level-map [level-pack level]
   (nth (:maps level-pack) (dec level)))

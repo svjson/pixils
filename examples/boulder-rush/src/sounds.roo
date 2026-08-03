@@ -12,7 +12,7 @@
   (when (contains? (or (:moved-tiles state) []) :boulder)
     (audio/play! :boulder-rush-sfx/boulder {:volume 0.1}))
   (when (or (:play-explosion-sound? state)
-            (not (empty? (or (:explosions state) []))))
+            (not-empty? (or (:explosions state) [])))
     (audio/play! :boulder-rush-sfx/explosion {:volume 0.1}))
   (dissoc state :moved-tiles
                 :explosions
