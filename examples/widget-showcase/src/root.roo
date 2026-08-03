@@ -51,15 +51,15 @@
                :children [(style/status-row)]}]
    :on {:tab-panel/change (fn [state event ctx]
                             (let [tab (-> event :payload :tab)]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc state
                                        :selected-tab tab
-                                       :message (str "Selected tab " tab)))))
+                                       :message (str "Selected tab " tab))))
         :checkbox/change (fn [state event ctx]
                            (let [payload (:payload event)
                                  checked? (:checked? payload)]
-                             (do
+
                                (ui/stop-propagation! event)
                                (if (= (:value payload) :slider-limits-enabled?)
                                  (assoc state
@@ -69,31 +69,31 @@
                                                    "Slider visual limits disabled."))
                                  (assoc state
                                         :checked? checked?
-                                        :message "Checkbox changed.")))))
+                                        :message "Checkbox changed."))))
         :toggle-button-group/change (fn [state event ctx]
-                                      (do
+
                                         (ui/stop-propagation! event)
                                         (assoc state
                                                :toggle-value (-> event :payload :selected)
-                                               :message "Toggle group changed.")))
+                                               :message "Toggle group changed."))
         :option-box-group/change (fn [state event ctx]
-                                   (do
+
                                      (ui/stop-propagation! event)
                                      (assoc state
                                             :option-value (-> event :payload :selected)
-                                            :message "Option group changed.")))
+                                            :message "Option group changed."))
         :combo-box/change (fn [state event ctx]
-                            (do
+
                               (ui/stop-propagation! event)
                               (assoc state
                                      :combo-index (-> event :payload :selected-index)
-                                     :message "Combo box changed.")))
+                                     :message "Combo box changed."))
         :list-box/change (fn [state event ctx]
-                           (do
+
                              (ui/stop-propagation! event)
                              (assoc state
                                     :list-selected (-> event :payload :selected-indices)
-                                    :message "List selection changed.")))
+                                    :message "List selection changed."))
         :list-box/reorder (fn [state event ctx]
                             (let [payload (:payload event)
                                   options (:list-reorder-options state)
@@ -105,41 +105,41 @@
                                   reordered (concat (take to remaining)
                                                     [item]
                                                     (drop to remaining))]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc state
                                        :list-reorder-options reordered
-                                       :message "List row reordered."))))
+                                       :message "List row reordered.")))
         :tree-view/change (fn [state event ctx]
-                            (do
+
                               (ui/stop-propagation! event)
                               (assoc state
                                      :tree-selected (-> event :payload :id)
-                                     :message "Tree selection changed.")))
+                                     :message "Tree selection changed."))
         :tree-view/expand (fn [state event ctx]
                             (let [id (-> event :payload :id)]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc-expanded-ids
                                  (assoc state :message "Tree node expanded.")
                                  id
                                  (add-tree-expanded-id (expanded-ids-for state id)
-                                                       id)))))
+                                                       id))))
         :tree-view/collapse (fn [state event ctx]
                               (let [id (-> event :payload :id)]
-                                (do
+
                                   (ui/stop-propagation! event)
                                   (assoc-expanded-ids
                                    (assoc state :message "Tree node collapsed.")
                                    id
                                    (remove-tree-expanded-id
                                     (expanded-ids-for state id)
-                                    id)))))
+                                    id))))
         :tree-view/activate (fn [state event ctx]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc state
-                                       :message "Tree node activated.")))
+                                       :message "Tree node activated."))
         :rich-text/hover (fn [state event ctx]
                            (ui/stop-propagation! event)
                            (let [payload (:payload event)
@@ -192,22 +192,22 @@
                                     :message message
                                     :rich-text-event message)))
         :slider/change (fn [state event ctx]
-                         (do
+
                            (ui/stop-propagation! event)
                            (assoc state :message (str "Slider value "
-                                                       (:payload event)))))
+                                                       (:payload event))))
         :number-input/change (fn [state event ctx]
-                               (do
+
                                  (ui/stop-propagation! event)
                                  (assoc state
                                         :number-value (-> event :payload :value)
-                                        :message "Number input changed.")))
+                                        :message "Number input changed."))
         :text-input/change (fn [state event ctx]
-                             (do
+
                                (ui/stop-propagation! event)
                                (assoc state
                                       :text-value (-> event :payload :value)
-                                      :message "Text input changed.")))
+                                      :message "Text input changed."))
         :color-picker/change (fn [state event ctx]
                                (ui/stop-propagation! event)
                                (assoc state
@@ -215,32 +215,32 @@
                                       :message "Color picker changed."))
         :ui/icon-select (fn [state event ctx]
                           (let [item (:payload event)]
-                            (do
+
                               (ui/stop-propagation! event)
                               (assoc state
                                      :desktop-selected-id (:id item)
-                                     :message (str "Selected icon " (:label item))))))
+                                     :message (str "Selected icon " (:label item)))))
         :ui/icon-activate (fn [state event ctx]
                             (let [item (:payload event)]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc state
-                                       :message (str "Activated icon " (:label item))))))
+                                       :message (str "Activated icon " (:label item)))))
         :ui/icon-reorder (fn [state event ctx]
-                           (do
+
                              (ui/stop-propagation! event)
-                             (assoc state :message "Icon reordered.")))
+                             (assoc state :message "Icon reordered."))
         :showcase/about (fn [state event ctx]
-                          (do
+
                             (dialog/open-confirm!
                              ctx
                              {:title "About Widget Showcase"
                               :body [(style/label "A controlled app shell for exercising Pixils UI components.")]
                               :buttons [{:label "OK"
                                          :choice :ok}]})
-                            state))
+                            state)
         :showcase/open-confirm (fn [state event ctx]
-                                 (do
+
                                    (dialog/open-confirm!
                                     ctx
                                     {:title "Confirm"
@@ -251,9 +251,9 @@
                                                {:label "Accept"
                                                 :choice :accept}]
                                      :payload {:source :widget-showcase}})
-                                   state))
+                                   state)
         :showcase/open-file-dialog (fn [state event ctx]
-                                     (do
+
                                        (file-dialog/open-file-dialog!
                                         ctx
                                         {:path "."
@@ -262,31 +262,31 @@
                                                     :extensions ["roo"]}
                                                    {:label "All files"
                                                     :extensions ["*"]}]})
-                                       state))
+                                       state)
         :showcase/theme (fn [state event ctx]
                           (let [payload (:payload event)]
-                            (do
+
                               (if (contains? payload :variant)
                                 (pixils/set-theme! (:theme payload) (:variant payload))
                                 (pixils/set-theme! (:theme payload)))
                               (assoc state
                                      :theme-label (:label payload)
                                      :message (str "Theme changed to "
-                                                   (:label payload))))))
+                                                   (:label payload)))))
         :showcase/reset (fn [state event ctx]
                           (assoc (showcase-state/initial-state)
                                  :message "Showcase state reset."))
         :showcase/quit (fn [state event ctx]
                          (quit!))
         :dialog/result (fn [state event ctx]
-                         (do
+
                            (ui/stop-propagation! event)
                            (assoc state
                                   :message (str "Dialog result "
-                                                (-> event :payload :choice)))))
+                                                (-> event :payload :choice))))
         :file-dialog/result (fn [state event ctx]
-                              (do
+
                                 (ui/stop-propagation! event)
                                 (assoc state
                                        :message (str "File dialog result "
-                                                     (-> event :payload :type)))) )}})
+                                                     (-> event :payload :type))) )}})

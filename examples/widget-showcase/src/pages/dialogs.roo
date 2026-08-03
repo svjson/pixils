@@ -6,9 +6,9 @@
 (defun emit-action-button [label action]
   (button/make {:label label
                 :on-click (fn [state event ctx]
-                            (do
+
                               (ui/emit! (:view ctx) action)
-                              state))}))
+                              state)}))
 
 (defun make []
   {:style style/page-style

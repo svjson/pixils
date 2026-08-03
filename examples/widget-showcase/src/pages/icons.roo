@@ -18,12 +18,12 @@
 (defun theme-button [label theme theme-label]
   (button/make {:label label
                 :on-click (fn [state event ctx]
-                            (do
+
                               (ui/emit! (:view ctx)
                                         :showcase/theme
                                         {:theme theme
                                          :label theme-label})
-                              state))}))
+                              state)}))
 
 (defun make []
   {:style style/page-style
