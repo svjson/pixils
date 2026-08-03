@@ -24,10 +24,9 @@
   (capitalize (tilesets/clean-name-separators (keyword-label id))))
 
 (defun id-exists? [items id]
-  (> (count (filter (or items [])
+  (not-empty? (filter (or items [])
                     (fn [item]
-                      (= (:id item) id))))
-     0))
+                      (= (:id item) id)))))
 
 (defun unique-id-from [items root suffix]
   (let [candidate (keyword (if suffix
@@ -38,13 +37,12 @@
       candidate)))
 
 (defun item-id-exists-except? [items id exclude-index]
-  (> (count (filter (for-indexed [index item (or items [])]
+  (not-empty? (filter (for-indexed [index item (or items [])]
                       {:index index
                        :id (:id item)})
                     (fn [entry]
                       (and (= (:id entry) id)
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-id-from-except [items root exclude-index suffix]
   (let [candidate (keyword (if suffix
@@ -82,7 +80,7 @@
 
 (defun selected-property-set-index [property-sets index]
   (let [property-sets (or property-sets [])]
-    (when (> (count property-sets) 0)
+    (when (not-empty? property-sets)
       (min (max (or index 0) 0)
            (dec (count property-sets))))))
 
@@ -95,7 +93,7 @@
 
 (defun selected-property-index [property-set index]
   (let [properties (or (:properties property-set) [])]
-    (when (> (count properties) 0)
+    (when (not-empty? properties)
       (min (max (or index 0) 0)
            (dec (count properties))))))
 
@@ -510,10 +508,9 @@
          (:item entry))))
 
 (defun value-exists? [values value]
-  (> (count (filter (or values [])
+  (not-empty? (filter (or values [])
                     (fn [existing]
-                      (= existing value))))
-     0))
+                      (= existing value)))))
 
 (defun unique-value-from [values root suffix]
   (let [candidate (if suffix
@@ -620,24 +617,18 @@
                                              attached?)))
 
 (defun set-selected-tileset-property-set-attachment [state property-set-id attached?]
-  (let [tileset (tilesets/selected-tileset-definition state)]
-    (if tileset
-      (set-tileset-property-set-attachment state
+  (if-let [tileset (tilesets/selected-tileset-definition state)] (set-tileset-property-set-attachment state
                                            (:id tileset)
                                            property-set-id
-                                           attached?)
-      state)))
+                                           attached?) state))
 
 (defun set-selected-terrain-set-property-set-attachment [state property-set-id attached?]
-  (let [terrain-set (terrains/selected-terrain-set
+  (if-let [terrain-set (terrains/selected-terrain-set
                      (:terrain-sets state)
-                     (:selected-terrain-set-index state))]
-    (if terrain-set
-      (set-terrain-set-property-set-attachment state
+                     (:selected-terrain-set-index state))] (set-terrain-set-property-set-attachment state
                                                (:id terrain-set)
                                                property-set-id
-                                               attached?)
-      state)))
+                                               attached?) state))
 
 (defun set-target-property-default-value [target property-sets property-id value]
   (let [property-set-ids (:property-sets target)
@@ -662,30 +653,24 @@
            item))))
 
 (defun set-selected-tileset-property-default-value [state property-id value]
-  (let [tileset (tilesets/selected-tileset-definition state)]
-    (if tileset
-      (assoc state
+  (if-let [tileset (tilesets/selected-tileset-definition state)] (assoc state
              :tilesets
              (set-target-property-default-in (:tilesets state)
                                              (:id tileset)
                                              (:property-sets state)
                                              property-id
-                                             value))
-      state)))
+                                             value)) state))
 
 (defun set-selected-terrain-set-property-default-value [state property-id value]
-  (let [terrain-set (terrains/selected-terrain-set
+  (if-let [terrain-set (terrains/selected-terrain-set
                      (:terrain-sets state)
-                     (:selected-terrain-set-index state))]
-    (if terrain-set
-      (assoc state
+                     (:selected-terrain-set-index state))] (assoc state
              :terrain-sets
              (set-target-property-default-in (:terrain-sets state)
                                              (:id terrain-set)
                                              (:property-sets state)
                                              property-id
-                                             value))
-      state)))
+                                             value)) state))
 
 (defun selected-tile-default-values [state]
   (let [tileset (tilesets/selected-tileset-definition state)]

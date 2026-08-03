@@ -68,15 +68,13 @@
                                              tile-size
                                              snap-to-grid?
                                              snap-interval]
-  (let [source-pos (ip/source-position-at position image-rect dim)]
-    (when source-pos
-      (model/source-with-position nil
+  (when-let [source-pos (ip/source-position-at position image-rect dim)] (model/source-with-position nil
                                   (:x source-pos)
                                   (:y source-pos)
                                   tile-size
                                   dim
                                   snap-to-grid?
-                                  snap-interval))))
+                                  snap-interval)))
 
 (defun move-source-position [source dx dy tile-size dim snap-to-grid? snap-interval]
   (model/source-with-position source
@@ -125,12 +123,12 @@
         bundle-options (model/bundle-options resources)
         bundle-index (or (model/bundle-index-by-id bundle-options
                                                    (:bundle-id entry))
-                         (if (empty? bundle-options) nil 0))
+                         (unless (empty? bundle-options) 0))
         bundle-id (model/bundle-id-at-index bundle-options bundle-index)
         resource-options (model/image-resource-options resources bundle-id)
         resource-index (or (model/resource-index-by-key resource-options
                                                         tile-image)
-                           (if (empty? resource-options) nil 0))]
+                           (unless (empty? resource-options) 0))]
     (assoc state
            :bundle-options bundle-options
            :selected-bundle-index bundle-index
@@ -188,15 +186,13 @@
                 :key/down {:x 0 :y step}
                 :default nil)]
     (when (and image source delta)
-      (let [dim (img/size image)]
-        (when dim
-          (move-source-position source
+      (when-let [dim (img/size image)] (move-source-position source
                                 (:x delta)
                                 (:y delta)
                                 tile-size
                                 dim
                                 (source-position-snap-enabled? state)
-                                (source-position-snap-interval state)))))))
+                                (source-position-snap-interval state))))))
 
 (defcomponent sprite-source-preview
   {:class :ui/content
@@ -229,7 +225,7 @@
                 source-pos (:source-position payload)
 	                tile-size (data/map-tile-dim
 	                           (or (:tile-size state) data/tile-dim))]
-            (do
+
               (ui/stop-propagation! event)
               (when (and dim source-pos)
                 (emit-sprite-source-change!
@@ -245,7 +241,7 @@
                                               state)
                                              (source-position-snap-interval
                                               state))))
-              state)))}
+              state))}
    :children [(ip/make {:width sprite-source-preview-width
                         :height sprite-source-preview-height
                         :image (ui/bind-state :image)
@@ -367,14 +363,14 @@
                                 :selected-bundle-index (:selected-index payload)
                                 :resource-options options
                                 :selected-resource-index
-                                (if (empty? options) nil 0)
+                                (unless (empty? options) 0)
                                 :sprite-source-preview-zoom 1
                                 :sprite-source-preview-offset {:x 0 :y 0})
                     resource (selected-sprite-resource next)
                     source (default-source-for-resource next resource)]
-                (do
+
                   (emit-sprite-source-change! next ctx (:key resource) source)
-                  next))
+                  next)
               (let [next (assoc state
                                 :selected-resource-index
                                 (:selected-index payload)
@@ -382,9 +378,9 @@
                                 :sprite-source-preview-offset {:x 0 :y 0})
                     resource (selected-sprite-resource next)
                     source (default-source-for-resource next resource)]
-                (do
+
                   (emit-sprite-source-change! next ctx (:key resource) source)
-                  next)))))
+                  next))))
         :checkbox/change
         (fn [state event ctx]
           (assoc state (:value (:payload event)) (:checked? (:payload event))))

@@ -30,19 +30,16 @@
 
 (defun selected-layer-label [layers index]
   (let [layers (or layers [])
-        index (if (and (not (nil? index))
-                       (> (count layers) 0))
-                (min index (dec (count layers)))
-                nil)]
+        index (when (and (not (nil? index))
+                         (not-empty? layers))
+                (min index (dec (count layers))))]
     (if (nil? index)
       ""
       (or (:label (nth layers index)) ""))))
 
 (defun selected-layer-index [layers requested-index]
   (let [layers (or layers [])]
-    (if (empty? layers)
-      nil
-      (min (or requested-index 0) (dec (count layers))))))
+    (unless (empty? layers) (min (or requested-index 0) (dec (count layers))))))
 
 (defun capture-map-ui-state [state]
   (reduce map-ui-state-keys
@@ -51,12 +48,9 @@
             (assoc result key (get state key)))))
 
 (defun save-active-map-ui-state [state]
-  (let [map-id (:selected-map-id state)]
-    (if map-id
-      (assoc-in state
+  (if-let [map-id (:selected-map-id state)] (assoc-in state
                 [:map-ui-states map-id]
-                (capture-map-ui-state state))
-      state)))
+                (capture-map-ui-state state)) state))
 
 (defun restore-map-ui-state [state map-id layers]
   (let [ui-state (merge default-map-ui-state
@@ -207,11 +201,10 @@
   (strip-leading-colon (str map-id)))
 
 (defun map-label-exists? [maps label exclude-id]
-  (> (count (filter (or maps [])
+  (not-empty? (filter (or maps [])
                     (fn [map-document]
                       (and (= (:label map-document) label)
-                           (not= (:id map-document) exclude-id)))))
-     0))
+                           (not= (:id map-document) exclude-id))))))
 
 (defun unique-map-label-from [maps root-label exclude-id suffix]
   (let [candidate (if suffix
@@ -225,11 +218,10 @@
       candidate)))
 
 (defun map-id-exists-except? [maps map-id exclude-id]
-  (> (count (filter (or maps [])
+  (not-empty? (filter (or maps [])
                     (fn [map-document]
                       (and (= (:id map-document) map-id)
-                           (not= (:id map-document) exclude-id)))))
-     0))
+                           (not= (:id map-document) exclude-id))))))
 
 (defun unique-map-id-from [maps requested-id exclude-id suffix]
   (let [id-text (map-id-text requested-id)

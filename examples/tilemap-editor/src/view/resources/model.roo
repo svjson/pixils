@@ -87,10 +87,10 @@
        (= (substr segment 1 1) ":")))
 
 (defun different-windows-drives? [left right]
-  (let [left-drive (and (not (empty? left))
+  (let [left-drive (and (not-empty? left)
                         (windows-drive-segment? (head left))
                         (lower-case (head left)))
-        right-drive (and (not (empty? right))
+        right-drive (and (not-empty? right)
                          (windows-drive-segment? (head right))
                          (lower-case (head right)))]
     (or (and left-drive (not= left-drive right-drive))
@@ -134,12 +134,10 @@
     result))
 
 (defun project-file-directory [path project-directory]
-  (let [directory (file-directory path)]
-    (when directory
-      (if (and (not (blank? project-directory))
+  (when-let [directory (file-directory path)] (if (and (not (blank? project-directory))
                (not (absolute-path? directory)))
         (io/join-path project-directory directory)
-        directory))))
+        directory)))
 
 (defun clean-resource-name-separators [value index out]
   (if (>= index (count value))
@@ -299,7 +297,7 @@
 
 (defun add-resource-bundle! [state payload]
   (let [bundle-id (keyword (:bundle-id payload))]
-    (do
+
       (res/create-bundle! bundle-id)
       (assoc (assoc-in state
                        [:resources :bundles bundle-id]
@@ -308,7 +306,7 @@
                                           [:resources :bundles bundle-id])
                                   {})))
              :selected-resource-bundle bundle-id
-             :selected-image-resource nil))))
+             :selected-image-resource nil)))
 
 (defun resource-key-in-bundle? [bundle-id value]
   (and (keyword? value)
@@ -603,16 +601,14 @@
                                                          project-directory))))})
 
 (defun sync-project-resources! [resources & project-directory]
-  (do
-    (for [entry (dynamic-project-bundle-entries resources)]
-      (do
-        (res/create-bundle! (:id entry))
-        (for [resource (res/list-images (:id entry))]
-          (res/remove-image! (:id resource)))
-        (res/create-bundle! (:id entry)
-                            (runtime-bundle-dependencies (:bundle entry)
-                                                         project-directory))))
-    resources))
+  (for [entry (dynamic-project-bundle-entries resources)]
+    (res/create-bundle! (:id entry))
+    (for [resource (res/list-images (:id entry))]
+      (res/remove-image! (:id resource)))
+    (res/create-bundle! (:id entry)
+                        (runtime-bundle-dependencies (:bundle entry)
+                                                     project-directory)))
+  resources)
 
 (defun image-resource-options [resources]
   (map (or resources [])
@@ -671,9 +667,7 @@
       valid)))
 
 (defun single-selected-image-resource-id [selected-ids]
-  (if (= (count (or selected-ids [])) 1)
-    (head selected-ids)
-    nil))
+  (when (= (count (or selected-ids [])) 1) (head selected-ids)))
 
 (defun selected-bundle-id [resources selected-id]
   (if (nil? (selected-bundle-index resources selected-id))
@@ -708,7 +702,7 @@
            :selected-image-resources image-ids
            :image-resource-panel-disabled? (nil? bundle-id)
            :image-resource-add-disabled? (nil? bundle-id)
-           :image-resource-detail-disabled? (not (= (count image-ids) 1)))))
+           :image-resource-detail-disabled? (not= (count image-ids) 1))))
 
 (defun resource-dependency [payload]
   (let [dependency {:file-name (:file-name payload)
@@ -800,7 +794,7 @@
              (not (blank? file-name)))
       (let [key (image-resource-key bundle-id resource-id)
             dependency (assoc dependency :file-name file-name)]
-        (do
+
           (res/remove-image! key)
           (res/add-image! key (runtime-image-dependency dependency
                                                         (:project-directory state)))
@@ -809,7 +803,7 @@
                            dependency)
                  :selected-resource-bundle bundle-id
                  :selected-image-resource resource-id
-                 :selected-image-resources [resource-id])))
+                 :selected-image-resources [resource-id]))
       state)))
 
 (defun apply-image-metadata-dialog-result [state payload]
@@ -851,11 +845,11 @@
                               :selected-resource-bundle target-bundle-id
                               :selected-image-resource target-resource-id
                               :selected-image-resources [target-resource-id])]
-        (do
+
           (res/remove-image! old-key)
           (res/create-bundle! target-bundle-id)
           (res/add-image! new-key (runtime-image-dependency dependency))
-          (replace-resource-key-in-project next-state old-key new-key)))
+          (replace-resource-key-in-project next-state old-key new-key))
       state)))
 
 (defun remove-image-resource! [state bundle-id resource-id action replacement-key]
@@ -928,12 +922,12 @@
                                    (dissoc (or (-> state :resources :bundles) {})
                                            bundle-id))
           next-bundle-id (first-bundle-id next-resources)]
-      (do
+
         (for [resource (res/list-images bundle-id)]
           (res/remove-image! (:id resource)))
         (assoc state
                :resources next-resources
                :selected-resource-bundle next-bundle-id
                :selected-image-resource (first-image-resource-id next-resources
-                                                                  next-bundle-id))))
+                                                                  next-bundle-id)))
     state))

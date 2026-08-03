@@ -334,13 +334,11 @@
         col (int (/ (:x position) stride))
         row (int (/ (:y position) stride))
         index (+ col (* row (mask-palette-columns bounds)))]
-    (if (and (>= (:x position) 0)
+    (when (and (>= (:x position) 0)
              (>= (:y position) 0)
              (< (mod (:x position) stride) mask-palette-cell-size)
              (< (mod (:y position) stride) mask-palette-cell-size)
-             (< index item-count))
-      index
-      nil)))
+             (< index item-count)) index)))
 
 (defun mask-palette-cell-rect [index columns]
   (let [columns (max 1 (or columns 1))
@@ -421,7 +419,7 @@
    :render (fn [state ctx]
              (let [options (or (:tile-options state) [])
                    columns (mask-palette-columns (-> ctx :view :bounds))]
-               (do
+
                  (r/rect! {:x 0
                            :y 0
                            :w (-> ctx :view :bounds :w)
@@ -434,7 +432,7 @@
                            :y 0
                            :w (-> ctx :view :bounds :w)
                            :h (-> ctx :view :bounds :h)}
-                          {:color {:r 0x1f :g 0x26 :b 0x2d}}))))})
+                          {:color {:r 0x1f :g 0x26 :b 0x2d}})))})
 
 (defun mask-canvas-item-rect [state item]
   (let [tile-size (mask-source-tile-size state)
@@ -473,11 +471,9 @@
 (defun mask-canvas-selected-index [state]
   (let [index (:selected-mask-tile-item-index state)
         items (or (:selected-mask-tile-items state) [])]
-    (if (and (not (nil? index))
+    (when (and (not (nil? index))
              (>= index 0)
-             (< index (count items)))
-      index
-      nil)))
+             (< index (count items))) index)))
 
 (defun selected-mask-tile-item-state [state]
   (let [index (mask-canvas-selected-index state)
@@ -1149,11 +1145,9 @@
                    mask-tile-items (model/selected-mask-tile-items state)
                    selected-mask-tile-item-index
                    (let [index (:selected-mask-tile-item-index state)]
-                     (if (and (not (nil? index))
+                     (when (and (not (nil? index))
                               (>= index 0)
-                              (< index (count mask-tile-items)))
-                       index
-                       nil))
+                              (< index (count mask-tile-items))) index))
                    selected-mask-source-tile
                    (or (:selected-mask-source-tile state)
                        (:value (head mask-tile-options)))]
@@ -1236,14 +1230,11 @@
           (assoc state :selected-mask-source-tile (:payload event)))
         :mask/tile-item-add
         (fn [state event ctx]
-          (let [tile-ref (or (:selected-mask-source-tile state)
+          (if-let [tile-ref (or (:selected-mask-source-tile state)
                              (:value (head (data/tile-options
                                             (:tilesets state)
                                             (model/selected-mask-source-tileset
-                                             state)))))]
-            (if tile-ref
-              (model/add-selected-mask-tile state tile-ref)
-              state)))
+                                             state)))))] (model/add-selected-mask-tile state tile-ref) state))
         :mask/tile-item-add-at
         (fn [state event ctx]
           (let [payload (:payload event)
@@ -1398,9 +1389,9 @@
               state)))
         :tab-panel/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
-            (assoc state :mask-detail-tab (-> event :payload :tab))))}
+            (assoc state :mask-detail-tab (-> event :payload :tab)))}
    :children [(mask-set-list-panel-child)
               (mask-list-panel-child)
               (detail-panel-child)]})

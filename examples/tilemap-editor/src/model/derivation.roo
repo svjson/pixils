@@ -61,11 +61,9 @@
                        (>= y 0)
                        (< y (count tiles)))
               (nth tiles y))]
-    (if (and row
+    (when (and row
              (>= x 0)
-             (< x (count row)))
-      (nth row x)
-      nil)))
+             (< x (count row))) (nth row x))))
 
 (defun terrain-signature-source-layer? [layer]
   (= (:data-kind layer) :terrain-signature))
@@ -81,9 +79,7 @@
       cell-signature cell-signature
       (nil? tile-ref) nil
       :default (or (get (:terrain-signatures-by-tile layer) tile-ref)
-                   (if (= (:terrain-signature-default layer) :terrain-id)
-                     (solid-terrain-signature tile-ref)
-                     nil)
+                   (when (= (:terrain-signature-default layer) :terrain-id) (solid-terrain-signature tile-ref))
                    unknown-terrain-value))))
 
 (defun terrain-signature-direction-value [signature direction]
@@ -92,9 +88,7 @@
     (= signature unknown-terrain-value) unknown-terrain-value
     (contains? signature direction)
     (let [value (get signature direction)]
-      (if (= value :none)
-        nil
-        value))
+      (unless (= value :none) value))
     :default unknown-terrain-value))
 
 (defun terrain-signature-neighbor-value-at [source-layer direction x y]
@@ -102,9 +96,7 @@
         neighbor-signature (terrain-signature-at source-layer
                                                  (+ x (:dx offset))
                                                  (+ y (:dy offset)))]
-    (if (nil? neighbor-signature)
-      nil
-      (let [opposite-value (terrain-signature-direction-value
+    (unless (nil? neighbor-signature) (let [opposite-value (terrain-signature-direction-value
                             neighbor-signature
                             (get opposite-terrain-stamp-directions direction))]
         (if (= opposite-value unknown-terrain-value)
@@ -152,11 +144,8 @@
        (= y (terrain-unit-anchor-y unit y))))
 
 (defun terrain-unit-direction-offset [unit direction]
-  (let [offset (get terrain-stamp-directions direction)]
-    (if offset
-      {:dx (* (:dx offset) (:w unit))
-       :dy (* (:dy offset) (:h unit))}
-      {:dx 0 :dy 0})))
+  (if-let [offset (get terrain-stamp-directions direction)] {:dx (* (:dx offset) (:w unit))
+       :dy (* (:dy offset) (:h unit))} {:dx 0 :dy 0}))
 
 (defun terrain-unit-cell-positions [unit x y]
   (apply concat
@@ -200,10 +189,8 @@
 (defun terrain-unit-plain-value-at [source-layer ruleset direction x y]
   (let [unit (data/terrain-unit ruleset)
         direction (or direction :center)]
-    (if (and (= direction :center)
-             (not (terrain-unit-anchor-position? unit x y)))
-      nil
-      (let [target (terrain-unit-target-position unit direction x y)]
+    (unless (and (= direction :center)
+             (not (terrain-unit-anchor-position? unit x y))) (let [target (terrain-unit-target-position unit direction x y)]
         (terrain-unit-cell-value-at source-layer
                                     unit
                                     (:x target)
@@ -252,10 +239,8 @@
                                                              :center
                                                              anchor-x
                                                              anchor-y)]
-    (if (and (= direction :center)
-             (not (terrain-unit-anchor-position? unit x y)))
-      nil
-      (if (= direction :center)
+    (unless (and (= direction :center)
+             (not (terrain-unit-anchor-position? unit x y))) (if (= direction :center)
         center-value
         (let [direction-value (terrain-unit-consistent-signature-value
                                source-layer
@@ -293,13 +278,11 @@
 
 (defun derive-marching-4-row [source-layer ruleset y]
   (dotimes [x data/map-width]
-    (if (terrain-at? source-layer (:terrain ruleset) x y)
-      (marching-4-tile-for-mask ruleset
+    (when (terrain-at? source-layer (:terrain ruleset) x y) (marching-4-tile-for-mask ruleset
                                 (marching-4-mask source-layer
                                                   (:terrain ruleset)
                                                   x
-                                                  y))
-      nil)))
+                                                  y)))))
 
 (defun derive-marching-4-tiles [source-layer ruleset]
   (dotimes [y data/map-height]
@@ -318,13 +301,10 @@
    :persistence (or (:persistence definition) :ephemeral)})
 
 (defun derive-marching-4-layer [tilemap definition ruleset]
-  (let [source-layer (layer-by-id (:layers tilemap)
+  (if-let [source-layer (layer-by-id (:layers tilemap)
                                   (or (:source-layer ruleset)
-                                      (head (:source-layers definition))))]
-    (if source-layer
-      (assoc (derived-layer-base definition ruleset)
-             :tiles (derive-marching-4-tiles source-layer ruleset))
-      nil)))
+                                      (head (:source-layers definition))))] (assoc (derived-layer-base definition ruleset)
+             :tiles (derive-marching-4-tiles source-layer ruleset)) nil))
 
 (defun terrain-match-center [rule]
   (or (:terrain rule)
@@ -526,11 +506,9 @@
     :same center-terrain-id
     :none :none
     :default
-    (if (= (type-of condition) "map")
-      (if (contains? condition :terrain-in)
-        nil
-        (:terrain condition))
-      nil)))
+    (when (= (type-of condition) "map")
+      (unless (contains? condition :terrain-in)
+        (:terrain condition)))))
 
 (defun default-terrain-signature-for-rule [rule]
   (let [center-terrain-id (terrain-match-center rule)]
@@ -816,7 +794,7 @@
 
 (defun stamp-output-patch-cells
   [source-x source-y ruleset output output-layer tile-fn signature-fn source-mask-fn]
-  (filter (map (terrain-stamp-output-entries ruleset output output-layer)
+  (filter (keep (terrain-stamp-output-entries ruleset output output-layer)
                (fn [entry]
                  (when (terrain-stamp-output-entry-occupies-source? ruleset entry)
                    (stamp-output-patch-cell source-x
@@ -966,8 +944,7 @@
                         (or (:terrain-set source-layer)
                             (:terrain-set ruleset))))
         output-layer (terrain-stamp-output-layer definition ruleset)]
-    (if source-layer
-      (assoc (derived-layer-base definition ruleset)
+    (when source-layer (assoc (derived-layer-base definition ruleset)
              :tileset (or (:tileset definition)
                           (:tileset output-layer)
                           (:output-tileset ruleset))
@@ -977,8 +954,7 @@
                                                 ruleset)
              :source-mask (derive-terrain-stamp-source-mask source-layer
                                                             definition
-                                                            ruleset))
-      nil)))
+                                                            ruleset)))))
 
 (defun derive-layer [tilemap layer-profile rulesets derived-layer-id]
   (let [definition (layer-by-id (:layers layer-profile) derived-layer-id)
@@ -1061,19 +1037,16 @@
                   (:id source-layer))))
 
 (defun replacement-cell? [source-layer replacement-layers x y]
-  (> (count (filter replacement-layers
+  (not-empty? (filter replacement-layers
                     (fn [layer]
                       (and (replacement-layer-for-source? source-layer layer)
                            (or (not (nil? (cell-at layer x y)))
                                (not (nil? (get-in layer
-                                                   [:source-mask y x]))))))))
-     0))
+                                                   [:source-mask y x])))))))))
 
 (defun mask-source-row-with-replacements [source-layer replacement-layers y row]
   (for-indexed [x tile-ref (or row [])]
-    (if (replacement-cell? source-layer replacement-layers x y)
-      nil
-      tile-ref)))
+    (unless (replacement-cell? source-layer replacement-layers x y) tile-ref)))
 
 (defun mask-source-layer-with-replacements [replacement-layers layer]
   (if (= (:data-kind layer) :terrain)

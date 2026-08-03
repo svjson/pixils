@@ -20,21 +20,17 @@
 
 (defun selected-layer [state]
   (let [layers (or (:layers state) [])]
-    (when (> (count layers) 0)
+    (when (not-empty? layers)
       (nth layers (min (or (:selected-layer-index state) 0)
                        (dec (count layers)))))))
 
 (defun selected-layer-tileset [state]
-  (let [layer (selected-layer state)]
-    (when layer
-      (or (:tileset layer)
-          (:palette-tileset state)))))
+  (when-let [layer (selected-layer state)] (or (:tileset layer)
+          (:palette-tileset state))))
 
 (defun selected-layer-terrain-set [state]
-  (let [layer (selected-layer state)]
-    (when layer
-      (or (:terrain-set layer)
-          (:palette-terrain-set state)))))
+  (when-let [layer (selected-layer state)] (or (:terrain-set layer)
+          (:palette-terrain-set state))))
 
 (defun selected-layer-data-kind [state]
   (or (:data-kind (selected-layer state))
@@ -244,8 +240,8 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (when (> (count children) 0)
-                 (ui/style! (nth children 0)
+               (when (not-empty? children)
+                 (ui/style! (head children)
                             (tile-select-grid-scroll-content-style
                              state)))
                state))

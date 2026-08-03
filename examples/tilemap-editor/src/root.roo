@@ -307,12 +307,12 @@
                   state (map-model/commit-active-map-if-needed state)
                   layers (or (:layers state) [])
                   layer-index (or (:selected-layer-index state) 0)
-                  layer (when (> (count layers) 0)
+                  layer (when (not-empty? layers)
                           (nth layers (min layer-index (dec (count layers)))))
                   tileset (:tileset layer)
                   tilesets (or (:tilesets state) [])
                   terrain-sets (or (:terrain-sets state) [])
-                  tileset-definition-index (when (> (count tilesets) 0)
+                  tileset-definition-index (when (not-empty? tilesets)
                                              (min (or (:selected-tileset-definition-index state)
                                                       0)
                                                   (dec (count tilesets))))
@@ -328,7 +328,7 @@
                                                   (and (not (nil? index))
                                                        (>= index 0)
                                                        (< index tileset-tile-count))))
-                  tileset-tile-indices (if (or (not (empty? tileset-tile-indices))
+                  tileset-tile-indices (if (or (not-empty? tileset-tile-indices)
                                                (nil? tileset-tile-index))
                                          tileset-tile-indices
                                          [tileset-tile-index])
@@ -717,9 +717,7 @@
                           (let [tool (or (:payload event) :paint)]
                             (assoc state
                                    :map-tool tool
-                                   :map-selection (if (= tool :select)
-                                                    (:map-selection state)
-                                                    nil)
+                                   :map-selection (when (= tool :select) (:map-selection state))
                                    :map-line nil)))
        :edit/undo (fn [state event ctx]
                     (editor-workbook/undo state))

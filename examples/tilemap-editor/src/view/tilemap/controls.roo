@@ -89,21 +89,21 @@
    :update (fn [state ctx]
              (assoc state :title (map-panel-title state)))
    :on-mouse-up (fn [state event ctx]
-                  (do
+
                     (when (= (:button event) :right)
                       (menu/open-context-menu! (map-context-menu (:maps state))
                                                (:global-position event)
                                                (map-menu-state state)
                                                ctx))
-                    state))
+                    state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
                                        :map/context-command
-                                       (-> payload :payload)))))
+                                       (-> payload :payload))))
                        state)}
    :children [{:mode 'ui/text
                :class :ui/title
@@ -114,22 +114,22 @@
   {:style {:width 18
            :height 18}
    :on-mouse-up (fn [state event ctx]
-                  (do
+
                     (ui/stop-propagation! event)
                     (when (= (:button event) :left)
                       (menu/open-context-menu! (map-chooser-menu (:maps state))
                                                (:global-position event)
                                                (map-menu-state state)
                                                ctx))
-                    state))
+                    state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
                                        (:action payload)
-                                       (:payload payload)))))
+                                       (:payload payload))))
                        state)}
    :children [{:mode 'ui/combo-box-button
                :style {:width :fill
@@ -138,7 +138,7 @@
                        :part :end}}]})
 
 (defun open-map-dialog! [state ctx operation title id name]
-  (do
+
     (id-name-dialog/open!
      ctx
      {:title title
@@ -147,7 +147,7 @@
       :context {:operation operation
                 :map-id (:selected-map-id state)}
       :result-event :map/id-name-dialog-result})
-    state))
+    state)
 
 (defun open-map-add-dialog! [state ctx]
   (let [label (maps/next-map-label (:maps state))
@@ -182,7 +182,7 @@
 
 (defun open-map-delete-confirm-dialog! [state ctx]
   (let [map-document (selected-map-document state)]
-    (do
+
       (dialog/open-confirm!
        ctx
        {:title "Delete Map"
@@ -196,7 +196,7 @@
                    :label "Delete"}]
         :result-event :map/delete-dialog-result
         :payload {:map-id (:id map-document)}})
-      state)))
+      state))
 
 (defun make-map-workspace-panel [opts]
   (hp/make {:title "Map"
@@ -278,17 +278,17 @@
   (ui/theme-var ctx :highlight-color default-map-tool-icon-color))
 
 (defun draw-paint-tool-icon! [color]
-  (do
+
     (r/line! {:x 12 :y 1} {:x 18 :y 7} color)
     (r/line! {:x 11 :y 2} {:x 17 :y 8} color)
     (r/line! {:x 10 :y 4} {:x 15 :y 9} color)
     (r/rect! {:x 4 :y 9 :w 9 :h 5} {:color color})
     (r/line! {:x 4 :y 14} {:x 1 :y 18} color)
     (r/line! {:x 7 :y 14} {:x 5 :y 18} color)
-    (r/line! {:x 10 :y 14} {:x 9 :y 18} color)))
+    (r/line! {:x 10 :y 14} {:x 9 :y 18} color))
 
 (defun draw-select-tool-icon! [color]
-  (do
+
     (r/line! {:x 4 :y 4} {:x 8 :y 4} color)
     (r/line! {:x 12 :y 4} {:x 16 :y 4} color)
     (r/line! {:x 4 :y 16} {:x 8 :y 16} color)
@@ -298,31 +298,31 @@
     (r/line! {:x 16 :y 4} {:x 16 :y 8} color)
     (r/line! {:x 16 :y 12} {:x 16 :y 16} color)
     (r/rect! {:x 2 :y 2 :w 4 :h 4} {:color color})
-    (r/rect! {:x 15 :y 15 :w 4 :h 4} {:color color})))
+    (r/rect! {:x 15 :y 15 :w 4 :h 4} {:color color}))
 
 (defun draw-line-tool-icon! [color]
-  (do
+
     (r/line! {:x 3 :y 16} {:x 16 :y 3} color)
     (r/line! {:x 4 :y 17} {:x 17 :y 4} color)
     (r/rect! {:x 1 :y 14 :w 5 :h 5} {:color color})
-    (r/rect! {:x 14 :y 1 :w 5 :h 5} {:color color})))
+    (r/rect! {:x 14 :y 1 :w 5 :h 5} {:color color}))
 
 (defun draw-fill-rect-tool-icon! [color]
-  (do
+
     (r/line! {:x 4 :y 4} {:x 16 :y 4} color)
     (r/line! {:x 4 :y 16} {:x 16 :y 16} color)
     (r/line! {:x 4 :y 4} {:x 4 :y 16} color)
     (r/line! {:x 16 :y 4} {:x 16 :y 16} color)
-    (r/rect! {:x 7 :y 7 :w 7 :h 7} {:color color})))
+    (r/rect! {:x 7 :y 7 :w 7 :h 7} {:color color}))
 
 (defun draw-fill-tool-icon! [color]
-  (do
+
     (r/line! {:x 6 :y 3} {:x 15 :y 12} color)
     (r/line! {:x 5 :y 4} {:x 14 :y 13} color)
     (r/line! {:x 4 :y 9} {:x 9 :y 4} color)
     (r/line! {:x 5 :y 10} {:x 10 :y 5} color)
     (r/rect! {:x 4 :y 10 :w 10 :h 4} {:color color})
-    (r/rect! {:x 15 :y 15 :w 3 :h 3} {:color color})))
+    (r/rect! {:x 15 :y 15 :w 3 :h 3} {:color color}))
 
 (defun ensure-map-tool-assets! [color]
   (let [paint-tool-icon (map-tool-icon-id :paint color)
@@ -330,7 +330,7 @@
         line-tool-icon (map-tool-icon-id :line color)
         fill-rect-tool-icon (map-tool-icon-id :fill-rect color)
         fill-tool-icon (map-tool-icon-id :fill color)]
-    (do
+
       (theme-assets/ensure-generated-image! map-tool-icon-bundle
                                             paint-tool-icon
                                             {:size {:w map-tool-icon-size
@@ -360,7 +360,7 @@
                                             {:size {:w map-tool-icon-size
                                                     :h map-tool-icon-size}}
                                             (fn []
-                                              (draw-fill-tool-icon! color))))))
+                                              (draw-fill-tool-icon! color)))))
 
 (defun map-tool-buttons [color]
   [{:value :paint
@@ -406,10 +406,10 @@
    :on {:toggle-button-group/change
         (fn [state event ctx]
           (let [tool (-> event :payload :selected)]
-            (do
+
               (ui/stop-propagation! event)
               (ui/emit! (:view ctx) :map/tool-select tool)
-              (assoc state :map-tool tool))))}
+              (assoc state :map-tool tool)))}
    :children [(toggle-button/make-group
                {:buttons (ui/bind-state :map-tool-buttons)
                 :selected (ui/bind-state :map-tool)
@@ -441,12 +441,9 @@
   (layer-controls/layer-context-menu state))
 
 (defun terrain-set-label [terrain-sets terrain-set]
-  (let [item (head (filter (or terrain-sets [])
+  (if-let [item (head (filter (or terrain-sets [])
                            (fn [item]
-                             (= (:id item) terrain-set))))]
-    (if item
-      (or (:label item) (:name item) (str (:id item)))
-      "")))
+                             (= (:id item) terrain-set))))] (or (:label item) (:name item) (str (:id item))) ""))
 
 (defun layer-source-label [state layer]
   (if (= (:data-kind layer) :terrain)
@@ -454,13 +451,12 @@
     (data/tileset-label (:tilesets state) (:tileset layer))))
 
 (defun layer-name-exists? [layers name exclude-index]
-  (> (count (filter (for-indexed [index layer (or layers [])]
+  (not-empty? (filter (for-indexed [index layer (or layers [])]
                       {:index index
                        :label (:label layer)})
                     (fn [entry]
                       (and (= (:label entry) name)
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-layer-name-from [layers root-name exclude-index suffix]
   (let [candidate (if suffix
@@ -474,13 +470,12 @@
       candidate)))
 
 (defun layer-id-exists? [layers id exclude-index]
-  (> (count (filter (for-indexed [index layer (or layers [])]
+  (not-empty? (filter (for-indexed [index layer (or layers [])]
                       {:index index
                        :id (:id layer)})
                     (fn [entry]
                       (and (= (:id entry) id)
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-layer-id-from [layers root exclude-index suffix]
   (let [candidate (if suffix
@@ -509,9 +504,7 @@
     (if (blank? id-text)
       (unique-layer-id-from layers (kebab-case name) exclude-index nil)
       (let [id (layer-id-from-text id-text name)]
-        (if (layer-id-exists? layers id exclude-index)
-          nil
-          id)))))
+        (unless (layer-id-exists? layers id exclude-index) id)))))
 
 (defun make-empty-tile-layer [state layers tilesets name id]
   {:id (or id (unique-layer-id-from layers (kebab-case name) nil nil))
@@ -539,9 +532,7 @@
     request))
 
 (defun layer-request-id [request]
-  (if (= (type-of request) "map")
-    (:id request)
-    nil))
+  (when (= (type-of request) "map") (:id request)))
 
 (defun layer-request-data-kind [request]
   (if (= (type-of request) "map")
@@ -557,7 +548,7 @@
   (let [name (layer-request-name request)
         id (layer-request-id request)]
     (if (and (= (layer-request-data-kind request) :terrain)
-             (not (empty? (or terrain-sets []))))
+             (not-empty? (or terrain-sets [])))
       (make-empty-terrain-layer state
                                 layers
                                 terrain-sets
@@ -798,14 +789,10 @@
 (defun layer-move-target-index [command index layer-count]
   (case command
     :move-up
-    (if (> index 0)
-      (dec index)
-      nil)
+    (when (> index 0) (dec index))
 
     :move-down
-    (if (< index (dec layer-count))
-      (inc index)
-      nil)
+    (when (< index (dec layer-count)) (inc index))
 
     :default
     nil))
@@ -819,7 +806,7 @@
 
 (defun open-layer-name-dialog! [state ctx operation index title name id]
   (let [terrain-set-operation? (= operation :terrain-set)]
-    (do
+
       (push-mode! 'layer-name-dialog-modal
                   {:operation operation
                    :index index
@@ -834,7 +821,7 @@
                                         0)}
                   {:origin {:view (:view ctx)
                             :event :layer/name-dialog-result}})
-      state)))
+      state))
 
 (defun open-layer-terrain-set-dialog! [state ctx index]
   (open-layer-name-dialog! state
@@ -862,7 +849,7 @@
                                                   nil))))
 
 (defun open-layer-confirm-dialog! [state ctx operation index title message confirm-label]
-  (do
+
     (dialog/open-confirm!
      ctx
      {:title title
@@ -875,7 +862,7 @@
       :result-event :layer/confirm-dialog-result
       :payload {:operation operation
                 :index index}})
-    state))
+    state)
 
 (defun apply-layer-move-command [state payload]
   (let [command (:command payload)
@@ -1074,12 +1061,12 @@
                     :gap 8}}
    :update (fn [state ctx]
              (let [visible? (and (= (:data-kind state) :terrain)
-                                 (not (empty? (or (:terrain-sets state) []))))]
-               (do
+                                 (not-empty? (or (:terrain-sets state) [])))]
+
                  (assoc-in! ctx
                             [:view :style :visibility]
                             (if visible? :visible :none))
-                 state)))
+                 state))
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value "Terrain set"}}
@@ -1098,11 +1085,11 @@
            :layout {:direction :column
                     :gap 8}}
    :update (fn [state ctx]
-             (do
+
                (assoc-in! ctx
                           [:view :style :visibility]
                           (if (= (:operation state) :add) :visible :none))
-               state))
+               state)
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value "Layer type"}}
@@ -1125,10 +1112,10 @@
                                 (= operation :terrain-set))
                    terrain-sets (or (:terrain-sets state) [])
                    data-kind (if (and (= (:data-kind state) :terrain)
-                                      (not (empty? terrain-sets)))
+                                      (not-empty? terrain-sets))
                                :terrain
                                :tile-ref)]
-               (do
+
                  (assoc-in! ctx
                             [:view :style :visibility]
                             (if visible? :visible :none))
@@ -1138,7 +1125,7 @@
                         :layer-data-kind-options
                         (layer-data-kind-options-for terrain-sets)
                         :terrain-set-options
-                        (data/terrain-set-options terrain-sets)))))
+                        (data/terrain-set-options terrain-sets))))
    :children [{:mode 'layer-data-kind-options-panel
                :state {:operation (ui/bind-state :operation)
                        :data-kind (ui/bind-state :data-kind)
@@ -1162,13 +1149,13 @@
            :layout {:direction :column
                     :gap 8}}
    :update (fn [state ctx]
-             (do
+
                (assoc-in! ctx
                           [:view :style :visibility]
                           (if (= (:operation state) :terrain-set)
                             :none
                             :visible))
-               state))
+               state)
    :children [(form/make {:schema map-schemas/layer-identity-schema
                           :text layer-identity-text
                           :layout layer-identity-layout
@@ -1198,16 +1185,14 @@
                        :terrain-set-index (ui/bind-state :terrain-set-index)}}]})
 
 (defun layer-dialog-id-conflict? [layers id-text index operation name]
-  (and (not (= operation :terrain-set))
+  (and (not= operation :terrain-set)
        (not (blank? id-text))
        (layer-id-exists? layers
                          (layer-id-from-text id-text name)
-                         (if (= operation :rename)
-                           index
-                           nil))))
+                         (when (= operation :rename) index))))
 
 (defun layer-dialog-invalid? [state]
-  (and (not (= (:operation state) :terrain-set))
+  (and (not= (:operation state) :terrain-set)
        (or (blank? (get-in state [:identity :name]))
            (blank? (get-in state [:identity :id]))
            (layer-dialog-id-conflict? (:layers state)
@@ -1228,9 +1213,9 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx) :layer-name-dialog/cancel)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -1240,7 +1225,7 @@
                        :data-kind (ui/bind-state :data-kind)
                        :terrain-set-index (ui/bind-state :terrain-set-index)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :layer-name-dialog/confirm
                                        {:name (get-in state [:identity :name])
@@ -1248,18 +1233,18 @@
                                         :data-kind (:data-kind state)
                                         :terrain-set-index
                                         (:terrain-set-index state)})
-                             state))}]})
+                             state)}]})
 
 (defmode layer-name-dialog-modal
   {:on {:layer-name-dialog/cancel (fn [state event ctx]
-                                    (do
+
                                       (ui/stop-propagation! event)
                                       (pop-mode! {:type :cancel
                                                   :operation (:operation state)
                                                   :index (:index state)})
-                                      state))
+                                      state)
         :layer-name-dialog/confirm (fn [state event ctx]
-                                     (do
+
                                        (ui/stop-propagation! event)
                                        (pop-mode! {:type :confirm
                                                    :operation (:operation state)
@@ -1269,7 +1254,7 @@
                                                    :data-kind (-> event :payload :data-kind)
                                                    :terrain-set-index
                                                    (-> event :payload :terrain-set-index)})
-                                       state))}
+                                       state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -1314,7 +1299,7 @@
    :update (fn [state ctx]
              (let [tilesets (or (:tilesets state) [])
                    disabled? (:disabled? state)]
-               (do
+
                  (when (or (not= tilesets (:tilesets-list state))
                            (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child! (:view ctx)
@@ -1324,7 +1309,7 @@
                                                                   disabled?))))
                  (assoc state
                         :tilesets-list tilesets
-                        :rendered-disabled? disabled?))))
+                        :rendered-disabled? disabled?)))
    :children [(merge {:id "combo-box"}
                      (tileset-combo-child [] true))]})
 
@@ -1338,10 +1323,10 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (ui/emit! (:view ctx)
                                                        :tileset/new)
-                                             state))}]
+                                             state)}]
             :body-style {:padding 8
                          :layout {:direction :column
                                   :gap 4}}
@@ -1358,7 +1343,7 @@
                                         (if (:disabled? state)
                                           state
                                           (if (and (not (nil? (:selected-layer-index state)))
-                                                   (> (count (or (:layers state) [])) 0))
+                                                   (not-empty? (or (:layers state) [])))
                                             (assoc-in
                                              (assoc state :selected-tileset-index index)
                                              [:layers (:selected-layer-index state) :tileset]

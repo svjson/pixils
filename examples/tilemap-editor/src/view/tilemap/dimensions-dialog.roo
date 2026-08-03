@@ -49,12 +49,12 @@
 
 (defcomponent map-dimension-number-control
   {:on {:number-input/change (fn [state event ctx]
-                               (do
+
                                  (ui/emit! (:view ctx)
                                            :map-dimensions/change
                                            {:dimension (:dimension state)
                                             :value (-> event :payload :value)})
-                                 state))}
+                                 state)}
    :children [(ni/make {:value (ui/bind-state :value)
                         :min (ui/bind-state :min)
                         :max (ui/bind-state :max)
@@ -149,7 +149,7 @@
    :update (fn [state ctx]
              (assoc state :disabled? (not (:valid? state))))
    :on-click (fn [state event ctx]
-               (do
+
                  (when (:valid? state)
                    (let [dimensions (dimensions-value (:dimensions state))]
                      (ui/emit! (:view ctx)
@@ -157,7 +157,7 @@
                                {:width (:width dimensions)
                                 :height (:height dimensions)
                                 :tile-size (:tile-size dimensions)})))
-                 state))})
+                 state)})
 
 (defun map-dimensions-confirm-button-child []
   {:mode 'map-dimensions-confirm-button
@@ -177,9 +177,9 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx) :map-dimensions/cancel)
-                             state))}
+                             state)}
               (map-dimensions-confirm-button-child)]})
 
 (defcomponent map-dimensions-dialog-body
@@ -215,12 +215,12 @@
                                        (:tile-size (:dimensions state))))
                                state)))
         :map-dimensions/cancel (fn [state event ctx]
-                                 (do
+
                                    (ui/stop-propagation! event)
                                    (pop-mode! {:type :cancel})
-                                   state))
+                                   state)
         :map-dimensions/confirm (fn [state event ctx]
-                                  (do
+
                                     (ui/stop-propagation! event)
                                     (pop-mode! {:type :confirm
                                                 :width (-> event :payload :width)
@@ -228,7 +228,7 @@
                                                 :tile-size (-> event
                                                                :payload
                                                                :tile-size)})
-                                    state))}
+                                    state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Map Dimensions"}
                        :state {:dimensions (ui/bind-state :dimensions)
@@ -249,7 +249,7 @@
 
 (defun open! [state ctx]
   (let [tile-size (data/map-tile-dim (:tile-size state))]
-    (do
+
       (push-mode! 'map-dimensions-dialog-modal
                   {:dimensions {:width (data/map-dimension (:map-width state)
                                                            data/map-width)
@@ -262,4 +262,4 @@
                    :errors {}}
                   {:origin {:view (:view ctx)
                             :event :map/dimensions-dialog-result}})
-      state)))
+      state))

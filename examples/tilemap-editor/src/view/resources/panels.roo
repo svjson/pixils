@@ -80,28 +80,28 @@
 
 (defun emit-image-resource-drag-start! [state event ctx]
   (let [payload (:payload event)]
-    (do
+
       (ui/emit! (:view ctx)
                 :resource/image-drag-start
                 (assoc payload
                        :position (image-resource-drag-position event
                                                                payload)))
-      state)))
+      state))
 
 (defun emit-image-resource-drag-move! [state event ctx]
   (let [payload (:payload event)]
-    (do
+
       (ui/emit! (:view ctx)
                 :resource/image-drag-move
                 (assoc payload
                        :position (image-resource-drag-position event
                                                                payload)))
-      state)))
+      state))
 
 (defun emit-image-resource-drag-end! [state event ctx]
-  (do
+
     (ui/emit! (:view ctx) :resource/image-drag-end nil)
-    state))
+    state)
 
 (defun image-resource-drop-payload [target-bundle-id payload]
   (when (= (:kind payload) :resource/image)
@@ -129,21 +129,21 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
-                      state))
+                      state)
    :on-mouse-up (fn [state event ctx]
                   (if (= (:button event) :right)
                     (let [resource-ids
                           (image-resource-context-resource-ids state)]
-                      (do
+
                         (ui/stop-propagation! event)
                         (menu/open-context-menu!
                          (image-resource-context-menu resource-ids)
                          (:global-position event)
                          state
                          ctx)
-                        state))
+                        state)
                     state))
    :on-click (fn [state event ctx]
                (if (= (:button event) :right)
@@ -161,7 +161,7 @@
                    state)))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
@@ -171,7 +171,7 @@
                                         :resource-id (:value state)
                                         :resource-ids
                                         (-> payload :payload :resource-ids)
-                                        :command (-> payload :payload :command)}))))
+                                        :command (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -211,11 +211,11 @@
                           payload))
               state)
    :on-mouse-down (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
-                      state))
+                      state)
    :on-mouse-up (fn [state event ctx]
-                  (do
+
                     (ui/stop-propagation! event)
                     (ui/emit! (:view ctx)
                               :list-box/item-click
@@ -228,17 +228,17 @@
                                                (:global-position event)
                                                state
                                                ctx))
-                    state))
+                    state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
                                        :resource/context-command
                                        {:kind :bundle
                                         :bundle-id (:value state)
-                                        :command (-> payload :payload :command)}))))
+                                        :command (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -277,7 +277,7 @@
                    selected-indices (selected-bundle-indices
                                      resources
                                      (:selected-resource-bundle state))]
-               (do
+
                  (when (not= bundles (:bundles state))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
@@ -285,7 +285,7 @@
                                              (bundle-list-child resources))))
                  (assoc state
                         :bundles bundles
-                        :selected-indices selected-indices))))
+                        :selected-indices selected-indices)))
    :on {:list-box/change (fn [state event ctx]
                            (let [bundle-id (-> event :payload :value)]
                              (assoc state
@@ -342,7 +342,7 @@
                    selected-indices (selected-resource-indices-by-ids
                                      resources
                                      (:selected-image-resources state))]
-               (do
+
                  (when (not= resources (:image-resources state))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
@@ -350,7 +350,7 @@
                                              (image-resource-list-child resources))))
                  (assoc state
                         :image-resources resources
-                        :selected-indices selected-indices))))
+                        :selected-indices selected-indices)))
    :on {:list-box/change (fn [state event ctx]
                            (let [selected (-> event
                                               :payload
@@ -378,7 +378,7 @@
              (let [preview (:drag-preview state)
                    position (:position preview)
                    visible? (not (nil? preview))]
-               (do
+
                  (ui/style! (:view ctx)
                             (if visible?
                               {:hidden false
@@ -392,7 +392,7 @@
                  (assoc state
                         :selected true
                         :key-label (or (:key-label preview) "")
-                        :name (or (:name preview) "")))))
+                        :name (or (:name preview) ""))))
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :key-label)}}
@@ -428,10 +428,10 @@
                :state {:label "Edit"
                        :disabled? (ui/bind-state :edit-disabled?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource/edit-image)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :class :ui/toolbar-button
                :style {:width :shrink
@@ -439,10 +439,10 @@
                :state {:label "Replace"
                        :disabled? (ui/bind-state :edit-disabled?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource/replace-image)
-                             state))}
+                             state)}
               {:mode 'ui/text
                :class :ui/muted
                :state {:value "Key"}}
@@ -479,7 +479,7 @@
              (let [image (when (and (:bundle-id state) (:image-id state))
                            (image-resource-key (:bundle-id state) (:image-id state)))
                    dim (when image (img/size image))]
-               (do
+
                  (r/rect! {:x 0 :y 0
                            :w image-preview-width
                            :h image-preview-height}
@@ -494,7 +494,7 @@
                          (r/rect! {:x 0 :y 0
                                    :w image-preview-width
                                    :h image-preview-height}
-                                  {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+                                  {:color {:r 0x00 :g 0x00 :b 0x00}})))})
 
 (defun make-resource-bundle-list-panel []
   (hp/make {:title "Bundles"
@@ -507,10 +507,10 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (ui/emit! (:view ctx)
                                                        :resource/add-bundle)
-                                             state))}]
+                                             state)}]
             :state {:resources (ui/bind-state :resources)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)}
@@ -539,10 +539,10 @@
                                        :disabled? (ui/bind-state
                                                    :image-resource-add-disabled?)}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (ui/emit! (:view ctx)
                                                        :resource/add-image)
-                                             state))}
+                                             state)}
                               ]
             :state {:resources (ui/bind-state :resources)
                     :project-path (ui/bind-state :project-path)

@@ -34,19 +34,17 @@
       text)))
 
 (defun item-id-exists? [items id]
-  (> (count (filter (or items [])
+  (not-empty? (filter (or items [])
                     (fn [item]
-                      (= (:id item) (keyword id)))))
-     0))
+                      (= (:id item) (keyword id))))))
 
 (defun item-id-exists-except? [items id exclude-index]
-  (> (count (filter (for-indexed [index item (or items [])]
+  (not-empty? (filter (for-indexed [index item (or items [])]
                       {:index index
                        :item item})
                     (fn [entry]
                       (and (= (:id (:item entry)) (keyword id))
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-id-from [items root suffix]
   (let [candidate (if suffix
@@ -88,7 +86,7 @@
   (str root " " number))
 
 (defun default-tile-char [id]
-  (if (> (count id) 0)
+  (if (not-empty? id)
     (substr id 0 1)
     ""))
 
@@ -112,12 +110,10 @@
                 (= (substr path 1 1) ":")))))
 
 (defun project-file-directory [path project-directory]
-  (let [directory (file-directory path)]
-    (when directory
-      (if (and (not (blank? project-directory))
+  (when-let [directory (file-directory path)] (if (and (not (blank? project-directory))
                (not (absolute-path? directory)))
         (io/join-path project-directory directory)
-        directory))))
+        directory)))
 
 (defun default-resource-id [path]
   (kebab-case (file-stem path)))
@@ -192,7 +188,7 @@
                   (= (:key resource) key)))))
 
 (defun has-project-image-resources? [resources]
-  (not (empty? (image-resource-entries resources))))
+  (not-empty? (image-resource-entries resources)))
 
 (defun image-resource-options [resources bundle-id]
   (for-indexed [index resource (image-resource-entries-for-bundle resources
@@ -231,9 +227,7 @@
      :h (+ (:h size) tile-grid-gap)}))
 
 (defun clamp-index [index item-count]
-  (if (<= item-count 0)
-    nil
-    (max 0 (min (or index 0) (dec item-count)))))
+  (unless (<= item-count 0) (max 0 (min (or index 0) (dec item-count)))))
 
 (defun tile-grid-columns [bounds & tile-size-values]
   (let [size (tile-grid-cell-size-for
@@ -249,13 +243,11 @@
         col (int (/ (:x position) (:w stride)))
         row (int (/ (:y position) (:h stride)))
         index (+ col (* row (tile-grid-columns bounds size)))]
-    (if (and (>= (:x position) 0)
+    (when (and (>= (:x position) 0)
              (>= (:y position) 0)
 	             (< (mod (:x position) (:w stride)) (:w size))
 	             (< (mod (:y position) (:h stride)) (:h size))
-             (< index item-count))
-      index
-      nil)))
+             (< index item-count)) index)))
 
 (defun move-tile-grid-index [index item-count columns delta]
   (clamp-index (+ (or index 0) delta) item-count))
@@ -271,7 +263,7 @@
   (let [tiles (selected-tileset-tiles state)
         selection (valid-tile-indices (:selected-tileset-tile-indices state)
                                       (count tiles))]
-    (if (or (not (empty? selection))
+    (if (or (not-empty? selection)
             (nil? (:selected-tileset-tile-index state)))
       selection
       (valid-tile-indices [(:selected-tileset-tile-index state)]
@@ -313,7 +305,7 @@
 
 (defun selected-tileset-definition [state]
   (let [tilesets (or (:tilesets state) [])]
-    (when (> (count tilesets) 0)
+    (when (not-empty? tilesets)
       (nth tilesets
            (min (or (:selected-tileset-definition-index state) 0)
                 (dec (count tilesets)))))))
@@ -329,7 +321,7 @@
   (let [tiles (selected-tileset-tiles state)
         index (:selected-tileset-tile-index state)]
     (when (and (not (nil? index))
-               (> (count tiles) 0))
+               (not-empty? tiles))
       (nth tiles (min index (dec (count tiles)))))))
 
 (defun selected-tile-image-resource [state]
@@ -551,13 +543,12 @@
       "Tile Set"))
 
 (defun tileset-label-exists? [tilesets label exclude-index]
-  (> (count (filter (for-indexed [index tileset (or tilesets [])]
+  (not-empty? (filter (for-indexed [index tileset (or tilesets [])]
                       {:index index
                        :label (tileset-label tileset)})
                     (fn [entry]
                       (and (= (:label entry) label)
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-tileset-label-from [tilesets root-label exclude-index suffix]
   (let [candidate (if suffix
@@ -652,7 +643,7 @@
         (assoc state
                :tilesets (insert-tileset-after tilesets index duplicate)
                :selected-tileset-definition-index duplicate-index
-               :selected-tileset-tile-index (if (empty? tiles) nil 0)
+               :selected-tileset-tile-index (unless (empty? tiles) 0)
                :selected-tileset-tile-indices (if (empty? tiles) [] [0])))
       state)))
 
@@ -772,9 +763,7 @@
     nil
 
     (keyword? tile-ref)
-    (if (contains? deleted-ids tile-ref)
-      nil
-      tile-ref)
+    (unless (contains? deleted-ids tile-ref) tile-ref)
 
     (number? tile-ref)
     (cond
@@ -1148,9 +1137,7 @@
          (:tile entry))))
 
 (defun selected-tile-index-after-delete [selection remaining-count]
-  (if (<= remaining-count 0)
-    nil
-    (min (or (head selection) 0)
+  (unless (<= remaining-count 0) (min (or (head selection) 0)
          (dec remaining-count))))
 
 (defun delete-tileset-tiles! [state payload]
@@ -1566,7 +1553,7 @@
              (not (nil? tileset-index))
              tileset
              resource
-             (not (empty? sources)))
+             (not-empty? sources))
       (let [existing (or (:tiles tileset) [])
             root (tile-id-root-for-resource resource)
             name-root (tile-name-root-for-resource resource)
@@ -1597,7 +1584,7 @@
         tileset (selected-tileset-definition state)]
     (if (and (not (nil? tileset-index))
              tileset
-             (not (empty? (or resources []))))
+             (not-empty? (or resources [])))
       (let [existing (or (:tiles tileset) [])
 	            tile-size (or (:tile-size tileset) data/tile-dim)
             added (reduce (or resources [])
@@ -1627,7 +1614,7 @@
 (defun add-color-tile-range! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)
         tileset (selected-tileset-definition state)
-        count (or (:count payload) 8)]
+        tile-count (or (:count payload) 8)]
     (if (and (= (:type payload) :confirm)
              (not (nil? tileset-index))
              tileset
@@ -1638,7 +1625,7 @@
             name-root (:tile-name payload)
             from-color (or (:from-color payload) default-tile-color)
             to-color (or (:to-color payload) default-tile-color)
-            added (reduce (range 0 (dec count))
+            added (reduce (range 0 (dec tile-count))
                           []
                           (fn [out index]
                             (let [id (unique-id-from (concat existing out)
@@ -1652,7 +1639,7 @@
                                         (lerp-color from-color
                                                     to-color
                                                     index
-                                                    count))]))))
+                                                    tile-count))]))))
             first-index (count existing)]
         (assoc-in (assoc state
                          :selected-tileset-tile-index first-index
@@ -1777,16 +1764,14 @@
        (same-source? (:source tile) source)))
 
 (defun tileset-uses-source? [tileset image source]
-  (> (count (filter (or (:tiles tileset) [])
+  (not-empty? (filter (or (:tiles tileset) [])
                     (fn [tile]
-                      (sprite-tile-uses-source? tile image source))))
-     0))
+                      (sprite-tile-uses-source? tile image source)))))
 
 (defun project-uses-source? [tilesets image source]
-  (> (count (filter (or tilesets [])
+  (not-empty? (filter (or tilesets [])
                     (fn [tileset]
-                      (tileset-uses-source? tileset image source))))
-     0))
+                      (tileset-uses-source? tileset image source)))))
 
 (defun import-source-snap-interval [state]
   (let [tile-size (data/map-tile-dim (:tile-size state))]

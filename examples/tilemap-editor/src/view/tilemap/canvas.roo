@@ -25,9 +25,7 @@
           map-edit-history-label-key))
 
 (defun map-edit-history-label [state event ctx]
-  (if (tm/map-tile-pick-event? event ctx)
-    nil
-    (case (:map-tool state)
+  (unless (tm/map-tile-pick-event? event ctx) (case (:map-tool state)
       :select nil
       :line "Draw map line"
       :fill-rect "Draw map rectangle"
@@ -62,12 +60,12 @@
 
 (defun render-cache-image-exists? []
   (when (res/can-create-images?)
-    (do
+
       (ensure-map-render-cache-bundle!)
       (not (nil? (head (filter (res/list-images map-render-cache-bundle)
                                (fn [resource]
                                  (= (:id resource)
-                                    map-render-cache-image)))))))))
+                                    map-render-cache-image))))))))
 
 (defun selection-screen-rect [state selection offset zoom]
   (let [rect (:rect selection)
@@ -78,9 +76,9 @@
      :h (* (:h rect) (:h size))}))
 
 (defun draw-selection-corner! [x y dx dy color]
-  (do
+
     (r/line! {:x x :y y} {:x (+ x (* dx 8)) :y y} color)
-    (r/line! {:x x :y y} {:x x :y (+ y (* dy 8))} color)))
+    (r/line! {:x x :y y} {:x x :y (+ y (* dy 8))} color))
 
 (defun draw-selection-overlay! [state selection offset zoom]
   (when selection
@@ -88,12 +86,12 @@
           right (dec (+ (:x rect) (:w rect)))
           bottom (dec (+ (:y rect) (:h rect)))
           color {:r 0xff :g 0xcc :b 0x66}]
-      (do
+
         (r/rect! rect {:color color})
         (draw-selection-corner! (:x rect) (:y rect) 1 1 color)
         (draw-selection-corner! right (:y rect) -1 1 color)
         (draw-selection-corner! (:x rect) bottom 1 -1 color)
-        (draw-selection-corner! right bottom -1 -1 color)))))
+        (draw-selection-corner! right bottom -1 -1 color))))
 
 (defun tile-screen-rect [state pos offset zoom]
   (let [size (tm/scaled-tile-size state zoom)]
@@ -105,11 +103,11 @@
 (defun draw-line-overlay! [state line offset zoom]
   (when (:active? line)
     (let [color {:r 0xff :g 0xcc :b 0x66}]
-      (do
+
         (map (tm/map-line-positions line (:current line))
              (fn [pos]
                (r/rect! (tile-screen-rect state pos offset zoom) {:color color})))
-        nil))))
+        nil)))
 
 (defun map-canvas-render-input [state]
   {:map-id (:selected-map-id state)
@@ -374,26 +372,24 @@
     true))
 
 (defun tileset-images-ready? [tileset]
-  (= 0
-     (count (filter (or (:tiles tileset) [])
+  (empty? (filter (or (:tiles tileset) [])
                     (fn [tile]
-                      (not (tile-image-ready? tile)))))))
+                      (not (tile-image-ready? tile))))))
 
 (defun render-input-images-ready? [input]
-  (= 0
-     (count (filter (or (:tilesets input) [])
+  (empty? (filter (or (:tilesets input) [])
                     (fn [tileset]
-                      (not (tileset-images-ready? tileset)))))))
+                      (not (tileset-images-ready? tileset))))))
 
 (defun clear-map-canvas-render-cache! [previous-image]
   (when (res/can-create-images?)
-    (do
+
       (ensure-map-render-cache-bundle!)
-      (res/remove-image! (or previous-image map-render-cache-image)))))
+      (res/remove-image! (or previous-image map-render-cache-image))))
 
 (defun rebuild-map-canvas-render-cache! [input render-map]
   (when (res/can-create-images?)
-    (do
+
       (ensure-map-render-cache-bundle!)
       (res/remove-image! map-render-cache-image)
       (res/create-image!
@@ -409,7 +405,7 @@
            :zoom 1
            :show-grid? false
            :target-rect (render-map-cache-target-rect input)})))
-      map-render-cache-image)))
+      map-render-cache-image))
 
 (defun ensure-map-canvas-render-cache! [input render-map]
   (when (and (not (render-cache-image-exists?))
@@ -429,12 +425,9 @@
                     (assoc state :render-cache-image nil))
                   state)]
       (if (nil? (:render-cache-image state))
-        (let [image (ensure-map-canvas-render-cache! input (:render-map state))]
-          (if image
-            (assoc state
+        (if-let [image (ensure-map-canvas-render-cache! input (:render-map state))] (assoc state
                    :render-cache-image image
-                   :render-cache-signature signature)
-            state))
+                   :render-cache-signature signature) state)
         state))
     state))
 
@@ -474,7 +467,7 @@
                                            patch-map)
                          (materialize-map-canvas-render-layers input
                                                                render-layers))]
-        (do
+
           (clear-map-canvas-render-cache! (:render-cache-image state))
           (assoc state
                  :render-map-input input
@@ -485,7 +478,7 @@
                  :render-cache-signature nil
                  :render-map-dirty? false
                  :render-dirty-positions []
-                 :render-dirty-position-index {}))))))
+                 :render-dirty-position-index {})))))
 
 (defun update-map-canvas-state [state ctx]
   (refresh-map-canvas-render-cache
@@ -535,7 +528,7 @@
                                                ranges)))))
 
 (defun draw-render-map! [state render-map offset ctx]
-  (do
+
     (if (and (:render-cache-image state)
              (render-cache-image-exists?))
       (draw-render-cache! (:render-cache-image state)
@@ -543,7 +536,7 @@
                           (:zoom state)
                           ctx)
       (draw-render-map-direct! state render-map offset ctx))
-    (draw-grid-overlay! state render-map offset ctx)))
+    (draw-grid-overlay! state render-map offset ctx))
 
 (defun map-hover-cell-at-event [state event]
   (let [pos (tm/map-tile-position state event)]

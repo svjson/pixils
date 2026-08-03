@@ -34,7 +34,7 @@
       file-dialog/default-path))
 
 (defun open-resource-bundle-dialog! [state ctx operation opts]
-  (do
+
     (push-mode! 'resource-bundle-dialog-modal
                 {:operation operation
                  :title (if (= operation :edit)
@@ -45,10 +45,10 @@
                  :bundle-id (:bundle-id opts)}
                 {:origin {:view (:view ctx)
                           :event :resource/bundle-dialog-result}})
-    state))
+    state)
 
 (defun open-image-file-dialog! [state ctx]
-  (do
+
     (file-dialog/open-file-dialog!
      ctx
      {:title "Add Image Resource"
@@ -56,10 +56,10 @@
       :path (image-file-dialog-path state)
       :filters image-file-filters
       :result-event :resource/file-dialog-result})
-    state))
+    state)
 
 (defun open-image-replace-file-dialog! [state ctx]
-  (do
+
     (file-dialog/open-file-dialog!
      ctx
      {:title "Replace Image Resource File"
@@ -67,10 +67,10 @@
       :path (image-file-dialog-path state)
       :filters image-file-filters
       :result-event :resource/replace-file-dialog-result})
-    state))
+    state)
 
 (defun open-image-metadata-dialog! [state ctx operation opts]
-  (do
+
     (push-mode! 'image-resource-metadata-dialog-modal
                 {:operation operation
                  :title (if (= operation :edit)
@@ -85,7 +85,7 @@
                  :transparency-color (:transparency-color opts)}
                 {:origin {:view (:view ctx)
                           :event :resource/metadata-dialog-result}})
-    state))
+    state)
 
 (defun image-file-dialog-result? [payload]
   (and (= (:type payload) :confirm)
@@ -93,12 +93,10 @@
        (not (nil? (:path payload)))))
 
 (defun open-selected-image-metadata-dialog! [state ctx]
-  (let [resource (selected-resource (project-image-resources
+  (if-let [resource (selected-resource (project-image-resources
                                      (:resources state)
                                      (:selected-resource-bundle state))
-                                    (:selected-image-resource state))]
-    (if resource
-      (open-image-metadata-dialog!
+                                    (:selected-image-resource state))] (open-image-metadata-dialog!
        state
        ctx
        :edit
@@ -107,17 +105,13 @@
         :resource-id (keyword-label (:id resource))
         :resource-name (:name resource)
         :file-name (:file-name resource)
-        :transparency-color (:transparency-color resource)})
-      state)))
+        :transparency-color (:transparency-color resource)}) state))
 
 (defun open-selected-image-replace-file-dialog! [state ctx]
-  (let [resource (selected-resource (project-image-resources
+  (if-let [resource (selected-resource (project-image-resources
                                      (:resources state)
                                      (:selected-resource-bundle state))
-                                    (:selected-image-resource state))]
-    (if resource
-      (open-image-replace-file-dialog! state ctx)
-      state)))
+                                    (:selected-image-resource state))] (open-image-replace-file-dialog! state ctx) state))
 
 (defun open-selected-bundle-dialog! [state ctx bundle-id]
   (if bundle-id
@@ -130,7 +124,7 @@
     state))
 
 (defun open-resource-confirm-dialog! [state ctx opts]
-  (do
+
     (dialog/open-confirm!
      ctx
      {:title (:title opts)
@@ -142,7 +136,7 @@
                  :label (or (:confirm-label opts) "Delete")}]
       :result-event :resource/confirm-dialog-result
       :payload (:payload opts)})
-    state))
+    state)
 
 (defun delete-action-index [action]
   (or (find-index image-delete-action-options
@@ -196,7 +190,7 @@
                                                                resource-key)
         replacement-key (first-replacement-image-key (:resources state)
                                                     resource-key)]
-    (do
+
       (push-mode! 'image-resource-delete-dialog-modal
                   {:title "Delete Image Resource"
                    :bundle-id bundle-id
@@ -212,7 +206,7 @@
                                           0)}
                   {:origin {:view (:view ctx)
                             :event :resource/delete-dialog-result}})
-      state)))
+      state))
 
 (defun open-image-delete-confirm-dialog! [state ctx bundle-id resource-id]
   (if (and bundle-id resource-id)
@@ -241,7 +235,7 @@
 
 (defun open-image-resources-delete-confirm-dialog! [state ctx bundle-id resource-ids]
   (let [resource-ids (or resource-ids [])]
-    (if (and bundle-id (not (empty? resource-ids)))
+    (if (and bundle-id (not-empty? resource-ids))
       (if (= (count resource-ids) 1)
         (open-image-delete-confirm-dialog! state ctx bundle-id (head resource-ids))
         (open-resource-confirm-dialog!
@@ -314,12 +308,12 @@
            (assoc state :rendered-usage nil))
    :update (fn [state ctx]
              (let [usage (or (:usage state) [])]
-               (do
+
                  (when (not= usage (:rendered-usage state))
                    (ui/replace-child! (:view ctx)
                                       "rows"
                                       (resource-delete-usage-rows-child usage)))
-                 (assoc state :rendered-usage usage))))
+                 (assoc state :rendered-usage usage)))
    :children [(resource-delete-usage-rows-child [])]})
 
 (defcomponent resource-delete-dialog-body
@@ -366,31 +360,31 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource-delete-dialog/cancel)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
                :state {:label "Delete"
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource-delete-dialog/confirm)
-                             state))}]})
+                             state)}]})
 
 (defmode image-resource-delete-dialog-modal
   {:on {:resource-delete-dialog/cancel
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :cancel})
-            state))
+            state)
         :resource-delete-dialog/confirm
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (if (:invalid? state)
               state
@@ -401,7 +395,7 @@
                             :resource-id (:resource-id state)
                             :delete-action (:delete-action state)
                             :replacement-key (:replacement-key state)})
-                state))))}
+                state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -448,31 +442,31 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource-bundle-dialog/cancel)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
                :state {:label (ui/bind-state :button-label)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource-bundle-dialog/confirm)
-                             state))}]})
+                             state)}]})
 
 (defmode resource-bundle-dialog-modal
   {:on {:resource-bundle-dialog/cancel
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :cancel})
-            state))
+            state)
         :resource-bundle-dialog/confirm
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (if (blank? (:bundle-id state))
               state
@@ -481,7 +475,7 @@
                             :operation (:operation state)
                             :previous-bundle-id (:previous-bundle-id state)
                             :bundle-id (:bundle-id state)})
-                state))))}
+                state)))}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
@@ -505,7 +499,7 @@
 (defun open-transparency-color-popup! [state ctx position]
   (let [position (popup-position position 260 190)
         color (transparency-color-or-default (:transparency-color state))]
-    (do
+
       (push-mode!
        'image-resource-transparency-color-popup
        {}
@@ -521,7 +515,7 @@
                     :state {:r (:r color)
                             :g (:g color)
                             :b (:b color)}}]})
-      state)))
+      state))
 
 (defun open-transparency-image-popup! [state ctx position]
   (let [position (popup-position position 300 210)
@@ -530,18 +524,18 @@
                 (image-resource-key (:bundle-id state)
                                     (:previous-resource-id state))
                 (unless (blank? file-name)
-                  (do
+
                     (res/create-bundle! transparency-picker-bundle-id)
                     (res/add-image!
                      (image-resource-key transparency-picker-bundle-id
                                          transparency-picker-resource-id)
                      {:file-name file-name})
                     (image-resource-key transparency-picker-bundle-id
-                                        transparency-picker-resource-id))))
+                                        transparency-picker-resource-id)))
         panel (ip/make {:width transparency-image-picker-width
                         :height transparency-image-picker-height
                         :image image})]
-    (do
+
       (push-mode!
        'image-resource-transparency-image-popup
        {:image image}
@@ -553,7 +547,7 @@
                                         {:position :absolute
                                          :left (:left position)
                                          :top (:top position)}))]})
-      state)))
+      state))
 
 (defcomponent image-resource-transparency-swatch
   {:class :ui/content
@@ -568,10 +562,10 @@
                          :y 0
                          :w (:w bounds)
                          :h (:h bounds)}]
-               (do
+
                  (r/rect! rect {:fill true
                                 :color color})
-                 (r/rect! rect {:color {:r 0 :g 0 :b 0}}))))})
+                 (r/rect! rect {:color {:r 0 :g 0 :b 0}})))})
 
 (defcomponent image-resource-transparency-color-control
   {:style {:width :fill
@@ -622,11 +616,11 @@
                        :height 24}
                :state {:label "Clear"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :resource/transparency-color-change
                                        {:transparency-color ""})
-                             state))}]})
+                             state)}]})
 
 (defcomponent transparency-color-channel-editor
   {:style {:width :fill
@@ -657,9 +651,9 @@
            :layout {:direction :column
                     :gap 6}}
    :on-mouse-down (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
-                      state))
+                      state)
    :update (fn [state ctx]
              (let [color {:r (color-channel (:r state))
                           :g (color-channel (:g state))
@@ -699,11 +693,11 @@
                                    :height 24}
                            :state {:label "Clear"}
                            :on-click (fn [state event ctx]
-                                       (do
+
                                          (ui/emit! (:view ctx)
                                                    :resource/transparency-clear
                                                    {:transparency-color ""})
-                                         state))}
+                                         state)}
                           {:mode 'ui/button
                            :style {:width 78
                                    :height 24}
@@ -711,41 +705,41 @@
                                    :transparency-color
                                    (ui/bind-state :transparency-color)}
                            :on-click (fn [state event ctx]
-                                       (do
+
                                          (ui/emit! (:view ctx)
                                                    :resource/transparency-commit
                                                    {:transparency-color
                                                     (:transparency-color state)})
-                                         state))}]}]})
+                                         state)}]}]})
 
 (defmode image-resource-transparency-color-popup
   {:on-mouse-down (fn [state event ctx]
-                    (do
+
                       (pop-mode! {:type :dismiss})
-                      state))
+                      state)
    :on {:resource/transparency-clear
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :confirm
                         :transparency-color
                         (-> event :payload :transparency-color)})
-            state))
+            state)
         :resource/transparency-commit
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :confirm
                         :transparency-color
                         (-> event :payload :transparency-color)})
-            state))}
+            state)}
    :compose {:render :pass}})
 
 (defmode image-resource-transparency-image-popup
   {:on-mouse-down (fn [state event ctx]
-                    (do
+
                       (pop-mode! {:type :dismiss})
-                      state))
+                      state)
    :on {:image-panel/source-click
         (fn [state event ctx]
           (let [source-pos (-> event :payload :source-position)
@@ -753,12 +747,12 @@
                         (img/color-at (:image state)
                                       {:x (int (:x source-pos))
                                        :y (int (:y source-pos))}))]
-            (do
+
               (ui/stop-propagation! event)
               (if color
                 (pop-mode! {:type :confirm
                             :transparency-color (color-hex color)})
-                state))))}
+                state)))}
    :compose {:render :pass}})
 
 (defcomponent image-resource-metadata-dialog-body
@@ -831,32 +825,32 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :image-resource-metadata-dialog/cancel)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
                :state {:label (ui/bind-state :button-label)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :image-resource-metadata-dialog/confirm)
-                             state))}]})
+                             state)}]})
 
 (defmode image-resource-metadata-dialog-modal
   {:on {:image-resource-metadata-dialog/cancel
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :cancel
                         :operation (:operation state)})
-            state))
+            state)
         :image-resource-metadata-dialog/confirm
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (if (or (blank? (:resource-id state))
                     (blank? (:resource-name state)))
@@ -870,14 +864,14 @@
                             :resource-name (:resource-name state)
                             :file-name (:file-name state)
                             :transparency-color (:transparency-color state)})
-                state))))
+                state)))
         :resource/transparency-color-change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (assoc state
                    :transparency-color
-                   (-> event :payload :transparency-color))))
+                   (-> event :payload :transparency-color)))
         :resource/transparency-color-popup-result
         (fn [state event ctx]
           (let [payload (:payload event)]

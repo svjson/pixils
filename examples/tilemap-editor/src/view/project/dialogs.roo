@@ -18,8 +18,8 @@
    :result-event :project/file-dialog-result})
 
 (defun open-project-file-dialog! [state ctx mode title]
-  (do
+
     (file-dialog/open-file-dialog!
      ctx
      (project-file-dialog-options state mode title))
-    state))
+    state)

@@ -151,7 +151,7 @@
         (assoc state
                :selected-tileset-definition-index index
                :selected-tileset-tile-index
-               (if (empty? (or (:tiles tileset) [])) nil 0)
+               (unless (empty? (or (:tiles tileset) [])) 0)
                :selected-tileset-tile-indices
                (if (empty? (or (:tiles tileset) [])) [] [0])))
       state)))
@@ -183,7 +183,7 @@
         (assoc state
                :selected-tileset-definition-index index
                :selected-tileset-tile-index
-               (if (empty? (or (:tiles tileset) [])) nil 0)
+               (unless (empty? (or (:tiles tileset) [])) 0)
                :selected-tileset-tile-indices
                (if (empty? (or (:tiles tileset) [])) [] [0])))
 	      state)))
@@ -253,7 +253,7 @@
         selected (:selected-tileset-tile-index state)]
     (cond
       (and selected (contains? indices selected)) selected
-      (not (empty? indices)) (head indices)
+      (not-empty? indices) (head indices)
       :default selected)))
 
 (defun open-tile-batch-rename-dialog! [state ctx indices]
@@ -355,12 +355,12 @@
         bundle-options (bundle-options (:resources state))
         selected-bundle-index (or (bundle-index-by-id bundle-options
                                                       selected-bundle-id)
-                                  (if (empty? bundle-options) nil 0))
+                                  (unless (empty? bundle-options) 0))
         selected-bundle-id (bundle-id-at-index bundle-options
                                                selected-bundle-index)
         options (image-resource-options (:resources state) selected-bundle-id)
         selected-index (or (resource-index-by-key options selected-resource-key)
-                           (if (empty? options) nil 0))]
+                           (unless (empty? options) 0))]
     (if (or (nil? (:selected-tileset-definition-index state))
             (nil? selected-bundle-index))
       state
@@ -1280,12 +1280,10 @@
         columns (source-grid-columns dim tile-size)
         rows (source-grid-rows dim tile-size)
         index (+ col (* row columns))]
-    (if (and (>= col 0)
+    (when (and (>= col 0)
              (>= row 0)
              (< col columns)
-             (< row rows))
-      index
-      nil)))
+             (< row rows)) index)))
 
 (defun tile-import-snap-enabled? [state]
   (not= (:source-snap-to-grid? state) false))
@@ -1319,10 +1317,9 @@
                             snap-interval))))
 
 (defun toggle-source [sources source]
-  (if (> (count (filter (or sources [])
+  (if (not-empty? (filter (or sources [])
                         (fn [item]
                           (same-source? item source))))
-         0)
     (filter (or sources [])
             (fn [item]
               (not (same-source? item source))))
@@ -1429,7 +1426,7 @@
                 (assoc state
                        :selected-bundle-index (:selected-index payload)
                        :resource-options options
-                       :selected-resource-index (if (empty? options) nil 0)
+                       :selected-resource-index (unless (empty? options) 0)
                        :selected-source-indices []
                        :selected-sources []
                        :tile-import-preview-zoom 1

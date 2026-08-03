@@ -160,7 +160,7 @@
                                 (clamp-image-panel-offset viewport dim zoom offset)
                                 offset))))
    :on-mouse-down (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
                       (ui/focus! ctx)
                       (when (= (:button event) :left)
@@ -171,17 +171,17 @@
                           (ui/emit! (:view ctx)
                                     :image-panel/source-click
                                     {:source-position source-pos})))
-                      state))
+                      state)
    :on-drag-start (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
-                      state))
+                      state)
    :on-drag (fn [state event ctx]
-              (do
+
                 (ui/stop-propagation! event)
                 (if (= (:button event) :left)
                   state
-                  (pan-by state ctx (:delta event)))))
+                  (pan-by state ctx (:delta event))))
    :on-key-down (fn [state event ctx]
                   (case (:key event)
                     :key/plus (do
@@ -198,7 +198,7 @@
              (let [viewport (panel-size state ctx)
                    image (:image state)
                    dim (when image (img/size image))]
-               (do
+
                  (r/rect! {:x 0 :y 0
                            :w (:w viewport)
                            :h (:h viewport)}
@@ -209,16 +209,15 @@
                                                             viewport
                                                             (:zoom state)
                                                             (:offset state))]
-                     (do
-                       (r/image! image
-                                 {:pos {:x (:x image-rect)
-                                        :y (:y image-rect)}
-                                  :scale (:scale image-rect)})
-                       (draw-source-rects! (:source-rects state) image-rect))))
+                     (r/image! image
+                               {:pos {:x (:x image-rect)
+                                      :y (:y image-rect)}
+                                :scale (:scale image-rect)})
+                     (draw-source-rects! (:source-rects state) image-rect)))
                  (r/rect! {:x 0 :y 0
                            :w (:w viewport)
                            :h (:h viewport)}
-                          {:color panel-border}))))})
+                          {:color panel-border})))})
 
 (defcomponent image-panel-zoom-control
   {:style {:width :fill
@@ -231,11 +230,11 @@
                     :zoom (clamp-zoom (:zoom state))
                     :zoom-label (zoom-label (:zoom state))))
    :on {:slider/change (fn [state event ctx]
-                         (do
+
                            (ui/stop-propagation! event)
                            (assoc state
                                   :zoom (:payload event)
-                                  :zoom-label (zoom-label (:payload event)))))}
+                                  :zoom-label (zoom-label (:payload event))))}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 42}

@@ -19,7 +19,7 @@
                    lost-focus? (and (:focused? state)
                                     (not focused?))
                    dirty? (:dirty? state)]
-               (do
+
                  (when (and lost-focus?
                             dirty?
                             (not (:disabled? state)))
@@ -39,7 +39,7 @@
                             :value source-value
                             :synced-source-value source-value
                             :dirty? false)
-                     state)))))
+                     state))))
    :on {:text-input/change (fn [state event ctx]
                              (let [value (-> event :payload :value)]
                                (assoc state
@@ -81,11 +81,11 @@
                       :selected-type-index (model/type-index (:type property))
                       :disabled? (nil? property))))
    :on {:combo-box/change (fn [state event ctx]
-                            (do
+
                               (ui/emit! (:view ctx)
                                         :property-definition/type-change
                                         (-> event :payload :value))
-                              state))}
+                              state)}
    :children [(cb/make {:options model/property-type-options
                         :selected-index (ui/bind-state :selected-type-index)
                         :disabled? (ui/bind-state :disabled?)})]})
@@ -114,12 +114,12 @@
                     :align-items :center
                     :gap 8}}
    :on {:number-input/change (fn [state event ctx]
-                               (do
+
                                  (ui/emit! (:view ctx)
                                            (:event state)
                                            {:field (:field state)
                                             :value (-> event :payload :value)})
-                                 state))}
+                                 state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 72}
@@ -163,11 +163,11 @@
                       :disabled? (or (:disabled? state)
                                      (empty? options)))))
    :on {:combo-box/change (fn [state event ctx]
-                            (do
+
                               (ui/emit! (:view ctx)
                                         :property-definition/enum-default-change
                                         (-> event :payload :value))
-                              state))}
+                              state)}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width 72}
@@ -204,11 +204,11 @@
                :state {:label "-"
                        :disabled? (ui/bind-state :disabled?)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :property-definition/enum-value-remove
                                        (:index state))
-                             state))}]})
+                             state)}]})
 
 (defun property-enum-value-row-child [index value disabled?]
   {:mode 'property-enum-value-row
@@ -234,11 +234,11 @@
                  :state {:label "+"
                          :disabled? disabled?}
                  :on-click (fn [state event ctx]
-                             (do
+
                                (ui/emit! (:view ctx)
                                          :property-definition/enum-value-add
                                          nil)
-                               state))}]}]
+                               state)}]}]
    (for-indexed [index value (or values [])]
      (property-enum-value-row-child index value disabled?))))
 
@@ -310,7 +310,7 @@
                     :gap 8}}
    :update (fn [state ctx]
              (let [property (model/selected-property state)]
-               (do
+
                  (when (or (not= property (:rendered-property state))
                            (not= (:disabled? state)
                                  (:rendered-disabled? state)))
@@ -328,5 +328,5 @@
                                     "")
                         :label (or (:label property) "")
                         :rendered-property property
-                        :rendered-disabled? (nil? property)))))
+                        :rendered-disabled? (nil? property))))
    :children (property-definition-detail-children)})

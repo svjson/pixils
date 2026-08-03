@@ -157,9 +157,9 @@
                :tilesets tilesets
                :property-sets property-sets
                :selected-property-set-index
-               (when (> (count property-sets) 0) 0)
+               (when (not-empty? property-sets) 0)
                :selected-property-definition-index
-               (when (> (count (or (:properties (head property-sets)) [])) 0) 0)
+               (when (not-empty? (or (:properties (head property-sets)) [])) 0)
                :terrain-sets terrain-sets
                :rulesets rulesets
                :tile-substitution-rules tile-substitution-rules
@@ -173,14 +173,14 @@
 	               :map-width (:width selected-map)
 	               :map-height (:height selected-map)
 	               :tile-size (data/map-tile-dim (:tile-size selected-map))
-               :selected-brush-index (when (> (count brushes) 0) 0)
+               :selected-brush-index (when (not-empty? brushes) 0)
                :selected-brush-layer-index
-               (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)
+               (when (not-empty? (or (-> (head brushes) :pattern :layers) [])) 0)
                :brush-selected-tile nil
                :layer-profiles layer-profiles
                :selected-layer-profile-id layer-profile-id
                :layers layers
-               :selected-layer-index (when (> (count layers) 0) 0)
+               :selected-layer-index (when (not-empty? layers) 0)
                :selected-layer-label (or (:label (head layers)) "")
                :terrain-rule-application :preview
                :show-terrain-rules? true
@@ -191,8 +191,8 @@
                :selected-tileset-index (when tileset
                                          (data/tileset-index tilesets
                                                              tileset))
-               :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
-               :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
+               :selected-tileset-definition-index (when (not-empty? tilesets) 0)
+               :selected-tileset-tile-index (when (not-empty? (or (:tiles (head tilesets)) [])) 0)
                :selected-tile (data/source-layer-value-id
                                tilesets
                                terrain-sets

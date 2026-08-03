@@ -14,7 +14,7 @@
     (map (keys (or before {}))
          (fn [key]
            (append! result key)))
-    (map (keys (or after {}))
+    (keep (keys (or after {}))
          (fn [key]
            (unless (contains? result key)
              (append! result key))))
@@ -24,7 +24,7 @@
   (let [before (editable-state before)
         after (editable-state after)
         patches []]
-    (map (unique-root-keys before after)
+    (keep (unique-root-keys before after)
          (fn [key]
            (when (not= (get before key) (get after key))
              (append! patches [:set [key] (get after key)]))))

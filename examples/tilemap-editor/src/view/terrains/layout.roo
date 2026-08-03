@@ -107,7 +107,7 @@
                   state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (case (:context-kind state)
@@ -126,7 +126,7 @@
                                           (-> payload :payload :command)})
 
                                :default
-                               nil))))
+                               nil)))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -173,14 +173,14 @@
                   state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
                                        :terrain/mask-set-context-command
                                        {:mask-set-index (:index state)
                                         :command
-                                        (-> payload :payload :command)}))))
+                                        (-> payload :payload :command)})))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -807,9 +807,7 @@
   (or (get (or (:match rule) {}) direction) :ignore))
 
 (defun condition-terrain-id [condition]
-  (if (= (type-of condition) "map")
-    (:terrain condition)
-    nil))
+  (when (= (type-of condition) "map") (:terrain condition)))
 
 (defun match-cell-tile [state condition]
   (case condition
@@ -1214,9 +1212,7 @@
        direction))
 
 (defun terrain-signature-tile [state value]
-  (if (and value (not= value :none))
-    (terrain-rule-terrain-tile state value)
-    nil))
+  (when (and value (not= value :none)) (terrain-rule-terrain-tile state value)))
 
 (defun draw-terrain-signature-none! []
   (draw-match-none!))
@@ -1323,15 +1319,13 @@
         col (int (/ (:x position) stride))
         row (int (/ (:y position) stride))
         index (+ col (* row (terrain-stamp-tile-picker-columns bounds)))]
-    (if (and (>= (:x position) 0)
+    (when (and (>= (:x position) 0)
              (>= (:y position) 0)
              (< (mod (:x position) stride)
                 terrain-stamp-tile-picker-cell-size)
              (< (mod (:y position) stride)
                 terrain-stamp-tile-picker-cell-size)
-             (< index item-count))
-      index
-      nil)))
+             (< index item-count)) index)))
 
 (defun terrain-stamp-tile-picker-cell-rect [index columns]
   (let [columns (max 1 (or columns 1))
@@ -1418,13 +1412,11 @@
                (count options))
         option (terrain-stamp-tile-at-picker-index state index)
         rect (terrain-stamp-tile-picker-cell-rect (or index 0) columns)]
-    (if option
-      {:kind :terrain-rule-stamp-tile
+    (when option {:kind :terrain-rule-stamp-tile
        :tileset (model/selected-rule-stamp-tileset state)
        :tile (:value option)
        :output-tab (terrain-standard-output-tab state)
-       :offset (terrain-stamp-tile-drag-offset event rect)}
-      nil)))
+       :offset (terrain-stamp-tile-drag-offset event rect)})))
 
 (defun emit-terrain-stamp-tile-drag-start! [state event ctx]
   (let [payload (:payload event)]
@@ -2169,8 +2161,8 @@
       (terrain-standard-output-tab state)))
 
 (defun terrain-standard-marker-condition? [condition]
-  (and (not (= condition :ignore))
-       (not (= condition :same))))
+  (and (not= condition :ignore)
+       (not= condition :same)))
 
 (defun terrain-standard-role-marker-directions [role-id]
   (let [match (model/terrain-standard-role-match role-id :none)]
@@ -2656,8 +2648,8 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (when (> (count children) 0)
-                 (ui/style! (nth children 0)
+               (when (not-empty? children)
+                 (ui/style! (head children)
                             (terrain-standard-setup-panel-scroll-content-style
                              state)))
                state))
@@ -3274,7 +3266,7 @@
   state)
 
 (defun open-terrain-set-delete-confirm-dialog! [state ctx terrain-set-index name]
-  (do
+
     (dialog/open-confirm!
      ctx
      {:title "Delete Terrain Set"
@@ -3286,7 +3278,7 @@
                  :label "Delete"}]
       :result-event :terrain/set-delete-confirm-result
       :payload {:terrain-set-index terrain-set-index}})
-    state))
+    state)
 
 (defun open-mask-set-add-dialog! [state ctx]
   (let [mask-set (model/make-mask-set (:mask-sets state))]
@@ -3368,7 +3360,7 @@
     state))
 
 (defun open-terrain-delete-confirm-dialog! [state ctx terrain-index name]
-  (do
+
     (dialog/open-confirm!
      ctx
      {:title "Delete Terrain"
@@ -3380,19 +3372,19 @@
                  :label "Delete"}]
       :result-event :terrain/delete-confirm-result
       :payload {:terrain-index terrain-index}})
-    state))
+    state)
 
 (defun open-terrain-rule-name-dialog! [state ctx rule-id name]
-  (do
+
     (push-mode! 'terrain-rule-name-dialog-modal
                 {:rule-id rule-id
                  :name name}
                 {:origin {:view (:view ctx)
                           :event :terrain/rule-name-dialog-result}})
-    state))
+    state)
 
 (defun open-terrain-rule-delete-confirm-dialog! [state ctx rule-id name]
-  (do
+
     (dialog/open-confirm!
      ctx
      {:title "Delete Terrain Rule"
@@ -3404,7 +3396,7 @@
                  :label "Delete"}]
       :result-event :terrain/rule-delete-confirm-result
       :payload {:rule-id rule-id}})
-    state))
+    state)
 
 (defcomponent terrain-rule-name-dialog-body
   {:class :ui/content
@@ -3433,38 +3425,38 @@
                        :height 24}
                :state {:label "Cancel"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :terrain-rule-name-dialog/cancel)
-                             state))}
+                             state)}
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
                :state {:label "OK"
                        :name (ui/bind-state :name)}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :terrain-rule-name-dialog/confirm
                                        {:name (:name state)})
-                             state))}]})
+                             state)}]})
 
 (defmode terrain-rule-name-dialog-modal
   {:on {:terrain-rule-name-dialog/cancel
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :cancel
                         :rule-id (:rule-id state)})
-            state))
+            state)
         :terrain-rule-name-dialog/confirm
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (pop-mode! {:type :confirm
                         :rule-id (:rule-id state)
                         :name (-> event :payload :name)})
-            state))}
+            state)}
    :compose {:render :pass}
    :children [(w/make {:title-bar {:title "Rename Terrain Rule"}
                        :state {:rule-id (ui/bind-state :rule-id)
@@ -3617,11 +3609,11 @@
   {:style {:width :fill
            :height :fill}
    :on {:tab-panel/change (fn [state event ctx]
-                            (do
+
                               (ui/stop-propagation! event)
                               (assoc state
                                      :terrain-rule-editor-tab
-                                     (-> event :payload :tab))))}
+                                     (-> event :payload :tab)))}
    :children [(terrain-rule-editor-tabs-panel)]})
 
 (defcomponent terrain-value-detail-editor
@@ -3647,12 +3639,12 @@
    :on {:property-value/change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (do
+
               (ui/stop-propagation! event)
               (property-model/set-selected-terrain-property-value
                state
                (:property-id payload)
-               (:value payload)))))}
+               (:value payload))))}
    :children [(terrain-value-detail-header-child)
               {:style {:width :fill
                        :height 24
@@ -3745,12 +3737,12 @@
                       :disabled? (nil? mask))))
    :on {:combo-box/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-source-type-change
                       (-> event :payload :value))
-            state))}
+            state)}
    :children [(cb/make {:options (ui/bind-state :source-type-options)
                         :selected-index
                         (ui/bind-state :selected-source-type-index)
@@ -3769,14 +3761,14 @@
                                      (empty? (:tilesets state))))))
    :on {:combo-box/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-source-tileset-change
                       (mask-source-tileset-id-from-combo-payload
                        (:tilesets state)
                        (:payload event)))
-            state))}
+            state)}
    :children [(cb/make {:options (ui/bind-state :tileset-options)
                         :selected-index
                         (ui/bind-state :selected-tileset-index)
@@ -3794,7 +3786,7 @@
                                                     (= (:value option)
                                                        selected-tile)))
                                       0)
-                   selected-value (:value (when (> (count options) 0)
+                   selected-value (:value (when (not-empty? options)
                                             (nth options selected-index)))]
                (assoc state
                       :tile-options options
@@ -3804,12 +3796,12 @@
                                      (empty? options)))))
    :on {:combo-box/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-source-tile-select
                       (-> event :payload :value))
-            state))}
+            state)}
    :children [(cb/make {:options (ui/bind-state :tile-options)
                         :selected-index
                         (ui/bind-state :selected-tile-index)
@@ -3822,24 +3814,24 @@
    :state {:label "Add"
            :disabled? (ui/bind-state :mask-tile-add-disabled?)}
    :on-click (fn [state event ctx]
-               (do
+
                  (unless (:disabled? state)
                    (ui/emit! (:view ctx) :terrain/mask-tile-item-add))
-                 state))})
+                 state)})
 
 (defcomponent mask-tile-offset-input
   {:style {:width 54
            :height 22}
    :on {:number-input/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-tile-item-offset-change
                       {:index (:index state)
                        :axis (:axis state)
                        :value (-> event :payload :value)})
-            state))}
+            state)}
    :children [(ni/make {:value (ui/bind-state :value)
                         :step 1
                         :allow-negative? true
@@ -3880,11 +3872,11 @@
                        :height 22}
                :state {:label "Remove"}
                :on-click (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :terrain/mask-tile-item-delete
                                        index)
-                             state))}]})
+                             state)}]})
 
 (defun mask-tile-item-list-children [items]
   (if (empty? items)
@@ -3901,7 +3893,7 @@
            (assoc state :rendered-items nil))
    :update (fn [state ctx]
              (let [items (or (:items state) [])]
-               (do
+
                  (when (not= items (:rendered-items state))
                    (ui/replace-child!
                     (:view ctx)
@@ -3912,7 +3904,7 @@
                              :layout {:direction :column
                                       :gap 4}}
                      :children (mask-tile-item-list-children items)}))
-                 (assoc state :rendered-items items))))
+                 (assoc state :rendered-items items)))
    :children [{:id "mask-tile-item-list-content"
                :style {:width :fill
                        :height :shrink
@@ -4002,7 +3994,7 @@
    :update (fn [state ctx]
              (let [mask-sets (or (:mask-sets state) [])
                    selected-index (:selected-mask-set-index state)]
-               (do
+
                  (when (or (not= mask-sets (:rendered-mask-sets state))
                            (not= selected-index
                                   (:rendered-selected-mask-set-index state)))
@@ -4013,15 +4005,15 @@
                            (mask-set-list-child mask-sets selected-index))))
                  (assoc state
                         :rendered-mask-sets mask-sets
-                        :rendered-selected-mask-set-index selected-index))))
+                        :rendered-selected-mask-set-index selected-index)))
    :on {:list-box/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-set-select
                       (head (-> event :payload :selected-indices)))
-            state))}
+            state)}
    :children [(merge {:id "mask-set-list-box"}
                      (mask-set-list-child [] nil))]})
 
@@ -4052,7 +4044,7 @@
                              (:mask-sets state)
                              (:selected-mask-set-index state))
                    selected-index (:selected-mask-index state)]
-               (do
+
                  (when (or (not= mask-set (:rendered-mask-set state))
                            (not= selected-index
                                   (:rendered-selected-mask-index state)))
@@ -4063,15 +4055,15 @@
                            (mask-list-child mask-set selected-index))))
                  (assoc state
                         :rendered-mask-set mask-set
-                        :rendered-selected-mask-index selected-index))))
+                        :rendered-selected-mask-index selected-index)))
    :on {:list-box/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (ui/emit! (:view ctx)
                       :terrain/mask-select
                       (head (-> event :payload :selected-indices)))
-            state))}
+            state)}
    :children [(merge {:id "mask-list-box"}
                      (mask-list-child nil nil))]})
 
@@ -4081,10 +4073,10 @@
    :state {:label label
            :disabled? disabled?}
    :on-click (fn [state event-ctx ctx]
-               (do
+
                  (unless (:disabled? state)
                    (ui/emit! (:view ctx) event))
-                 state))})
+                 state)})
 
 (defcomponent terrain-transition-editor
   {:style {:width :fill
@@ -4350,7 +4342,7 @@
                                          (:terrain-transitions state)
                                          :selected-terrain-transition-id
                                          (:selected-terrain-transition-id state)}]
-               (do
+
                  (when (or (not= visible? (:rendered-visible? state))
                            (not= terrain-tab-disabled?
                                   (:rendered-terrain-tab-disabled? state))
@@ -4380,13 +4372,13 @@
                         :terrain-label (or (:label terrain) (:name terrain) "")
                         :preview-tile (terrain-preview-tile (:tilesets state)
                                                             terrain-set
-                                                            terrain)))))
+                                                            terrain))))
    :on {:tab-panel/change (fn [state event ctx]
-                            (do
+
                               (ui/stop-propagation! event)
                               (assoc state
                                      :terrain-detail-tab
-                                     (-> event :payload :tab))))}
+                                     (-> event :payload :tab)))}
    :children [(terrain-detail-content-child true true)]})
 
 (defun make-terrain-detail-panel []
@@ -4715,14 +4707,11 @@
           (assoc state :selected-mask-source-tile (:payload event)))
         :terrain/mask-tile-item-add
         (fn [state event ctx]
-          (let [tile-ref (or (:selected-mask-source-tile state)
+          (if-let [tile-ref (or (:selected-mask-source-tile state)
                              (:value (head (data/tile-options
                                             (:tilesets state)
                                             (model/selected-mask-source-tileset
-                                             state)))))]
-            (if tile-ref
-              (model/add-selected-mask-tile state tile-ref)
-              state)))
+                                             state)))))] (model/add-selected-mask-tile state tile-ref) state))
         :terrain/mask-tile-item-offset-change
         (fn [state event ctx]
           (let [payload (:payload event)]
@@ -5181,9 +5170,7 @@
                 tile (if (= (type-of payload) "map")
                        (:tile payload)
                        payload)
-                output-tab (if (= (type-of payload) "map")
-                             (:output-tab payload)
-                             nil)]
+                output-tab (when (= (type-of payload) "map") (:output-tab payload))]
             (assoc state
                    :terrain-rule-selected-tile tile
                    :terrain-rule-selected-tile-output-tab output-tab

@@ -28,11 +28,11 @@
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
+
                       (ui/stop-propagation! event)
-                      state))
+                      state)
    :on-mouse-up (fn [state event ctx]
-                  (do
+
                     (ui/stop-propagation! event)
                     (ui/emit! (:view ctx)
                               :list-box/item-click
@@ -45,10 +45,10 @@
                                                (:global-position event)
                                                state
                                                ctx))
-                    state))
+                    state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (do
+
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
                              (ui/emit! (:view ctx)
@@ -56,7 +56,7 @@
                                        {:property-set-index (:index state)
                                         :command
                                         (-> payload :payload :command)}))
-                           state)))}
+                           state))}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
@@ -87,7 +87,7 @@
            (assoc state :selected-indices []))
    :update (fn [state ctx]
              (let [property-sets (or (:property-sets state) [])]
-               (do
+
                  (when (not= property-sets (:rendered-property-sets state))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
@@ -97,13 +97,13 @@
                  (assoc state
                         :rendered-property-sets property-sets
                         :selected-indices
-                        (model/selected-property-set-indices state)))))
+                        (model/selected-property-set-indices state))))
    :on {:list-box/change (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :property-set/select
                                        (-> event :payload :value))
-                             state))}
+                             state)}
    :children [(merge {:id "list-box"}
                      (property-set-list-child []))]})
 
@@ -160,7 +160,7 @@
            (assoc state :selected-indices []))
    :update (fn [state ctx]
              (let [property-set (model/selected-property-set state)]
-               (do
+
                  (when (not= property-set (:rendered-property-set state))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
@@ -170,12 +170,12 @@
                  (assoc state
                         :rendered-property-set property-set
                         :selected-indices
-                        (model/selected-property-indices state)))))
+                        (model/selected-property-indices state))))
    :on {:list-box/change (fn [state event ctx]
-                           (do
+
                              (ui/emit! (:view ctx)
                                        :property-definition/select
                                        (-> event :payload :value))
-                             state))}
+                             state)}
    :children [(merge {:id "list-box"}
                      (property-definition-list-child nil))]})

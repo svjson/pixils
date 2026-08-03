@@ -37,12 +37,12 @@
       (let [scale (fit-scale (:w dim) (:h dim) rect)
             width (* (:w dim) scale)
             height (* (:h dim) scale)]
-        (do
+
           (r/rect! rect {:fill true
                          :color {:r 0x12 :g 0x15 :b 0x18}})
           (r/image! (:image tile)
                     {:pos (centered-pos rect width height)
-                     :scale scale})))
+                     :scale scale}))
       (draw-missing-tile! rect))))
 
 (defun draw-sprite-tile! [tile rect]
@@ -99,12 +99,10 @@
     (dotimes [y height]
       (dotimes [x width]
         (when-let [tile-ref (nth (nth tiles y) x)]
-          (let [tile (layer-cell-tile tileset-definitions
+          (when-let [tile (layer-cell-tile tileset-definitions
                                       terrain-sets
                                       layer
-                                      tile-ref)]
-            (when tile
-              (draw-tile! tile (tile-rect x y offset zoom)))))))))
+                                      tile-ref)] (draw-tile! tile (tile-rect x y offset zoom))))))))
 
 (defun render-grid-overlay! [offset zoom width height]
   (let [tile-size (tm/scaled-tile-size {:tile-size data/tile-size} zoom)

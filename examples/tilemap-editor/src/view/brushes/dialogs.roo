@@ -73,9 +73,7 @@
                           (model/brush-id-exists-except?
                            (:brushes state)
                            (model/id-from-text (:id identity) (:name identity))
-                           (if (= (:operation state) :edit)
-                             (:selected-brush-index state)
-                             nil))))))
+                           (when (= (:operation state) :edit) (:selected-brush-index state)))))))
    :children [{:mode 'ui/button
                :style {:width 78
                        :height 24}
@@ -137,9 +135,7 @@
                           (model/pattern-layer-id-exists-except?
                            (:layers state)
                            (model/id-from-text (:id identity) (:name identity))
-                           (if (= (:operation state) :edit)
-                             (:selected-layer-index state)
-                             nil))))))
+                           (when (= (:operation state) :edit) (:selected-layer-index state)))))))
    :children [{:mode 'ui/button
                :style {:width 78
                        :height 24}

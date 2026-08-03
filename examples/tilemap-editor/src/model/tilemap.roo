@@ -76,9 +76,7 @@
 
 (defun selected-index [items index]
   (let [items (or items [])]
-    (if (empty? items)
-      nil
-      (min (or index 0) (dec (count items))))))
+    (unless (empty? items) (min (or index 0) (dec (count items))))))
 
 (defun selected-brush [brushes index]
   (if-let [selected (selected-index brushes index)]
@@ -354,9 +352,7 @@
   (let [index (layer-index-by-id layers layer-id)
         layer (when-let [index index]
                 (nth layers index))]
-    (if (= (:data-kind layer) :tile-ref)
-      index
-      nil)))
+    (when (= (:data-kind layer) :tile-ref) index)))
 
 (defun make-terrain-stamp-target-layer [state source-layer ruleset output-layer]
   (let [layer-id (terrain-stamp-patch-target-layer-id output-layer)]
@@ -389,9 +385,7 @@
 
 (defun terrain-stamp-layer [state collection-key layer-id]
   (let [index (terrain-stamp-layer-index state collection-key layer-id)]
-    (if (nil? index)
-      nil
-      (nth (or (get state collection-key) []) index))))
+    (unless (nil? index) (nth (or (get state collection-key) []) index))))
 
 (defun terrain-stamp-layer-cell [state collection-key layer-id x y]
   (derivation/cell-at (terrain-stamp-layer state collection-key layer-id) x y))
@@ -1075,7 +1069,7 @@
         pending [start]
         seen {}
         positions []]
-    (while (not (empty? pending))
+    (while (not-empty? pending)
       (let [pos (head pending)]
         (set! [pending] (tail pending))
         (when (and (in-map-bounds-for? state (:x pos) (:y pos))
@@ -1135,7 +1129,7 @@
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (if (and (:active? line)
-             (> (count layers) 0)
+             (not-empty? layers)
              (< layer-index (count layers)))
       (let [pos (bounded-map-tile-position state event)
             tile-ref (map-edit-value-for-button state (:button line))]
@@ -1383,7 +1377,7 @@
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (if (and (in-map-bounds-for? state tile-x tile-y)
-             (> (count layers) 0))
+             (not-empty? layers))
       (if (= (:map-palette-tab state) :brushes)
         (paint-brush-at state tile-x tile-y event)
         (if (< layer-index (count layers))
@@ -1398,7 +1392,7 @@
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (if (and (in-map-bounds-for? state tile-x tile-y)
-             (> (count layers) 0)
+             (not-empty? layers)
              (< layer-index (count layers)))
       (fill-map-at state layer-index tile-x tile-y event)
       state)))
@@ -1410,7 +1404,7 @@
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (when (and (in-map-bounds-for? state tile-x tile-y)
-               (> (count layers) 0)
+               (not-empty? layers)
                (< layer-index (count layers)))
       (let [layer (nth layers layer-index)
             unit (terrain-unit-for-layer state layer)

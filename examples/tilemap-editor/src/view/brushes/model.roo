@@ -21,19 +21,17 @@
     (keyword value)))
 
 (defun brush-id-exists? [brushes id]
-  (> (count (filter (or brushes [])
+  (not-empty? (filter (or brushes [])
                     (fn [brush]
-                      (= (:id brush) (ensure-keyword id)))))
-     0))
+                      (= (:id brush) (ensure-keyword id))))))
 
 (defun brush-id-exists-except? [brushes id exclude-index]
-  (> (count (filter (for-indexed [index brush (or brushes [])]
+  (not-empty? (filter (for-indexed [index brush (or brushes [])]
                       {:index index
                        :id (:id brush)})
                     (fn [entry]
                       (and (= (:id entry) (ensure-keyword id))
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-id-from [brushes root suffix]
   (let [candidate (if suffix
@@ -67,9 +65,7 @@
 
 (defun requested-id [items payload fallback-label exclude-index]
   (let [id (id-from-text (:id payload) fallback-label)]
-    (if (brush-id-exists-except? items id exclude-index)
-      nil
-      id)))
+    (unless (brush-id-exists-except? items id exclude-index) id)))
 
 (defun brush-label-from-id [id]
   (capitalize (clean-name-separators (keyword-label id))))
@@ -79,10 +75,9 @@
         candidate (if suffix
                     (str root " " suffix)
                     root)]
-    (if (> (count (filter (or items [])
+    (if (not-empty? (filter (or items [])
                           (fn [item]
                             (= (get item label-key) candidate))))
-           0)
       (duplicate-label items label label-key (if suffix (inc suffix) 2))
       candidate)))
 
@@ -134,7 +129,7 @@
 
 (defun tileset-id [tilesets index]
   (let [items (or tilesets [])]
-    (when (> (count items) 0)
+    (when (not-empty? items)
       (:id (nth items (or index 0))))))
 
 (defun selected-layer-profile [state]
@@ -151,19 +146,17 @@
   (data/layer-profile-layer-by-id (selected-layer-profile state) target-layer))
 
 (defun pattern-layer-id-exists? [layers id]
-  (> (count (filter (or layers [])
+  (not-empty? (filter (or layers [])
                     (fn [layer]
-                      (= (:id layer) id))))
-     0))
+                      (= (:id layer) id)))))
 
 (defun pattern-layer-id-exists-except? [layers id exclude-index]
-  (> (count (filter (for-indexed [index layer (or layers [])]
+  (not-empty? (filter (for-indexed [index layer (or layers [])]
                       {:index index
                        :id (:id layer)})
                     (fn [entry]
                       (and (= (:id entry) id)
-                           (not= (:index entry) exclude-index)))))
-     0))
+                           (not= (:index entry) exclude-index))))))
 
 (defun unique-pattern-layer-id-from [layers root suffix]
   (let [candidate (keyword (if suffix
@@ -191,9 +184,7 @@
 
 (defun requested-pattern-layer-id [layers payload fallback-label exclude-index]
   (let [id (id-from-text (:id payload) fallback-label)]
-    (if (pattern-layer-id-exists-except? layers id exclude-index)
-      nil
-      id)))
+    (unless (pattern-layer-id-exists-except? layers id exclude-index) id)))
 
 (defun source-layer-options [state]
   (let [profile-layers (or (:layers (selected-layer-profile state)) [])
@@ -211,14 +202,14 @@
 
 (defun source-layer-option [state index]
   (let [options (source-layer-options state)]
-    (when (> (count options) 0)
+    (when (not-empty? options)
       (nth options (min (or index 0) (dec (count options)))))))
 
 (defun first-pattern-source-layer [state]
   (:layer (source-layer-option state 0)))
 
 (defun pattern-layer-has-source? [state]
-  (not (empty? (source-layer-options state))))
+  (not-empty? (source-layer-options state)))
 
 (defun selected-source-layer-index [state layer]
   (find-index (source-layer-options state)
@@ -309,9 +300,7 @@
 
 (defun selected-brush-index [brushes index]
   (let [brushes (or brushes [])]
-    (if (empty? brushes)
-      nil
-      (min (or index 0) (dec (count brushes))))))
+    (unless (empty? brushes) (min (or index 0) (dec (count brushes))))))
 
 (defun selected-brush [brushes index]
   (if-let [selected-index (selected-brush-index brushes index)]
@@ -325,9 +314,7 @@
 
 (defun selected-pattern-layer-index [brush index]
   (let [layers (or (-> brush :pattern :layers) [])]
-    (if (empty? layers)
-      nil
-      (min (or index 0) (dec (count layers))))))
+    (unless (empty? layers) (min (or index 0) (dec (count layers))))))
 
 (defun selected-pattern-layer [brush index]
   (if-let [selected-index (selected-pattern-layer-index brush index)]
@@ -342,10 +329,7 @@
       []))
 
 (defun selected-pattern-layer-name [brush index]
-  (let [layer (selected-pattern-layer brush index)]
-    (if layer
-      (or (:label layer) (str (:id layer)))
-      "")))
+  (if-let [layer (selected-pattern-layer brush index)] (or (:label layer) (str (:id layer))) ""))
 
 (defun selected-pattern-layer-indices [brush index]
   (if-let [selected-index (selected-pattern-layer-index brush index)]
@@ -361,11 +345,9 @@
      :label (or (:label layer) (str (:id layer)))}))
 
 (defun tileset-index [tilesets id]
-  (if id
-    (find-index (or tilesets [])
+  (when id (find-index (or tilesets [])
                 (fn [tileset]
-                  (= (:id tileset) id)))
-    nil))
+                  (= (:id tileset) id)))))
 
 (defun clamp-pattern-size [value]
   (clamp (or value 1) 1 32))
@@ -558,7 +540,7 @@
 (defun delete-selected-brush [state]
   (let [brushes (or (:brushes state) [])
         index (selected-brush-index brushes (:selected-brush-index state))]
-    (if (and (not (nil? index)) (> (count brushes) 0))
+    (if (and (not (nil? index)) (not-empty? brushes))
       (let [next-brushes (remove-item-at-index brushes index)
             next-index (selected-brush-index next-brushes index)
             brush (selected-brush next-brushes next-index)]

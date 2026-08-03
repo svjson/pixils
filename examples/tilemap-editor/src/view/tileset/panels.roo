@@ -344,7 +344,7 @@
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
                   (when (and (= (:button event) :right)
-                             (not (empty? (selected-tileset-tile-selection state))))
+                             (not-empty? (selected-tileset-tile-selection state)))
                     (menu/open-context-menu! (tile-context-menu state)
                                              (:global-position event)
                                              state
@@ -457,8 +457,8 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (when (> (count children) 0)
-                 (ui/style! (nth children 0)
+               (when (not-empty? children)
+                 (ui/style! (head children)
                             (tileset-tile-grid-scroll-content-style
                              state)))
                state))
@@ -955,8 +955,8 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (when (> (count children) 0)
-                 (ui/style! (nth children 0)
+               (when (not-empty? children)
+                 (ui/style! (head children)
                             (tileset-tile-grid-scroll-content-style
                              state)))
                state))
@@ -1328,8 +1328,8 @@
            :clip true}
    :update (fn [state ctx]
              (let [children (ui/children ctx)]
-               (when (> (count children) 0)
-                 (ui/style! (nth children 0)
+               (when (not-empty? children)
+                 (ui/style! (head children)
                             (tile-definition-panel-scroll-content-style
                              state)))
                state))

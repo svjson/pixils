@@ -16,10 +16,10 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (ui/emit! (:view ctx)
                                                        :property-set/add)
-                                             state))}]
+                                             state)}]
             :body-style {:padding 8
                          :height :fill}
             :state {:property-sets (ui/bind-state :property-sets)
@@ -47,11 +47,11 @@
                                        :disabled? (ui/bind-state
                                                    :property-set-panel-disabled?)}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (unless (:disabled? state)
                                                (ui/emit! (:view ctx)
                                                          :property-definition/add))
-                                             state))}]
+                                             state)}]
             :body-style {:padding 8
                          :height :fill
                          :layout {:direction :column

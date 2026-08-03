@@ -29,10 +29,10 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-                                           (do
+
                                              (ui/emit! (:view ctx)
                                                        :tileset/add)
-                                             state))}]
+                                             state)}]
             :body-style {:padding 8
                          :height :shrink}
             :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
@@ -160,7 +160,7 @@
                     state (if multiple?
                             (import-file-resources! state paths)
                             (import-file-resource! state payload))]
-                (do
+
                   (ui/emit! (:view ctx)
                             :project/resources-change
                             {:resources (:resources state)
@@ -175,7 +175,7 @@
                      ctx
                      (:selected-resource-bundle state)
                      (image-resource-key (:selected-resource-bundle state)
-                                         (:selected-image-resource state))))))
+                                         (:selected-image-resource state)))))
               state)))
         :tile/add-command
         (fn [state event ctx]

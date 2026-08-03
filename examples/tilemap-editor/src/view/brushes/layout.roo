@@ -652,24 +652,19 @@
      "Add")))
 
 (defun open-brush-edit-dialog! [state ctx]
-  (let [brush (model/selected-brush (:brushes state)
-                                    (:selected-brush-index state))]
-    (if brush
-      (brush-dialogs/open-brush-dialog!
+  (if-let [brush (model/selected-brush (:brushes state)
+                                    (:selected-brush-index state))] (brush-dialogs/open-brush-dialog!
        state
        ctx
        :edit
        "Edit Brush"
        {:id (model/keyword-label (:id brush))
         :name (:label brush)}
-       "Save")
-      state)))
+       "Save") state))
 
 (defun open-brush-duplicate-dialog! [state ctx]
-  (let [brush (model/selected-brush (:brushes state)
-                                    (:selected-brush-index state))]
-    (if brush
-      (let [name (model/duplicate-label (:brushes state)
+  (if-let [brush (model/selected-brush (:brushes state)
+                                    (:selected-brush-index state))] (let [name (model/duplicate-label (:brushes state)
                                         (:label brush)
                                         :label
                                         nil)
@@ -684,8 +679,7 @@
          "Duplicate Brush"
          {:id id
           :name name}
-         "Duplicate"))
-      state)))
+         "Duplicate")) state))
 
 (defun open-brush-delete-confirm-dialog! [state ctx]
   (when-let [brush (model/selected-brush (:brushes state)
@@ -729,9 +723,7 @@
      "Add")))
 
 (defun open-brush-layer-edit-dialog! [state ctx]
-  (let [layer (selected-pattern-layer-details state)]
-    (if layer
-      (brush-dialogs/open-brush-layer-dialog!
+  (if-let [layer (selected-pattern-layer-details state)] (brush-dialogs/open-brush-layer-dialog!
        state
        ctx
        :edit
@@ -739,30 +731,23 @@
        {:id (model/keyword-label (:id layer))
         :name (or (:label layer) (str (:id layer)))}
        (model/selected-source-layer-index state layer)
-       "Save")
-      state)))
+       "Save") state))
 
 (defun open-brush-layer-tileset-dialog! [state ctx]
-  (let [layer (selected-pattern-layer-details state)]
-    (if layer
-      (brush-dialogs/open-brush-layer-source-dialog!
+  (if-let [layer (selected-pattern-layer-details state)] (brush-dialogs/open-brush-layer-source-dialog!
        state
        ctx
        :tileset
        "Change Brush Layer Tileset"
-       (model/tileset-index (:tilesets state) (:tileset layer)))
-      state)))
+       (model/tileset-index (:tilesets state) (:tileset layer))) state))
 
 (defun open-brush-layer-terrain-set-dialog! [state ctx]
-  (let [layer (selected-pattern-layer-details state)]
-    (if layer
-      (brush-dialogs/open-brush-layer-source-dialog!
+  (if-let [layer (selected-pattern-layer-details state)] (brush-dialogs/open-brush-layer-source-dialog!
        state
        ctx
        :terrain-set
        "Change Brush Layer Terrain Set"
-       (data/terrain-set-index (:terrain-sets state) (:terrain-set layer)))
-      state)))
+       (data/terrain-set-index (:terrain-sets state) (:terrain-set layer))) state))
 
 (defun open-brush-layer-duplicate-dialog! [state ctx]
   (let [brush (model/selected-brush (:brushes state)
