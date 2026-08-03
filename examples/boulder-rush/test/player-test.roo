@@ -1,5 +1,6 @@
 (ns boulder-rush.player-test
   (:require proof.core
+            [proof.syntax :as s]
             [boulder-rush.player :as player]
             [boulder-rush.fixtures :as fixtures]))
 
@@ -11,14 +12,14 @@
                       right))
 
 (deftest move-player-moves-right-into-dirt
-  (given
+  (s/given
     {:rows ["..OO"
             ".P.V"
             "WWWW"]
      :pos {:x 1 :y 1}})
-  (when [{:keys [rows pos]}]
+  (s/when [{:keys [rows pos]}]
     (move-right rows pos))
-  (then [result]
+  (s/then [result]
     (is (= ["..OO"
             ". PV"
             "WWWW"]
@@ -28,12 +29,12 @@
     (is (= :dirt (:entered-tile result)))))
 
 (deftest move-player-moves-right-into-empty-space
-  (given
+  (s/given
     {:rows ["P "]
      :pos {:x 0 :y 0}})
-  (when [{:keys [rows pos]}]
+  (s/when [{:keys [rows pos]}]
     (move-right rows pos))
-  (then [result]
+  (s/then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
@@ -41,15 +42,15 @@
     (is (= :empty (:entered-tile result)))))
 
 (deftest move-player-preserves-player-properties
-  (given
+  (s/given
     {:rows ["P "]
      :player {:pos {:x 0 :y 0}
               :walking? true}})
-  (when [{:keys [rows player]}]
+  (s/when [{:keys [rows player]}]
     (player/move-player (fixtures/rows->map rows)
                         player
                         right))
-  (then [result]
+  (s/then [result]
     (is (= {:pos {:x 1 :y 0}
             :walking? true}
            (:player result)))
@@ -72,12 +73,12 @@
                                           {:x 0 :y 1})))))
 
 (deftest move-player-moves-right-into-gem
-  (given
+  (s/given
     {:rows ["PV"]
      :pos {:x 0 :y 0}})
-  (when [{:keys [rows pos]}]
+  (s/when [{:keys [rows pos]}]
     (move-right rows pos))
-  (then [result]
+  (s/then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
@@ -85,21 +86,21 @@
     (is (= :gem (:entered-tile result)))))
 
 (deftest move-player-does-not-move-right-into-wall
-  (given
+  (s/given
     {:rows ["PW"]
      :pos {:x 0 :y 0}})
-  (when [{:keys [rows pos]}]
+  (s/when [{:keys [rows pos]}]
     (move-right rows pos))
-  (then [result]
+  (s/then [result]
     (is (= {}
            result))))
 
 (deftest move-player-does-not-move-right-into-boulder
-  (given
+  (s/given
     {:rows ["PO"]
      :pos {:x 0 :y 0}})
-  (when [{:keys [rows pos]}]
+  (s/when [{:keys [rows pos]}]
     (move-right rows pos))
-  (then [result]
+  (s/then [result]
     (is (= {}
            result))))
