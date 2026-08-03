@@ -1,11 +1,12 @@
 (ns tilemap-editor.view.tileset.interaction-test
   (:require proof.core
+            [proof.syntax :as s]
             [tilemap-editor.fixture.main-window :as main-window]
             [tilemap-editor.fixture.io.project :as project]
             [tilemap-editor.fixture.view.tileset.tilesets-tab :as tilesets-tab]))
 
 (deftest tileset-row-context-menu-opens-edit-dialog
-  (given
+  (s/given
     (project/write! :tileset-context
                     {:tilesets [{:id :loaded
                                  :label "Loaded"
@@ -24,13 +25,13 @@
       (project/contains-tileset? app :loaded)
       app))
 
-  (when [app]
+  (s/when [app]
     (main-window/switch-to! app :tab/tiles {:by :mouse/click})
     (tilesets-tab/open-context-menu! app :tileset/loaded {:by :mouse/right-click})
     (main-window/choose-menu-item! app :menu-item/edit {:by :mouse/click})
     app)
 
-  (then [app]
+  (s/then [app]
     (tilesets-tab/edit-dialog-is-open? app)
     (tilesets-tab/edit-dialog-matches? app
                                        {:tileset/id "loaded"
@@ -39,7 +40,7 @@
     (project/cleanup! :tileset-context)))
 
 (deftest tileset-tile-grid-drag-selects-and-delete-prompts
-  (given
+  (s/given
     (project/write! :tile-delete
                     {:tilesets [{:id :terrain
                                  :label "Terrain"
@@ -68,7 +69,7 @@
       (project/contains-tileset? app :terrain)
       app))
 
-  (when [app]
+  (s/when [app]
     (main-window/switch-to! app :tab/tiles {:by :mouse/click})
     (tilesets-tab/select-tile-range! app 0 1 {:by :mouse/shift-drag})
     (tilesets-tab/selected-tile-indices-are? app [0 1])
@@ -79,6 +80,6 @@
     (main-window/choose-menu-item! app :menu-item/delete {:by :mouse/click})
     app)
 
-  (then [app]
+  (s/then [app]
     (tilesets-tab/delete-dialog-is-open? app [0 1])
     (project/cleanup! :tile-delete)))

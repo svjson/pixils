@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.project-load-interaction-test
   (:require proof.core
+            [proof.syntax :as s]
             [pixils.test.resource :as resource]
             [tilemap-editor.fixture.io.project :as project]
             [tilemap-editor.fixture.main-window :as main-window]
@@ -7,7 +8,7 @@
             [tilemap-editor.fixture.view.tileset.tilesets-tab :as tilesets-tab]))
 
 (deftest loaded-project-populates-existing-side-panel-controls
-  (given
+  (s/given
     (project/cleanup! :example-map1)
     (let [app (main-window/open-project! :example-map1)]
       (main-window/is-open? app)
@@ -18,7 +19,7 @@
       (resource/image-size-is? app :project-assets/simples-pimples 800 1280)
       app))
 
-  (when [app]
+  (s/when [app]
     (tilemap-tab/layer-count-is? app 4)
     (tilemap-tab/select-palette-tile! app :tile/cave-depth {:by :mouse/click})
     (tilemap-tab/selected-palette-tile-is? app :tile/cave-depth)
@@ -35,7 +36,7 @@
     (main-window/switch-to! app :tab/map {:by :mouse/click})
     app)
 
-  (then [app]
+  (s/then [app]
     (tilemap-tab/layer-count-is? app 4)
     (tilemap-tab/palette-contains-tile? app :tile/night)
     (project/cleanup! :example-map1)))
