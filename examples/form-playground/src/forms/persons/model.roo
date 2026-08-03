@@ -48,9 +48,9 @@
         last-name (:field/last-name person)
         fallback (or (:label person) (str "Person " (inc index)))]
     (if (and (not (nil? first-name))
-             (> (count first-name) 0)
+             (not-empty? first-name)
              (not (nil? last-name))
-             (> (count last-name) 0))
+             (not-empty? last-name))
       (str first-name " " last-name)
       fallback)))
 

@@ -61,6 +61,6 @@
 (defun conference-label [conference index]
   (let [name (:program/name conference)]
     (if (and (not (nil? name))
-             (> (count name) 0))
+             (not-empty? name))
       name
       (str "Conference " (inc index)))))

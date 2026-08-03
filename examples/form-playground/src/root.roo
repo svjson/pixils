@@ -138,18 +138,18 @@
               (form-tabs)]
    :on {:tab-panel/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
             (assoc state
                    :selected-form-tab
-                   (-> event :payload :tab))))
+                   (-> event :payload :tab)))
         :form/select
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
-            (apply-form-select state (:payload event))))
+            (apply-form-select state (:payload event)))
         :form/change
         (fn [state event ctx]
-          (do
+
             (ui/stop-propagation! event)
-            (apply-form-change state (:payload event))))}})
+            (apply-form-change state (:payload event)))}})
