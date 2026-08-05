@@ -58,7 +58,7 @@
 (defcomponent board-button
   {:extend 'ui/button
    :style {:width 17 :height 17 :border {:thickness 0}}
-   :update (fn [state {:keys [view] :as ctx}]
+   :update (fn [state ctx]
              (let [flagged (-> state :mask :flagged?)
                    state (-> state
                              (assoc :image (when flagged
@@ -68,11 +68,7 @@
                (assoc-in! ctx
                           [:view :style :visibility]
                           (if (:revealed? (:mask state)) :hidden :visible))
-               (assoc state :pressed
-                      (and (not (:inhibit-pressed? state))
-                           (or (:force-pressed? state)
-                               (and (contains? (-> view :interaction :pressed) :left)
-                                    (-> view :interaction :hovered)))))))
+               state))
    :on-click (fn [state e ctx]
                (case (:button e)
                  :left (when (not (:flagged? (:mask state)))
@@ -152,8 +148,9 @@
 
 (defun apply-chord-press [state e ctx]
   (let [pressed (-> ctx :view :interaction :pressed)]
-    (if (and (contains? pressed :left)
-             (contains? pressed :right))
+    (cond
+      (and (contains? pressed :left)
+           (contains? pressed :right))
       (let [cell-coord (-> e
                            :position
                            (pt/- {:x 3 :y 3})
@@ -167,16 +164,19 @@
             (assoc :board-mask (for-indexed [y row (:board-mask state)]
                                             (for-indexed [x cell row]
                                                          (assoc cell :chord-pressed? (contains? cells (pt/make-point {:x x :y y}))))))))
-      (if (:chord-press-active state)
-        (clear-chord-press state)
-        state))))
+
+      (:chord-press-active state)
+      (clear-chord-press state)
+
+      :default
+      state)))
 
 (defun revealed-count [board-mask]
   (count (filter (apply concat (for-indexed [y row board-mask]
                                             (for-indexed [x cell row]
                                                          (when (:revealed? cell)
                                                            {:x x :y y}))))
-                 (fn [c] (not (nil? c))))))
+                 some?)))
 
 
 (defun valid-chord-press-cells [board-mask]
@@ -185,7 +185,7 @@
                                                   (when (and (:chord-pressed? cell)
                                                              (not (:flagged? cell)))
                                                     {:x x :y y}))))
-          (fn [c] (not (nil? c)))))
+          some?))
 
 (defmode board-mode
   {:on-mouse-down apply-chord-press
