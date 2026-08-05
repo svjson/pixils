@@ -1,6 +1,178 @@
 (ns tilemap-editor.view.terrains.actions
   (:require [tilemap-editor.model.workbook :as editor-workbook]
-            [tilemap-editor.view.property-sets.model :as property-model]))
+            [tilemap-editor.view.property-sets.model :as property-model]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun add-mask-set
+  "Adds a mask set from confirmed identity fields and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Add mask set"
+   (model/add-mask-set-with-id state id label)))
+
+(defun edit-selected-mask-set
+  "Updates the selected mask set identity and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Edit mask set"
+   (model/set-selected-mask-set-label
+    (model/set-selected-mask-set-id state id)
+    label)))
+
+(defun change-selected-mask-set-size
+  "Updates one selected mask set dimension and records the document edit in workbook history."
+  [state axis value]
+  (editor-workbook/change-to
+   state
+   "Change mask set size"
+   (model/set-selected-mask-set-size state axis value)))
+
+(defun delete-selected-mask-set
+  "Deletes the selected mask set and records the document edit in workbook history."
+  [state]
+  (editor-workbook/change-to
+   state
+   "Delete mask set"
+   (model/delete-selected-mask-set state)))
+
+(defun add-mask
+  "Adds a mask to the selected mask set from confirmed identity fields and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Add mask"
+   (model/add-mask-with-id state id label)))
+
+(defun duplicate-selected-mask
+  "Duplicates the selected mask from confirmed identity fields and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Duplicate mask"
+   (model/duplicate-selected-mask-with-id state id label)))
+
+(defun edit-selected-mask
+  "Updates the selected mask identity and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Edit mask"
+   (model/set-selected-mask-label
+    (model/set-selected-mask-id state id)
+    label)))
+
+(defun delete-selected-mask
+  "Deletes the selected mask and records the document edit in workbook history."
+  [state]
+  (editor-workbook/change-to
+   state
+   "Delete mask"
+   (model/delete-selected-mask state)))
+
+(defun change-selected-mask-source-type
+  "Updates the selected mask source type and records the document edit in workbook history."
+  [state source-type]
+  (editor-workbook/change-to
+   state
+   "Change mask source type"
+   (model/set-selected-mask-source-type state source-type)))
+
+(defun change-selected-mask-source-tileset
+  "Updates the selected mask source tileset and records the document edit in workbook history."
+  [state tileset-id]
+  (editor-workbook/change-to
+   state
+   "Change mask source tileset"
+   (model/set-selected-mask-source-tileset state tileset-id)))
+
+(defun add-selected-mask-tile
+  "Adds a tile item to the selected mask and records the document edit in workbook history."
+  [state tile-ref]
+  (editor-workbook/change-to
+   state
+   "Add mask tile"
+   (model/add-selected-mask-tile state tile-ref)))
+
+(defun add-selected-mask-tile-at
+  "Adds a tile item to the selected mask at a requested offset and records the document edit in workbook history."
+  [state payload]
+  (let [original-state state
+        tile-ref (:tile payload)
+        tile-source (:tileset payload)
+        current-source (model/selected-mask-source-tileset state)
+        items (model/selected-mask-tile-items state)
+        offset (or (:offset payload) {:x 0 :y 0})]
+    (if (and tile-ref
+             (or (nil? tile-source)
+                 (= tile-source current-source)
+                 (empty? items)))
+      (let [state (if (and tile-source
+                           (not= tile-source current-source)
+                           (empty? items))
+                    (model/set-selected-mask-source-tileset state tile-source)
+                    state)
+            index (count (model/selected-mask-tile-items state))
+            state (model/add-selected-mask-tile state tile-ref)
+            state (model/set-selected-mask-tile-item-offset
+                   state
+                   index
+                   :x
+                   (or (:x offset) 0))]
+        (editor-workbook/change-to
+         original-state
+         "Add mask tile"
+         (model/set-selected-mask-tile-item-offset
+          state
+          index
+          :y
+          (or (:y offset) 0))))
+      state)))
+
+(defun change-selected-mask-tile-item-offset
+  "Updates a selected mask tile item offset from an event payload and records the document edit in workbook history."
+  [state payload]
+  (let [next-state (case (:axis payload)
+                     :both
+                     (let [offset (:value payload)
+                           state (model/set-selected-mask-tile-item-offset
+                                  state
+                                  (:index payload)
+                                  :x
+                                  (or (:x offset) 0))]
+                     (model/set-selected-mask-tile-item-offset
+                      state
+                      (:index payload)
+                      :y
+                      (or (:y offset) 0)))
+
+                     :default
+                     (model/set-selected-mask-tile-item-offset
+                      state
+                      (:index payload)
+                      (:axis payload)
+                      (:value payload)))]
+    (editor-workbook/change-to
+     state
+     "Move mask tile"
+     next-state)))
+
+(defun change-selected-mask-tile-item-tile
+  "Updates the selected mask tile item tile reference and records the document edit in workbook history."
+  [state tile-ref]
+  (editor-workbook/change-to
+   state
+   "Change mask tile"
+   (model/set-selected-mask-tile-item-tile state tile-ref)))
+
+(defun delete-selected-mask-tile-item
+  "Deletes a selected mask tile item and records the document edit in workbook history."
+  [state index]
+  (editor-workbook/change-to
+   state
+   "Delete mask tile"
+   (model/delete-selected-mask-tile-item state index)))
 
 (defun set-selected-terrain-set-property-set-attachment
   "Updates selected terrain set property-set assignment and records the document edit in workbook history."

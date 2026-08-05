@@ -4696,10 +4696,12 @@
           (open-mask-delete-confirm-dialog! state ctx))
         :terrain/mask-source-type-change
         (fn [state event ctx]
-          (model/set-selected-mask-source-type state (:payload event)))
+          (actions/change-selected-mask-source-type state (:payload event)))
         :terrain/mask-source-tileset-change
         (fn [state event ctx]
-          (assoc (model/set-selected-mask-source-tileset state (:payload event))
+          (assoc (actions/change-selected-mask-source-tileset
+                  state
+                  (:payload event))
                  :selected-mask-source-tile nil))
         :terrain/mask-source-tile-select
         (fn [state event ctx]
@@ -4707,21 +4709,20 @@
         :terrain/mask-tile-item-add
         (fn [state event ctx]
           (if-let [tile-ref (or (:selected-mask-source-tile state)
-                             (:value (head (data/tile-options
-                                            (:tilesets state)
-                                            (model/selected-mask-source-tileset
-                                             state)))))] (model/add-selected-mask-tile state tile-ref) state))
+                                (:value (head (data/tile-options
+                                               (:tilesets state)
+                                               (model/selected-mask-source-tileset
+                                                state)))))]
+            (actions/add-selected-mask-tile state tile-ref)
+            state))
         :terrain/mask-tile-item-offset-change
         (fn [state event ctx]
-          (let [payload (:payload event)]
-            (model/set-selected-mask-tile-item-offset
-             state
-             (:index payload)
-             (:axis payload)
-             (:value payload))))
+          (actions/change-selected-mask-tile-item-offset
+           state
+           (:payload event)))
         :terrain/mask-tile-item-delete
         (fn [state event ctx]
-          (model/delete-selected-mask-tile-item state (:payload event)))
+          (actions/delete-selected-mask-tile-item state (:payload event)))
         :terrain/mask-set-context-command
         (fn [state event ctx]
           (let [payload (:payload event)
@@ -4917,23 +4918,28 @@
         :terrain/mask-set-add-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (model/add-mask-set-with-id state (:id payload) (:name payload))
-              state)))
+            (case (:type payload)
+              :confirm
+              (actions/add-mask-set state (:id payload) (:name payload))
+
+              :default state)))
         :terrain/mask-set-edit-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (model/set-selected-mask-set-label
-               (model/set-selected-mask-set-id state (:id payload))
+            (case (:type payload)
+              :confirm
+              (actions/edit-selected-mask-set
+               state
+               (:id payload)
                (:name payload))
-              state)))
+
+              :default state)))
         :terrain/mask-set-delete-confirm-result
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (and (= (:choice payload) :dialog/ok)
-                     (not (nil? (-> payload :payload :mask-set-index))))
-              (model/delete-selected-mask-set
+                     (some? (-> payload :payload :mask-set-index)))
+              (actions/delete-selected-mask-set
                (assoc state
                       :selected-mask-set-index
                       (-> payload :payload :mask-set-index)))
@@ -4941,23 +4947,25 @@
         :terrain/mask-add-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (model/add-mask-with-id state (:id payload) (:name payload))
-              state)))
+            (case (:type payload)
+              :confirm
+              (actions/add-mask state (:id payload) (:name payload))
+
+              :default state)))
         :terrain/mask-edit-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (model/set-selected-mask-label
-               (model/set-selected-mask-id state (:id payload))
-               (:name payload))
-              state)))
+            (case (:type payload)
+              :confirm
+              (actions/edit-selected-mask state (:id payload) (:name payload))
+
+              :default state)))
         :terrain/mask-delete-confirm-result
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (and (= (:choice payload) :dialog/ok)
-                     (not (nil? (-> payload :payload :mask-index))))
-              (model/delete-selected-mask
+                     (some? (-> payload :payload :mask-index)))
+              (actions/delete-selected-mask
                (assoc state
                       :selected-mask-index
                       (-> payload :payload :mask-index)))

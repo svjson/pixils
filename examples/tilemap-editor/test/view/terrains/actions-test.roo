@@ -25,6 +25,25 @@
    :selected-terrain-set-index 0
    :selected-terrain-index 0})
 
+(defun mask-state []
+  {:tilesets [{:id :terrain
+               :tiles [{:id :edge-n}
+                       {:id :edge-e}]}]
+   :mask-sets [{:id :soft-edge
+                :label "Soft Edge"
+                :mask-size {:w 16
+                            :h 16}
+                :masks [{:id :north
+                         :label "North"
+                         :source {:type :tile-composition
+                                  :tileset :terrain
+                                  :tiles [{:tile :edge-n
+                                           :offset {:x 1
+                                                    :y 2}}]}}]}]
+   :selected-mask-set-index 0
+   :selected-mask-index 0
+   :selected-mask-tile-item-index 0})
+
 (deftest terrain-set-property-set-assignment-records-workbook-history
   (let [state (actions/set-selected-terrain-set-property-set-attachment
                (assoc-in (terrain-state) [:terrain-sets 0 :property-sets] [])
@@ -56,3 +75,136 @@
            (get-in state [:terrain-sets 0 :terrains 0 :properties :walkable])))
     (is (= "Change terrain property" (editor-workbook/undo-label state)))
     (is (= {} (get-in undone [:terrain-sets 0 :terrains 0 :properties])))))
+
+(deftest mask-set-actions-record-workbook-history
+  (let [state (actions/add-mask-set (mask-state) "hard-edge" "Hard Edge")
+        undone (editor-workbook/undo state)]
+    (is (= :hard-edge (get-in state [:mask-sets 1 :id])))
+    (is (= "Add mask set" (editor-workbook/undo-label state)))
+    (is (= 1 (count (:mask-sets undone)))))
+  (let [state (actions/edit-selected-mask-set
+               (mask-state)
+               "feathered-edge"
+               "Feathered Edge")
+        undone (editor-workbook/undo state)]
+    (is (= :feathered-edge (get-in state [:mask-sets 0 :id])))
+    (is (= "Edit mask set" (editor-workbook/undo-label state)))
+    (is (= :soft-edge (get-in undone [:mask-sets 0 :id]))))
+  (let [state (actions/delete-selected-mask-set (mask-state))
+        undone (editor-workbook/undo state)]
+    (is (= [] (:mask-sets state)))
+    (is (= "Delete mask set" (editor-workbook/undo-label state)))
+    (is (= :soft-edge (get-in undone [:mask-sets 0 :id])))))
+
+(deftest mask-set-size-action-records-workbook-history
+  (let [state (actions/change-selected-mask-set-size (mask-state) :w 32)
+        undone (editor-workbook/undo state)]
+    (is (= 32 (get-in state [:mask-sets 0 :mask-size :w])))
+    (is (= "Change mask set size" (editor-workbook/undo-label state)))
+    (is (= 16 (get-in undone [:mask-sets 0 :mask-size :w])))))
+
+(deftest mask-actions-record-workbook-history
+  (let [state (actions/add-mask (mask-state) "south" "South")
+        undone (editor-workbook/undo state)]
+    (is (= :south (get-in state [:mask-sets 0 :masks 1 :id])))
+    (is (= "Add mask" (editor-workbook/undo-label state)))
+    (is (= 1 (count (get-in undone [:mask-sets 0 :masks])))))
+  (let [state (actions/duplicate-selected-mask
+               (mask-state)
+               "north-copy"
+               "North Copy")
+        undone (editor-workbook/undo state)]
+    (is (= [:north :north-copy]
+           (map (get-in state [:mask-sets 0 :masks]) :id)))
+    (is (= "Duplicate mask" (editor-workbook/undo-label state)))
+    (is (= [:north] (map (get-in undone [:mask-sets 0 :masks]) :id))))
+  (let [state (actions/edit-selected-mask (mask-state) "north-soft" "North Soft")
+        undone (editor-workbook/undo state)]
+    (is (= :north-soft (get-in state [:mask-sets 0 :masks 0 :id])))
+    (is (= "Edit mask" (editor-workbook/undo-label state)))
+    (is (= :north (get-in undone [:mask-sets 0 :masks 0 :id]))))
+  (let [state (actions/delete-selected-mask (mask-state))
+        undone (editor-workbook/undo state)]
+    (is (= [] (get-in state [:mask-sets 0 :masks])))
+    (is (= "Delete mask" (editor-workbook/undo-label state)))
+    (is (= :north (get-in undone [:mask-sets 0 :masks 0 :id])))))
+
+(deftest mask-source-actions-record-workbook-history
+  (let [state (actions/change-selected-mask-source-type
+               (assoc-in (mask-state)
+                         [:mask-sets 0 :masks 0 :source :type]
+                         :bitmap)
+               :tile-composition)
+        undone (editor-workbook/undo state)]
+    (is (= {:type :tile-composition
+            :tileset nil
+            :tiles []}
+           (get-in state [:mask-sets 0 :masks 0 :source])))
+    (is (= "Change mask source type" (editor-workbook/undo-label state)))
+    (is (= :bitmap
+           (get-in undone [:mask-sets 0 :masks 0 :source :type]))))
+  (let [state (actions/change-selected-mask-source-tileset
+               (assoc (mask-state)
+                      :tilesets [{:id :terrain}
+                                 {:id :props}])
+               :props)
+        undone (editor-workbook/undo state)]
+    (is (= :props
+           (get-in state [:mask-sets 0 :masks 0 :source :tileset])))
+    (is (= "Change mask source tileset" (editor-workbook/undo-label state)))
+    (is (= :terrain
+           (get-in undone [:mask-sets 0 :masks 0 :source :tileset])))))
+
+(deftest mask-tile-actions-record-workbook-history
+  (let [state (actions/add-selected-mask-tile (mask-state) :edge-e)
+        undone (editor-workbook/undo state)]
+    (is (= [:edge-n :edge-e]
+           (map (get-in state [:mask-sets 0 :masks 0 :source :tiles]) :tile)))
+    (is (= "Add mask tile" (editor-workbook/undo-label state)))
+    (is (= [:edge-n]
+           (map (get-in undone [:mask-sets 0 :masks 0 :source :tiles]) :tile))))
+  (let [state (actions/add-selected-mask-tile-at
+               (assoc-in (mask-state)
+                         [:mask-sets 0 :masks 0 :source :tiles]
+                         [])
+               {:tile :edge-e
+                :offset {:x 4
+                         :y -3}})
+        undone (editor-workbook/undo state)]
+    (is (= {:tile :edge-e
+            :offset {:x 4
+                     :y -3}}
+           (get-in state [:mask-sets 0 :masks 0 :source :tiles 0])))
+    (is (= "Add mask tile" (editor-workbook/undo-label state)))
+    (is (= [] (get-in undone [:mask-sets 0 :masks 0 :source :tiles]))))
+  (let [state (actions/change-selected-mask-tile-item-offset
+               (mask-state)
+               {:index 0
+                :axis :both
+                :value {:x -2
+                        :y 6}})
+        undone (editor-workbook/undo state)]
+    (is (= {:x -2
+            :y 6}
+           (get-in state
+                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset])))
+    (is (= "Move mask tile" (editor-workbook/undo-label state)))
+    (is (= {:x 1
+            :y 2}
+           (get-in undone
+                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset]))))
+  (let [state (actions/change-selected-mask-tile-item-tile
+               (mask-state)
+               :edge-e)
+        undone (editor-workbook/undo state)]
+    (is (= :edge-e
+           (get-in state [:mask-sets 0 :masks 0 :source :tiles 0 :tile])))
+    (is (= "Change mask tile" (editor-workbook/undo-label state)))
+    (is (= :edge-n
+           (get-in undone [:mask-sets 0 :masks 0 :source :tiles 0 :tile]))))
+  (let [state (actions/delete-selected-mask-tile-item (mask-state) 0)
+        undone (editor-workbook/undo state)]
+    (is (= [] (get-in state [:mask-sets 0 :masks 0 :source :tiles])))
+    (is (= "Delete mask tile" (editor-workbook/undo-label state)))
+    (is (= :edge-n
+           (get-in undone [:mask-sets 0 :masks 0 :source :tiles 0 :tile])))))
