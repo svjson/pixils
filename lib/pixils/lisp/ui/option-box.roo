@@ -3,10 +3,15 @@
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
-(def default-option-box-height 18)
+
+
+;; Public state functions
 
 (defun selected? [state]
   (= (:selected? state) true))
+
+(defun option-disabled? [option]
+  (= (:disabled? option) true))
 
 (defun option-label [option]
   (or (:label option)
@@ -15,26 +20,23 @@
       (str (:value option))))
 
 (defun option-value [option]
-  (let [value (:value option)]
-    (if (nil? value)
-      (:id option)
-      value)))
+  (if-let [value (:value option)]
+    value
+    (:id option)))
 
-(defun option-disabled? [option]
-  (= (:disabled? option) true))
+
+
+;; Internal support functions
 
 (defun option-box-selection-required? [state]
   (not (or (= (:selection-required? state) false)
            (= (:force-selection? state) false))))
 
-(def default-option-box-indicator
-  {:color {:r 0 :g 0 :b 0}
-   :radius 5
-   :inner-radius 2
-   :pressed-thickness 2})
-
 (defun option-box-indicator-theme [ctx]
-  (merge default-option-box-indicator
+  (merge {:color {:r 0 :g 0 :b 0}
+          :radius 5
+          :inner-radius 2
+          :pressed-thickness 2}
          (ui/theme-var ctx :option-box-indicator {})))
 
 (defun option-box-indicator-image [state indicator]
@@ -50,6 +52,54 @@
 
     :default
     (:image indicator)))
+
+
+;; Internal option box group support functions
+
+(defun selectable-option? [option]
+  (and (some? option)
+       (not (option-disabled? option))))
+
+(defun option-by-value [options value]
+  (find-first options
+              (fn [option]
+                (= (option-value option) value))))
+
+(defun option-group-selection-required? [state]
+  (not (or (= (:selection-required? state) false)
+           (= (:force-selection? state) false))))
+
+(defun option-group-selected-value [options selected selection-required?]
+  (let [selected-option (option-by-value options selected)]
+    (if (selectable-option? selected-option)
+      selected
+      (when selection-required?
+        (option-value (find-first options selectable-option?))))))
+
+(defun option-box-group-options-child [options selected selection-required? style]
+  {:mode 'ui/option-box-group-options
+   :id "options"
+   :style (or style {})
+   :children (for-indexed [index option options]
+               (merge {:mode 'ui/option-box
+                       :id (str "option-box-" (or (:id option)
+                                                  (option-value option)
+                                                  index))
+                       :class (:class option)
+                       :style (or (:style option) {})
+                       :state (merge (or (:state option) {})
+                                     {:index index
+                                      :value (option-value option)
+                                      :label (option-label option)
+                                      :disabled? (option-disabled? option)
+                                      :selected? (= (option-value option) selected)
+                                      :selection-required? selection-required?})}
+                      (if (:ui-state option) {:ui-state (:ui-state option)} {})
+                      (if (:state-policy option) {:ui/state-policy (:state-policy option)} {})))})
+
+
+
+;; Internal render functions
 
 (defun render-option-box-indicator-image! [image bounds]
   (when image
@@ -67,17 +117,16 @@
         active (or (:selected state) (:pressed state))
         cx (int (/ (or (:w bounds) 0) 2))
         cy (int (/ (or (:h bounds) 0) 2))]
-    (do
-      (r/circle! {:x cx :y cy :r radius}
-                 {:color color})
-      (when (and (:pressed state)
-                 (> pressed-thickness 1))
-        (r/circle! {:x cx :y cy :r (max 0 (dec radius))}
-                   {:color color}))
-      (when active
-        (r/circle! {:x cx :y cy :r inner-radius}
-                   {:fill true
-                    :color color})))))
+    (r/circle! {:x cx :y cy :r radius}
+               {:color color})
+    (when (and (:pressed state)
+               (> pressed-thickness 1))
+      (r/circle! {:x cx :y cy :r (max 0 (dec radius))}
+                 {:color color}))
+    (when active
+      (r/circle! {:x cx :y cy :r inner-radius}
+                 {:fill true
+                  :color color}))))
 
 (defun render-option-box-indicator! [state ctx]
   (let [indicator (option-box-indicator-theme ctx)
@@ -87,6 +136,9 @@
       (render-option-box-indicator-image! image bounds)
       (render-option-box-indicator-circle! state bounds indicator))))
 
+
+;; Inner components
+
 (defcomponent ui/option-box-indicator
   {:render render-option-box-indicator!})
 
@@ -95,115 +147,66 @@
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
 
+
+
+;; Main component
+
 (defcomponent ui/option-box
   {:focusable true
    :class :ui/option-box
+   :ui/state-keys [:pressed]
    :style {:layout {:direction :row
                     :align-items :center
                     :gap 4}}
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :pressed
+                     (if (contains? ui-state :pressed)
+                       (:pressed ui-state)
+                       (:pressed state))))
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state :pressed (and (not (:disabled? state))
+                                              (contains? (-> ctx :view :interaction :pressed) :left)
+                                              (-> ctx :view :interaction :hovered))))
    :init (fn [state ctx]
            (assoc state :selected? (selected? state)))
    :update (fn [state ctx]
-             (assoc state
-                    :selected? (selected? state)
-                    :pressed (and (not (:disabled? state))
-                                  (contains? (-> ctx :view :interaction :pressed) :left)
-                                  (-> ctx :view :interaction :hovered))))
+             (assoc state :selected? (selected? state)))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
+                    (ui/stop-propagation! event)
+                    state)
    :on-click (fn [state event ctx]
                (let [next-selected? (if (and (selected? state)
                                              (option-box-selection-required? state))
                                       true
                                       (not (selected? state)))]
-                 (do
-                   (when (not (:disabled? state))
-                     (ui/emit! (:view ctx)
-                               :option-box/change
-                               {:selected? next-selected?
-                                :value (:value state)
-                                :index (:index state)}))
-                   (if (:disabled? state)
-                     state
-                     (assoc state :selected? next-selected?)))))
+                 (when (not (:disabled? state))
+                   (ui/emit! (:view ctx)
+                             :option-box/change
+                             {:selected? next-selected?
+                              :value (:value state)
+                              :index (:index state)}))
+                 (if (:disabled? state)
+                   state
+                   (assoc state :selected? next-selected?))))
    :children [{:mode 'ui/option-box-indicator
                :state {:selected (ui/bind-state :selected?)
                        :pressed (ui/bind-state :pressed)}}
               {:mode 'ui/option-box-label
                :state {:label (ui/bind-state :label)}}]})
 
-(defun make [{:keys [label value selected? selection-required? force-selection? disabled? index class style state]}]
-  (merge {:mode 'ui/option-box
-          :style (or style {})
-          :state (merge (or state {})
-                        {:label label
-                         :value value
-                         :selected? selected?
-                         :selection-required? selection-required?
-                         :force-selection? force-selection?
-                         :disabled? disabled?
-                         :index index})}
-         (if class {:class class} {})))
 
 
 ;; Exclusive option box group
 
-(defun selectable-option? [option]
-  (and (not (nil? option))
-       (not (option-disabled? option))))
-
-(defun first-selectable-option [options]
-  (head (filter (or options []) selectable-option?)))
-
-(defun option-by-value [options value]
-  (head (filter (or options [])
-                (fn [option]
-                  (= (option-value option) value)))))
-
-(defun option-index-by-value [options value]
-  (find-index (or options [])
-              (fn [option]
-                (= (option-value option) value))))
-
-(defun option-group-selection-required? [state]
-  (not (or (= (:selection-required? state) false)
-           (= (:force-selection? state) false))))
-
-(defun option-group-selected-value [options selected selection-required?]
-  (let [selected-option (option-by-value options selected)]
-    (if (selectable-option? selected-option)
-      selected
-      (if selection-required?
-        (option-value (first-selectable-option options))
-        nil))))
-
-(defun option-group-child [index option selected selection-required?]
-  {:mode 'ui/option-box
-   :id (str "option-box-" (or (:id option)
-                              (option-value option)
-                              index))
-   :class (:class option)
-   :style (or (:style option) {})
-   :state (merge (or (:state option) {})
-                 {:index index
-                  :value (option-value option)
-                  :label (option-label option)
-                  :disabled? (option-disabled? option)
-                  :selected? (= (option-value option) selected)
-                  :selection-required? selection-required?})})
-
-(defun option-box-group-options-child [options selected selection-required? style]
-  {:mode 'ui/option-box-group-options
-   :id "options"
-   :style (or style {})
-   :children (for-indexed [index option (or options [])]
-               (option-group-child index option selected selection-required?))})
 
 (defcomponent ui/option-box-group-options
   {:style {:layout {:direction :column
                     :gap 2}}})
+
+
+
+;; Option Box Group
 
 (defcomponent ui/option-box-group
   {:init (fn [state ctx]
@@ -219,20 +222,19 @@
                    selected (option-group-selected-value options
                                                          (:selected state)
                                                          selection-required?)]
-               (do
-                 (when (or (not= options (:rendered-options state))
-                           (not= selected (:rendered-selected state)))
-                   (ui/replace-child! (:view ctx)
-                                      "options"
-                                      (option-box-group-options-child
-                                       options
-                                       selected
-                                       selection-required?
-                                       (:option-column-style state))))
-                 (assoc (assoc (assoc state
-                                       :selected selected)
-                                :rendered-selected selected)
-                        :rendered-options options))))
+               (when (or (not= options (:rendered-options state))
+                         (not= selected (:rendered-selected state)))
+                 (ui/replace-child! (:view ctx)
+                                    "options"
+                                    (option-box-group-options-child
+                                     options
+                                     selected
+                                     selection-required?
+                                     (:option-column-style state))))
+               (assoc state
+                      :selected selected
+                      :rendered-selected selected
+                      :rendered-options options)))
    :on {:option-box/change (fn [state event ctx]
                              (let [payload (:payload event)
                                    options (or (:options state) [])
@@ -242,29 +244,92 @@
                                    selected (cond
                                               selected? clicked
                                               (= clicked (:selected state))
-                                              (if selection-required?
-                                                (:selected state)
-                                                nil)
+                                              (when selection-required?
+                                                (:selected state))
                                               :default
                                               (:selected state))
                                    selected (option-group-selected-value
                                              options
                                              selected
                                              selection-required?)
-                                   index (option-index-by-value options selected)
+                                   index (find-index options
+                                                     (fn [option]
+                                                       (= (option-value option) selected)))
                                    option (option-by-value options selected)]
-                               (do
-                                 (ui/stop-propagation! event)
-                                 (when (not= selected (:selected state))
-                                   (ui/emit! (:view ctx)
-                                             :option-box-group/change
-                                             {:selected selected
-                                              :value selected
-                                              :index index
-                                              :option option}))
-                                 (assoc state :selected selected))))}})
+                               (ui/stop-propagation! event)
+                               (when (not= selected (:selected state))
+                                 (ui/emit! (:view ctx)
+                                           :option-box-group/change
+                                           {:selected selected
+                                            :value selected
+                                            :index index
+                                            :option option}))
+                               (assoc state :selected selected)))}})
 
-(defun make-group [{:keys [options selected selection-required? force-selection? class style option-column-style state]}]
+
+;; Make functions
+
+(defun make
+  "Builds a ui/option-box child entry.
+
+  Options:
+
+  ```roo
+  {:label \"Terrain\"
+   :value :terrain
+   :selected? true
+   :selection-required? true
+   :force-selection? true
+   :disabled? false
+   :index 0
+   :class :settings/option
+   :style {...}
+   :state {...}
+   :ui-state {...}
+   :state-policy :shared}
+  ```
+
+  :selected?, :value, and :index are application-facing state. :pressed is
+  component UI state owned by ui/option-box; the default shared state policy
+  keeps it visible in ordinary state during migration."
+  [{:keys [label value selected? selection-required? force-selection? disabled?
+           index class style state ui-state state-policy]}]
+  (merge {:mode 'ui/option-box
+          :style (or style {})
+          :state (merge (or state {})
+                        {:label label
+                         :value value
+                         :selected? selected?
+                         :selection-required? selection-required?
+                         :force-selection? force-selection?
+                         :disabled? disabled?
+                         :index index})}
+         (if class {:class class} {})
+         (if ui-state {:ui-state ui-state} {})
+         (if state-policy {:ui/state-policy state-policy} {})))
+
+(defun make-group
+  "Builds a ui/option-box-group child entry.
+
+  Options:
+
+  ```roo
+  {:options [{:label \"Tiles\" :value :tiles}
+             {:label \"Terrain\" :value :terrain}]
+   :selected :tiles
+   :selection-required? true
+   :force-selection? true
+   :class :settings/options
+   :style {...}
+   :option-column-style {...}
+   :state {...}}
+  ```
+
+  The group owns the selected application value and emits
+  :option-box-group/change when selection changes. Each option may pass
+  :ui-state or :state-policy through to its generated ui/option-box child."
+  [{:keys [options selected selection-required? force-selection? class style
+           option-column-style state]}]
   (let [options (or options [])
         selected (or selected (:selected state))
         selection-required? (not (or (= selection-required? false)

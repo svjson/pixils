@@ -79,6 +79,78 @@ TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
   EXPECT_EQ(last_change->to_string(), "{:selected? true :value :terrain :index nil}");
 }
 
+TEST_F(OptionBoxTest, option_box_shared_state_policy_records_pressed_in_state_and_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/option-box
+                   :style {:width 80 :height 24}
+                   :state {:label "Terrain"
+                           :value :terrain}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto option = session.active_mode->children[0];
+  ASSERT_NE(option, nullptr);
+  auto pressed = get_key(option->state, "pressed");
+  auto ui_pressed = get_key(option->ui_state, "pressed");
+  ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "true");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(option->children.size(), 2u);
+  auto indicator = option->children[0];
+  ASSERT_NE(indicator, nullptr);
+  auto indicator_pressed = get_key(indicator->state, "pressed");
+  ASSERT_NE(indicator_pressed, nullptr);
+  EXPECT_EQ(indicator_pressed->to_string(), "true");
+}
+
+TEST_F(OptionBoxTest, option_box_pressed_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/option-box
+                   :style {:width 80 :height 24}
+                   :state {:label "Terrain"
+                           :value :terrain
+                           :selected? false}
+                   :update (fn [state ctx]
+                             {:label (:label state)
+                              :value (:value state)
+                              :selected? (:selected? state)})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto option = session.active_mode->children[0];
+  ASSERT_NE(option, nullptr);
+  auto ui_pressed = get_key(option->ui_state, "pressed");
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(option->children.size(), 2u);
+  auto indicator = option->children[0];
+  ASSERT_NE(indicator, nullptr);
+  auto indicator_pressed = get_key(indicator->state, "pressed");
+  ASSERT_NE(indicator_pressed, nullptr);
+  EXPECT_EQ(indicator_pressed->to_string(), "true");
+}
+
 TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by_default)
 {
   runtime.eval(R"(
