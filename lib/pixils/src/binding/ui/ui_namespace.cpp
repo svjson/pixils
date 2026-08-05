@@ -63,20 +63,32 @@ namespace Pixils::Script
         return ViewAdapter::make_ref(*view);
       }
 
-      Runtime::Mode& ensure_instance_mode(Runtime::View& view)
+      Runtime::ViewDefinition& ensure_instance_definition(Runtime::View& view)
       {
-        if (!view.mode)
+        if (!view.definition)
         {
-          throw Roo::InvocationException("view has no mode");
+          throw Roo::InvocationException("view has no definition");
+        }
+
+        if (view.component)
+        {
+          if (!view.owned_component)
+          {
+            view.owned_component = std::make_unique<Runtime::Component>(*view.component);
+            view.component = view.owned_component.get();
+            view.definition = view.component;
+          }
+          return *view.component;
         }
 
         if (!view.owned_mode)
         {
           view.owned_mode = std::make_unique<Runtime::Mode>(*view.mode);
+          view.definition = view.owned_mode.get();
           view.mode = view.owned_mode.get();
         }
 
-        return *view.mode;
+        return *view.definition;
       }
 
       std::string theme_var_key(const Roo::sptr_val& key, const std::string& fn_name)
@@ -90,7 +102,7 @@ namespace Pixils::Script
         return key->str();
       }
 
-      void apply_runtime_style(Runtime::Mode& mode,
+      void apply_runtime_style(Runtime::ViewDefinition& definition,
                                Roo::Context& ctx,
                                const Roo::sptr_val& style_val)
       {
@@ -98,7 +110,7 @@ namespace Pixils::Script
 
         if (contains_theme_var_ref(style_val))
         {
-          mode.runtime_style_source = style_val;
+          definition.runtime_style_source = style_val;
           return;
         }
 
@@ -118,22 +130,22 @@ namespace Pixils::Script
           style = Roo::obj<UI::Style>(*coercion.result);
         }
 
-        if (!mode.runtime_style)
+        if (!definition.runtime_style)
         {
-          mode.runtime_style = style;
+          definition.runtime_style = style;
         }
         else
         {
-          UI::apply_style_variant(*mode.runtime_style, style);
+          UI::apply_style_variant(*definition.runtime_style, style);
         }
 
-        if (!mode.style)
+        if (!definition.style)
         {
-          mode.style = style;
+          definition.style = style;
         }
         else
         {
-          UI::apply_style_variant(*mode.style, style);
+          UI::apply_style_variant(*definition.style, style);
         }
       }
 
@@ -153,7 +165,7 @@ namespace Pixils::Script
 
       bool focus_candidate(const Runtime::View& view)
       {
-        return view.mode && view.mode->focusable && !disabled_view(view) &&
+        return view.definition && view.definition->focusable && !disabled_view(view) &&
                !hidden_view(view);
       }
 
@@ -161,8 +173,8 @@ namespace Pixils::Script
       {
         for (auto& child : view.children)
         {
-          if (!child || !child->mode || hidden_view(*child)) continue;
-          if (child->mode->name == mode_name) return child.get();
+          if (!child || !child->definition || hidden_view(*child)) continue;
+          if (child->definition->name == mode_name) return child.get();
           if (auto found = find_descendant_mode(*child, mode_name)) return found;
         }
         return nullptr;
@@ -177,6 +189,35 @@ namespace Pixils::Script
           if (auto found = find_first_focusable_descendant(*child)) return found;
         }
         return nullptr;
+      }
+
+      Roo::sptr_val resolve_callable(Roo::Context& ctx,
+                                     const Roo::sptr_val& val,
+                                     const std::string& fn_name)
+      {
+        if (!val || val->type == Roo::Value::Type::NIL)
+          throw Roo::TypeError(fn_name + " update function must be callable");
+        if (val->type == Roo::Value::Type::SYMBOL)
+        {
+          auto resolved = ctx.lookup(val->str());
+          if (resolved && resolved->type == Roo::Value::Type::FUNCTION) return resolved;
+        }
+        if (val->type == Roo::Value::Type::FUNCTION) return val;
+        throw Roo::TypeError(fn_name + " update function must be callable");
+      }
+
+      Roo::sptr_val require_ui_state_map(const Roo::sptr_val& state,
+                                         const std::string& fn_name)
+      {
+        if (!state || state->type == Roo::Value::Type::NIL)
+        {
+          throw Roo::TypeError(fn_name + " ui state must be a map");
+        }
+        if (state->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError(fn_name + " ui state must be a map");
+        }
+        return state;
       }
     } // namespace
 
@@ -268,7 +309,8 @@ namespace Pixils::Script
       }
 
       Runtime::View& view = Roo::obj<Runtime::View>(*target);
-      auto source_mode = view.mode ? Roo::symbol(view.mode->name) : Roo::Constant::NIL;
+      auto source_mode =
+        view.definition ? Roo::symbol(view.definition->name) : Roo::Constant::NIL;
       view.emit_event(
         CustomEvent{args[1], args.size() > 2 ? args[2] : Roo::Constant::NIL, source_mode});
 
@@ -345,6 +387,80 @@ namespace Pixils::Script
                   }));
 
       return target_ref;
+    }
+
+    /**
+     * SetUIStateBangFunction - set-ui-state!
+     *
+     * Replaces the public UI state of a view. The first argument is a view or
+     * hook context; the second argument is the complete UI state map. This
+     * state is runtime-owned component state, distinct from ordinary view
+     * application state.
+     */
+    FUNC_IMPL(SetUIStateBangFunction,
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&SetUIStateBangFunction::exec_set_ui_state))));
+
+    EXEC_BODY(SetUIStateBangFunction, exec_set_ui_state)
+    {
+      auto target = resolve_view_target(args[0], "ui/set-ui-state!");
+      if (!target || target->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      if (!view.has_component_ui_state())
+      {
+        throw Roo::TypeError("ui/set-ui-state! target must be a component view");
+      }
+      view.set_ui_state_if_changed(require_ui_state_map(args[1], "ui/set-ui-state!"));
+      return target;
+    }
+
+    /**
+     * UpdateUIStateBangFunction - update-ui-state!
+     *
+     * Replaces the public UI state of a view with the result of a function call.
+     * The update function receives the current UI state followed by any extra
+     * arguments passed to ui/update-ui-state!.
+     */
+    FUNC_IMPL(UpdateUIStateBangFunction,
+              SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
+                   EXEC_DISPATCH(&UpdateUIStateBangFunction::exec_update_ui_state))));
+
+    EXEC_BODY(UpdateUIStateBangFunction, exec_update_ui_state)
+    {
+      if (args.size() < 2)
+      {
+        throw Roo::InvocationException(
+          "ui/update-ui-state! expects a view or hook context and update function");
+      }
+
+      auto target = resolve_view_target(args[0], "ui/update-ui-state!");
+      if (!target || target->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      if (!view.has_component_ui_state())
+      {
+        throw Roo::TypeError("ui/update-ui-state! target must be a component view");
+      }
+      auto update_fn = resolve_callable(ctx, args[1], "ui/update-ui-state!");
+
+      Roo::sptr_val_v update_args;
+      update_args.reserve(args.size() - 1);
+      update_args.push_back(view.ui_state);
+      for (size_t i = 2; i < args.size(); i++)
+      {
+        update_args.push_back(args[i]);
+      }
+
+      auto next_state = update_fn->exec().execute(ctx, update_args);
+      view.set_ui_state_if_changed(require_ui_state_map(next_state, "ui/update-ui-state!"));
+      return target;
     }
 
     /** ReplaceChildBangFunction - replace-child! */
@@ -433,8 +549,8 @@ namespace Pixils::Script
       }
 
       Runtime::View& view = Roo::obj<Runtime::View>(*target);
-      Runtime::Mode& mode = ensure_instance_mode(view);
-      apply_runtime_style(mode, ctx, args[1]);
+      Runtime::ViewDefinition& definition = ensure_instance_definition(view);
+      apply_runtime_style(definition, ctx, args[1]);
       view.style_view.invalidate();
       view.mark_style_changed();
 
@@ -662,10 +778,14 @@ namespace Pixils::Script
     values.emplace(FN__PIXILS__UI__FOCUS_FIRST_BANG,
                    Function::FocusFirstBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
+    values.emplace(FN__PIXILS__UI__SET_UI_STATE_BANG,
+                   Function::SetUIStateBangFunction::make());
     values.emplace(FN__PIXILS__UI__STYLE_BANG, Function::StyleBangFunction::make());
     values.emplace("preserve-focus!", Function::PreserveFocusBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
     values.emplace(FN__PIXILS__UI__THEME_VAR, Function::ActiveThemeVarFunction::make());
+    values.emplace(FN__PIXILS__UI__UPDATE_UI_STATE_BANG,
+                   Function::UpdateUIStateBangFunction::make());
   }
 
 } // namespace Pixils::Script

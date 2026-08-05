@@ -1,5 +1,6 @@
 #include "app_manifest.h"
 #include "app_source_builder.h"
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
@@ -13,6 +14,8 @@
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <roo/context.h>
+#include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
@@ -299,7 +302,7 @@ TEST(RuntimeMoveCharacterizationTest,
   auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
-  view->mode = &mode;
+  view->definition = &mode;
   view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
@@ -349,13 +352,13 @@ TEST(RuntimeMoveCharacterizationTest,
 
   session.mode_stack.push(mode_val, Roo::Constant::NIL);
   session.active_mode = std::make_shared<Pixils::Runtime::View>();
-  session.active_mode->mode = &mode;
+  session.active_mode->definition = &mode;
   session.active_mode->state = Roo::Constant::NIL;
   session.hook_args.update_state(Roo::Constant::NIL);
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
                                              session.active_mode,
-                                             session.active_mode->mode->init,
+                                             session.active_mode->definition->init,
                                              session.hook_args.init_args,
                                              session.active_mode->state);
   auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
@@ -404,7 +407,7 @@ TEST(RuntimeMoveCharacterizationTest,
   auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
-  view->mode = &mode;
+  view->definition = &mode;
   view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
@@ -458,7 +461,7 @@ TEST(RuntimeMoveCharacterizationTest,
   auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
-  view->mode = &mode;
+  view->definition = &mode;
   view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(*runtime,

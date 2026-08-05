@@ -90,7 +90,7 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
 
     for (const auto& child : view->children)
     {
@@ -107,7 +107,7 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
     if (!view) return nullptr;
     for (const auto& child : view->children)
     {
-      if (child && child->mode && child->mode->name == mode_name) return child;
+      if (child && child->definition && child->definition->name == mode_name) return child;
       if (auto found = find_descendant_mode(child, mode_name)) return found;
     }
     return nullptr;
@@ -120,7 +120,7 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
     if (!view) return;
     for (const auto& child : view->children)
     {
-      if (child && child->mode && child->mode->name == mode_name) out.push_back(child);
+      if (child && child->definition && child->definition->name == mode_name) out.push_back(child);
       find_descendant_modes(child, mode_name, out);
     }
   }
@@ -251,7 +251,7 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/header-panel-body" &&
+    if (view->definition && view->definition->name == "ui/header-panel-body" &&
         find_descendant_mode(view, mode_name))
       return view;
 
@@ -267,7 +267,7 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/header-panel" &&
+    if (view->definition && view->definition->name == "ui/header-panel" &&
         find_descendant_mode(view, mode_name))
       return view;
 
@@ -290,7 +290,7 @@ TEST_F(TilemapEditorAppFixtureTest, loads_program_and_lays_out_initial_frame)
   EXPECT_EQ(program.get_name(), "tilemap-editor");
   EXPECT_EQ(program.initial_mode, "main-mode");
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "main-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "main-mode");
 
   ASSERT_NO_THROW(update_cycle());
   ASSERT_NO_THROW(layout_active_mode());
@@ -309,7 +309,7 @@ TEST_F(TilemapEditorAppFixtureTest,
   EXPECT_EQ(program.get_name(), "tilemap-editor");
   EXPECT_EQ(program.initial_mode, "main-mode");
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "main-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "main-mode");
 
   ASSERT_NO_THROW(update_cycle());
   ASSERT_NO_THROW(layout_active_mode());
@@ -461,7 +461,7 @@ TEST_F(TilemapEditorAppFixtureTest,
   ASSERT_NO_THROW(layout_active_mode());
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "layer-name-dialog-modal");
+  EXPECT_EQ(session().active_mode->definition->name, "layer-name-dialog-modal");
 
   auto dialog_body = find_first_mode(session().active_mode, "layer-name-dialog-body");
   ASSERT_NE(dialog_body, nullptr);

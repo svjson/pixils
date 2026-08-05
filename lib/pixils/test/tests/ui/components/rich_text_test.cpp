@@ -47,7 +47,7 @@ TEST_F(RichTextTest, rich_text_emits_click_payload_for_interactive_run)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto rich_text = session.active_mode->children[0];
   ASSERT_NE(rich_text, nullptr);
-  EXPECT_EQ(rich_text->mode->name, "ui/rich-text");
+  EXPECT_EQ(rich_text->definition->name, "ui/rich-text");
   EXPECT_GT(rich_text->bounds.w, 0);
   EXPECT_GT(rich_text->bounds.h, 0);
 

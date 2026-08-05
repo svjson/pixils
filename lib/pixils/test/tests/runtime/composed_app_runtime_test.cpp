@@ -88,15 +88,15 @@ namespace
 
   void expect_mode_name(const View& view, const std::string& expected_mode_name)
   {
-    ASSERT_NE(view.mode, nullptr);
-    EXPECT_EQ(view.mode->name, expected_mode_name);
+    ASSERT_NE(view.definition, nullptr);
+    EXPECT_EQ(view.definition->name, expected_mode_name);
   }
 
   View& child_with_mode_name(View& view, const std::string& expected_mode_name)
   {
     for (auto& child : view.children)
     {
-      if (child && child->mode && child->mode->name == expected_mode_name) return *child;
+      if (child && child->definition && child->definition->name == expected_mode_name) return *child;
     }
 
     ADD_FAILURE() << "Expected child view with mode '" << expected_mode_name << "'";
@@ -126,7 +126,7 @@ namespace
 
     for (auto& child : window_body.children)
     {
-      if (child && child->mode && child->mode->name == "window-mode")
+      if (child && child->definition && child->definition->name == "window-mode")
       {
         return child_with_mode_name(*child, "game-mode");
       }
@@ -940,7 +940,7 @@ TEST_F(ComposedAppRuntimeTest,
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  ASSERT_EQ(session().active_mode->mode->name, "window-mode");
+  ASSERT_EQ(session().active_mode->definition->name, "window-mode");
   ASSERT_EQ(session().mode_stack.size(), 1u);
 
   // When
@@ -949,11 +949,11 @@ TEST_F(ComposedAppRuntimeTest,
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu-mode");
   EXPECT_EQ(session().mode_stack.size(), 2u);
   ASSERT_EQ(session().ctx_stack.size(), 1u);
   ASSERT_NE(session().ctx_stack.back(), nullptr);
-  EXPECT_EQ(session().ctx_stack.back()->mode->name, "window-mode");
+  EXPECT_EQ(session().ctx_stack.back()->definition->name, "window-mode");
 }
 
 TEST_F(ComposedAppRuntimeTest,
@@ -972,7 +972,7 @@ TEST_F(ComposedAppRuntimeTest,
   int click_x = menu_item.bounds.x + menu_item.bounds.w / 2;
   int click_y = menu_item.bounds.y + menu_item.bounds.h / 2;
 
-  ASSERT_EQ(session().active_mode->mode->name, "main-mode");
+  ASSERT_EQ(session().active_mode->definition->name, "main-mode");
   ASSERT_EQ(session().mode_stack.size(), 1u);
 
   // When
@@ -981,11 +981,11 @@ TEST_F(ComposedAppRuntimeTest,
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu-mode");
   EXPECT_EQ(session().mode_stack.size(), 2u);
   ASSERT_EQ(session().ctx_stack.size(), 1u);
   ASSERT_NE(session().ctx_stack.back(), nullptr);
-  EXPECT_EQ(session().ctx_stack.back()->mode->name, "main-mode");
+  EXPECT_EQ(session().ctx_stack.back()->definition->name, "main-mode");
 }
 
 TEST_F(ComposedAppRuntimeTest,
@@ -997,7 +997,7 @@ TEST_F(ComposedAppRuntimeTest,
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  ASSERT_EQ(session().active_mode->mode->name, "main-mode");
+  ASSERT_EQ(session().active_mode->definition->name, "main-mode");
   ASSERT_EQ(session().mode_stack.size(), 1u);
 
   View& main_mode = *session().active_mode;
@@ -1013,11 +1013,11 @@ TEST_F(ComposedAppRuntimeTest,
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu");
   EXPECT_EQ(session().mode_stack.size(), 2u);
   ASSERT_EQ(session().ctx_stack.size(), 1u);
   ASSERT_NE(session().ctx_stack.back(), nullptr);
-  EXPECT_EQ(session().ctx_stack.back()->mode->name, "main-mode");
+  EXPECT_EQ(session().ctx_stack.back()->definition->name, "main-mode");
 }
 
 TEST_F(ComposedAppRuntimeTest,
@@ -1442,7 +1442,7 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu");
 
   input().key_down(SDLK_DOWN);
   update_cycle();
@@ -1458,7 +1458,7 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "main-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "main-mode");
 
   View& game_mode = simple_windowed_window_game_mode(*session().active_mode);
   auto settings = get_key(game_mode.state, "settings");
@@ -1491,7 +1491,7 @@ TEST_F(
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu");
 
   input().key_down(SDLK_RIGHT);
   update_cycle();
@@ -1500,7 +1500,7 @@ TEST_F(
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu");
   ASSERT_EQ(session().ctx_stack.size(), 1u);
   ASSERT_NE(session().ctx_stack.back(), nullptr);
 
@@ -1534,7 +1534,7 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().active_mode->definition->name, "popup-menu");
 
   input().key_down(SDLK_T);
   update_cycle();
@@ -1542,7 +1542,7 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "highscores-modal");
+  EXPECT_EQ(session().active_mode->definition->name, "highscores-modal");
   View& modal_window = child_with_mode_name(*session().active_mode, "window");
   View& highscores_window =
     child_with_mode_name(child_with_mode_name(modal_window, "window-body"),
@@ -1576,7 +1576,7 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "highscores-modal");
+  EXPECT_EQ(session().active_mode->definition->name, "highscores-modal");
   View& modal_window = child_with_mode_name(*session().active_mode, "window");
   View& highscores_window =
     child_with_mode_name(child_with_mode_name(modal_window, "window-body"),

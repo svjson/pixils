@@ -25,6 +25,10 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__PIXILS__UI__CHILDREN = "children";
   inline constexpr std::string_view FN__PIXILS__UI__FOCUS_BANG = "focus!";
   inline constexpr std::string_view FN__PIXILS__UI__FOCUS_FIRST_BANG = "focus-first!";
+  inline constexpr std::string_view FN__PIXILS__UI__SET_UI_STATE_BANG =
+    "set-ui-state!";
+  inline constexpr std::string_view FN__PIXILS__UI__UPDATE_UI_STATE_BANG =
+    "update-ui-state!";
   inline constexpr std::string_view FN__PIXILS__UI__STYLE_BANG = "style!";
   inline constexpr std::string_view FN__PIXILS__UI__THEME_VAR = "theme-var";
 
@@ -40,9 +44,11 @@ namespace Pixils::Script
     FUNC(FocusFirstBangFunction, focus_first);
     FUNC(PreserveFocusBangFunction, preserve_focus);
     FUNC(ReplaceChildBangFunction, replace_child);
+    FUNC(SetUIStateBangFunction, set_ui_state);
     FUNC(StyleBangFunction, style);
     FUNC(StopPropagation, stop);
     FUNC(ActiveThemeVarFunction, theme_var);
+    FUNC(UpdateUIStateBangFunction, update_ui_state);
   } // namespace Function
 
   NATIVE_ADAPTER(EventAdapter, Event);

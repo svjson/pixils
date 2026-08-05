@@ -648,7 +648,7 @@ namespace Pixils::UI::Components
       view.emit_event(
         CustomEvent{Roo::keyword(event_name),
                     payload,
-                    view.mode ? Roo::symbol(view.mode->name) : Roo::Constant::NIL});
+                    view.definition ? Roo::symbol(view.definition->name) : Roo::Constant::NIL});
     }
 
     namespace Function
@@ -805,17 +805,17 @@ namespace Pixils::UI::Components
       }
     } // namespace Function
 
-    Runtime::Mode make_rich_text_component_mode()
+    Runtime::Component make_rich_text_component()
     {
-      Runtime::Mode mode;
-      mode.name = "ui/rich-text";
-      mode.selector_modes.push_back(mode.name);
-      mode.content_size = Function::RichTextContentSize::make();
-      mode.render = Function::RichTextRender::make();
-      mode.on_mouse_motion = Function::RichTextMouseMotion::make();
-      mode.on_mouse_leave = Function::RichTextMouseLeave::make();
-      mode.on_click = Function::RichTextClick::make();
-      return mode;
+      Runtime::Component component;
+      component.name = "ui/rich-text";
+      component.selector_modes.push_back(component.name);
+      component.content_size = Function::RichTextContentSize::make();
+      component.render = Function::RichTextRender::make();
+      component.on_mouse_motion = Function::RichTextMouseMotion::make();
+      component.on_mouse_leave = Function::RichTextMouseLeave::make();
+      component.on_click = Function::RichTextClick::make();
+      return component;
     }
   } // namespace
 
@@ -825,6 +825,6 @@ namespace Pixils::UI::Components
     Roo::Dict::set_property(
       modes,
       Roo::symbol("ui/rich-text"),
-      Script::ModeAdapter::make_unique(make_rich_text_component_mode()));
+      Script::ComponentAdapter::make_unique(make_rich_text_component()));
   }
 } // namespace Pixils::UI::Components

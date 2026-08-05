@@ -4,6 +4,7 @@
 #include <pixils/binding/ui/ui_host_type.h>
 #include <pixils/runtime/view.h>
 
+#include <roo/host/object.h>
 #include <roo/runtime/dict.h>
 
 namespace Pixils::Runtime

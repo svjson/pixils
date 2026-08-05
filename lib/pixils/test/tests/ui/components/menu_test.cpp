@@ -32,8 +32,8 @@ TEST_F(MenuTest, make_menu_accepts_options_map_with_style)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto menu = session.active_mode->children[0];
   ASSERT_NE(menu, nullptr);
-  ASSERT_NE(menu->mode, nullptr);
-  EXPECT_EQ(menu->mode->name, "ui/menu-bar");
+  ASSERT_NE(menu->definition, nullptr);
+  EXPECT_EQ(menu->definition->name, "ui/menu-bar");
   EXPECT_EQ(menu->bounds.w, 123);
   EXPECT_EQ(menu->bounds.h, 17);
 }
@@ -59,8 +59,8 @@ TEST_F(MenuTest, make_menu_keeps_legacy_three_argument_shape)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto menu = session.active_mode->children[0];
   ASSERT_NE(menu, nullptr);
-  ASSERT_NE(menu->mode, nullptr);
-  EXPECT_EQ(menu->mode->name, "ui/menu-bar");
+  ASSERT_NE(menu->definition, nullptr);
+  EXPECT_EQ(menu->definition->name, "ui/menu-bar");
 }
 
 TEST_F(MenuTest, opened_popup_inherits_menu_scale)
@@ -99,7 +99,7 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
 }
@@ -139,7 +139,7 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   EXPECT_FALSE(session.active_mode->effective_style.scale.has_value());
 }
 
@@ -177,13 +177,13 @@ TEST_F(MenuTest, clicking_open_menu_bar_item_closes_without_reopening)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
 
   input().mouse_down(item_center);
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }
 
 TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
@@ -226,7 +226,7 @@ TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto outer = session.active_mode->children[0];
   ASSERT_NE(outer, nullptr);
@@ -266,8 +266,8 @@ TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
   auto unselected_indicator = session.active_mode->children[1];
   ASSERT_NE(selected_indicator, nullptr);
   ASSERT_NE(unselected_indicator, nullptr);
-  EXPECT_EQ(selected_indicator->mode->name, "ui/menu-option-indicator");
-  EXPECT_EQ(unselected_indicator->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(selected_indicator->definition->name, "ui/menu-option-indicator");
+  EXPECT_EQ(unselected_indicator->definition->name, "ui/menu-option-indicator");
   ASSERT_TRUE(selected_indicator->effective_style.text.has_value());
   ASSERT_TRUE(selected_indicator->effective_style.text->font.has_value());
   EXPECT_EQ(*selected_indicator->effective_style.text->font, "font/classic-blue-font");
@@ -403,7 +403,7 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   auto inner = session.active_mode->children[0]->children[0];
   ASSERT_EQ(inner->children.size(), 2u);
 
@@ -416,8 +416,8 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   auto leaf_trailing = leaf_item->children[2];
   ASSERT_NE(submenu_trailing, nullptr);
   ASSERT_NE(leaf_trailing, nullptr);
-  EXPECT_EQ(submenu_trailing->mode->name, "ui/menu-item-trailing");
-  EXPECT_EQ(leaf_trailing->mode->name, "ui/menu-item-trailing");
+  EXPECT_EQ(submenu_trailing->definition->name, "ui/menu-item-trailing");
+  EXPECT_EQ(leaf_trailing->definition->name, "ui/menu-item-trailing");
   ASSERT_EQ(submenu_trailing->children.size(), 2u);
   ASSERT_EQ(leaf_trailing->children.size(), 2u);
 
@@ -425,8 +425,8 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   auto leaf_indicator = leaf_trailing->children[1];
   ASSERT_NE(submenu_indicator, nullptr);
   ASSERT_NE(leaf_indicator, nullptr);
-  EXPECT_EQ(submenu_indicator->mode->name, "ui/menu-submenu-indicator");
-  EXPECT_EQ(leaf_indicator->mode->name, "ui/menu-submenu-indicator");
+  EXPECT_EQ(submenu_indicator->definition->name, "ui/menu-submenu-indicator");
+  EXPECT_EQ(leaf_indicator->definition->name, "ui/menu-submenu-indicator");
 
   auto submenu_state =
     Roo::Dict::get_property(submenu_indicator->state, Roo::keyword("has-submenu"));
@@ -483,7 +483,7 @@ TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   auto inner = session.active_mode->children[0]->children[0];
   ASSERT_EQ(inner->children.size(), 3u);
 
@@ -504,12 +504,12 @@ TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
   auto option_trailing = option_item->children[2];
   auto submenu_trailing = submenu_item->children[2];
 
-  EXPECT_EQ(plain_marker->mode->name, "ui/menu-option-indicator");
-  EXPECT_EQ(option_marker->mode->name, "ui/menu-option-indicator");
-  EXPECT_EQ(submenu_marker->mode->name, "ui/menu-option-indicator");
-  EXPECT_EQ(plain_trailing->mode->name, "ui/menu-item-trailing");
-  EXPECT_EQ(option_trailing->mode->name, "ui/menu-item-trailing");
-  EXPECT_EQ(submenu_trailing->mode->name, "ui/menu-item-trailing");
+  EXPECT_EQ(plain_marker->definition->name, "ui/menu-option-indicator");
+  EXPECT_EQ(option_marker->definition->name, "ui/menu-option-indicator");
+  EXPECT_EQ(submenu_marker->definition->name, "ui/menu-option-indicator");
+  EXPECT_EQ(plain_trailing->definition->name, "ui/menu-item-trailing");
+  EXPECT_EQ(option_trailing->definition->name, "ui/menu-item-trailing");
+  EXPECT_EQ(submenu_trailing->definition->name, "ui/menu-item-trailing");
 
   EXPECT_EQ(plain_marker->bounds.x, option_marker->bounds.x);
   EXPECT_EQ(plain_marker->bounds.x, submenu_marker->bounds.x);
@@ -778,7 +778,7 @@ TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/context-menu");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/context-menu");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto outer = session.active_mode->children[0];
   ASSERT_NE(outer, nullptr);
@@ -821,7 +821,7 @@ TEST_F(MenuTest, menu_bar_item_without_children_emits_action_without_opening_pop
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
   EXPECT_EQ(session.active_mode->state->to_string(),
             "{:quit true :payload {:source :menu}}");
 }
@@ -856,5 +856,5 @@ TEST_F(MenuTest, menu_bar_item_without_children_or_action_does_not_open_popup)
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }

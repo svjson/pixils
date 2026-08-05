@@ -966,7 +966,7 @@ TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
   input().mouse_down({50, 50});
   update_cycle();
 
-  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  EXPECT_EQ(session.active_mode->children[0]->definition->name, "new-child");
   EXPECT_NE(session.active_mode->children[0].get(), original_child.get());
   EXPECT_FALSE(session.focus_state.has_focus());
   EXPECT_FALSE(session.active_mode->interaction.focused);
@@ -999,7 +999,7 @@ TEST_F(EventRoutingTest, focused_view_replacement_falls_back_to_focusable_ancest
   input().mouse_down({50, 50});
   update_cycle();
 
-  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  EXPECT_EQ(session.active_mode->children[0]->definition->name, "new-child");
   ASSERT_TRUE(session.focus_state.has_focus());
   EXPECT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
   EXPECT_TRUE(session.active_mode->interaction.focused);
@@ -1090,11 +1090,11 @@ TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor
   update_cycle();
   session.render_mode();
 
-  auto root_style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+  auto root_style = Pixils::UI::resolve_style(session.active_mode->definition->style,
                                               session.active_mode->state,
                                               session.active_mode->interaction);
   auto child_style =
-    Pixils::UI::resolve_style(session.active_mode->children[0]->mode->style,
+    Pixils::UI::resolve_style(session.active_mode->children[0]->definition->style,
                               session.active_mode->children[0]->state,
                               session.active_mode->children[0]->interaction);
 
@@ -1125,7 +1125,7 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   update_cycle();
 
   // Then - resolved style should reflect the hover variant
-  auto style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+  auto style = Pixils::UI::resolve_style(session.active_mode->definition->style,
                                          session.active_mode->state,
                                          session.active_mode->interaction);
   ASSERT_NE(style.width, std::nullopt);
@@ -1187,7 +1187,7 @@ TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_contex
   EXPECT_TRUE(session.active_mode->interaction.focused);
   EXPECT_TRUE(session.active_mode->interaction.focus_within);
 
-  auto focused_style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+  auto focused_style = Pixils::UI::resolve_style(session.active_mode->definition->style,
                                                  session.active_mode->state,
                                                  session.active_mode->interaction);
   ASSERT_NE(focused_style.width, std::nullopt);
@@ -1239,8 +1239,8 @@ TEST_F(EventRoutingTest, pushed_mode_init_focuses_itself_in_same_process_message
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_NE(session.active_mode->mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "popup-mode");
   ASSERT_TRUE(session.focus_state.has_focus());
   ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
   EXPECT_TRUE(session.active_mode->interaction.focused);
@@ -1268,7 +1268,7 @@ TEST_F(EventRoutingTest, init_focused_view_survives_following_update_before_firs
 
   update_cycle();
   ASSERT_TRUE(session.focus_state.has_focus());
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
 
   update_cycle();
 

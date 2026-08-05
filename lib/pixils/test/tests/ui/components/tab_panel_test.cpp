@@ -134,7 +134,7 @@ TEST_F(TabPanelTest, tab_panel_selects_first_enabled_tab_by_default)
 
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
-  EXPECT_EQ(active->mode->name, "second-body");
+  EXPECT_EQ(active->definition->name, "second-body");
 }
 
 TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
@@ -186,7 +186,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
 
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
-  EXPECT_EQ(active->mode->name, "tilesets-body");
+  EXPECT_EQ(active->definition->name, "tilesets-body");
 
   auto changed =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changed-tab"));
@@ -241,7 +241,7 @@ TEST_F(TabPanelTest, tab_panel_uses_bound_selected_tab)
 
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
-  EXPECT_EQ(active->mode->name, "tilesets-body");
+  EXPECT_EQ(active->definition->name, "tilesets-body");
 }
 
 TEST_F(TabPanelTest, tab_panel_body_passes_state_to_active_child)
@@ -361,7 +361,7 @@ TEST_F(TabPanelTest, nil_body_state_falls_back_to_panel_state_after_switch)
   tab_panel = session.active_mode->children[0];
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
-  EXPECT_EQ(active->mode->name, "second-body");
+  EXPECT_EQ(active->definition->name, "second-body");
 
   auto value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
@@ -463,7 +463,7 @@ TEST_F(TabPanelTest, disabled_tab_does_not_select)
 
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
-  EXPECT_EQ(active->mode->name, "map-body");
+  EXPECT_EQ(active->definition->name, "map-body");
 }
 
 TEST_F(TabPanelTest, classic_blue_theme_makes_selected_tab_raised_and_brighter)

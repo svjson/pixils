@@ -93,8 +93,8 @@ namespace
     const ViewSnapshot& expected_handle)
   {
     ASSERT_NE(popup_mode, nullptr);
-    ASSERT_NE(popup_mode->mode, nullptr);
-    EXPECT_EQ(popup_mode->mode->name, "ui/combo-box-popup");
+    ASSERT_NE(popup_mode->definition, nullptr);
+    EXPECT_EQ(popup_mode->definition->name, "ui/combo-box-popup");
 
     auto scrollbar = combo_popup_scrollbar(popup_mode);
     ASSERT_NE(scrollbar, nullptr);
@@ -151,10 +151,10 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
   ASSERT_EQ(trigger->children.size(), 2u);
   auto button = trigger->children[1];
   ASSERT_NE(button, nullptr);
-  EXPECT_EQ(button->mode->name, "ui/combo-box-button");
-  ASSERT_GE(button->mode->selector_modes.size(), 2u);
-  EXPECT_EQ(button->mode->selector_modes[0], "ui/combo-box-button");
-  EXPECT_EQ(button->mode->selector_modes[1], "ui/scrollbar-button");
+  EXPECT_EQ(button->definition->name, "ui/combo-box-button");
+  ASSERT_GE(button->definition->selector_modes.size(), 2u);
+  EXPECT_EQ(button->definition->selector_modes[0], "ui/combo-box-button");
+  EXPECT_EQ(button->definition->selector_modes[1], "ui/scrollbar-button");
   ASSERT_TRUE(button->effective_style.border.has_value());
 }
 
@@ -192,7 +192,7 @@ TEST_F(ComboBoxTest, natural_height_and_popup_rows_use_default_ttf_font_metrics)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_EQ(popup_panel->children.size(), 1u);
@@ -285,7 +285,7 @@ TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_pre
   ASSERT_NE(pressed, nullptr);
   EXPECT_EQ(pressed->to_string(), "false");
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }
 
 TEST_F(ComboBoxTest, focused_combo_box_arrow_keys_change_selection_without_opening)
@@ -328,7 +328,7 @@ TEST_F(ComboBoxTest, focused_combo_box_arrow_keys_change_selection_without_openi
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
   auto selected_index = get_state_key(session.active_mode, "selected-index");
   auto value = get_state_key(session.active_mode, "value");
   ASSERT_NE(selected_index, nullptr);
@@ -382,7 +382,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   input().mouse_down({5, 5});
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
 
   session.render_mode();
   session.update_mode();
@@ -392,7 +392,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
-  EXPECT_EQ(popup_panel->mode->name, "ui/combo-box-popup-panel");
+  EXPECT_EQ(popup_panel->definition->name, "ui/combo-box-popup-panel");
   ASSERT_TRUE(popup_panel->effective_style.background.has_value());
   ASSERT_TRUE(popup_panel->effective_style.border.has_value());
   ASSERT_EQ(popup_panel->children.size(), 1u);
@@ -435,7 +435,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   input().mouse_down({95, 30});
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
 
   input().mouse_down({5, 37});
   update_cycle();
@@ -443,7 +443,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 
   update_cycle();
 
@@ -494,7 +494,7 @@ TEST_F(ComboBoxTest, combo_box_popup_scroll_range_uses_measured_tall_item_height
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_EQ(popup_panel->children.size(), 1u);
@@ -539,7 +539,7 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_EQ(popup_panel->children.size(), 1u);
@@ -688,7 +688,7 @@ TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
@@ -745,7 +745,7 @@ TEST_F(ComboBoxTest, combo_box_popup_expands_to_wide_option_label)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
@@ -801,7 +801,7 @@ TEST_F(ComboBoxTest, combo_box_natural_width_uses_widest_option_label)
   input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
   update_cycle();
   session.render_mode();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 25});
   update_cycle();
   input().mouse_up({combo->bounds.x + 2, combo->bounds.y + 25});
@@ -809,7 +809,7 @@ TEST_F(ComboBoxTest, combo_box_natural_width_uses_widest_option_label)
   session.update_mode();
   session.render_mode();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   combo = session.active_mode->children[0];
   ASSERT_NE(combo, nullptr);
   EXPECT_EQ(combo->bounds.w, initial_width);
@@ -845,13 +845,13 @@ TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicke
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
 
   input().mouse_down({5, 5});
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }
 
 TEST_F(ComboBoxTest, combo_box_popup_flips_above_when_below_would_leave_screen)
@@ -885,7 +885,7 @@ TEST_F(ComboBoxTest, combo_box_popup_flips_above_when_below_would_leave_screen)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
@@ -924,7 +924,7 @@ TEST_F(ComboBoxTest, combo_box_popup_clamps_right_edge_to_screen)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
@@ -958,7 +958,7 @@ TEST_F(ComboBoxTest, combo_box_popup_clamps_left_edge_to_screen)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto popup_panel = session.active_mode->children[0];
   ASSERT_NE(popup_panel, nullptr);
@@ -988,7 +988,7 @@ TEST_F(ComboBoxTest, scaled_combo_box_popup_uses_anchor_visual_geometry)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
@@ -1045,7 +1045,7 @@ TEST_F(ComboBoxTest, scaled_parent_combo_box_popup_aligns_and_reports_selection)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
@@ -1088,7 +1088,7 @@ TEST_F(ComboBoxTest, scaled_parent_combo_box_popup_aligns_and_reports_selection)
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
   update_cycle();
   auto selected_index =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected-index"));
@@ -1120,11 +1120,11 @@ TEST_F(ComboBoxTest, scaled_combo_box_popup_dismisses_on_outside_click)
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
 
   input().mouse_down({250, 150});
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }

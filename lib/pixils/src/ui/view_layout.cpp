@@ -115,7 +115,8 @@ namespace Pixils::UI
       if (!view) return;
 
       PIXILS_BENCHMARK_COUNT(layout_dependency_signature_nodes);
-      hash_combine(seed, std::hash<const Pixils::Runtime::Mode*>{}(view->mode));
+      hash_combine(seed,
+                   std::hash<const Pixils::Runtime::ViewDefinition*>{}(view->definition));
       hash_combine(seed, std::hash<std::uint64_t>{}(view->state_generation));
       hash_combine(seed, std::hash<std::uint64_t>{}(view->interaction_generation));
       hash_combine(seed, std::hash<std::uint64_t>{}(view->children_generation));
@@ -447,14 +448,14 @@ namespace Pixils::UI
 
     bool has_content_size_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
     {
-      return view && view->mode && view->mode->content_size &&
-             view->mode->content_size->type != Roo::Value::Type::NIL;
+      return view && view->definition && view->definition->content_size &&
+             view->definition->content_size->type != Roo::Value::Type::NIL;
     }
 
     bool has_after_layout_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
     {
-      return view && view->mode && view->mode->after_layout &&
-             view->mode->after_layout->type != Roo::Value::Type::NIL;
+      return view && view->definition && view->definition->after_layout &&
+             view->definition->after_layout->type != Roo::Value::Type::NIL;
     }
 
     std::optional<Dimension> invoke_content_size_hook(
@@ -478,7 +479,7 @@ namespace Pixils::UI
 
       Roo::sptr_val_v args = {child->state, hook_ctx};
       auto result =
-        Pixils::Runtime::invoke_hook(runtime, child, child->mode->content_size, args);
+        Pixils::Runtime::invoke_hook(runtime, child, child->definition->content_size, args);
       native_hook_ctx.available_width = previous_width;
       native_hook_ctx.available_height = previous_height;
       return parse_dimension_like(result);
@@ -507,7 +508,7 @@ namespace Pixils::UI
 
       Roo::sptr_val_v args = {view->state, hook_ctx};
       auto result =
-        Pixils::Runtime::invoke_hook(runtime, view, view->mode->after_layout, args, view->state);
+        Pixils::Runtime::invoke_hook(runtime, view, view->definition->after_layout, args, view->state);
       if (result && result->type != Roo::Value::Type::NIL)
       {
         view->set_state_if_changed(result);
@@ -638,10 +639,10 @@ namespace Pixils::UI
       ThemeMatchContext ctx;
       ctx.state = view->state;
       ctx.interaction = view->interaction;
-      if (view->mode)
+      if (view->definition)
       {
-        ctx.mode_names = view->mode->selector_modes;
-        ctx.class_names = view->mode->class_names;
+        ctx.mode_names = view->definition->selector_modes;
+        ctx.class_names = view->definition->class_names;
       }
 
       return ctx;
@@ -710,7 +711,7 @@ namespace Pixils::UI
     {
       std::optional<Style> resolved_style = std::nullopt;
 
-      if (view->mode)
+      if (view->definition)
       {
         for (const Style* theme_style :
              view->effective_theme.get_matching_styles(selector_path))
@@ -719,9 +720,9 @@ namespace Pixils::UI
           apply_style_variant(*resolved_style, *theme_style);
         }
 
-        if (!view->mode->style_layers.empty())
+        if (!view->definition->style_layers.empty())
         {
-          for (const auto& layer : view->mode->style_layers)
+          for (const auto& layer : view->definition->style_layers)
           {
             auto layer_style = resolve_style_layer(layer, view->effective_theme, runtime);
             if (!layer_style) continue;
@@ -730,13 +731,13 @@ namespace Pixils::UI
           }
         }
 
-        if (view->mode->style)
+        if (view->definition->style)
         {
           if (!resolved_style) resolved_style = Style{};
-          apply_style_variant(*resolved_style, *view->mode->style);
+          apply_style_variant(*resolved_style, *view->definition->style);
         }
 
-        if (auto runtime_style = resolve_style_source(view->mode->runtime_style_source,
+        if (auto runtime_style = resolve_style_source(view->definition->runtime_style_source,
                                                       view->effective_theme,
                                                       runtime))
         {
@@ -744,10 +745,10 @@ namespace Pixils::UI
           apply_style_variant(*resolved_style, *runtime_style);
         }
 
-        if (view->mode->runtime_style)
+        if (view->definition->runtime_style)
         {
           if (!resolved_style) resolved_style = Style{};
-          apply_style_variant(*resolved_style, *view->mode->runtime_style);
+          apply_style_variant(*resolved_style, *view->definition->runtime_style);
         }
       }
 
@@ -772,7 +773,7 @@ namespace Pixils::UI
       const Theme* inherited_theme)
     {
       std::optional<std::string> selected_variant =
-        view && view->mode ? view->mode->theme_variant : std::nullopt;
+        view && view->definition ? view->definition->theme_variant : std::nullopt;
       if (!selected_variant && inherited_theme)
       {
         selected_variant = inherited_theme->selected_variant;
@@ -795,13 +796,13 @@ namespace Pixils::UI
           : (view && view->inherited_theme
                ? view->inherited_theme->resolved_for_variant(selected_variant)
                : default_base_theme(runtime).resolved_for_variant(selected_variant));
-      if (!view || !view->mode || !view->mode->theme)
+      if (!view || !view->definition || !view->definition->theme)
       {
         Roo::Context ctx(runtime);
         return Pixils::Script::resolve_theme_declarations(ctx, theme, selected_variant);
       }
 
-      for (const auto& theme_name : *view->mode->theme)
+      for (const auto& theme_name : *view->definition->theme)
       {
         auto local_theme = lookup_theme(runtime, theme_name);
         if (local_theme)
@@ -823,7 +824,7 @@ namespace Pixils::UI
     {
       const auto parent_generation =
         view->style_view.parent() ? view->style_view.parent()->generation() : 0;
-      if (view->style_view.valid_for(view->mode,
+      if (view->style_view.valid_for(view->definition,
                                      view->state.get(),
                                      view->interaction,
                                      inherited_theme,
@@ -839,7 +840,7 @@ namespace Pixils::UI
       const auto* view_inherited_theme =
         view->inherited_theme ? &*view->inherited_theme : nullptr;
       const auto selected_variant = selected_theme_variant(view, inherited_theme);
-      if (!view->style_view.theme_valid_for(view->mode,
+      if (!view->style_view.theme_valid_for(view->definition,
                                             inherited_theme,
                                             view_inherited_theme,
                                             inherited_theme_generation,
@@ -847,7 +848,7 @@ namespace Pixils::UI
       {
         view->effective_theme =
           resolve_effective_theme_impl(view, runtime, inherited_theme, selected_variant);
-        view->style_view.mark_theme_resolved(view->mode,
+        view->style_view.mark_theme_resolved(view->definition,
                                              inherited_theme,
                                              view_inherited_theme,
                                              inherited_theme_generation,
@@ -855,7 +856,7 @@ namespace Pixils::UI
       }
       view->effective_style =
         resolve_effective_style(view, runtime, inherited_style, selector_path);
-      view->style_view.mark_resolved(view->mode,
+      view->style_view.mark_resolved(view->definition,
                                      view->state.get(),
                                      view->interaction,
                                      inherited_theme,
@@ -892,7 +893,7 @@ namespace Pixils::UI
       const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path)
     {
-      if (!view || !view->mode) return std::nullopt;
+      if (!view || !view->definition) return std::nullopt;
 
       auto cache_key =
         natural_size_cache_key(view,

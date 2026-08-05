@@ -8,6 +8,9 @@
 #include "pixils/ui/view_events.h"
 #include <pixils/hook_context.h>
 
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/exec.h>
 #include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
@@ -32,7 +35,7 @@ namespace Pixils::UI
                          Runtime::HookArguments& hook_args,
                          Roo::Runtime& rt)
     {
-      if (!has_hook(view->mode->update)) return;
+      if (!has_hook(view->definition->update)) return;
 
       PIXILS_BENCHMARK_COUNT(update_hook_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(update_hook_time_ns);
@@ -40,7 +43,36 @@ namespace Pixils::UI
       Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Roo::sptr_val_v args = {view->state, hook_args.update_args[1]};
       view->set_state_if_changed(
-        Runtime::invoke_hook(rt, view, view->mode->update, args, view->state));
+        Runtime::invoke_hook(rt, view, view->definition->update, args, view->state));
+    }
+
+    void run_update_ui_hook(const std::shared_ptr<Runtime::View>& view,
+                            Runtime::HookArguments& hook_args,
+                            Roo::Runtime& rt)
+    {
+      if (!view->has_component_ui_state()) return;
+
+      view->seed_ui_state_from_shared_state_policy();
+
+      if (has_hook(view->component->update_ui))
+      {
+        PIXILS_BENCHMARK_COUNT(update_hook_calls);
+        PIXILS_BENCHMARK_TIME_BLOCK(update_hook_time_ns);
+
+        Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+        Roo::sptr_val_v args = {view->ui_state, view->state, hook_args.update_args[1]};
+        Roo::Context exec_ctx(rt);
+        auto result = view->component->update_ui->exec().execute(exec_ctx, args);
+        auto next_ui_state =
+          (result && result->type != Roo::Value::Type::NIL) ? result : view->ui_state;
+        if (!next_ui_state || next_ui_state->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError("Component :update-ui must return a map or nil");
+        }
+        view->set_ui_state_if_changed(next_ui_state);
+      }
+
+      view->sync_state_from_shared_ui_state_policy();
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
@@ -145,10 +177,12 @@ namespace Pixils::UI
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
       run_update_hook(view_ptr, hook_args, rt);
-      view.set_state_if_changed(Runtime::apply_pending_child_mutations(rt,
-                                                                       view_ptr,
-                                                                       hook_args.update_args[1],
-                                                                       view.state));
+      view.set_state_if_changed(
+        Runtime::apply_pending_child_mutations(rt,
+                                               view_ptr,
+                                               hook_args.update_args[1],
+                                               view.state));
+      run_update_ui_hook(view_ptr, hook_args, rt);
 
       for (auto& child : view.children)
       {
@@ -244,7 +278,15 @@ namespace Pixils::UI
       }
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
-      view.set_state_if_changed(clear_transient_pressed_state(view.state));
+      if (view.has_component_ui_state())
+      {
+        view.set_ui_state_if_changed(clear_transient_pressed_state(view.ui_state));
+        view.sync_state_from_shared_ui_state_policy();
+      }
+      else
+      {
+        view.set_state_if_changed(clear_transient_pressed_state(view.state));
+      }
 
       for (auto& child : view.children)
       {
@@ -298,11 +340,10 @@ namespace Pixils::UI
     refresh_interaction_subtree(root, mouse_state, focus_state, mouse_pos);
   }
 
-  void refresh_view_interaction_visual_state_tree(
-    const std::shared_ptr<Runtime::View>& root,
-    const MouseState& mouse_state,
-    const FocusState& focus_state,
-    const Point& mouse_pos)
+  void refresh_view_interaction_visual_state_tree(const std::shared_ptr<Runtime::View>& root,
+                                                  const MouseState& mouse_state,
+                                                  const FocusState& focus_state,
+                                                  const Point& mouse_pos)
   {
     refresh_interaction_visual_state_subtree(root,
                                              mouse_state,

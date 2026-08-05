@@ -1,4 +1,5 @@
 #include "../fixture.h"
+#include "pixils/binding/component_definition.h"
 #include "pixils/runtime/mode.h"
 
 #include <gtest/gtest.h>
@@ -10,10 +11,22 @@ using DefModeTest = BaseFixture;
 
 namespace
 {
-  Pixils::Runtime::Mode& get_mode(Roo::Runtime& rt, const std::string& name)
+  Pixils::Runtime::ViewDefinition& get_definition(Roo::Runtime& rt,
+                                                  const std::string& name)
   {
     auto val = rt.eval("(get pixils/modes '" + name + ")");
-    return Roo::obj<Pixils::Runtime::Mode>(*val);
+    return Pixils::Script::definition_from_registry_value(val, "test mode lookup");
+  }
+
+  Pixils::Runtime::Component& get_component(Roo::Runtime& rt, const std::string& name)
+  {
+    auto val = rt.eval("(get pixils/modes '" + name + ")");
+    auto* component = Pixils::Script::component_from_registry_value(val);
+    if (!component)
+    {
+      throw Roo::InvocationException("test component lookup resolved to non-component");
+    }
+    return *component;
   }
 } // namespace
 
@@ -39,10 +52,50 @@ TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
   runtime.eval("(pixils/defmode test-mode {:render 'name})");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "test-mode");
   EXPECT_EQ(mode.name, "test-mode");
   ASSERT_EQ(mode.render->type, Roo::Value::Type::SYMBOL);
   EXPECT_EQ(mode.render->str(), "name");
+}
+
+TEST_F(DefModeTest, defcomponent_creates_component_definition)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent test-button
+      {:init-ui (fn [ui-state state ctx] ui-state)
+       :update-ui (fn [ui-state state ctx] ui-state)
+       :ui/state-keys [:pressed]})
+  )");
+
+  auto& component = get_component(runtime, "test-button");
+  EXPECT_EQ(component.init_ui->type, Roo::Value::Type::FUNCTION);
+  EXPECT_EQ(component.update_ui->type, Roo::Value::Type::FUNCTION);
+  ASSERT_EQ(component.ui_state_keys.size(), 1u);
+  EXPECT_EQ(component.ui_state_keys[0], "pressed");
+  EXPECT_EQ(component.name, "test-button");
+}
+
+TEST_F(DefModeTest, defmode_rejects_component_ui_state_fields)
+{
+  EXPECT_THROW(runtime.eval("(pixils/defmode bad-mode {:ui/state-keys [:pressed]})"),
+               Roo::TypeError);
+  EXPECT_THROW(
+    runtime.eval("(pixils/defmode bad-mode {:init-ui (fn [ui-state state ctx] ui-state)})"),
+    Roo::TypeError);
+  EXPECT_THROW(
+    runtime.eval(
+      "(pixils/defmode bad-mode {:update-ui (fn [ui-state state ctx] ui-state)})"),
+               Roo::TypeError);
+}
+
+TEST_F(DefModeTest, defcomponent_rejects_mode_composition)
+{
+  runtime.eval(R"(
+    (pixils/def thing-compose (pixils/make-mode-composition {:render :pass}))
+  )");
+
+  EXPECT_THROW(runtime.eval("(pixils/defcomponent bad-component {:compose thing-compose})"),
+               Roo::TypeError);
 }
 
 TEST_F(DefModeTest, defmode_extend_preserves_selector_ancestry_for_theme_matching)
@@ -53,12 +106,12 @@ TEST_F(DefModeTest, defmode_extend_preserves_selector_ancestry_for_theme_matchin
     (pixils/defcomponent special-board-button {:extend 'board-button})
   )");
 
-  auto& board_button = get_mode(runtime, "board-button");
+  auto& board_button = get_definition(runtime, "board-button");
   ASSERT_EQ(board_button.selector_modes.size(), 2u);
   EXPECT_EQ(board_button.selector_modes[0], "board-button");
   EXPECT_EQ(board_button.selector_modes[1], "button");
 
-  auto& special_board_button = get_mode(runtime, "special-board-button");
+  auto& special_board_button = get_definition(runtime, "special-board-button");
   ASSERT_EQ(special_board_button.selector_modes.size(), 3u);
   EXPECT_EQ(special_board_button.selector_modes[0], "special-board-button");
   EXPECT_EQ(special_board_button.selector_modes[1], "board-button");
@@ -74,11 +127,11 @@ TEST_F(DefModeTest, defmode_class_accepts_keyword_or_vector_and_merges_on_extend
        :class [:ui/primary :ui/cta]})
   )");
 
-  auto& button = get_mode(runtime, "button");
+  auto& button = get_definition(runtime, "button");
   ASSERT_EQ(button.class_names.size(), 1u);
   EXPECT_EQ(button.class_names[0], "ui/control");
 
-  auto& primary_button = get_mode(runtime, "primary-button");
+  auto& primary_button = get_definition(runtime, "primary-button");
   ASSERT_EQ(primary_button.class_names.size(), 3u);
   EXPECT_EQ(primary_button.class_names[0], "ui/control");
   EXPECT_EQ(primary_button.class_names[1], "ui/primary");
@@ -93,13 +146,13 @@ TEST_F(DefModeTest, defmode_focusable_defaults_false_and_can_be_extended_or_over
     (pixils/defcomponent static-label {:extend 'button :focusable false})
   )");
 
-  auto& button = get_mode(runtime, "button");
+  auto& button = get_definition(runtime, "button");
   EXPECT_TRUE(button.focusable);
 
-  auto& primary_button = get_mode(runtime, "primary-button");
+  auto& primary_button = get_definition(runtime, "primary-button");
   EXPECT_TRUE(primary_button.focusable);
 
-  auto& static_label = get_mode(runtime, "static-label");
+  auto& static_label = get_definition(runtime, "static-label");
   EXPECT_FALSE(static_label.focusable);
 }
 
@@ -117,7 +170,7 @@ TEST_F(DefModeTest, defmode_extend_preserves_and_overlays_base_style)
        :style {:width 120}})
   )");
 
-  auto& panel_child = get_mode(runtime, "panel-child");
+  auto& panel_child = get_definition(runtime, "panel-child");
   ASSERT_NE(panel_child.style, std::nullopt);
   ASSERT_NE(panel_child.style->width, std::nullopt);
   ASSERT_NE(panel_child.style->height, std::nullopt);
@@ -126,7 +179,7 @@ TEST_F(DefModeTest, defmode_extend_preserves_and_overlays_base_style)
   EXPECT_TRUE(panel_child.style->height->is_fill());
   EXPECT_TRUE(*panel_child.style->clip);
 
-  auto& narrow_panel_child = get_mode(runtime, "narrow-panel-child");
+  auto& narrow_panel_child = get_definition(runtime, "narrow-panel-child");
   ASSERT_NE(narrow_panel_child.style, std::nullopt);
   ASSERT_NE(narrow_panel_child.style->width, std::nullopt);
   ASSERT_NE(narrow_panel_child.style->height, std::nullopt);
@@ -147,7 +200,7 @@ TEST_F(DefModeTest, defmode_style_accepts_max_size_constraints)
                :max-height 120}})
   )");
 
-  auto& panel = get_mode(runtime, "panel");
+  auto& panel = get_definition(runtime, "panel");
   ASSERT_NE(panel.style, std::nullopt);
   ASSERT_NE(panel.style->max_width, std::nullopt);
   ASSERT_NE(panel.style->max_height, std::nullopt);
@@ -191,7 +244,7 @@ TEST_F(DefModeTest, defmode_children_get_auto_generated_ids)
   )");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 2u);
   EXPECT_EQ(mode.children[0].id, "child-a-0");
   EXPECT_EQ(mode.children[1].id, "child-b-0");
@@ -206,7 +259,7 @@ TEST_F(DefModeTest, defmode_two_children_of_same_mode_get_distinct_auto_ids)
   )");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "split-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "split-mode");
   ASSERT_EQ(mode.children.size(), 2u);
   EXPECT_EQ(mode.children[0].id, "panel-0");
   EXPECT_EQ(mode.children[1].id, "panel-1");
@@ -221,7 +274,7 @@ TEST_F(DefModeTest, defmode_child_explicit_id_overrides_auto)
   )");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 1u);
   EXPECT_EQ(mode.children[0].id, "sidebar");
 }
@@ -233,7 +286,7 @@ TEST_F(DefModeTest, string_children_are_normalized_to_text_nodes)
       {:children ["Hello" "World"]})
   )");
 
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 2u);
   EXPECT_EQ(mode.children[0].mode_name, "ui/text");
   EXPECT_EQ(mode.children[0].id, "ui/text-0");
@@ -257,7 +310,7 @@ TEST_F(DefModeTest, raw_string_children_value_is_one_text_node)
       {:children "Hello"})
   )");
 
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 1u);
   EXPECT_EQ(mode.children[0].mode_name, "ui/text");
   auto value =
@@ -284,7 +337,7 @@ TEST_F(DefModeTest, defmode_resources_accept_sounds)
   )");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "test-mode");
   ASSERT_EQ(mode.resources.sounds.size(), 1u);
   EXPECT_EQ(mode.resources.sounds[0].resource_id, "laser");
   EXPECT_EQ(mode.resources.sounds[0].file_name, "laser.wav");
@@ -299,7 +352,7 @@ TEST_F(DefModeTest, defmode_resources_accept_music)
   )");
 
   // Then
-  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "test-mode");
   ASSERT_EQ(mode.resources.music.size(), 1u);
   EXPECT_EQ(mode.resources.music[0].resource_id, "theme");
   EXPECT_EQ(mode.resources.music[0].file_name, "theme.mp3");

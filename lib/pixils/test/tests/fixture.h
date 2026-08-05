@@ -8,6 +8,7 @@
 #include <SDL3/SDL_audio.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <gtest/gtest.h>
+#include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/value.h>
 #include <utility>

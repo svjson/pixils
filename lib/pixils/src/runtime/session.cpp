@@ -3,6 +3,7 @@
 
 #include <pixils/asset/registry.h>
 #include <pixils/benchmark/counters.h>
+#include <pixils/binding/component_definition.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
@@ -21,12 +22,11 @@
 #include <pixils/ui/view_update.h>
 
 #include <SDL3/SDL_render.h>
+#include <algorithm>
 #include <roo/exception.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-
-#include <algorithm>
 
 namespace Pixils::Runtime
 {
@@ -36,8 +36,7 @@ namespace Pixils::Runtime
     const Roo::sptr_val KEYWORD__ANCHOR_BOUNDS = Roo::keyword("anchor-bounds");
     const Roo::sptr_val KEYWORD__EVENT = Roo::keyword("event");
     const Roo::sptr_val KEYWORD__FALLBACK_PLACEMENT = Roo::keyword("fallback-placement");
-    const Roo::sptr_val KEYWORD__MATCH_ANCHOR_WIDTH =
-      Roo::keyword("match-anchor-width?");
+    const Roo::sptr_val KEYWORD__MATCH_ANCHOR_WIDTH = Roo::keyword("match-anchor-width?");
     const Roo::sptr_val KEYWORD__OVERLAY = Roo::keyword("overlay");
     const Roo::sptr_val KEYWORD__ORIGIN = Roo::keyword("origin");
     const Roo::sptr_val KEYWORD__PLACEMENT = Roo::keyword("placement");
@@ -146,20 +145,20 @@ namespace Pixils::Runtime
       {
         metadata.anchor_bounds = Roo::obj<Rect>(*anchor_bounds);
       }
-      metadata.placement = parse_overlay_placement(
-        Roo::Dict::get_property(overlay, KEYWORD__PLACEMENT),
-        Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START);
+      metadata.placement =
+        parse_overlay_placement(Roo::Dict::get_property(overlay, KEYWORD__PLACEMENT),
+                                Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START);
       metadata.fallback_placement = parse_overlay_placement(
         Roo::Dict::get_property(overlay, KEYWORD__FALLBACK_PLACEMENT),
         Session::ModeFrameMetadata::OverlayPlacement::NONE);
-      metadata.match_anchor_width = parse_bool_option(
-        Roo::Dict::get_property(overlay, KEYWORD__MATCH_ANCHOR_WIDTH),
-        false,
-        "Mode :overlay :match-anchor-width?");
-      metadata.viewport_padding = parse_int_option(
-        Roo::Dict::get_property(overlay, KEYWORD__VIEWPORT_PADDING),
-        0,
-        "Mode :overlay :viewport-padding");
+      metadata.match_anchor_width =
+        parse_bool_option(Roo::Dict::get_property(overlay, KEYWORD__MATCH_ANCHOR_WIDTH),
+                          false,
+                          "Mode :overlay :match-anchor-width?");
+      metadata.viewport_padding =
+        parse_int_option(Roo::Dict::get_property(overlay, KEYWORD__VIEWPORT_PADDING),
+                         0,
+                         "Mode :overlay :viewport-padding");
       return metadata;
     }
 
@@ -275,7 +274,7 @@ namespace Pixils::Runtime
         return false;
       }
 
-      if (!path.front()->mode || !path.front()->mode->focusable)
+      if (!path.front()->definition || !path.front()->definition->focusable)
       {
         return false;
       }
@@ -317,7 +316,7 @@ namespace Pixils::Runtime
     }
 
     Roo::sptr_val resolve_mode_value(const Roo::sptr_val& modes,
-                                        const std::string& mode_name)
+                                     const std::string& mode_name)
     {
       auto mode = Roo::Dict::get_property(modes, Roo::symbol(mode_name));
       if (!mode || mode->type == Roo::Value::Type::NIL)
@@ -328,7 +327,7 @@ namespace Pixils::Runtime
       if (!Script::HostType::MODE.is_type_of(*mode))
       {
         throw Roo::InvocationException("Identifier '" + mode_name +
-                                          "' resolved to non-mode value");
+                                       "' resolved to non-mode value");
       }
 
       return mode;
@@ -429,12 +428,10 @@ namespace Pixils::Runtime
         overlay.match_anchor_width ? anchor.w : target->visual_bounds.w;
       const int target_visual_height = target->visual_bounds.h;
       int visual_left = anchor.x;
-      int visual_top = overlay_top_for_placement(overlay.placement,
-                                                 anchor,
-                                                 target_visual_height);
+      int visual_top =
+        overlay_top_for_placement(overlay.placement, anchor, target_visual_height);
 
-      if (overlay.fallback_placement !=
-            Session::ModeFrameMetadata::OverlayPlacement::NONE &&
+      if (overlay.fallback_placement != Session::ModeFrameMetadata::OverlayPlacement::NONE &&
           !placement_fits_vertically(visual_top,
                                      target_visual_height,
                                      viewport,
@@ -616,7 +613,7 @@ namespace Pixils::Runtime
      * the parent state map as they complete.
      */
     auto parent_state = this->active_mode->state;
-    for (const auto& slot : active_mode->mode->children)
+    for (const auto& slot : active_mode->definition->children)
     {
       this->active_mode->children.push_back(
         Pixils::UI::build_view_tree(slot, modes, roo_runtime));
@@ -651,8 +648,8 @@ namespace Pixils::Runtime
 
     if (application_theme || application_theme_variant)
     {
-      UI::Theme resolved = UI::default_base_theme(roo_runtime)
-                             .resolved_for_variant(application_theme_variant);
+      UI::Theme resolved =
+        UI::default_base_theme(roo_runtime).resolved_for_variant(application_theme_variant);
       if (application_theme)
       {
         for (const auto& theme_name : *application_theme)
@@ -707,14 +704,12 @@ namespace Pixils::Runtime
 
       for (auto& message : messages)
       {
-        std::string type =
-          Roo::Dict::get_property(message, Roo::keyword("type"))->str();
+        std::string type = Roo::Dict::get_property(message, Roo::keyword("type"))->str();
 
         if (type == "push")
         {
           mode_stack.update_state(active_mode->state);
-          auto overrides_val =
-            Roo::Dict::get_property(message, Roo::keyword("overrides"));
+          auto overrides_val = Roo::Dict::get_property(message, Roo::keyword("overrides"));
           push_mode(Roo::Dict::get_property(message, Roo::keyword("mode"))->str(),
                     Roo::Dict::get_property(message, Roo::keyword("state")),
                     overrides_val ? overrides_val : Roo::Constant::NIL);
@@ -843,9 +838,6 @@ namespace Pixils::Runtime
       mode_stack.update_state(active_mode->state);
       hook_args.update_state(active_mode->state);
     }
-    Pixils::UI::render_view(render_ctx,
-                            roo_runtime,
-                            hook_args.render_args[1],
-                            active_mode);
+    Pixils::UI::render_view(render_ctx, roo_runtime, hook_args.render_args[1], active_mode);
   }
 } // namespace Pixils::Runtime

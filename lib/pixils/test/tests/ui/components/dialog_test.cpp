@@ -19,7 +19,7 @@ namespace
                              std::vector<std::string>& labels)
   {
     if (!view) return;
-    if (view->mode && view->mode->name == "ui/button")
+    if (view->definition && view->definition->name == "ui/button")
     {
       auto label = get_key(view->state, "label");
       if (label) labels.push_back(label->str());
@@ -35,7 +35,7 @@ namespace
                                                const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/button")
+    if (view->definition && view->definition->name == "ui/button")
     {
       auto label = get_key(view->state, "label");
       if (label && label->str() == label_text) return view;
@@ -54,7 +54,7 @@ namespace
                                         const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
 
     for (const auto& child : view->children)
     {
@@ -67,8 +67,8 @@ namespace
 
   bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
   {
-    if (!view || !view->mode) return false;
-    const auto& classes = view->mode->class_names;
+    if (!view || !view->definition) return false;
+    const auto& classes = view->definition->class_names;
     return std::find(classes.begin(), classes.end(), class_name) != classes.end();
   }
 } // namespace
@@ -199,7 +199,7 @@ TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.render_mode();
 
   auto delete_button = find_button_with_label(session.active_mode, "Delete");
@@ -214,7 +214,7 @@ TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   auto choice = get_key(result, "choice");
@@ -248,10 +248,10 @@ TEST_F(DialogTest, open_confirm_applies_overlay_class_to_dialog_frame)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.render_mode();
 
-  const auto& classes = session.active_mode->mode->class_names;
+  const auto& classes = session.active_mode->definition->class_names;
   EXPECT_NE(std::find(classes.begin(), classes.end(), "danger-overlay"), classes.end());
   ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
@@ -280,13 +280,13 @@ TEST_F(DialogTest, dismissable_confirm_returns_dismiss_choice_on_escape)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.render_mode();
 
   input().key_down(SDLK_ESCAPE);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   auto choice = get_key(result, "choice");
@@ -334,11 +334,11 @@ TEST_F(DialogTest, open_dialog_wraps_custom_result_event_handlers)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.render_mode();
 
   ASSERT_EQ(session.active_mode->children.size(), 1u);
-  ASSERT_EQ(session.active_mode->children[0]->mode->name, "ui/window");
+  ASSERT_EQ(session.active_mode->children[0]->definition->name, "ui/window");
   ASSERT_TRUE(session.active_mode->children[0]->effective_style.width.has_value());
   EXPECT_EQ(session.active_mode->children[0]->effective_style.width->fixed_value_or(0), 300);
 
@@ -355,7 +355,7 @@ TEST_F(DialogTest, open_dialog_wraps_custom_result_event_handlers)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "name")->str(), "Falcon");
@@ -383,7 +383,7 @@ TEST_F(DialogTest, open_dialog_make_dialog_body_without_results_uses_default_but
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.render_mode();
 
   auto ok_button = find_button_with_label(session.active_mode, "OK");
@@ -397,7 +397,7 @@ TEST_F(DialogTest, open_dialog_make_dialog_body_without_results_uses_default_but
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   auto choice = get_key(result, "choice");

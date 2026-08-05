@@ -47,10 +47,10 @@ TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto option = session.active_mode->children[0];
   ASSERT_NE(option, nullptr);
-  EXPECT_EQ(option->mode->name, "ui/option-box");
+  EXPECT_EQ(option->definition->name, "ui/option-box");
   ASSERT_EQ(option->children.size(), 2u);
-  EXPECT_EQ(option->children[0]->mode->name, "ui/option-box-indicator");
-  EXPECT_EQ(option->children[1]->mode->name, "ui/option-box-label");
+  EXPECT_EQ(option->children[0]->definition->name, "ui/option-box-indicator");
+  EXPECT_EQ(option->children[1]->definition->name, "ui/option-box-label");
 
   input().mouse_down({5, 5});
   update_cycle();
@@ -97,7 +97,7 @@ TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto group = session.active_mode->children[0];
   ASSERT_NE(group, nullptr);
-  EXPECT_EQ(group->mode->name, "ui/option-box-group");
+  EXPECT_EQ(group->definition->name, "ui/option-box-group");
   ASSERT_EQ(group->children.size(), 1u);
   auto column = group->children[0];
   ASSERT_NE(column, nullptr);

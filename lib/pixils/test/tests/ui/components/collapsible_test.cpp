@@ -70,7 +70,7 @@ TEST_F(CollapsibleTest, collapsible_toggles_bound_state_and_hides_content)
   EXPECT_EQ(*content->effective_style.visibility, Pixils::UI::Style::Visibility::NONE);
   EXPECT_EQ(content->bounds.h, 0);
   auto marker = header->children[0];
-  EXPECT_EQ(marker->mode->name, "ui/collapsible-marker");
+  EXPECT_EQ(marker->definition->name, "ui/collapsible-marker");
   EXPECT_EQ(marker->children.size(), 0u);
   EXPECT_GT(marker->bounds.w, 0);
   EXPECT_GT(marker->bounds.h, 0);
@@ -151,7 +151,7 @@ TEST_F(CollapsibleTest, collapsible_can_omit_marker)
   auto header = collapsible->children[0];
   ASSERT_NE(header, nullptr);
   ASSERT_EQ(header->children.size(), 1u);
-  EXPECT_EQ(header->children[0]->mode->name, "ui/text");
+  EXPECT_EQ(header->children[0]->definition->name, "ui/text");
 }
 
 TEST_F(CollapsibleTest, collapsible_accepts_text_marker_overrides)
@@ -180,7 +180,7 @@ TEST_F(CollapsibleTest, collapsible_accepts_text_marker_overrides)
   ASSERT_NE(header, nullptr);
   ASSERT_EQ(header->children.size(), 2u);
   auto marker = header->children[0];
-  EXPECT_EQ(marker->mode->name, "ui/collapsible-marker");
+  EXPECT_EQ(marker->definition->name, "ui/collapsible-marker");
   EXPECT_EQ(marker->children.size(), 0u);
   auto collapsed_marker = state_property(marker->state, "collapsed-marker");
   auto expanded_marker = state_property(marker->state, "expanded-marker");

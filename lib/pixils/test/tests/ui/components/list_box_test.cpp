@@ -16,7 +16,7 @@ namespace
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
     for (const auto& child : view->children)
     {
       auto match = find_descendant_mode(child, mode_name);
@@ -111,7 +111,7 @@ TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
   ASSERT_EQ(pane->children.size(), 1u);
   auto row = pane->children[0];
   ASSERT_EQ(row->children.size(), 2u);
-  EXPECT_EQ(row->children[1]->mode->name, "ui/scrollbar");
+  EXPECT_EQ(row->children[1]->definition->name, "ui/scrollbar");
 }
 
 TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_scrollbar)
@@ -732,7 +732,7 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scro
   auto row = list_box_row(list_box);
   ASSERT_NE(row, nullptr);
   ASSERT_EQ(row->children.size(), 2u);
-  EXPECT_EQ(row->children[1]->mode->name, "ui/scrollbar");
+  EXPECT_EQ(row->children[1]->definition->name, "ui/scrollbar");
 
   auto viewport = list_box_viewport(list_box);
   ASSERT_NE(viewport, nullptr);
@@ -776,7 +776,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   ASSERT_EQ(list_box->children.size(), 1u);
   auto scroll_pane = list_box->children[0];
   ASSERT_NE(scroll_pane, nullptr);
-  EXPECT_EQ(scroll_pane->mode->name, "ui/scroll-pane");
+  EXPECT_EQ(scroll_pane->definition->name, "ui/scroll-pane");
   auto row = scroll_pane->children[0];
   auto viewport = row->children[0];
   EXPECT_EQ(viewport->bounds.h, 20);
@@ -1164,7 +1164,7 @@ TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
   auto viewport = row->children[0];
   auto content = viewport->children[0];
   ASSERT_EQ(content->children.size(), 2u);
-  EXPECT_EQ(content->children[0]->mode->name, "custom-list-row");
+  EXPECT_EQ(content->children[0]->definition->name, "custom-list-row");
 
   input().mouse_down({5, 15});
   update_cycle();

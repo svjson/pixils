@@ -35,10 +35,10 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto checkbox = session.active_mode->children[0];
   ASSERT_NE(checkbox, nullptr);
-  EXPECT_EQ(checkbox->mode->name, "ui/checkbox");
+  EXPECT_EQ(checkbox->definition->name, "ui/checkbox");
   ASSERT_EQ(checkbox->children.size(), 2u);
-  EXPECT_EQ(checkbox->children[0]->mode->name, "ui/checkbox-box");
-  EXPECT_EQ(checkbox->children[1]->mode->name, "ui/checkbox-label");
+  EXPECT_EQ(checkbox->children[0]->definition->name, "ui/checkbox-box");
+  EXPECT_EQ(checkbox->children[1]->definition->name, "ui/checkbox-label");
 
   input().mouse_down({5, 5});
   update_cycle();

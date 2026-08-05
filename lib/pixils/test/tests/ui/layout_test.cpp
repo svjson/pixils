@@ -63,7 +63,7 @@ static std::shared_ptr<View> make_ctx(std::optional<Style> style = std::nullopt)
   auto v = std::make_shared<View>();
   v->owned_mode = std::make_unique<Mode>();
   v->owned_mode->style = std::move(style);
-  v->mode = v->owned_mode.get();
+  v->definition = v->owned_mode.get();
   v->state = Roo::Constant::NIL;
   return v;
 }

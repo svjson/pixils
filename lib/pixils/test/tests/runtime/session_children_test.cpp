@@ -95,9 +95,9 @@ TEST_F(SessionChildrenTest, child_without_mode_builds_anonymous_structural_view)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   EXPECT_EQ(child->id, "container");
-  ASSERT_NE(child->mode, nullptr);
-  EXPECT_EQ(child->mode->name, "container");
-  EXPECT_TRUE(child->mode->selector_modes.empty());
+  ASSERT_NE(child->definition, nullptr);
+  EXPECT_EQ(child->definition->name, "container");
+  EXPECT_TRUE(child->definition->selector_modes.empty());
   EXPECT_EQ(child->state->to_string(), "{:label \"nested\"}");
   EXPECT_EQ(child->bounds.w, 90);
   EXPECT_EQ(child->bounds.h, 30);
@@ -105,8 +105,8 @@ TEST_F(SessionChildrenTest, child_without_mode_builds_anonymous_structural_view)
   ASSERT_EQ(child->children.size(), 1u);
   auto grandchild = child->children[0];
   ASSERT_NE(grandchild, nullptr);
-  ASSERT_NE(grandchild->mode, nullptr);
-  EXPECT_EQ(grandchild->mode->name, "ui/text");
+  ASSERT_NE(grandchild->definition, nullptr);
+  EXPECT_EQ(grandchild->definition->name, "ui/text");
 }
 
 TEST_F(SessionChildrenTest, anonymous_children_get_stable_generated_ids)
@@ -124,8 +124,8 @@ TEST_F(SessionChildrenTest, anonymous_children_get_stable_generated_ids)
   ASSERT_EQ(session.active_mode->children.size(), 2u);
   EXPECT_EQ(session.active_mode->children[0]->id, "anonymous-0");
   EXPECT_EQ(session.active_mode->children[1]->id, "anonymous-1");
-  EXPECT_EQ(session.active_mode->children[0]->mode->name, "anonymous-0");
-  EXPECT_EQ(session.active_mode->children[1]->mode->name, "anonymous-1");
+  EXPECT_EQ(session.active_mode->children[0]->definition->name, "anonymous-0");
+  EXPECT_EQ(session.active_mode->children[1]->definition->name, "anonymous-1");
 }
 
 TEST_F(SessionChildrenTest, root_mode_without_explicit_theme_uses_builtin_base_theme)
@@ -1051,12 +1051,12 @@ TEST_F(SessionChildrenTest, interaction_pass_overlay_allows_underlying_mouse_lea
   input().mouse_move({5, 5});
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
 
   input().mouse_move({100, 100});
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
   auto target = session.active_mode->children[0];
@@ -1091,7 +1091,7 @@ TEST_F(SessionChildrenTest,
 
   // Then
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
   ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
@@ -1126,7 +1126,7 @@ TEST_F(SessionChildrenTest, pushed_root_mode_from_init_inherits_parent_effective
 
   // Then
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
   ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
@@ -1158,7 +1158,7 @@ TEST_F(SessionChildrenTest, pushed_root_mode_uses_parent_theme_defaults)
 
   // Then
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
   ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
@@ -1230,7 +1230,7 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
 
   // Then - active mode is parent-mode with child local state intact
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "parent-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "parent-mode");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
@@ -1267,11 +1267,11 @@ TEST_F(SessionStateTreeTest, pop_mode_result_returns_to_explicit_origin_view)
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
   auto child = session.active_mode->children[0];
@@ -1319,11 +1319,11 @@ TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubble
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
   auto result =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
@@ -1364,11 +1364,11 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "popup-mode");
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
   auto result =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
@@ -1445,16 +1445,16 @@ TEST_F(SessionStateTreeTest, style_bang_mutates_only_the_target_view_instance)
   ASSERT_NE(flow_child, nullptr);
 
   ASSERT_NE(absolute_child->owned_mode, nullptr);
-  ASSERT_TRUE(absolute_child->mode->style.has_value());
-  ASSERT_TRUE(absolute_child->mode->style->position.has_value());
-  EXPECT_EQ(*absolute_child->mode->style->position, Pixils::UI::PositionMode::ABSOLUTE);
+  ASSERT_TRUE(absolute_child->definition->style.has_value());
+  ASSERT_TRUE(absolute_child->definition->style->position.has_value());
+  EXPECT_EQ(*absolute_child->definition->style->position, Pixils::UI::PositionMode::ABSOLUTE);
   EXPECT_EQ(absolute_child->bounds.x, 24);
   EXPECT_EQ(absolute_child->bounds.y, 10);
   EXPECT_EQ(absolute_child->bounds.w, 30);
   EXPECT_EQ(absolute_child->bounds.h, 5);
 
-  ASSERT_TRUE(flow_child->mode->style.has_value());
-  EXPECT_FALSE(flow_child->mode->style->position.has_value());
+  ASSERT_TRUE(flow_child->definition->style.has_value());
+  EXPECT_FALSE(flow_child->definition->style->position.has_value());
   EXPECT_EQ(flow_child->bounds.x, 3);
   EXPECT_EQ(flow_child->bounds.y, 3);
   EXPECT_EQ(flow_child->bounds.w, 10);
@@ -1508,14 +1508,14 @@ TEST_F(SessionStateTreeTest,
   session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
-  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+  ASSERT_EQ(session.active_mode->children[0]->definition->name, "old-child");
   EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:value 1}");
 
   update_cycle();
 
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   EXPECT_EQ(session.active_mode->children[0]->id, "game");
-  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  EXPECT_EQ(session.active_mode->children[0]->definition->name, "new-child");
   EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:value 42}");
   EXPECT_EQ(session.active_mode->state->to_string(), "{:game {:value 42} :swapped? true}");
 }
@@ -1548,7 +1548,7 @@ TEST_F(SessionStateTreeTest, append_child_bang_adds_direct_child_against_post_ho
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   EXPECT_EQ(child->id, "item");
-  EXPECT_EQ(child->mode->name, "child-mode");
+  EXPECT_EQ(child->definition->name, "child-mode");
   EXPECT_EQ(child->state->to_string(), "{:value 42}");
   EXPECT_EQ(session.active_mode->state->to_string(),
             "{:item {:value 42} :appended? true}");
@@ -1580,7 +1580,7 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
   session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
-  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+  ASSERT_EQ(session.active_mode->children[0]->definition->name, "old-child");
 
   update_cycle();
 
@@ -1588,15 +1588,15 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   EXPECT_EQ(child->id, "game");
-  ASSERT_NE(child->mode, nullptr);
-  EXPECT_EQ(child->mode->name, "game");
-  EXPECT_TRUE(child->mode->selector_modes.empty());
+  ASSERT_NE(child->definition, nullptr);
+  EXPECT_EQ(child->definition->name, "game");
+  EXPECT_TRUE(child->definition->selector_modes.empty());
   EXPECT_EQ(child->state->to_string(), "{:value 42 :ready true}");
-  ASSERT_TRUE(child->mode->style.has_value());
-  ASSERT_TRUE(child->mode->style->width.has_value());
-  ASSERT_TRUE(child->mode->style->height.has_value());
-  EXPECT_EQ(child->mode->style->width->fixed_value_or(), 40);
-  EXPECT_EQ(child->mode->style->height->fixed_value_or(), 20);
+  ASSERT_TRUE(child->definition->style.has_value());
+  ASSERT_TRUE(child->definition->style->width.has_value());
+  ASSERT_TRUE(child->definition->style->height.has_value());
+  EXPECT_EQ(child->definition->style->width->fixed_value_or(), 40);
+  EXPECT_EQ(child->definition->style->height->fixed_value_or(), 20);
 }
 
 TEST_F(SessionStateTreeTest, replace_child_bang_accepts_string_child_entry)
@@ -1619,7 +1619,7 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_string_child_entry)
   session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
-  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+  ASSERT_EQ(session.active_mode->children[0]->definition->name, "old-child");
 
   update_cycle();
 
@@ -1627,8 +1627,8 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_string_child_entry)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   EXPECT_EQ(child->id, "message");
-  ASSERT_NE(child->mode, nullptr);
-  EXPECT_EQ(child->mode->name, "ui/text");
+  ASSERT_NE(child->definition, nullptr);
+  EXPECT_EQ(child->definition->name, "ui/text");
   auto value = Roo::Dict::get_property(child->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->str(), "Ready");

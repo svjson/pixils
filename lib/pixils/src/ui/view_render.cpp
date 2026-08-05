@@ -450,7 +450,7 @@ namespace Pixils::UI
         PIXILS_BENCHMARK_COUNT(render_hook_calls);
         PIXILS_BENCHMARK_TIME_BLOCK(render_hook_time_ns);
         Roo::sptr_val_v rargs = {ctx.state, render_hook_ctx};
-        Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
+        Runtime::invoke_hook(runtime, view_ptr, ctx.definition->render, rargs);
 
         if (!ctx.children.empty())
         {

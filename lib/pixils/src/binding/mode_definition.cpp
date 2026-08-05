@@ -9,13 +9,13 @@
 #include <pixils/ui/style.h>
 
 #include <algorithm>
+#include <memory>
 #include <roo/context.h>
 #include <roo/exception.h>
 #include <roo/host/schema.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
-#include <memory>
 #include <unordered_map>
 
 namespace Pixils::Script
@@ -97,9 +97,9 @@ namespace Pixils::Script
         throw Roo::TypeError("Mode :drag must be a map");
 
       static Roo::MapSchema drag_schema({},
-                                           {{"button", &Roo::Type::KEYWORD},
-                                            {"start", &Roo::Type::ANY},
-                                            {"payload", &Roo::Type::ANY}});
+                                        {{"button", &Roo::Type::KEYWORD},
+                                         {"start", &Roo::Type::ANY},
+                                         {"payload", &Roo::Type::ANY}});
 
       UI::DragPolicy policy;
       auto opts = drag_schema.bind(ctx, *value);
@@ -190,28 +190,53 @@ namespace Pixils::Script
     return variant_val->str();
   }
 
+  std::string parse_state_policy(const Roo::sptr_val& policy_val)
+  {
+    if (!policy_val || policy_val->type != Roo::Value::Type::KEYWORD)
+    {
+      throw Roo::TypeError("Child :ui/state-policy must be a keyword");
+    }
+
+    auto policy = policy_val->str();
+    if (policy == "shared" || policy == "isolated") return policy;
+    throw Roo::TypeError("Child :ui/state-policy must be :shared or :isolated");
+  }
+
+  Roo::sptr_val parse_ui_state(const Roo::sptr_val& ui_state_val)
+  {
+    if (!ui_state_val || ui_state_val->type == Roo::Value::Type::NIL)
+    {
+      return Roo::map({});
+    }
+    if (ui_state_val->type == Roo::Value::Type::MAP)
+    {
+      return ui_state_val;
+    }
+    throw Roo::TypeError("Child :ui-state must be a map");
+  }
+
   void append_mode_style_layer(Roo::Context& ctx,
-                               Runtime::Mode& mode,
+                               Runtime::ViewDefinition& definition,
                                const Roo::sptr_val& style_val)
   {
     if (!style_val || style_val->type == Roo::Value::Type::NIL) return;
 
     auto append_materialized_style = [&](const UI::Style& style)
     {
-      if (!mode.style_layers.empty())
+      if (!definition.style_layers.empty())
       {
-        mode.style_layers.push_back(Runtime::StyleLayer{.style = style});
-        if (!mode.style) mode.style = UI::Style{};
+        definition.style_layers.push_back(Runtime::StyleLayer{.style = style});
+        if (!definition.style) definition.style = UI::Style{};
         return;
       }
 
-      if (!mode.style)
+      if (!definition.style)
       {
-        mode.style = style;
+        definition.style = style;
       }
       else
       {
-        UI::apply_style_variant(*mode.style, style);
+        UI::apply_style_variant(*definition.style, style);
       }
     };
 
@@ -224,13 +249,13 @@ namespace Pixils::Script
 
     if (contains_theme_var_ref(style_val))
     {
-      if (mode.style && mode.style_layers.empty())
+      if (definition.style && definition.style_layers.empty())
       {
-        mode.style_layers.push_back(Runtime::StyleLayer{.style = *mode.style});
-        mode.style = UI::Style{};
+        definition.style_layers.push_back(Runtime::StyleLayer{.style = *definition.style});
+        definition.style = UI::Style{};
       }
-      mode.style_layers.push_back(Runtime::StyleLayer{.source = style_val});
-      if (!mode.style) mode.style = UI::Style{};
+      definition.style_layers.push_back(Runtime::StyleLayer{.source = style_val});
+      if (!definition.style) definition.style = UI::Style{};
       return;
     }
 
@@ -239,7 +264,7 @@ namespace Pixils::Script
     if (!coercion.success)
     {
       throw Roo::TypeError("Mode :style must be a style map or style. Got: " +
-                              style_val->to_string());
+                           style_val->to_string());
     }
 
     auto style = Roo::obj<UI::Style>(*coercion.result);
@@ -271,9 +296,13 @@ namespace Pixils::Script
   std::vector<Runtime::ChildSlot> parse_child_slots(Roo::Context& ctx,
                                                     const Roo::sptr_val& children_val)
   {
-    static Roo::MapSchema child_schema(
-      {},
-      {{"mode", &Roo::Type::SYMBOL}, {"id", &Roo::Type::ANY}, {"state", &Roo::Type::ANY}});
+    static Roo::MapSchema child_schema({},
+                                       {{"mode", &Roo::Type::SYMBOL},
+                                        {"id", &Roo::Type::ANY},
+                                        {"state", &Roo::Type::ANY},
+                                        {"ui-state", &Roo::Type::ANY},
+                                        {"state-policy", &Roo::Type::KEYWORD},
+                                        {"ui/state-policy", &Roo::Type::KEYWORD}});
 
     std::unordered_map<std::string, int> name_counts;
     std::vector<Runtime::ChildSlot> slots;
@@ -325,6 +354,19 @@ namespace Pixils::Script
       auto [binding, initial] = Runtime::parse_state_binding(child_opts.val("state"));
       slot.state_binding = binding;
       slot.initial_state = initial;
+      if (child_opts.contains("ui-state"))
+      {
+        slot.has_initial_ui_state = true;
+        slot.initial_ui_state = parse_ui_state(child_opts.val("ui-state"));
+      }
+      if (child_opts.contains("ui/state-policy"))
+      {
+        slot.state_policy = parse_state_policy(child_opts.val("ui/state-policy"));
+      }
+      else if (child_opts.contains("state-policy"))
+      {
+        slot.state_policy = parse_state_policy(child_opts.val("state-policy"));
+      }
       slots.push_back(std::move(slot));
     }
     return slots;
@@ -335,39 +377,39 @@ namespace Pixils::Script
                                            const Runtime::Mode* base)
   {
     static Roo::MapSchema mode_schema({},
-                                         {{"name", &Roo::Type::STRING},
-                                          {"extend", &Roo::Type::SYMBOL_VALUE},
-                                          {"init", &Roo::Type::ANY},
-                                          {"update", &Roo::Type::ANY},
-                                          {"after-layout", &Roo::Type::ANY},
-                                          {"content-size", &Roo::Type::ANY},
-                                          {"render", &Roo::Type::ANY},
-                                          {"action-map", &Roo::Type::ANY},
-                                          {"on-key-down", &Roo::Type::ANY},
-                                          {"on-key-held", &Roo::Type::ANY},
-                                          {"on-key-up", &Roo::Type::ANY},
-                                          {"on-mouse-down", &Roo::Type::ANY},
-                                          {"on-mouse-up", &Roo::Type::ANY},
-                                          {"on-click", &Roo::Type::ANY},
-                                          {"on-double-click", &Roo::Type::ANY},
-                                          {"on-mouse-enter", &Roo::Type::ANY},
-                                          {"on-mouse-leave", &Roo::Type::ANY},
-                                          {"on-mouse-motion", &Roo::Type::ANY},
-                                          {"on-mouse-wheel", &Roo::Type::ANY},
-                                          {"on-drag-start", &Roo::Type::ANY},
-                                          {"on-drag", &Roo::Type::ANY},
-                                          {"on-drag-end", &Roo::Type::ANY},
-                                          {"on-drop", &Roo::Type::ANY},
-                                          {"on", &Roo::Type::MAP},
-                                          {"compose", &HostType::MODE_COMPOSITION},
-                                          {"resources", &HostType::RESOURCE_DEPENDENCIES},
-                                          {"drag", &Roo::Type::MAP},
-                                          {"style", &Roo::Type::ANY},
-                                          {"class", &Roo::Type::ANY},
-                                          {"focusable", &Roo::Type::BOOL},
-                                          {"theme", &Roo::Type::ANY},
-                                          {"theme-variant", &Roo::Type::ANY},
-                                          {"children", &Type::CHILDREN}});
+                                      {{"name", &Roo::Type::STRING},
+                                       {"extend", &Roo::Type::SYMBOL_VALUE},
+                                       {"init", &Roo::Type::ANY},
+                                       {"update", &Roo::Type::ANY},
+                                       {"after-layout", &Roo::Type::ANY},
+                                       {"content-size", &Roo::Type::ANY},
+                                       {"render", &Roo::Type::ANY},
+                                       {"action-map", &Roo::Type::ANY},
+                                       {"on-key-down", &Roo::Type::ANY},
+                                       {"on-key-held", &Roo::Type::ANY},
+                                       {"on-key-up", &Roo::Type::ANY},
+                                       {"on-mouse-down", &Roo::Type::ANY},
+                                       {"on-mouse-up", &Roo::Type::ANY},
+                                       {"on-click", &Roo::Type::ANY},
+                                       {"on-double-click", &Roo::Type::ANY},
+                                       {"on-mouse-enter", &Roo::Type::ANY},
+                                       {"on-mouse-leave", &Roo::Type::ANY},
+                                       {"on-mouse-motion", &Roo::Type::ANY},
+                                       {"on-mouse-wheel", &Roo::Type::ANY},
+                                       {"on-drag-start", &Roo::Type::ANY},
+                                       {"on-drag", &Roo::Type::ANY},
+                                       {"on-drag-end", &Roo::Type::ANY},
+                                       {"on-drop", &Roo::Type::ANY},
+                                       {"on", &Roo::Type::MAP},
+                                       {"compose", &HostType::MODE_COMPOSITION},
+                                       {"resources", &HostType::RESOURCE_DEPENDENCIES},
+                                       {"drag", &Roo::Type::MAP},
+                                       {"style", &Roo::Type::ANY},
+                                       {"class", &Roo::Type::ANY},
+                                       {"focusable", &Roo::Type::BOOL},
+                                       {"theme", &Roo::Type::ANY},
+                                       {"theme-variant", &Roo::Type::ANY},
+                                       {"children", &Type::CHILDREN}});
 
     auto opts = mode_schema.bind(ctx, *definition_map);
 
@@ -380,7 +422,11 @@ namespace Pixils::Script
       auto base_val = Roo::Dict::get_property(modes, Roo::symbol(extends_name));
       if (!base_val || base_val->type == Roo::Value::Type::NIL)
         throw Roo::InvocationException("defmode :extends - unknown base mode '" +
-                                          extends_name + "'");
+                                       extends_name + "'");
+      if (!HostType::MODE.is_type_of(*base_val))
+      {
+        throw Roo::InvocationException("defmode :extends resolved to non-mode value");
+      }
       mode = Roo::obj<Runtime::Mode>(*base_val);
     }
     else if (base)

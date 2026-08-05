@@ -3,6 +3,7 @@
 #define PIXILS__RUNTIME__VIEW_H
 
 #include "pixils/ui/event.h"
+#include <pixils/runtime/component.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/ui/interaction.h>
 #include <pixils/ui/style_view.h>
@@ -10,8 +11,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <roo/runtime/value.h>
 #include <optional>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Runtime
 {
@@ -27,19 +28,19 @@ namespace Pixils::Runtime
   };
 
   /**
-   * Live instance of a mode. Serves as the runtime companion for any mode -
-   * whether active at the top of the mode stack, participating in composition
-   * below it, or placed as a layout child of another mode. Holds the resolved
-   * mode pointer, Roo state, last-computed layout bounds, and any nested
-   * child views. For layout children, `id` is the key under which this
-   * view's state is stored in the parent state map.
+   * Live instance of a view definition. Holds the resolved shared definition
+   * pointer, optional concrete mode/component pointer, Roo state, layout bounds,
+   * and any nested child views. For layout children, `id` is the key under
+   * which this view's state is stored in the parent state map.
    */
   struct View
   {
     std::string id;
     View* parent = nullptr;
     Roo::sptr_val state_binding = Roo::Constant::NIL;
+    ViewDefinition* definition = nullptr;
     Mode* mode = nullptr;
+    Component* component = nullptr;
     UI::InteractionState interaction;
     /**
      * Owns a per-instance copy of the mode when push-time or
@@ -48,8 +49,12 @@ namespace Pixils::Runtime
      * remains valid when View is moved.
      */
     std::unique_ptr<Mode> owned_mode;
+    std::unique_ptr<Component> owned_component;
     Roo::sptr_val state = Roo::Constant::NIL;
     Roo::sptr_val initial_state = Roo::Constant::NIL;
+    Roo::sptr_val ui_state = Roo::Constant::NIL;
+    Roo::sptr_val initial_ui_state = Roo::Constant::NIL;
+    std::string state_policy = "shared";
     Rect bounds = {0, 0, 0, 0};
     Rect external_bounds = {0, 0, 0, 0};
     Rect visual_bounds = {0, 0, 0, 0};
@@ -94,6 +99,10 @@ namespace Pixils::Runtime
     void mark_children_changed();
     void mark_style_changed();
     bool set_state_if_changed(const Roo::sptr_val& next_state);
+    bool set_ui_state_if_changed(const Roo::sptr_val& next_state);
+    bool has_component_ui_state() const;
+    void seed_ui_state_from_shared_state_policy();
+    void sync_state_from_shared_ui_state_policy();
     void emit_event(const CustomEvent& event);
     void drain_events(std::vector<CustomEvent>& collected);
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);

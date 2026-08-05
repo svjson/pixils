@@ -13,7 +13,7 @@ namespace
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
     for (const auto& child : view->children)
     {
       if (auto found = find_first_mode(child, mode_name)) return found;

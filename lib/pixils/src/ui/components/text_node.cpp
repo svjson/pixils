@@ -107,14 +107,14 @@ namespace Pixils::UI::Components
       }
     } // namespace Function
 
-    Runtime::Mode make_text_node_component_mode()
+    Runtime::Component make_text_node_component()
     {
-      Runtime::Mode mode;
-      mode.name = "ui/text";
-      mode.selector_modes.push_back(mode.name);
-      mode.content_size = Function::TextNodeContentSize::make();
-      mode.render = Function::TextNodeRender::make();
-      return mode;
+      Runtime::Component component;
+      component.name = "ui/text";
+      component.selector_modes.push_back(component.name);
+      component.content_size = Function::TextNodeContentSize::make();
+      component.render = Function::TextNodeRender::make();
+      return component;
     }
   } // namespace
 
@@ -124,6 +124,6 @@ namespace Pixils::UI::Components
     Roo::Dict::set_property(
       modes,
       Roo::symbol("ui/text"),
-      Script::ModeAdapter::make_unique(make_text_node_component_mode()));
+      Script::ComponentAdapter::make_unique(make_text_node_component()));
   }
 } // namespace Pixils::UI::Components

@@ -38,8 +38,8 @@ namespace Pixils::UI
     std::vector<CustomEvent> bubbled_events;
     for (auto& event : events)
     {
-      auto it = receiver.mode->event_handlers.find(event.event_key->str());
-      if (it == receiver.mode->event_handlers.end() ||
+      auto it = receiver.definition->event_handlers.find(event.event_key->str());
+      if (it == receiver.definition->event_handlers.end() ||
           it->second->type != Roo::Value::Type::FUNCTION)
       {
         PIXILS_BENCHMARK_COUNT(events_bubbled);

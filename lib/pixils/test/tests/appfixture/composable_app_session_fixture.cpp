@@ -2,6 +2,7 @@
 
 #include "app_source_builder.h"
 #include <pixils/asset/registry.h>
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/font_registry.h>
 #include <pixils/program.h>
 

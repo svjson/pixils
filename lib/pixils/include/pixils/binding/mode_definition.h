@@ -4,9 +4,9 @@
 
 #include <pixils/runtime/mode.h>
 
+#include <optional>
 #include <roo/runtime/value.h>
 #include <roo/type.h>
-#include <optional>
 #include <vector>
 
 namespace Roo
@@ -23,9 +23,8 @@ namespace Pixils::Script
     inline const Roo::SeqRef VECTOR_OF_MAP_OR_STRING(&Roo::Type::VECTOR,
                                                      &MAP_OR_STRING,
                                                      "[Map|String]");
-    inline const Roo::MultiRef CHILDREN(
-      {&VECTOR_OF_MAP_OR_STRING, &Roo::Type::STRING},
-      "[Map|String]|String");
+    inline const Roo::MultiRef CHILDREN({&VECTOR_OF_MAP_OR_STRING, &Roo::Type::STRING},
+                                        "[Map|String]|String");
   } // namespace Type
 
   std::vector<std::string> parse_mode_classes(const Roo::sptr_val& class_val);
@@ -34,7 +33,7 @@ namespace Pixils::Script
   std::optional<std::string> parse_theme_variant(const Roo::sptr_val& variant_val,
                                                  const std::string& context);
   void append_mode_style_layer(Roo::Context& ctx,
-                               Runtime::Mode& mode,
+                               Runtime::ViewDefinition& definition,
                                const Roo::sptr_val& style_val);
 
   /**

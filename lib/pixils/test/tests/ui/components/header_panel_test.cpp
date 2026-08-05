@@ -29,7 +29,7 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
 
   auto panel = session.active_mode->children[0];
   ASSERT_NE(panel, nullptr);
-  EXPECT_EQ(panel->mode->name, "ui/header-panel");
+  EXPECT_EQ(panel->definition->name, "ui/header-panel");
   EXPECT_EQ(panel->bounds.w, 100);
   EXPECT_EQ(panel->bounds.h, 60);
   ASSERT_EQ(panel->children.size(), 2u);
@@ -38,8 +38,8 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
   auto body = panel->children[1];
   ASSERT_NE(header, nullptr);
   ASSERT_NE(body, nullptr);
-  EXPECT_EQ(header->mode->name, "ui/header-panel-header");
-  EXPECT_EQ(body->mode->name, "ui/header-panel-body");
+  EXPECT_EQ(header->definition->name, "ui/header-panel-header");
+  EXPECT_EQ(body->definition->name, "ui/header-panel-body");
   EXPECT_EQ(header->bounds.w, 100);
   EXPECT_GT(header->bounds.h, 0);
   EXPECT_EQ(body->bounds.y, header->bounds.h);
@@ -48,13 +48,13 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
   ASSERT_EQ(header->children.size(), 1u);
   auto title = header->children[0];
   ASSERT_NE(title, nullptr);
-  EXPECT_EQ(title->mode->name, "ui/text");
+  EXPECT_EQ(title->definition->name, "ui/text");
   auto title_value = Roo::Dict::get_property(title->state, Roo::keyword("value"));
   ASSERT_NE(title_value, nullptr);
   EXPECT_EQ(title_value->to_string(), "\"Inspector\"");
 
   ASSERT_EQ(body->children.size(), 1u);
-  EXPECT_EQ(body->children[0]->mode->name, "content-mode");
+  EXPECT_EQ(body->children[0]->definition->name, "content-mode");
 }
 
 TEST_F(HeaderPanelTest, body_state_can_bind_to_panel_state)

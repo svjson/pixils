@@ -51,7 +51,7 @@ TEST_F(ProgressBarTest, progress_bar_make_creates_bound_value_state)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto progress = session.active_mode->children[0];
   ASSERT_NE(progress, nullptr);
-  EXPECT_EQ(progress->mode->name, "ui/progress-bar");
+  EXPECT_EQ(progress->definition->name, "ui/progress-bar");
 
   auto value = get_state_key(progress, "value");
   ASSERT_NE(value, nullptr);
@@ -78,7 +78,7 @@ TEST_F(ProgressBarTest, progress_bar_make_creates_bound_value_and_max_state)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto progress = session.active_mode->children[0];
   ASSERT_NE(progress, nullptr);
-  EXPECT_EQ(progress->mode->name, "ui/progress-bar");
+  EXPECT_EQ(progress->definition->name, "ui/progress-bar");
 
   auto value = get_state_key(progress, "value");
   auto max = get_state_key(progress, "max");

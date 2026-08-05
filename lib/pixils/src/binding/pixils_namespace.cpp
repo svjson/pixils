@@ -4,6 +4,7 @@
 #include <pixils/asset/embedded_assets.h>
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
+#include <pixils/binding/component_definition.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/rect_namespace.h>
@@ -117,11 +118,12 @@ namespace Pixils::Script
     UI::Style best_known_external_geometry_style(const Runtime::View& view)
     {
       UI::Style style = view.effective_style;
-      if (view.mode)
+      if (view.definition)
       {
-        if (view.mode->style) fill_missing_external_geometry_style(style, *view.mode->style);
-        if (view.mode->runtime_style)
-          fill_missing_external_geometry_style(style, *view.mode->runtime_style);
+        if (view.definition->style)
+          fill_missing_external_geometry_style(style, *view.definition->style);
+        if (view.definition->runtime_style)
+          fill_missing_external_geometry_style(style, *view.definition->runtime_style);
       }
       return style;
     }
@@ -524,13 +526,8 @@ namespace Pixils::Script
       throw Roo::RooException("deftheme is lower-only");
     }
 
-    /* DefModeForm - defmode */
-    SPECIAL_FORM_IMPL(DefModeForm,
-                      SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
-                                   (&HostType::MODE, &Roo::Eval::LITERAL)),
-                           EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
-
-    SFORM_LOWER_IMPL(DefModeForm)
+    Roo::uptr_exec_node lower_mode_declaration(Roo::LowerContext& ctx,
+                                               const Roo::sptr_ast_node& ast_node)
     {
       auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
       auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
@@ -550,16 +547,70 @@ namespace Pixils::Script
 
       RenderContext& rc =
         Roo::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
-      rc.asset_registry->declare_bundle(
-        name_expr->str(),
-        Roo::obj<Runtime::Mode>(*mode_coercion.result).resources);
+      auto& mode = Roo::obj<Runtime::Mode>(*mode_coercion.result);
+      rc.asset_registry->declare_bundle(name_expr->str(), mode.resources);
 
       return std::make_unique<Roo::ExecNode>(Roo::Constant::NIL);
+    }
+
+    Roo::uptr_exec_node lower_component_declaration(Roo::LowerContext& ctx,
+                                                    const Roo::sptr_ast_node& ast_node)
+    {
+      auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
+      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_str = Roo::string(name_expr->str());
+
+      Roo::LowerContext lctx{ctx};
+      auto component_expr =
+        Roo::exec(*ctx.ctx, *Roo::lower_expr(lctx, ast_node->get_children()[2]));
+      set_runtime_map_key_property(component_expr, MapKey::NAME, name_str);
+      auto component_coercion = HostType::COMPONENT.coerce(*ctx.ctx, component_expr);
+      if (!component_coercion.success)
+      {
+        throw Roo::TypeError("Invalid component declaration: " +
+                             component_expr->to_string());
+      }
+
+      set_runtime_map_key_property(modes, name_expr, component_coercion.result);
+
+      RenderContext& rc =
+        Roo::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
+      auto& component = Roo::obj<Runtime::Component>(*component_coercion.result);
+      rc.asset_registry->declare_bundle(name_expr->str(), component.resources);
+
+      return std::make_unique<Roo::ExecNode>(Roo::Constant::NIL);
+    }
+
+    /* DefModeForm - defmode */
+    SPECIAL_FORM_IMPL(DefModeForm,
+                      SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                                   (&HostType::MODE, &Roo::Eval::LITERAL)),
+                           EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
+
+    SFORM_LOWER_IMPL(DefModeForm)
+    {
+      return lower_mode_declaration(ctx, ast_node);
     }
 
     EXECNODE_BODY(DefModeForm, execnode_declare_mode)
     {
       throw Roo::RooException("defmode is lower-only");
+    }
+
+    /* DefComponentForm - defcomponent */
+    SPECIAL_FORM_IMPL(DefComponentForm,
+                      SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                                   (&HostType::COMPONENT, &Roo::Eval::LITERAL)),
+                           EXEC_DISPATCH(&DefComponentForm::execnode_declare_component))));
+
+    SFORM_LOWER_IMPL(DefComponentForm)
+    {
+      return lower_component_declaration(ctx, ast_node);
+    }
+
+    EXECNODE_BODY(DefComponentForm, execnode_declare_component)
+    {
+      throw Roo::RooException("defcomponent is lower-only");
     }
   } // namespace Macro
 
@@ -571,7 +622,17 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeMode, exec_make)
     {
+      reject_component_definition_fields(args[0], "Mode declarations");
       return ModeAdapter::make_unique(build_mode_from_definition(ctx, args[0]));
+    }
+
+    /* Component make function */
+    FUNC_IMPL(MakeComponent,
+              SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeComponent::exec_make))))
+
+    EXEC_BODY(MakeComponent, exec_make)
+    {
+      return ComponentAdapter::make_unique(build_component_from_definition(ctx, args[0]));
     }
 
     /* ModeComposition make function */
@@ -581,11 +642,10 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeModeComposition, exec_make)
     {
-      static Roo::MapSchema mode_compose_schema(
-        {},
-        {{"render", &Roo::Type::KEYWORD},
-         {"update", &Roo::Type::KEYWORD},
-         {"interaction", &Roo::Type::KEYWORD}});
+      static Roo::MapSchema mode_compose_schema({},
+                                                {{"render", &Roo::Type::KEYWORD},
+                                                 {"update", &Roo::Type::KEYWORD},
+                                                 {"interaction", &Roo::Type::KEYWORD}});
 
       auto opts = mode_compose_schema.bind(ctx, *args[0]);
 
@@ -873,6 +933,29 @@ namespace Pixils::Script
     return this->get_object().render;
   }
 
+  /* ComponentAdapter */
+  NATIVE_ADAPTER_IMPL(ComponentAdapter,
+                      Runtime::Component,
+                      &HostType::COMPONENT,
+                      (init),
+                      (update),
+                      (render));
+
+  NOBJ_PROP_GET(ComponentAdapter, init)
+  {
+    return this->get_object().init;
+  }
+
+  NOBJ_PROP_GET(ComponentAdapter, update)
+  {
+    return this->get_object().update;
+  }
+
+  NOBJ_PROP_GET(ComponentAdapter, render)
+  {
+    return this->get_object().render;
+  }
+
   /* ModeCompositionAdapter */
   NATIVE_ADAPTER_IMPL(ModeCompositionAdapter,
                       Runtime::ModeComposition,
@@ -1044,6 +1127,8 @@ namespace Pixils::Script
                       &HostType::VIEW,
                       (id),
                       (state),
+                      ("ui-state", ui_state),
+                      ("state-policy", state_policy),
                       (bounds),
                       ("external-bounds", external_bounds),
                       ("visual-bounds", visual_bounds),
@@ -1062,6 +1147,17 @@ namespace Pixils::Script
   {
     return object->get_object().state;
   }
+
+  NOBJ_PROP_GET(ViewAdapter, ui_state)
+  {
+    return object->get_object().ui_state;
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, state_policy)
+  {
+    return Roo::keyword(object->get_object().state_policy);
+  }
+
   NOBJ_PROP_GET(ViewAdapter, bounds)
   {
     const Rect& b = object->get_object().bounds;
@@ -1093,8 +1189,8 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ViewAdapter, style)
   {
     const Runtime::View& v = object->get_object();
-    if (!v.mode || !v.mode->style.has_value()) return Roo::Constant::NIL;
-    return StyleAdapter::make_ref(*v.mode->style);
+    if (!v.definition || !v.definition->style.has_value()) return Roo::Constant::NIL;
+    return StyleAdapter::make_ref(*v.definition->style);
   }
 
   NOBJ_PROP_GET(ViewAdapter, effective_style)
@@ -1105,41 +1201,31 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ViewAdapter, on_click)
   {
     const Runtime::View& v = object->get_object();
-    return v.owned_mode && *v.owned_mode->on_click != *Roo::Constant::NIL
-             ? v.owned_mode->on_click
-             : v.mode->on_click;
+    return v.definition ? v.definition->on_click : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_double_click)
   {
     const Runtime::View& v = object->get_object();
-    return v.owned_mode && *v.owned_mode->on_double_click != *Roo::Constant::NIL
-             ? v.owned_mode->on_double_click
-             : v.mode->on_double_click;
+    return v.definition ? v.definition->on_double_click : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_mouse_up)
   {
     const Runtime::View& v = object->get_object();
-    return v.owned_mode && *v.owned_mode->on_mouse_up != *Roo::Constant::NIL
-             ? v.owned_mode->on_mouse_up
-             : v.mode->on_mouse_up;
+    return v.definition ? v.definition->on_mouse_up : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_mouse_down)
   {
     const Runtime::View& v = object->get_object();
-    return v.owned_mode && *v.owned_mode->on_mouse_down != *Roo::Constant::NIL
-             ? v.owned_mode->on_mouse_down
-             : v.mode->on_mouse_down;
+    return v.definition ? v.definition->on_mouse_down : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_mouse_wheel)
   {
     const Runtime::View& v = object->get_object();
-    return v.owned_mode && *v.owned_mode->on_mouse_wheel != *Roo::Constant::NIL
-             ? v.owned_mode->on_mouse_wheel
-             : v.mode->on_mouse_wheel;
+    return v.definition ? v.definition->on_mouse_wheel : Roo::Constant::NIL;
   }
 
   /* RenderContextAdapter */
@@ -1222,13 +1308,14 @@ namespace Pixils::Script
     values.emplace("defbundle", Macro::DefBundleForm::make());
     values.emplace("defbundle-dynamic", Macro::DefBundleDynamicForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
-    values.emplace("defcomponent", Macro::DefModeForm::make());
+    values.emplace("defcomponent", Macro::DefComponentForm::make());
     values.emplace("deftheme", Macro::DefThemeForm::make());
     values.emplace("deffont", Macro::DefFontForm::make());
     values.emplace("defprogram", Macro::DefProgramForm::make());
     values.emplace("make-dimension", Function::MakeDimension::make());
     values.emplace("make-display", Function::MakeDisplay::make());
     values.emplace("make-mode", Function::MakeMode::make());
+    values.emplace("make-component", Function::MakeComponent::make());
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
     values.emplace("make-resolution", Function::MakeResolution::make());
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));

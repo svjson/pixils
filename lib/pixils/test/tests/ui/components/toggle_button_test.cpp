@@ -62,9 +62,9 @@ TEST_F(ToggleButtonTest, toggle_button_toggles_pressed_state_and_emits_change)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto button = session.active_mode->children[0];
   ASSERT_NE(button, nullptr);
-  EXPECT_EQ(button->mode->name, "ui/toggle-button");
-  ASSERT_GE(button->mode->selector_modes.size(), 2u);
-  EXPECT_EQ(button->mode->selector_modes[1], "ui/button");
+  EXPECT_EQ(button->definition->name, "ui/toggle-button");
+  ASSERT_GE(button->definition->selector_modes.size(), 2u);
+  EXPECT_EQ(button->definition->selector_modes[1], "ui/button");
 
   input().mouse_down({10, 10});
   update_cycle();
@@ -116,7 +116,7 @@ TEST_F(ToggleButtonTest, toggle_button_group_selects_one_button_and_can_force_se
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto group = session.active_mode->children[0];
   ASSERT_NE(group, nullptr);
-  EXPECT_EQ(group->mode->name, "ui/toggle-button-group");
+  EXPECT_EQ(group->definition->name, "ui/toggle-button-group");
   ASSERT_EQ(group->children.size(), 1u);
   auto row = group->children[0];
   ASSERT_NE(row, nullptr);

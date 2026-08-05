@@ -72,8 +72,8 @@ TEST_F(IconTest, desktop_icon_provides_focusable_image_and_label_shell)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto icon = session.active_mode->children[0];
   ASSERT_NE(icon, nullptr);
-  ASSERT_NE(icon->mode, nullptr);
-  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
+  ASSERT_NE(icon->definition, nullptr);
+  EXPECT_EQ(icon->definition->name, "ui/desktop-icon");
   EXPECT_EQ(icon->bounds.x, 7);
   EXPECT_EQ(icon->bounds.y, 9);
 
@@ -82,25 +82,25 @@ TEST_F(IconTest, desktop_icon_provides_focusable_image_and_label_shell)
   auto label = icon->children[1];
   ASSERT_NE(image, nullptr);
   ASSERT_NE(label, nullptr);
-  ASSERT_NE(image->mode, nullptr);
-  ASSERT_NE(label->mode, nullptr);
-  EXPECT_EQ(image->mode->name, "ui/desktop-icon-image");
-  EXPECT_EQ(label->mode->name, "ui/desktop-icon-label");
+  ASSERT_NE(image->definition, nullptr);
+  ASSERT_NE(label->definition, nullptr);
+  EXPECT_EQ(image->definition->name, "ui/desktop-icon-image");
+  EXPECT_EQ(label->definition->name, "ui/desktop-icon-label");
 
   ASSERT_EQ(label->children.size(), 1u);
   auto label_box = label->children[0];
   ASSERT_NE(label_box, nullptr);
-  ASSERT_NE(label_box->mode, nullptr);
-  ASSERT_FALSE(label_box->mode->class_names.empty());
-  EXPECT_EQ(label_box->mode->class_names[0], "ui/desktop-icon-label-box");
+  ASSERT_NE(label_box->definition, nullptr);
+  ASSERT_FALSE(label_box->definition->class_names.empty());
+  EXPECT_EQ(label_box->definition->class_names[0], "ui/desktop-icon-label-box");
 
   ASSERT_EQ(label_box->children.size(), 1u);
   auto label_text = label_box->children[0];
   ASSERT_NE(label_text, nullptr);
-  ASSERT_NE(label_text->mode, nullptr);
-  EXPECT_EQ(label_text->mode->name, "ui/text");
-  ASSERT_FALSE(label_text->mode->class_names.empty());
-  EXPECT_EQ(label_text->mode->class_names[0], "ui/desktop-icon-label-text");
+  ASSERT_NE(label_text->definition, nullptr);
+  EXPECT_EQ(label_text->definition->name, "ui/text");
+  ASSERT_FALSE(label_text->definition->class_names.empty());
+  EXPECT_EQ(label_text->definition->class_names[0], "ui/desktop-icon-label-text");
 
   auto wrapper_selected =
     Roo::Dict::get_property(icon->state, Roo::keyword("selected"));
@@ -202,18 +202,18 @@ TEST_F(IconTest, make_desktop_icon_functions_construct_icon_and_preview)
   auto preview = session.active_mode->children[1];
   ASSERT_NE(icon, nullptr);
   ASSERT_NE(preview, nullptr);
-  ASSERT_NE(icon->mode, nullptr);
-  ASSERT_NE(preview->mode, nullptr);
-  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
-  EXPECT_EQ(preview->mode->name, "ui/desktop-icon-preview");
+  ASSERT_NE(icon->definition, nullptr);
+  ASSERT_NE(preview->definition, nullptr);
+  EXPECT_EQ(icon->definition->name, "ui/desktop-icon");
+  EXPECT_EQ(preview->definition->name, "ui/desktop-icon-preview");
   EXPECT_EQ(preview->bounds.x, 12);
   EXPECT_EQ(preview->bounds.y, 14);
 
   ASSERT_EQ(icon->children.size(), 2u);
   auto image = icon->children[0];
   ASSERT_NE(image, nullptr);
-  ASSERT_NE(image->mode, nullptr);
-  EXPECT_EQ(image->mode->name, "test/desktop-icon-image");
+  ASSERT_NE(image->definition, nullptr);
+  EXPECT_EQ(image->definition->name, "test/desktop-icon-image");
 
   auto icon_item = Roo::Dict::get_property(icon->state, Roo::keyword("item"));
   auto image_item = Roo::Dict::get_property(image->state, Roo::keyword("item"));
@@ -249,12 +249,12 @@ TEST_F(IconTest, make_desktop_icon_can_be_wrapped_with_drag_behavior)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto icon = session.active_mode->children[0];
   ASSERT_NE(icon, nullptr);
-  ASSERT_NE(icon->mode, nullptr);
-  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
-  ASSERT_TRUE(icon->mode->drag.has_value());
-  ASSERT_NE(icon->mode->on_drag_start, nullptr);
-  ASSERT_NE(icon->mode->on_drag, nullptr);
-  ASSERT_NE(icon->mode->on_drag_end, nullptr);
+  ASSERT_NE(icon->definition, nullptr);
+  EXPECT_EQ(icon->definition->name, "ui/desktop-icon");
+  ASSERT_TRUE(icon->definition->drag.has_value());
+  ASSERT_NE(icon->definition->on_drag_start, nullptr);
+  ASSERT_NE(icon->definition->on_drag, nullptr);
+  ASSERT_NE(icon->definition->on_drag_end, nullptr);
   ASSERT_EQ(icon->children.size(), 2u);
 }
 
@@ -317,14 +317,14 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
-  ASSERT_NE(child->mode, nullptr);
-  ASSERT_TRUE(child->mode->drag.has_value());
-  ASSERT_NE(child->mode->on_drag_start, nullptr);
-  ASSERT_NE(child->mode->on_drag, nullptr);
-  ASSERT_NE(child->mode->on_drag_end, nullptr);
-  ASSERT_NE(child->mode->on_drag_start->type, Roo::Value::Type::NIL);
-  ASSERT_NE(child->mode->on_drag->type, Roo::Value::Type::NIL);
-  ASSERT_NE(child->mode->on_drag_end->type, Roo::Value::Type::NIL);
+  ASSERT_NE(child->definition, nullptr);
+  ASSERT_TRUE(child->definition->drag.has_value());
+  ASSERT_NE(child->definition->on_drag_start, nullptr);
+  ASSERT_NE(child->definition->on_drag, nullptr);
+  ASSERT_NE(child->definition->on_drag_end, nullptr);
+  ASSERT_NE(child->definition->on_drag_start->type, Roo::Value::Type::NIL);
+  ASSERT_NE(child->definition->on_drag->type, Roo::Value::Type::NIL);
+  ASSERT_NE(child->definition->on_drag_end->type, Roo::Value::Type::NIL);
   ASSERT_EQ(child->bounds.x, 0);
   ASSERT_EQ(child->bounds.y, 0);
   ASSERT_EQ(child->bounds.w, 30);
@@ -668,8 +668,8 @@ TEST_F(IconTest, make_grid_wraps_icon_container_in_auto_scroll_pane)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
-  ASSERT_NE(pane->mode, nullptr);
-  EXPECT_EQ(pane->mode->name, "ui/scroll-pane");
+  ASSERT_NE(pane->definition, nullptr);
+  EXPECT_EQ(pane->definition->name, "ui/scroll-pane");
 
   auto content_size =
     Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
@@ -690,8 +690,8 @@ TEST_F(IconTest, make_grid_wraps_icon_container_in_auto_scroll_pane)
   ASSERT_EQ(content->children.size(), 1u);
   auto container = content->children[0];
   ASSERT_NE(container, nullptr);
-  ASSERT_NE(container->mode, nullptr);
-  EXPECT_EQ(container->mode->name, "ui/icon-container");
+  ASSERT_NE(container->definition, nullptr);
+  EXPECT_EQ(container->definition->name, "ui/icon-container");
   EXPECT_EQ(container->bounds.h, 48);
 }
 

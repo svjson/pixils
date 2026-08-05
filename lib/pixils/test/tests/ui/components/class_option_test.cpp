@@ -14,10 +14,10 @@ namespace
   bool has_class(const std::shared_ptr<Pixils::Runtime::View>& view,
                  const std::string& class_name)
   {
-    return view && view->mode &&
-           std::find(view->mode->class_names.begin(),
-                     view->mode->class_names.end(),
-                     class_name) != view->mode->class_names.end();
+    return view && view->definition &&
+           std::find(view->definition->class_names.begin(),
+                     view->definition->class_names.end(),
+                     class_name) != view->definition->class_names.end();
   }
 } // namespace
 

@@ -4,6 +4,8 @@
 #include <pixils/benchmark/counters.h>
 #include <pixils/ui/event.h>
 
+#include <roo/runtime/dict.h>
+
 namespace Pixils::Runtime
 {
   namespace
@@ -16,6 +18,18 @@ namespace Pixils::Runtime
       if (lhs->type != rhs->type) return false;
 
       return *lhs == *rhs;
+    }
+
+    bool shared_policy(const View& view)
+    {
+      return view.component && view.state_policy == "shared" &&
+             !view.component->ui_state_keys.empty();
+    }
+
+    bool map_contains_key(const Roo::sptr_val& value, const std::string& key)
+    {
+      return value && value->type == Roo::Value::Type::MAP &&
+             Roo::Dict::contains_key(*value, key);
     }
 
   } // namespace
@@ -69,6 +83,68 @@ namespace Pixils::Runtime
     state = next_state;
     mark_state_changed();
     return true;
+  }
+
+  bool View::set_ui_state_if_changed(const Roo::sptr_val& next_state)
+  {
+    if (rtval_equal(ui_state, next_state))
+    {
+      return false;
+    }
+
+    ui_state = next_state;
+    mark_state_changed();
+    return true;
+  }
+
+  bool View::has_component_ui_state() const
+  {
+    return component != nullptr;
+  }
+
+  void View::seed_ui_state_from_shared_state_policy()
+  {
+    if (!shared_policy(*this)) return;
+
+    auto next_ui_state = ui_state && ui_state->type == Roo::Value::Type::MAP
+                           ? Roo::Dict::shallow_copy(ui_state)
+                           : Roo::map({});
+    bool changed = false;
+    for (const auto& key : component->ui_state_keys)
+    {
+      if (map_contains_key(state, key) && !map_contains_key(next_ui_state, key))
+      {
+        Roo::Dict::set_property(next_ui_state,
+                                Roo::keyword(key),
+                                Roo::Dict::get_property(state, Roo::keyword(key)));
+        changed = true;
+      }
+    }
+    if (changed) set_ui_state_if_changed(next_ui_state);
+  }
+
+  void View::sync_state_from_shared_ui_state_policy()
+  {
+    if (!shared_policy(*this) || !ui_state || ui_state->type != Roo::Value::Type::MAP)
+    {
+      return;
+    }
+
+    auto next_state = state && state->type == Roo::Value::Type::MAP
+                        ? Roo::Dict::shallow_copy(state)
+                        : Roo::map({});
+    bool changed = false;
+    for (const auto& key : component->ui_state_keys)
+    {
+      if (map_contains_key(ui_state, key))
+      {
+        Roo::Dict::set_property(next_state,
+                                Roo::keyword(key),
+                                Roo::Dict::get_property(ui_state, Roo::keyword(key)));
+        changed = true;
+      }
+    }
+    if (changed) set_state_if_changed(next_state);
   }
 
   void View::emit_event(const CustomEvent& event)

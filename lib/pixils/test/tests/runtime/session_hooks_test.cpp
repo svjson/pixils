@@ -110,8 +110,8 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_content_size_hook_resolves)
 
   // Then
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_NE(session.active_mode->mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->content_size->type, Roo::Value::Type::FUNCTION);
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->content_size->type, Roo::Value::Type::FUNCTION);
 }
 
 TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
@@ -158,20 +158,20 @@ TEST_F(SessionHooksTest, key_down_push_pop_does_not_replay_into_new_active_mode)
 
   input().key_down(SDLK_I);
   update_cycle();
-  ASSERT_EQ(session.active_mode->mode->name, "inventory-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "inventory-mode");
 
   update_cycle();
-  EXPECT_EQ(session.active_mode->mode->name, "inventory-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "inventory-mode");
 
   input().key_up(SDLK_I);
   update_cycle();
 
   input().key_down(SDLK_I);
   update_cycle();
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
   update_cycle();
-  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }
 
 TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)

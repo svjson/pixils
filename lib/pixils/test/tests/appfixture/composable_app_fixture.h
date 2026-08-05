@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/value.h>
 #include <memory>

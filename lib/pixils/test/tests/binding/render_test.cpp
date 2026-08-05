@@ -2259,7 +2259,7 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
 
   auto& child = session.active_mode->children.at(0);
   ASSERT_NE(child, nullptr);
-  EXPECT_EQ(child->mode->name, "ui/text");
+  EXPECT_EQ(child->definition->name, "ui/text");
 
   ASSERT_NO_THROW(session.render_mode());
 

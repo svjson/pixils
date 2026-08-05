@@ -21,6 +21,7 @@ namespace Pixils::UI
 
 namespace Pixils::Runtime
 {
+  struct Component;
   struct Mode;
   struct ModeComposition;
   struct View;
@@ -35,6 +36,7 @@ namespace Pixils::Script
 
   inline const std::string FN__PIXILS__MAKE_DISPLAY = "pixils/make-display";
   inline const std::string FN__PIXILS__MAKE_MODE = "pixils/make-mode";
+  inline const std::string FN__PIXILS__MAKE_COMPONENT = "pixils/make-component";
   inline const std::string FN__PIXILS__MAKE_MODE_COMPOSITION =
     "pixils/make-mode-composition";
   inline const std::string FN__PIXILS__MAKE_DIMENSION = "pixils/make-dimension";
@@ -74,6 +76,7 @@ namespace Pixils::Script
     HOST_TYPE(FRAME_EVENTS, "HFrameEvents")
     HOST_TYPE(HOOK_CONTEXT, "HHookContext")
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
+    HOST_TYPE(COMPONENT, "HComponent", FN__PIXILS__MAKE_COMPONENT)
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
     HOST_TYPE(INTERACTION_STATE, "HInteractionState")
@@ -96,6 +99,8 @@ namespace Pixils::Script
     SPECIAL_FORM_DECL(DefProgramForm, def_program);
     /*! @brief Define a game/application mode */
     SPECIAL_FORM_DECL(DefModeForm, declare_mode);
+    /*! @brief Define a UI component */
+    SPECIAL_FORM_DECL(DefComponentForm, declare_component);
     /*! @brief Define a named theme */
     SPECIAL_FORM_DECL(DefThemeForm, declare_theme);
   } // namespace Macro
@@ -104,6 +109,8 @@ namespace Pixils::Script
   {
     /*! @brief Roo make-function for Mode/ModeAdapter */
     FUNC(MakeMode, make);
+    /*! @brief Roo make-function for Component/ComponentAdapter */
+    FUNC(MakeComponent, make);
     /*! @brief Roo make-function for ModeComposition/ModeCompositionAdapter */
     FUNC(MakeModeComposition, make);
     /*! @brief Roo make-function for Dimension/DimensionAdapter */
@@ -156,6 +163,8 @@ namespace Pixils::Script
                  Runtime::View,
                  (id,
                   state,
+                  ui_state,
+                  state_policy,
                   bounds,
                   external_bounds,
                   visual_bounds,
@@ -170,6 +179,8 @@ namespace Pixils::Script
                   on_double_click));
   /*! @brief ModeAdapter - A Roo HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
+  /*! @brief ComponentAdapter - A Roo HostObject Adapter for Component */
+  NATIVE_ADAPTER(ComponentAdapter, Runtime::Component, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Roo HostObject Adapter for ModeComposition */
   NATIVE_ADAPTER(ModeCompositionAdapter,
                  Runtime::ModeComposition,

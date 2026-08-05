@@ -39,7 +39,7 @@ namespace Pixils::UI
 
     Style interaction_style(const std::shared_ptr<Runtime::View>& view)
     {
-      Style style = resolve_style(view->mode->style, view->state, view->interaction);
+      Style style = resolve_style(view->definition->style, view->state, view->interaction);
       if (view->effective_style.visibility)
         style.visibility = view->effective_style.visibility;
       if (view->effective_style.hit_test) style.hit_test = view->effective_style.hit_test;
@@ -92,11 +92,11 @@ namespace Pixils::UI
 
     bool has_drag_hooks(const std::shared_ptr<Runtime::View>& view)
     {
-      return (view->mode->on_drag_start &&
-              view->mode->on_drag_start->type != Roo::Value::Type::NIL) ||
-             (view->mode->on_drag && view->mode->on_drag->type != Roo::Value::Type::NIL) ||
-             (view->mode->on_drag_end &&
-              view->mode->on_drag_end->type != Roo::Value::Type::NIL);
+      return (view->definition->on_drag_start &&
+              view->definition->on_drag_start->type != Roo::Value::Type::NIL) ||
+             (view->definition->on_drag && view->definition->on_drag->type != Roo::Value::Type::NIL) ||
+             (view->definition->on_drag_end &&
+              view->definition->on_drag_end->type != Roo::Value::Type::NIL);
     }
 
     std::optional<std::pair<size_t, DragPolicy>> drag_policy_for_chain(
@@ -106,10 +106,10 @@ namespace Pixils::UI
       for (size_t i = 0; i < chain.size(); i++)
       {
         auto& view = chain[i];
-        if (view->mode->drag)
+        if (view->definition->drag)
         {
-          if (view->mode->drag->button == button)
-            return std::make_pair(i, *view->mode->drag);
+          if (view->definition->drag->button == button)
+            return std::make_pair(i, *view->definition->drag);
           continue;
         }
 
@@ -191,7 +191,7 @@ namespace Pixils::UI
 
     bool view_suppresses_interaction(const std::shared_ptr<Runtime::View>& view)
     {
-      return !view || !view->mode || suppresses_interaction(interaction_style(view));
+      return !view || !view->definition || suppresses_interaction(interaction_style(view));
     }
 
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
@@ -233,7 +233,7 @@ namespace Pixils::UI
     }
 
     void bubble_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                     Roo::sptr_val Runtime::Mode::* hook_field,
+                     Roo::sptr_val Runtime::ViewDefinition::* hook_field,
                      const Roo::sptr_val& ev_ref,
                      bool& propagation_stopped,
                      const std::function<void(size_t)>& set_local_pos,
@@ -246,7 +246,7 @@ namespace Pixils::UI
         if (!propagation_stopped && !view_disabled(view))
         {
           set_local_pos(i);
-          fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
+          fire_hook_on_view(view, view->definition->*hook_field, ev_ref, hook_args, rt);
         }
         if (i + 1 < chain.size())
         {
@@ -313,7 +313,7 @@ namespace Pixils::UI
     }
 
     void bubble_drag_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                          Roo::sptr_val Runtime::Mode::* hook_field,
+                          Roo::sptr_val Runtime::ViewDefinition::* hook_field,
                           DragEvent& ev,
                           Runtime::HookArguments& hook_args,
                           Roo::Runtime& rt)
@@ -396,7 +396,8 @@ namespace Pixils::UI
         .policy = drag_state.policy,
       };
 
-      bubble_drag_hook(chain, &Runtime::Mode::on_drag_start, drag_start_ev, hook_args, rt);
+      bubble_drag_hook(
+        chain, &Runtime::ViewDefinition::on_drag_start, drag_start_ev, hook_args, rt);
       drag_state.active = true;
       drag_state.last_global_pos = gp;
     }
@@ -568,8 +569,8 @@ namespace Pixils::UI
       const std::shared_ptr<Runtime::View>& view,
       const KeyboardEvent& key_event)
     {
-      if (!view || !view->mode || !view->mode->action_map ||
-          view->mode->action_map->type == Roo::Value::Type::NIL)
+      if (!view || !view->definition || !view->definition->action_map ||
+          view->definition->action_map->type == Roo::Value::Type::NIL)
       {
         return std::nullopt;
       }
@@ -596,10 +597,10 @@ namespace Pixils::UI
         return CustomEvent{
           action,
           payload && payload->type != Roo::Value::Type::NIL ? payload : Roo::Constant::NIL,
-          view->mode ? Roo::symbol(view->mode->name) : Roo::Constant::NIL};
+          view->definition ? Roo::symbol(view->definition->name) : Roo::Constant::NIL};
       };
 
-      auto action_map = view->mode->action_map;
+      auto action_map = view->definition->action_map;
       if (action_map->type != Roo::Value::Type::MAP)
       {
         return std::nullopt;
@@ -681,10 +682,10 @@ namespace Pixils::UI
 
     bool button_mode(const std::shared_ptr<Runtime::View>& view)
     {
-      if (!view || !view->mode) return false;
-      return std::find(view->mode->selector_modes.begin(),
-                       view->mode->selector_modes.end(),
-                       "ui/button") != view->mode->selector_modes.end();
+      if (!view || !view->definition) return false;
+      return std::find(view->definition->selector_modes.begin(),
+                       view->definition->selector_modes.end(),
+                       "ui/button") != view->definition->selector_modes.end();
     }
 
     Point keyboard_click_global_pos(const std::vector<std::shared_ptr<Runtime::View>>& chain)
@@ -726,7 +727,7 @@ namespace Pixils::UI
       auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
       bubble_hook(
         chain,
-        &Runtime::Mode::on_click,
+        &Runtime::ViewDefinition::on_click,
         click_ev_ref,
         click_ev.propagation_stopped,
         [&](size_t index)
@@ -737,7 +738,7 @@ namespace Pixils::UI
     }
 
     void bubble_keyboard_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                              Roo::sptr_val Runtime::Mode::* hook_field,
+                              Roo::sptr_val Runtime::ViewDefinition::* hook_field,
                               KeyboardEvent& event,
                               Runtime::HookArguments& hook_args,
                               Roo::Runtime& rt)
@@ -748,11 +749,11 @@ namespace Pixils::UI
         auto& view = chain[i];
         if (!event.propagation_stopped && !view_disabled(view))
         {
-          fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
+          fire_hook_on_view(view, view->definition->*hook_field, ev_ref, hook_args, rt);
         }
 
         if (!event.propagation_stopped && !view_disabled(view) &&
-            hook_field == &Runtime::Mode::on_key_down)
+            hook_field == &Runtime::ViewDefinition::on_key_down)
         {
           if (i == 0 && dispatch_keyboard_button_click(chain, event, hook_args, rt))
           {
@@ -761,7 +762,7 @@ namespace Pixils::UI
         }
 
         if (!event.propagation_stopped && !view_disabled(view) &&
-            hook_field == &Runtime::Mode::on_key_down)
+            hook_field == &Runtime::ViewDefinition::on_key_down)
         {
           if (dispatch_action_map_event(chain, i, event, hook_args, rt))
           {
@@ -790,7 +791,7 @@ namespace Pixils::UI
       for (size_t i = 0; i < chain.size(); i++)
       {
         auto& view = chain[i];
-        auto& hook = view->mode->on_key_held;
+        auto& hook = view->definition->on_key_held;
 
         if (hook && hook->type != Roo::Value::Type::NIL)
         {
@@ -926,7 +927,7 @@ namespace Pixils::UI
 
     bool is_focusable(const std::shared_ptr<Runtime::View>& view)
     {
-      return view && view->mode && view->mode->focusable && !view_disabled(view) &&
+      return view && view->definition && view->definition->focusable && !view_disabled(view) &&
              !view_suppresses_interaction(view);
     }
 
@@ -1125,7 +1126,7 @@ namespace Pixils::UI
         auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
         bubble_hook(
           chain,
-          &Runtime::Mode::on_mouse_up,
+          &Runtime::ViewDefinition::on_mouse_up,
           ev_ref,
           ev.propagation_stopped,
           [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
@@ -1152,7 +1153,7 @@ namespace Pixils::UI
               drag_end_ev.payload = mouse_state.drag_operation->payload;
             }
             bubble_drag_hook(pressed_chain,
-                             &Runtime::Mode::on_drag_end,
+                             &Runtime::ViewDefinition::on_drag_end,
                              drag_end_ev,
                              hook_args,
                              rt);
@@ -1162,7 +1163,7 @@ namespace Pixils::UI
           drop_ev.button = events.mouse_button_up;
           if (mouse_state.drag_operation)
             drop_ev.payload = mouse_state.drag_operation->payload;
-          bubble_drag_hook(chain, &Runtime::Mode::on_drop, drop_ev, hook_args, rt);
+          bubble_drag_hook(chain, &Runtime::ViewDefinition::on_drop, drop_ev, hook_args, rt);
           mouse_state.drag_operation = std::nullopt;
         }
       }
@@ -1183,7 +1184,7 @@ namespace Pixils::UI
           std::vector<std::shared_ptr<Runtime::View>> click_chain(it, chain.end());
           bubble_hook(
             click_chain,
-            &Runtime::Mode::on_click,
+            &Runtime::ViewDefinition::on_click,
             click_ev_ref,
             click_ev.propagation_stopped,
             [&](size_t index)
@@ -1201,7 +1202,7 @@ namespace Pixils::UI
               Script::MouseButtonEventAdapter::make_ref(double_click_ev);
             bubble_hook(
               click_chain,
-              &Runtime::Mode::on_double_click,
+              &Runtime::ViewDefinition::on_double_click,
               double_click_ev_ref,
               double_click_ev.propagation_stopped,
               [&](size_t index)
@@ -1276,7 +1277,7 @@ namespace Pixils::UI
       auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
       bubble_hook(
         hit_chain,
-        &Runtime::Mode::on_mouse_down,
+        &Runtime::ViewDefinition::on_mouse_down,
         ev_ref,
         ev.propagation_stopped,
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, hit_chain, index); },
@@ -1315,7 +1316,7 @@ namespace Pixils::UI
       auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
       bubble_hook(
         chain,
-        &Runtime::Mode::on_mouse_motion,
+        &Runtime::ViewDefinition::on_mouse_motion,
         ev_ref,
         ev.propagation_stopped,
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
@@ -1339,7 +1340,7 @@ namespace Pixils::UI
       auto ev_ref = Script::MouseWheelEventAdapter::make_ref(ev);
       bubble_hook(
         chain,
-        &Runtime::Mode::on_mouse_wheel,
+        &Runtime::ViewDefinition::on_mouse_wheel,
         ev_ref,
         ev.propagation_stopped,
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
@@ -1379,7 +1380,7 @@ namespace Pixils::UI
           mouse_state.drag_operation->current_global_pos = gp;
           drag_ev.payload = mouse_state.drag_operation->payload;
         }
-        bubble_drag_hook(chain, &Runtime::Mode::on_drag, drag_ev, hook_args, rt);
+        bubble_drag_hook(chain, &Runtime::ViewDefinition::on_drag, drag_ev, hook_args, rt);
         drag_state.last_global_pos = gp;
       }
     }
@@ -1411,7 +1412,7 @@ namespace Pixils::UI
                                  : local_pos_in_view(mouse_pos, old_chain, 0);
           auto ev_ref = Script::MouseEventAdapter::make_ref(leave_ev);
           fire_hook_on_view(old_hovered,
-                            old_hovered->mode->on_mouse_leave,
+                            old_hovered->definition->on_mouse_leave,
                             ev_ref,
                             hook_args,
                             rt);
@@ -1429,7 +1430,7 @@ namespace Pixils::UI
           enter_ev.local_pos = local_pos_in_view(mouse_pos, hit_chain, 0);
           auto ev_ref = Script::MouseEventAdapter::make_ref(enter_ev);
           fire_hook_on_view(new_hovered,
-                            new_hovered->mode->on_mouse_enter,
+                            new_hovered->definition->on_mouse_enter,
                             ev_ref,
                             hook_args,
                             rt);
@@ -1472,7 +1473,8 @@ namespace Pixils::UI
       KeyboardEvent event;
       event.key = events.key_down;
       event.held_keys = events.held_keys;
-      bubble_keyboard_hook(chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
+      bubble_keyboard_hook(
+        chain, &Runtime::ViewDefinition::on_key_down, event, hook_args, runtime);
       if (!event.propagation_stopped && focus_view_by_tab(root, focus_state, event))
       {
         event.propagation_stopped = true;
@@ -1486,7 +1488,8 @@ namespace Pixils::UI
       KeyboardEvent event;
       event.key = events.key_up;
       event.held_keys = events.held_keys;
-      bubble_keyboard_hook(chain, &Runtime::Mode::on_key_up, event, hook_args, runtime);
+      bubble_keyboard_hook(
+        chain, &Runtime::ViewDefinition::on_key_up, event, hook_args, runtime);
     }
   }
 

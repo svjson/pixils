@@ -249,7 +249,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   ASSERT_NO_THROW(session().push_mode("test-mode", Roo::Constant::NIL));
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "test-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "test-mode");
 
   auto ticks =
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("ticks"));
@@ -266,7 +266,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   ASSERT_NO_THROW(session().push_mode("test-mode", Roo::Constant::NIL));
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "test-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "test-mode");
 
   auto ticks =
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("ticks"));
@@ -285,7 +285,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   ASSERT_NO_THROW(session().push_mode("counter", eval("{:value 123}")));
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "counter");
+  EXPECT_EQ(session().active_mode->definition->name, "counter");
 
   auto value =
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("value"));
@@ -306,7 +306,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
   auto view = std::make_shared<Pixils::Runtime::View>();
-  view->mode = &mode;
+  view->definition = &mode;
   view->state = Roo::Constant::NIL;
 
   Roo::sptr_val result;
@@ -343,7 +343,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
   auto view = std::make_shared<Pixils::Runtime::View>();
-  view->mode = &mode;
+  view->definition = &mode;
   view->state = Roo::Constant::NIL;
 
   Roo::sptr_val result;
@@ -368,7 +368,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   EXPECT_EQ(program.initial_mode, "root-mode");
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session().active_mode->definition->name, "root-mode");
 
   auto ticks =
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("ticks"));
@@ -387,7 +387,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   EXPECT_FALSE(program.initial_mode.empty());
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, program.initial_mode);
+  EXPECT_EQ(session().active_mode->definition->name, program.initial_mode);
 }
 
 TEST_F(ComposableAppSessionFixtureTest,
@@ -401,7 +401,7 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   EXPECT_FALSE(program.initial_mode.empty());
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->mode->name, program.initial_mode);
+  EXPECT_EQ(session().active_mode->definition->name, program.initial_mode);
 }
 
 TEST_F(ComposableAppSessionFixtureTest,

@@ -718,7 +718,7 @@ TEST_F(ScrollPaneTest, scroll_pane_content_accepts_runtime_child_appends_from_pa
     auto appended = content->children[index];
     ASSERT_NE(appended, nullptr);
     EXPECT_EQ(appended->id, "runtime-row-" + std::to_string(index));
-    EXPECT_EQ(appended->mode->name, "appended-row");
+    EXPECT_EQ(appended->definition->name, "appended-row");
   }
 }
 
@@ -760,7 +760,7 @@ TEST_F(ScrollPaneTest, scroll_pane_child_component_accepts_runtime_child_appends
   ASSERT_NE(list, nullptr);
   ASSERT_EQ(list->children.size(), 1u);
   EXPECT_EQ(list->children[0]->id, "runtime-row");
-  EXPECT_EQ(list->children[0]->mode->name, "appended-row");
+  EXPECT_EQ(list->children[0]->definition->name, "appended-row");
 }
 
 TEST_F(ScrollPaneTest, auto_scrollbar_is_present_on_first_render_from_measured_content)

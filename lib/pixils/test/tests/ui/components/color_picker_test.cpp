@@ -24,10 +24,10 @@ namespace
   bool has_class(const std::shared_ptr<Pixils::Runtime::View>& view,
                  const std::string& class_name)
   {
-    return view && view->mode &&
-           std::find(view->mode->class_names.begin(),
-                     view->mode->class_names.end(),
-                     class_name) != view->mode->class_names.end();
+    return view && view->definition &&
+           std::find(view->definition->class_names.begin(),
+                     view->definition->class_names.end(),
+                     class_name) != view->definition->class_names.end();
   }
 
   std::shared_ptr<Pixils::Runtime::View> find_first_mode(
@@ -35,7 +35,7 @@ namespace
     const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
     for (const auto& child : view->children)
     {
       if (auto found = find_first_mode(child, mode_name)) return found;
@@ -48,7 +48,7 @@ namespace
     const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/button")
+    if (view->definition && view->definition->name == "ui/button")
     {
       auto label = get_key(view->state, "label");
       if (label && label->str() == label_text) return view;
@@ -94,7 +94,7 @@ TEST_F(ColorPickerTest, color_picker_make_constructs_swatch_and_normalizes_color
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto picker = session.active_mode->children[0];
   ASSERT_NE(picker, nullptr);
-  EXPECT_EQ(picker->mode->name, "ui/color-picker");
+  EXPECT_EQ(picker->definition->name, "ui/color-picker");
   EXPECT_TRUE(has_class(picker, "paint/accent"));
 
   auto color = get_key(picker->state, "value");
@@ -107,7 +107,7 @@ TEST_F(ColorPickerTest, color_picker_make_constructs_swatch_and_normalizes_color
   ASSERT_EQ(picker->children.size(), 1u);
   auto swatch = picker->children[0];
   ASSERT_NE(swatch, nullptr);
-  EXPECT_EQ(swatch->mode->name, "ui/color-swatch");
+  EXPECT_EQ(swatch->definition->name, "ui/color-swatch");
   EXPECT_TRUE(has_class(swatch, "ui/color-picker-swatch"));
   EXPECT_TRUE(has_class(swatch, "paint/accent-swatch"));
   EXPECT_GT(swatch->bounds.w, 0);
@@ -161,7 +161,7 @@ TEST_F(ColorPickerTest, clicking_color_picker_opens_default_dialog_editor)
   update_cycle();
 
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "ui/color-picker-dialog");
+  EXPECT_EQ(session.active_mode->definition->name, "ui/color-picker-dialog");
   auto editor = find_first_mode(session.active_mode, "ui/color-editor");
   ASSERT_NE(editor, nullptr);
   auto color = get_key(editor->state, "value");
@@ -202,7 +202,7 @@ TEST_F(ColorPickerTest, color_picker_dialog_renders_over_underlying_mode)
   render_target()->render_ops.clear();
   session.render_mode();
 
-  ASSERT_EQ(session.active_mode->mode->name, "ui/color-picker-dialog");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/color-picker-dialog");
   EXPECT_TRUE(has_fill_rect(render_target()->render_ops, SDL_Rect{0, 0, 320, 200}));
   EXPECT_NE(find_first_mode(session.active_mode, "ui/color-editor"), nullptr);
 }
@@ -261,7 +261,7 @@ TEST_F(ColorPickerTest, default_dialog_ok_commits_edited_color_to_picker)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto color = get_key(session.active_mode->state, "color");
   auto last_change = get_key(session.active_mode->state, "last-change");
   ASSERT_NE(color, nullptr);

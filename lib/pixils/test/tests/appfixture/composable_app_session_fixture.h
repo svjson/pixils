@@ -4,6 +4,7 @@
 #include "../input_simulator.h"
 #include "app_manifest.h"
 #include <pixils/context.h>
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
@@ -12,6 +13,7 @@
 #include <SDL3/SDL_render.h>
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/value.h>
 #include <memory>

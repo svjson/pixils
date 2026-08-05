@@ -82,14 +82,14 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   ASSERT_EQ(button->children.size(), 1u);
   auto button_inner = button->children[0];
   ASSERT_NE(button_inner, nullptr);
-  ASSERT_FALSE(button_inner->mode->selector_modes.empty());
-  EXPECT_EQ(button_inner->mode->selector_modes[0], "ui/button-inner");
+  ASSERT_FALSE(button_inner->definition->selector_modes.empty());
+  EXPECT_EQ(button_inner->definition->selector_modes[0], "ui/button-inner");
   ASSERT_EQ(button_inner->children.size(), 1u);
   auto label = button_inner->children[0];
   ASSERT_NE(label, nullptr);
-  ASSERT_EQ(label->mode->name, "ui/text");
-  ASSERT_FALSE(label->mode->selector_modes.empty());
-  EXPECT_EQ(label->mode->selector_modes[0], "ui/text");
+  ASSERT_EQ(label->definition->name, "ui/text");
+  ASSERT_FALSE(label->definition->selector_modes.empty());
+  EXPECT_EQ(label->definition->selector_modes[0], "ui/text");
   ASSERT_TRUE(label->effective_style.padding.has_value());
   EXPECT_GT(label->effective_style.padding->t, 0);
   EXPECT_GT(label->effective_style.padding->r, 0);
@@ -439,7 +439,7 @@ TEST_F(ButtonTest, render_through_interaction_refresh_clears_covered_button_pres
   input().mouse_down({5, 5});
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "modal-mode");
+  EXPECT_EQ(session.active_mode->definition->name, "modal-mode");
 
   session.render_mode();
 
@@ -457,6 +457,111 @@ TEST_F(ButtonTest, render_through_interaction_refresh_clears_covered_button_pres
   auto updates = get_key(covered_root->state, "updates");
   ASSERT_NE(updates, nullptr);
   EXPECT_EQ(updates->num().get_int(), 2);
+}
+
+TEST_F(ButtonTest, button_shared_state_policy_records_pressed_in_state_and_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  auto button_pressed = get_key(button->state, "pressed");
+  auto button_ui_pressed = get_key(button->ui_state, "pressed");
+  ASSERT_NE(button_pressed, nullptr);
+  ASSERT_NE(button_ui_pressed, nullptr);
+  EXPECT_EQ(button_pressed->to_string(), "true");
+  EXPECT_EQ(button_ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  auto inner_pressed = get_key(inner->state, "pressed");
+  auto inner_ui_pressed = get_key(inner->ui_state, "pressed");
+  ASSERT_NE(inner_pressed, nullptr);
+  ASSERT_NE(inner_ui_pressed, nullptr);
+  EXPECT_EQ(inner_pressed->to_string(), "true");
+  EXPECT_EQ(inner_ui_pressed->to_string(), "true");
+}
+
+TEST_F(ButtonTest, button_isolated_state_policy_records_pressed_only_in_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :ui/state-policy :isolated
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  auto button_pressed = get_key(button->state, "pressed");
+  auto button_ui_pressed = get_key(button->ui_state, "pressed");
+  EXPECT_TRUE(button_pressed == nullptr || button_pressed->type == Roo::Value::Type::NIL);
+  ASSERT_NE(button_ui_pressed, nullptr);
+  EXPECT_EQ(button_ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  auto inner_pressed = get_key(inner->state, "pressed");
+  auto inner_ui_pressed = get_key(inner->ui_state, "pressed");
+  EXPECT_TRUE(inner_pressed == nullptr || inner_pressed->type == Roo::Value::Type::NIL);
+  ASSERT_NE(inner_ui_pressed, nullptr);
+  EXPECT_EQ(inner_ui_pressed->to_string(), "true");
+}
+
+TEST_F(ButtonTest, button_inner_pressed_state_survives_outer_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"}
+                   :update (fn [state ctx]
+                             {:label (:label state)})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  auto button_ui_pressed = get_key(button->ui_state, "pressed");
+  ASSERT_NE(button_ui_pressed, nullptr);
+  EXPECT_EQ(button_ui_pressed->to_string(), "true");
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  auto inner_pressed = get_key(inner->state, "pressed");
+  auto inner_ui_pressed = get_key(inner->ui_state, "pressed");
+  ASSERT_NE(inner_pressed, nullptr);
+  ASSERT_NE(inner_ui_pressed, nullptr);
+  EXPECT_EQ(inner_pressed->to_string(), "true");
+  EXPECT_EQ(inner_ui_pressed->to_string(), "true");
 }
 
 TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
@@ -616,9 +721,9 @@ TEST_F(ButtonTest, make_button_builds_button_child_with_state_and_handlers)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto button = session.active_mode->children[0];
   ASSERT_NE(button, nullptr);
-  EXPECT_EQ(button->mode->name, "ui/button");
-  ASSERT_FALSE(button->mode->class_names.empty());
-  EXPECT_EQ(button->mode->class_names[0], "ui/toolbar-button");
+  EXPECT_EQ(button->definition->name, "ui/button");
+  ASSERT_FALSE(button->definition->class_names.empty());
+  EXPECT_EQ(button->definition->class_names[0], "ui/toolbar-button");
   EXPECT_EQ(button->bounds.w, 44);
   EXPECT_EQ(button->bounds.h, 24);
   EXPECT_EQ(get_key(button->state, "label")->str(), "Run");
@@ -880,7 +985,7 @@ TEST_F(ButtonTest, windows_3_window_minimize_button_keeps_inner_button_border_on
   ASSERT_EQ(title_bar->children.size(), 3u);
   auto minimize = title_bar->children[2];
   ASSERT_NE(minimize, nullptr);
-  EXPECT_EQ(minimize->mode->name, "ui/window-minimize-button");
+  EXPECT_EQ(minimize->definition->name, "ui/window-minimize-button");
   ASSERT_TRUE(minimize->effective_style.border.has_value());
   EXPECT_EQ(minimize->effective_style.border->top_thickness(), 0);
   EXPECT_EQ(minimize->effective_style.border->right_thickness(), 0);
@@ -892,7 +997,7 @@ TEST_F(ButtonTest, windows_3_window_minimize_button_keeps_inner_button_border_on
   ASSERT_EQ(minimize->children.size(), 1u);
   auto inner = minimize->children[0];
   ASSERT_NE(inner, nullptr);
-  EXPECT_EQ(inner->mode->name, "ui/button-inner");
+  EXPECT_EQ(inner->definition->name, "ui/button-inner");
   ASSERT_TRUE(inner->effective_style.background.has_value());
   const auto& background = *inner->effective_style.background;
   ASSERT_TRUE(background.image.has_value());

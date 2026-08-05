@@ -57,10 +57,10 @@ namespace Pixils::Runtime
                                                emitted_events,
                                                roo_runtime);
       rargs[0] = ctx.state;
-      if (ctx.mode->update && ctx.mode->update->type != Roo::Value::Type::NIL)
+      if (ctx.definition->update && ctx.definition->update->type != Roo::Value::Type::NIL)
       {
         ctx.set_state_if_changed(
-          invoke_hook(roo_runtime, view, ctx.mode->update, rargs, ctx.state));
+          invoke_hook(roo_runtime, view, ctx.definition->update, rargs, ctx.state));
       }
       mode_stack.update_state(ctx.state, update_stack.size() - i);
 

@@ -88,7 +88,7 @@ namespace
                                                const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/button")
+    if (view->definition && view->definition->name == "ui/button")
     {
       auto label = get_key(view->state, "label");
       if (label && label->str() == label_text) return view;
@@ -107,7 +107,7 @@ namespace
                                                   const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == "ui/list-box-item")
+    if (view->definition && view->definition->name == "ui/list-box-item")
     {
       auto label = get_key(view->state, "label");
       if (label && label->str() == label_text) return view;
@@ -126,7 +126,7 @@ namespace
                                   const std::string& mode_name)
   {
     if (!view) return nullptr;
-    if (view->mode && view->mode->name == mode_name) return view;
+    if (view->definition && view->definition->name == mode_name) return view;
 
     for (const auto& child : view->children)
     {
@@ -151,8 +151,8 @@ namespace
 
   bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
   {
-    if (!view || !view->mode) return false;
-    const auto& classes = view->mode->class_names;
+    if (!view || !view->definition) return false;
+    const auto& classes = view->definition->class_names;
     return std::find(classes.begin(), classes.end(), class_name) != classes.end();
   }
 
@@ -185,7 +185,7 @@ TEST_F(FileDialogTest, open_file_dialog_adds_dialog_specific_classes_for_theming
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.update_mode();
   session.render_mode();
 
@@ -444,7 +444,7 @@ TEST_F(FileDialogTest, invalid_initial_path_opens_empty_dialog_without_crashing)
   session.process_messages();
   frame_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
   auto list_box = find_mode(session.active_mode, "ui/list-box");
   auto content = file_dialog_list_content(list_box);
@@ -478,7 +478,7 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.update_mode();
   session.render_mode();
 
@@ -515,7 +515,7 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
@@ -556,7 +556,7 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.update_mode();
   session.render_mode();
 
@@ -600,7 +600,7 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
@@ -639,7 +639,7 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   session.update_mode();
   session.render_mode();
 
@@ -657,7 +657,7 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
@@ -698,7 +698,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
                       combo->bounds.y + (combo->bounds.h / 2)});
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   session.render_mode();
 
   auto all_files = find_list_item_with_label(session.active_mode, "All files (*)");
@@ -712,7 +712,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
   update_cycle();
   session.render_mode();
 
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   auto entry = find_list_item_with_label(session.active_mode, "    readme.txt");
   ASSERT_NE(entry, nullptr);
   input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
@@ -738,7 +738,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
                    SDL_BUTTON_LEFT);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   auto filter = get_key(result, "filter");
@@ -794,7 +794,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
   update_cycle();
   session.render_mode();
 
-  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
   ASSERT_NE(file_dialog_body, nullptr);
   auto path = get_key(file_dialog_body->state, "path");
@@ -850,7 +850,7 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
                    2);
   update_cycle();
 
-  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");

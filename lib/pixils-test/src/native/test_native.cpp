@@ -549,7 +549,7 @@ namespace
   {
     if (!view) return nullptr;
 
-    const bool mode_matches = view->mode && view->mode->name == wanted_mode;
+    const bool mode_matches = view->definition && view->definition->name == wanted_mode;
     const bool state_matches =
       !state_text.has_value() ||
       (view->state && view->state->to_string().find(*state_text) != std::string::npos);
@@ -573,7 +573,7 @@ namespace
   {
     if (!view) return;
 
-    const bool mode_matches = view->mode && view->mode->name == wanted_mode;
+    const bool mode_matches = view->definition && view->definition->name == wanted_mode;
     const bool state_matches =
       !state_text.has_value() ||
       (view->state && view->state->to_string().find(*state_text) != std::string::npos);
@@ -775,11 +775,11 @@ namespace
     EXEC_BODY(ActiveModeNameFunction, exec_active_mode_name)
     {
       auto& app = app_from(args[0]);
-      if (!app.session->active_mode || !app.session->active_mode->mode)
+      if (!app.session->active_mode || !app.session->active_mode->definition)
       {
         return Roo::Constant::NIL;
       }
-      return Roo::string(app.session->active_mode->mode->name);
+      return Roo::string(app.session->active_mode->definition->name);
     }
 
     FUNC_IMPL(ActiveStateFunction,
@@ -813,8 +813,8 @@ namespace
     EXEC_BODY(ViewModeNameFunction, exec_view_mode_name)
     {
       auto& view = view_from(args[0]);
-      if (!view.mode) return Roo::Constant::NIL;
-      return Roo::string(view.mode->name);
+      if (!view.definition) return Roo::Constant::NIL;
+      return Roo::string(view.definition->name);
     }
 
     FUNC_IMPL(ViewStateFunction,
