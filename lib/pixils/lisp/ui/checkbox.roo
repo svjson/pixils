@@ -87,28 +87,6 @@
       (pt/translate p2 1 0)
       (pt/translate p3 1 0)]]))
 
-(defun interaction-pressed?
-  "Returns the checkbox runtime interaction pressed value, respecting disabled
-  state."
-  [state ctx]
-  (and (not (:disabled? state))
-       (contains? (-> ctx :view :interaction :pressed) :left)
-       (-> ctx :view :interaction :hovered)))
-
-(defun init-pressed-state
-  "Returns initial checkbox UI state. Authored :ui-state :pressed wins over
-  ordinary :state :pressed when both are present."
-  [ui-state state ctx]
-  (assoc ui-state
-         :pressed
-         (if (contains? ui-state :pressed)
-           (:pressed ui-state)
-           (:pressed state))))
-
-(defun sync-pressed-state
-  "Returns checkbox UI state with :pressed derived from runtime interaction."
-  [ui-state state ctx]
-  (assoc ui-state :pressed (interaction-pressed? state ctx)))
 
 
 ;; Inner components
@@ -145,8 +123,16 @@
   {:focusable true
    :class :ui/checkbox
    :ui/state-keys [:pressed]
-   :init-ui init-pressed-state
-   :update-ui sync-pressed-state
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :pressed
+                     (if (contains? ui-state :pressed)
+                       (:pressed ui-state)
+                       (:pressed state))))
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state :pressed (and (not (:disabled? state))
+                                              (contains? (-> ctx :view :interaction :pressed) :left)
+                                              (-> ctx :view :interaction :hovered))))
    :init (fn [state ctx]
            (assoc state :checked? (checked? state)))
    :update (fn [state ctx]
