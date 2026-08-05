@@ -680,7 +680,8 @@
                  :state {:axis :y
                          :value (ui/bind-state :map-offset :y)
                          :step (ui/bind-state :scroll-tile-size)
-                         :content-size (ui/bind-state :content-height)}}]
+                         :content-size (ui/bind-state :content-height)
+                         :viewport-size (ui/bind-state :viewport-height)}}]
 		     :update (fn [state ctx]
 		               (let [size (tm/scaled-tile-size state (:zoom state))]
 		                 (assoc (assoc state :scroll-tile-size (:h size))
@@ -697,7 +698,8 @@
                  :state {:axis :x
                          :value (ui/bind-state :map-offset :x)
                          :step (ui/bind-state :scroll-tile-size)
-                         :content-size (ui/bind-state :content-width)}}
+                         :content-size (ui/bind-state :content-width)
+                         :viewport-size (ui/bind-state :viewport-width)}}
               {:mode 'ui/scrollbar-corner}]
 		     :update (fn [state ctx]
 		               (let [size (tm/scaled-tile-size state (:zoom state))]
@@ -712,6 +714,12 @@
   {:style {:width :fill
            :height :fill
            :layout {:direction :column}}
+   :after-layout (fn [state ctx]
+                   (let [row (head (ui/children ctx))
+                         canvas (head (ui/children row))]
+                     (assoc (assoc state
+                                   :viewport-width (-> canvas :bounds :w))
+                            :viewport-height (-> canvas :bounds :h))))
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
                          :selected-map-id (ui/bind-state :selected-map-id)
@@ -747,6 +755,8 @@
                        (ui/bind-state :terrain-stamp-replacements)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :map-offset (ui/bind-state :map-offset)
+                       :viewport-width (ui/bind-state :viewport-width)
+                       :viewport-height (ui/bind-state :viewport-height)
                        :zoom (ui/bind-state :zoom)
                        :show-terrain-rules?
                        (ui/bind-state :show-terrain-rules?)
@@ -756,4 +766,5 @@
                          :map-width (ui/bind-state :map-width)
                          :map-height (ui/bind-state :map-height)
                          :tile-size (ui/bind-state :tile-size)
+                         :viewport-width (ui/bind-state :viewport-width)
                          :zoom (ui/bind-state :zoom)}}]})
