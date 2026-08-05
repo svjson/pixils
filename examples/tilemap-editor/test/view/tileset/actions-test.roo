@@ -16,6 +16,39 @@
                  :type :number
                  :default 1}]})
 
+(deftest tileset-properties-dialog-result-records-workbook-history
+  (let [state (actions/apply-tileset-properties-dialog-result
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :property-sets [:old]
+                            :properties {:stale true}
+                            :tiles []}]}
+               {:type :confirm
+                :tileset-index 0
+                :property-sets [:movement]
+                :properties {:walkable :yes
+                             :cost 3}})
+        undone (editor-workbook/undo state)]
+    (is (= [:movement] (get-in state [:tilesets 0 :property-sets])))
+    (is (= {:walkable :yes
+            :cost 3}
+           (get-in state [:tilesets 0 :properties])))
+    (is (= "Change tile set properties" (editor-workbook/undo-label state)))
+    (is (= [:old] (get-in undone [:tilesets 0 :property-sets])))
+    (is (= {:stale true} (get-in undone [:tilesets 0 :properties])))))
+
+(deftest tileset-properties-dialog-cancel-does-not-record-workbook-history
+  (let [state (actions/apply-tileset-properties-dialog-result
+               {:tilesets [{:id :terrain
+                            :property-sets [:old]}]}
+               {:type :cancel
+                :tileset-index 0
+                :property-sets [:movement]})]
+    (is (= [:old] (get-in state [:tilesets 0 :property-sets])))
+    (is (= false (editor-workbook/can-undo? state)))))
+
 (deftest tile-property-value-action-records-workbook-history
   (let [state (actions/change-selected-tile-property-value
                {:property-sets [movement-property-set]

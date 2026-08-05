@@ -3,6 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.tileset.actions :as actions]
             tilemap-editor.view.tileset.model
             tilemap-editor.view.tileset.panels
             tilemap-editor.view.tileset.dialogs))
@@ -99,7 +100,8 @@
           (duplicate-tileset-definition! state (:payload event)))
         :tileset/properties-dialog-result
         (fn [state event ctx]
-          (apply-tileset-properties! state (:payload event)))
+          (actions/apply-tileset-properties-dialog-result state
+                                                          (:payload event)))
         :tile/context-command
         (fn [state event ctx]
           (case (-> event :payload :command)
@@ -161,11 +163,13 @@
                             (import-file-resources! state paths)
                             (import-file-resource! state payload))]
 
-                  (ui/emit! (:view ctx)
-                            :project/resources-change
-                            {:resources (:resources state)
-                             :selected-resource-bundle (:selected-resource-bundle state)
-                             :selected-image-resource (:selected-image-resource state)})
+	                  (ui/emit! (:view ctx)
+	                            :project/resources-change
+	                            (select-keys
+	                             state
+	                             [:resources
+	                              :selected-resource-bundle
+	                              :selected-image-resource]))
                   (if multiple?
                     (add-imported-single-sprite-tiles!
                      state

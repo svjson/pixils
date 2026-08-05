@@ -1,6 +1,18 @@
 (ns tilemap-editor.view.tileset.actions
   (:require [tilemap-editor.model.workbook :as editor-workbook]
-            [tilemap-editor.view.property-sets.model :as property-model]))
+            [tilemap-editor.view.property-sets.model :as property-model]
+            [tilemap-editor.view.tileset.model :as model]))
+
+(defun apply-tileset-properties-dialog-result
+  "Applies a tileset properties dialog confirmation and records the document edit in workbook history."
+  [state payload]
+  (case (:type payload)
+    :confirm
+    (editor-workbook/change-to state
+                               "Change tile set properties"
+                               (model/apply-tileset-properties! state payload))
+
+    :default state))
 
 (defun change-selected-tile-property-value
   "Updates a selected tile property override and records the document edit in workbook history."
