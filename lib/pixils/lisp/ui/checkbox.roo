@@ -1,13 +1,22 @@
 (ns pixils.ui.checkbox
   (:require pixils
             [pixils.point :as pt]
+            [pixils.rect :as rect]
             [pixils.render :as r]
             [pixils.ui :as ui]))
+
+
+
+;; Public state functions
 
 (defun checked?
   "Returns true when checkbox state contains an explicit true :checked? value."
   [state]
   (= (:checked? state) true))
+
+
+
+;; Internal support functions
 
 (defun checkbox-mark-color
   "Returns the color used for the rendered checkbox mark. :mark-color in state
@@ -59,12 +68,6 @@
      :w size
      :h size}))
 
-(defun checkbox-mark-point
-  "Returns a point inside rect from normalized x-scale and y-scale coordinates."
-  [rect x-scale y-scale]
-  {:x (+ (:x rect) (int (* (:w rect) x-scale)))
-   :y (+ (:y rect) (int (* (:h rect) y-scale)))})
-
 (defun render-checkbox-mark!
   "Renders one pass of the built-in checkbox mark through three points."
   [p1 p2 p3 color]
@@ -76,9 +79,9 @@
   offset one pixel horizontally to give the mark a thicker stroke."
   [bounds]
   (let [mark (checkbox-mark-rect bounds)
-        p1 (checkbox-mark-point mark 0.18 0.55)
-        p2 (checkbox-mark-point mark 0.42 0.80)
-        p3 (checkbox-mark-point mark 0.86 0.18)]
+        p1 (pt/int (rect/normalize-point mark 0.18 0.55))
+        p2 (pt/int (rect/normalize-point mark 0.42 0.80))
+        p3 (pt/int (rect/normalize-point mark 0.86 0.18))]
     [[p1 p2 p3]
      [(pt/translate p1 1 0)
       (pt/translate p2 1 0)
@@ -107,6 +110,9 @@
   [ui-state state ctx]
   (assoc ui-state :pressed (interaction-pressed? state ctx)))
 
+
+;; Inner components
+
 (defcomponent ui/checkbox-box
   {:render (fn [state ctx]
              (let [bounds (-> ctx :view :bounds)
@@ -131,6 +137,10 @@
   {:children [{:mode 'ui/text
                :state {:value (ui/bind-state :label)}}]})
 
+
+
+;; Main component
+
 (defcomponent ui/checkbox
   {:focusable true
    :class :ui/checkbox
@@ -153,6 +163,10 @@
                        :pressed (ui/bind-state :pressed)}}
               {:mode 'ui/checkbox-label
                :state {:label (ui/bind-state :label)}}]})
+
+
+
+;; Make functions
 
 (defun make
   "Builds a ui/checkbox child entry.

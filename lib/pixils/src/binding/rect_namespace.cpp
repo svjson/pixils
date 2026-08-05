@@ -129,6 +129,22 @@ namespace Pixils::Script
                : Roo::Constant::BOOL_FALSE;
     }
 
+    /** RectNormalizePointFunction - pixils.rect/normalize-point */
+    FUNC_IMPL(
+      RectNormalizePointFunction,
+      SIG((FN_ARGS((&HostType::RECT), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+           EXEC_DISPATCH(&RectNormalizePointFunction::exec_normalize_point))));
+
+    EXEC_BODY(RectNormalizePointFunction, exec_normalize_point)
+    {
+      const Rect& rect = Roo::obj<Rect>(*args[0]);
+      const float x = static_cast<float>(rect.x) +
+                      static_cast<float>(rect.w) * args[1]->f32();
+      const float y = static_cast<float>(rect.y) +
+                      static_cast<float>(rect.h) * args[2]->f32();
+      return PointAdapter::make_unique(x, y);
+    }
+
   } // namespace Function
 
   RectNamespace::RectNamespace()
@@ -139,6 +155,7 @@ namespace Pixils::Script
     values.emplace("intersect?", Function::IntersectPFunction::make());
     values.emplace("intersects?", Function::RectIntersectsFunction::make());
     values.emplace("make-rect", Function::MakeRect::make());
+    values.emplace(FN__NORMALIZE_POINT, Function::RectNormalizePointFunction::make());
   }
 
 } // namespace Pixils::Script
