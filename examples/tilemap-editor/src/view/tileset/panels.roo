@@ -11,6 +11,7 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
+            [tilemap-editor.view.tileset.actions :as actions]
             [tilemap-editor.view.tileset.sprite-source-editor :as sse]
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.tileset.model))
@@ -1268,10 +1269,9 @@
             (ui/stop-propagation! event)
             (case (:kind payload)
               :tile
-              (property-model/set-selected-tile-property-value
-               state
-               (:property-id payload)
-               (:value payload))
+              (actions/change-selected-tile-property-value state
+                                                           (:property-id payload)
+                                                           (:value payload))
 
               :default state)))}
    :children [{:mode 'tile-definition-row

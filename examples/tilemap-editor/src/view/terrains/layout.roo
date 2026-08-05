@@ -22,6 +22,7 @@
             [tilemap-editor.view.property-sets.model :as property-model]
             tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.terrains.actions :as actions]
             [tilemap-editor.view.terrains.model :as model]
             [tilemap-editor.view.theme :as theme]))
 
@@ -3634,17 +3635,15 @@
                       :property-override-values (:properties terrain)
                       :rule-add-disabled?
                       (= (:terrain-disabled? state) true)
-                      :selected-rule? (not (nil? (model/selected-terrain-rule
-                                                  state))))))
+                      :selected-rule? (some? (model/selected-terrain-rule
+                                              state)))))
    :on {:property-value/change
         (fn [state event ctx]
           (let [payload (:payload event)]
-
-              (ui/stop-propagation! event)
-              (property-model/set-selected-terrain-property-value
-               state
-               (:property-id payload)
-               (:value payload))))}
+            (ui/stop-propagation! event)
+            (actions/change-selected-terrain-property-value state
+                                                            (:property-id payload)
+                                                            (:value payload))))}
    :children [(terrain-value-detail-header-child)
               {:style {:width :fill
                        :height 24
@@ -4974,7 +4973,7 @@
           (let [payload (:payload event)]
             (case (:kind payload)
               :terrain-set
-              (property-model/set-selected-terrain-set-property-set-attachment
+              (actions/set-selected-terrain-set-property-set-attachment
                state
                (:property-set-id payload)
                (:attached? payload))
@@ -4985,16 +4984,15 @@
           (let [payload (:payload event)]
             (case (:kind payload)
               :terrain-set-default
-              (property-model/set-selected-terrain-set-property-default-value
+              (actions/change-selected-terrain-set-property-default-value
                state
                (:property-id payload)
                (:value payload))
 
               :terrain
-              (property-model/set-selected-terrain-property-value
-               state
-               (:property-id payload)
-               (:value payload))
+              (actions/change-selected-terrain-property-value state
+                                                              (:property-id payload)
+                                                              (:value payload))
 
               :default state)))
         :terrain/tileset-change (fn [state event ctx]

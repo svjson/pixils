@@ -1,0 +1,11 @@
+(ns tilemap-editor.view.tileset.actions
+  (:require [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.property-sets.model :as property-model]))
+
+(defun change-selected-tile-property-value
+  "Updates a selected tile property override and records the document edit in workbook history."
+  [state property-id value]
+  (editor-workbook/change-to
+   state
+   "Change tile property"
+   (property-model/set-selected-tile-property-value state property-id value)))

@@ -1,0 +1,58 @@
+(ns tilemap-editor.view.terrains.actions-test
+  (:require proof.core
+            [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.terrains.actions :as actions]))
+
+(def movement-property-set
+  {:id :movement
+   :label "Movement"
+   :properties [{:id :walkable
+                 :label "Walkable"
+                 :type :enum
+                 :values [:yes :no]
+                 :default :yes}
+                {:id :cost
+                 :label "Cost"
+                 :type :number
+                 :default 1}]})
+
+(defun terrain-state []
+  {:property-sets [movement-property-set]
+   :terrain-sets [{:id :overworld
+                   :property-sets [:movement]
+                   :terrains [{:id :grass
+                               :properties {}}]}]
+   :selected-terrain-set-index 0
+   :selected-terrain-index 0})
+
+(deftest terrain-set-property-set-assignment-records-workbook-history
+  (let [state (actions/set-selected-terrain-set-property-set-attachment
+               (assoc-in (terrain-state) [:terrain-sets 0 :property-sets] [])
+               :movement
+               true)
+        undone (editor-workbook/undo state)]
+    (is (= [:movement] (get-in state [:terrain-sets 0 :property-sets])))
+    (is (= "Assign terrain set property set" (editor-workbook/undo-label state)))
+    (is (= [] (get-in undone [:terrain-sets 0 :property-sets])))))
+
+(deftest terrain-set-property-default-records-workbook-history
+  (let [state (actions/change-selected-terrain-set-property-default-value
+               (terrain-state)
+               :cost
+               4)
+        undone (editor-workbook/undo state)]
+    (is (= 4 (get-in state [:terrain-sets 0 :properties :cost])))
+    (is (= "Change terrain set property default"
+           (editor-workbook/undo-label state)))
+    (is (nil? (get-in undone [:terrain-sets 0 :properties])))))
+
+(deftest terrain-property-value-records-workbook-history
+  (let [state (actions/change-selected-terrain-property-value
+               (terrain-state)
+               :walkable
+               :no)
+        undone (editor-workbook/undo state)]
+    (is (= :no
+           (get-in state [:terrain-sets 0 :terrains 0 :properties :walkable])))
+    (is (= "Change terrain property" (editor-workbook/undo-label state)))
+    (is (= {} (get-in undone [:terrain-sets 0 :terrains 0 :properties])))))

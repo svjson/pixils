@@ -1,0 +1,34 @@
+(ns tilemap-editor.view.tileset.actions-test
+  (:require proof.core
+            [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.tileset.actions :as actions]))
+
+(def movement-property-set
+  {:id :movement
+   :label "Movement"
+   :properties [{:id :walkable
+                 :label "Walkable"
+                 :type :enum
+                 :values [:yes :no]
+                 :default :yes}
+                {:id :cost
+                 :label "Cost"
+                 :type :number
+                 :default 1}]})
+
+(deftest tile-property-value-action-records-workbook-history
+  (let [state (actions/change-selected-tile-property-value
+               {:property-sets [movement-property-set]
+                :tilesets [{:id :terrain
+                            :property-sets [:movement]
+                            :properties {:walkable :yes}
+                            :tiles [{:id :grass
+                                     :type :color}]}]
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 0}
+               :walkable
+               :no)
+        undone (editor-workbook/undo state)]
+    (is (= :no (get-in state [:tilesets 0 :tiles 0 :properties :walkable])))
+    (is (= "Change tile property" (editor-workbook/undo-label state)))
+    (is (nil? (get-in undone [:tilesets 0 :tiles 0 :properties])))))

@@ -1,0 +1,33 @@
+(ns tilemap-editor.view.terrains.actions
+  (:require [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.property-sets.model :as property-model]))
+
+(defun set-selected-terrain-set-property-set-attachment
+  "Updates selected terrain set property-set assignment and records the document edit in workbook history."
+  [state property-set-id attached?]
+  (editor-workbook/change-to
+   state
+   "Assign terrain set property set"
+   (property-model/set-selected-terrain-set-property-set-attachment
+    state
+    property-set-id
+    attached?)))
+
+(defun change-selected-terrain-set-property-default-value
+  "Updates a selected terrain set property default and records the document edit in workbook history."
+  [state property-id value]
+  (editor-workbook/change-to
+   state
+   "Change terrain set property default"
+   (property-model/set-selected-terrain-set-property-default-value
+    state
+    property-id
+    value)))
+
+(defun change-selected-terrain-property-value
+  "Updates a selected terrain property override and records the document edit in workbook history."
+  [state property-id value]
+  (editor-workbook/change-to
+   state
+   "Change terrain property"
+   (property-model/set-selected-terrain-property-value state property-id value)))
