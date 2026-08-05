@@ -100,10 +100,10 @@
           (ui/stop-propagation! event)
           (let [payload (:payload event)]
             (case (:field-id payload)
-              :mask-set-width
+              :width
               (actions/change-selected-mask-set-size state :w (:value payload))
 
-              :mask-set-height
+              :height
               (actions/change-selected-mask-set-size state :h (:value payload))
 
               :default state)))

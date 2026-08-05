@@ -5,6 +5,7 @@
              :as selected-tile]
             [tilemap-editor.view.masks.detail.mask.palette :as palette]
             [tilemap-editor.view.masks.detail.panel :as details]
+            [pixils.tilemap.project.schemas :as project-schemas]
             [tilemap-editor.view.masks.forms :as mask-forms]
             [tilemap-editor.view.masks.masks.row :as mask-row]))
 
@@ -57,7 +58,7 @@
         size-form (nth (-> mask-set-tab :child :children) 3)
         state (:state size-form)]
     (is (= 'pixils/form (:mode size-form)))
-    (is (= mask-forms/mask-set-size-schema (:schema state)))
+    (is (= project-schemas/mask-size-schema (:schema state)))
     (is (= mask-forms/mask-set-size-text
            (get-in state [:form/render-opts :text])))
     (is (= mask-forms/mask-set-size-layout (:form/layout state)))

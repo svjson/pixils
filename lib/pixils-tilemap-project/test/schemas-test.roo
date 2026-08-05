@@ -1,0 +1,16 @@
+(ns pixils.tilemap.project.schemas-test
+  (:require proof.core
+            [pixils.tilemap.project.model :as model]
+            [pixils.tilemap.project.schemas :as schemas]))
+
+(deftest mask-size-schema-edits-project-size-shape
+  (is (= [:w] (get-in schemas/mask-size-schema [:width :path])))
+  (is (= [:h] (get-in schemas/mask-size-schema [:height :path])))
+  (is (= model/min-map-dimension
+         (get-in schemas/mask-size-schema [:width :min])))
+  (is (= model/max-map-dimension
+         (get-in schemas/mask-size-schema [:width :max])))
+  (is (= model/min-map-dimension
+         (get-in schemas/mask-size-schema [:height :min])))
+  (is (= model/max-map-dimension
+         (get-in schemas/mask-size-schema [:height :max]))))

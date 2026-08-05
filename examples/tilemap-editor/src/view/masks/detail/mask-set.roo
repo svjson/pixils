@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.masks.detail.mask-set
   (:require [pixils.form :as form]
             [pixils.ui :as ui]
+            [pixils.tilemap.project.schemas :as project-schemas]
             [tilemap-editor.view.masks.forms :as mask-forms]))
 
 (defun summary-field [label value]
@@ -25,7 +26,7 @@
                   (ui/bind-state :selected-mask-set-label))
    (summary-field "Id"
                   (ui/bind-state :selected-mask-set-id))
-   (form/make {:schema mask-forms/mask-set-size-schema
+   (form/make {:schema project-schemas/mask-size-schema
                :text mask-forms/mask-set-size-text
                :layout mask-forms/mask-set-size-layout
                :mode :live
