@@ -1,6 +1,7 @@
 
 #include "pixils/binding/mode_definition.h"
 
+#include <pixils/binding/component_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
@@ -114,6 +115,12 @@ namespace Pixils::Script
     }
 
   } // namespace
+
+  std::optional<UI::DragPolicy> parse_mode_drag_policy(Roo::Context& ctx,
+                                                       const Roo::sptr_val& value)
+  {
+    return parse_drag_policy(ctx, value);
+  }
 
   std::vector<std::string> parse_mode_classes(const Roo::sptr_val& class_val)
   {
@@ -274,7 +281,7 @@ namespace Pixils::Script
   Roo::sptr_val text_child_entry(const Roo::sptr_val& value)
   {
     return Roo::map({
-      Roo::keyword("mode"),
+      Roo::keyword("component"),
       Roo::symbol("ui/text"),
       Roo::keyword("state"),
       Roo::map({
@@ -298,6 +305,7 @@ namespace Pixils::Script
   {
     static Roo::MapSchema child_schema({},
                                        {{"mode", &Roo::Type::SYMBOL},
+                                        {"component", &Roo::Type::SYMBOL},
                                         {"id", &Roo::Type::ANY},
                                         {"state", &Roo::Type::ANY},
                                         {"ui-state", &Roo::Type::ANY},
@@ -325,6 +333,11 @@ namespace Pixils::Script
         slot.mode_name = child_opts.val("mode")->str();
         slot.overrides = child_entry;
       }
+      else if (child_opts.contains("component"))
+      {
+        slot.component_name = child_opts.val("component")->str();
+        slot.overrides = child_entry;
+      }
       else
       {
         slot.anonymous_mode =
@@ -338,6 +351,7 @@ namespace Pixils::Script
       else
       {
         std::string base_name = slot.mode_name;
+        if (base_name.empty()) base_name = slot.component_name;
         if (base_name.empty() && slot.anonymous_mode && !slot.anonymous_mode->name.empty())
         {
           base_name = slot.anonymous_mode->name;

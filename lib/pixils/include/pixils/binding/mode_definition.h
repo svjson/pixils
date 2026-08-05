@@ -3,6 +3,7 @@
 #define PIXILS__BINDING__MODE_DEFINITION_H
 
 #include <pixils/runtime/mode.h>
+#include <pixils/ui/drag.h>
 
 #include <optional>
 #include <roo/runtime/value.h>
@@ -35,6 +36,8 @@ namespace Pixils::Script
   void append_mode_style_layer(Roo::Context& ctx,
                                Runtime::ViewDefinition& definition,
                                const Roo::sptr_val& style_val);
+  std::optional<UI::DragPolicy> parse_mode_drag_policy(Roo::Context& ctx,
+                                                       const Roo::sptr_val& value);
 
   /**
    * @brief Parse a Roo sequence of child entry maps into ChildSlot objects.

@@ -2,6 +2,7 @@
 #include "pixils/runtime/state.h"
 
 #include <pixils/binding/ui/ui_host_type.h>
+#include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/runtime/view.h>
 
 #include <roo/host/object.h>
@@ -138,6 +139,11 @@ namespace Pixils::Runtime
     : path(std::move(p))
     , writable(w)
   {
+  }
+
+  Roo::sptr_val make_state_binding(Roo::sptr_val_v path, bool writable)
+  {
+    return Script::BindStateAdapter::make_unique(BindState(std::move(path), writable));
   }
 
   Roo::sptr_val extract_state(const Roo::sptr_val& parent,

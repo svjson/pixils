@@ -1,5 +1,7 @@
 #include "../../render_fixture.h"
 
+#include <pixils/runtime/component.h>
+
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
@@ -9,12 +11,14 @@ using IconTest = RenderFixture;
 TEST_F(IconTest, plain_icon_is_not_draggable_or_absolute_positioned)
 {
   auto modes = runtime.lookup("pixils/modes");
-  ASSERT_NE(modes, nullptr);
+  auto components = runtime.lookup("pixils/components");
+  ASSERT_NE(components, nullptr);
 
-  auto icon_mode_value = Roo::Dict::get_property(modes, Roo::symbol("ui/icon"));
-  ASSERT_NE(icon_mode_value, nullptr);
-  const auto& icon_mode = Roo::obj<Pixils::Runtime::Mode>(*icon_mode_value);
-  EXPECT_FALSE(icon_mode.drag.has_value());
+  auto icon_component_value = Roo::Dict::get_property(components, Roo::symbol("ui/icon"));
+  ASSERT_NE(icon_component_value, nullptr);
+  const auto& icon_component =
+    Roo::obj<Pixils::Runtime::Component>(*icon_component_value);
+  EXPECT_FALSE(icon_component.drag.has_value());
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -44,15 +48,15 @@ TEST_F(IconTest, plain_icon_is_not_draggable_or_absolute_positioned)
 
 TEST_F(IconTest, desktop_icon_provides_focusable_image_and_label_shell)
 {
-  auto modes = runtime.lookup("pixils/modes");
-  ASSERT_NE(modes, nullptr);
+  auto components = runtime.lookup("pixils/components");
+  ASSERT_NE(components, nullptr);
 
-  auto desktop_icon_mode_value =
-    Roo::Dict::get_property(modes, Roo::symbol("ui/desktop-icon"));
-  ASSERT_NE(desktop_icon_mode_value, nullptr);
-  const auto& desktop_icon_mode =
-    Roo::obj<Pixils::Runtime::Mode>(*desktop_icon_mode_value);
-  EXPECT_TRUE(desktop_icon_mode.focusable);
+  auto desktop_icon_component_value =
+    Roo::Dict::get_property(components, Roo::symbol("ui/desktop-icon"));
+  ASSERT_NE(desktop_icon_component_value, nullptr);
+  const auto& desktop_icon_component =
+    Roo::obj<Pixils::Runtime::Component>(*desktop_icon_component_value);
+  EXPECT_TRUE(desktop_icon_component.focusable);
 
   runtime.eval(R"(
     (pixils/defmode root-mode

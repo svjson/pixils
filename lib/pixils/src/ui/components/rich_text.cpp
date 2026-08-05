@@ -821,9 +821,9 @@ namespace Pixils::UI::Components
 
   void register_rich_text_component(Roo::Runtime& runtime)
   {
-    auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
+    auto components = runtime.lookup(Script::ID__PIXILS__COMPONENTS);
     Roo::Dict::set_property(
-      modes,
+      components,
       Roo::symbol("ui/rich-text"),
       Script::ComponentAdapter::make_unique(make_rich_text_component()));
   }

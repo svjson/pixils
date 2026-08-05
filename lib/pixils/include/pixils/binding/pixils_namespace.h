@@ -13,6 +13,7 @@
 #include <roo/exec.h>
 #include <roo/host/object.h>
 #include <roo/namespace.h>
+#include <roo/type.h>
 
 namespace Pixils::UI
 {
@@ -29,6 +30,27 @@ namespace Pixils::Runtime
 
 namespace Pixils::Script
 {
+  namespace HostType
+  {
+    /**
+     * Type ref for APIs that accept an already-created host value, but must not
+     * allow Roo's normal host-type coercion path. This keeps signatures such as
+     * `push-mode!` precise: an argument can be a real Mode host object, but a
+     * map or Component host object that could otherwise be coerced toward Mode
+     * is rejected by the signature before native execution.
+     */
+    class ExactHostTypeRef : public Roo::TypeRef
+    {
+      const Roo::HostTypeRef& host_type;
+
+     public:
+      ExactHostTypeRef(const Roo::HostTypeRef& host_type, const std::string& name);
+
+      bool is_type_of(const Roo::Value& val) const override;
+      bool is_type_of(const Roo::AST::ASTNode& obj) const override;
+    };
+  } // namespace HostType
+
   /*!
    * @brief Constant for "pixils"
    */
@@ -50,6 +72,7 @@ namespace Pixils::Script
 
   inline const std::string ID__PIXILS__MODE_STACK = "pixils/mode-stack";
   inline const std::string ID__PIXILS__MODE_STACK_MESSAGES = "pixils/mode-stack-messages";
+  inline const std::string ID__PIXILS__COMPONENTS = "pixils/components";
   inline const std::string ID__PIXILS__MODES = "pixils/modes";
   inline const std::string ID__PIXILS__PROGRAMS = "pixils/programs";
   inline const std::string ID__PIXILS__RENDER_CONTEXT = "pixils/render-context";
@@ -83,6 +106,10 @@ namespace Pixils::Script
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
     HOST_TYPE(VIEW, "HView")
+
+    inline const ExactHostTypeRef MODE_VALUE(MODE, "ModeValue");
+    inline const Roo::MultiRef MODE_REFERENCE({&Roo::Type::SYMBOL_VALUE, &MODE_VALUE},
+                                              "ModeReference");
   } // namespace HostType
 
   namespace Macro
@@ -117,7 +144,55 @@ namespace Pixils::Script
     FUNC(MakeDimension, make);
     /*! @brief Roo make-function for Display/DisplayAdapter */
     FUNC(MakeDisplay, make);
-    /*! @brief Push active mode */
+    /*!
+     * @brief Queue a mode transition onto the Pixils mode stack.
+     *
+     * `push-mode!` requests that Pixils push a new root mode frame. The mode
+     * reference may be a registered mode symbol or an inline mode value created
+     * with `pixils/make-mode`. A registered component symbol is accepted as
+     * shorthand for a generated root mode that contains that component as a
+     * state-bound child; component values themselves are not valid push targets.
+     *
+     * The optional state value becomes the initial state for the pushed root
+     * mode. When the pushed root is a component shorthand wrapper, this state is
+     * also bound to the wrapped component child.
+     *
+     * The optional override map applies only to this push. It may override
+     * normal mode definition fields such as hooks, style, children, focusable,
+     * theme, and drag behavior. It also accepts transition metadata:
+     * `:origin` controls where a later `pop-mode!` result event is delivered,
+     * and `:overlay` places the pushed root relative to a view or rectangle
+     * after layout.
+     *
+     * Mode transitions are message-based. Calling `push-mode!` from a hook is
+     * safe; the new root becomes active when the session processes queued mode
+     * messages.
+     *
+     * Usage:
+     * @code
+     * (pixils/push-mode! 'main/pause-menu {:resumed-from state})
+     *
+     * (pixils/push-mode!
+     *   (pixils/make-mode {:name "inline-popup"
+     *                      :children [{:mode 'main/menu-item
+     *                                  :state {:label "Open"}}]})
+     *   {:anchor {:x 0 :y 24}}
+     *   {:origin {:view (:view ctx)
+     *             :event :menu/selected}
+     *    :overlay {:anchor (:view ctx)
+     *              :placement :bottom-start
+     *              :fallback-placement :top-start
+     *              :viewport-padding 8}})
+     * @endcode
+     *
+     * | Arg       | Description                                                    |
+     * |-----------|----------------------------------------------------------------|
+     * | mode      | Mode symbol, component symbol shorthand, or inline mode value. |
+     * | state     | Optional initial root state. Defaults to nil.                  |
+     * | overrides | Optional per-push override and transition metadata map.        |
+     *
+     * Returns the supplied mode reference.
+     */
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */
     FUNC(PopModeBangFunction, pop_mode);

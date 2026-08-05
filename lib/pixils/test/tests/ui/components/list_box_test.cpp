@@ -1403,7 +1403,7 @@ TEST_F(ListBoxTest, reorderable_list_box_none_strategy_keeps_flow_positions_whil
 TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_drop_event)
 {
   runtime.eval(R"(
-    (pixils/defmode custom-row
+    (pixils/defcomponent custom-row
       {:extend 'ui/list-box-item
        :style {:width :fill
                :height 10}

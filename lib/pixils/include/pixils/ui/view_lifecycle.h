@@ -38,6 +38,7 @@ namespace Pixils::UI
   std::shared_ptr<Runtime::View> build_view_tree(
     const Runtime::ChildSlot& slot,
     const Roo::sptr_val& modes,
+    const Roo::sptr_val& components,
     Roo::Runtime& runtime,
     const std::string& parent_state_policy = "shared");
 

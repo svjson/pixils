@@ -75,6 +75,31 @@ TEST_F(SessionChildrenTest, child_mode_render_hook_receives_render_context)
   EXPECT_FALSE(render_target()->render_ops.empty());
 }
 
+TEST_F(SessionChildrenTest, child_component_resolves_from_component_registry)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component {
+      :render (fn [state ctx]
+                (pixils.render/rect!
+                  {:x 0 :y 0 :w 10 :h 10}
+                  {:fill true}))
+    })
+    (pixils/defmode parent-mode {:children [{:component 'child-component}]})
+  )");
+
+  session.push_mode("parent-mode", Roo::Constant::NIL);
+  ASSERT_NO_THROW(session.render_mode());
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->component, nullptr);
+  ASSERT_EQ(child->mode, nullptr);
+  ASSERT_NE(child->definition, nullptr);
+  EXPECT_EQ(child->definition->name, "child-component");
+  EXPECT_FALSE(render_target()->render_ops.empty());
+}
+
 TEST_F(SessionChildrenTest, child_without_mode_builds_anonymous_structural_view)
 {
   runtime.eval(R"(
@@ -136,6 +161,130 @@ TEST_F(SessionChildrenTest, root_mode_without_explicit_theme_uses_builtin_base_t
   session.render_mode();
 
   EXPECT_EQ(session.active_mode->effective_theme.name, "pixils/base-theme");
+}
+
+TEST_F(SessionChildrenTest, component_symbol_push_wraps_component_in_root_mode)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent form-root
+      {:init (fn [state ctx]
+               (assoc state :initialized? true))
+       :update (fn [state ctx]
+                 (assoc state :ticks (+ (or (:ticks state) 0) 1)))})
+  )");
+
+  session.push_mode("form-root", runtime.eval("{:title \"Person\"}"));
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  EXPECT_EQ(session.active_mode->component, nullptr);
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "form-root-root");
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto component = session.active_mode->children[0];
+  ASSERT_NE(component, nullptr);
+  ASSERT_NE(component->component, nullptr);
+  ASSERT_NE(component->definition, nullptr);
+  EXPECT_EQ(component->definition->name, "form-root");
+  EXPECT_EQ(component->state->to_string(),
+            "{:title \"Person\" :initialized? true}");
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:title \"Person\" :initialized? true}");
+
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:title \"Person\" :initialized? true :ticks 1}");
+  EXPECT_EQ(component->state->to_string(),
+            "{:title \"Person\" :initialized? true :ticks 1}");
+}
+
+TEST_F(SessionChildrenTest, push_mode_bang_wraps_component_symbol_in_root_mode)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode {})
+    (pixils/defcomponent popup-body {})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  runtime.eval("(pixils/push-mode! 'popup-body {:open? true})");
+
+  ASSERT_TRUE(session.process_messages());
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "popup-body-root");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto component = session.active_mode->children[0];
+  ASSERT_NE(component, nullptr);
+  ASSERT_NE(component->component, nullptr);
+  ASSERT_NE(component->definition, nullptr);
+  EXPECT_EQ(component->definition->name, "popup-body");
+  EXPECT_EQ(component->state->to_string(), "{:open? true}");
+}
+
+TEST_F(SessionChildrenTest, push_mode_bang_accepts_inline_mode_value)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode {})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  runtime.eval(R"(
+    (pixils/push-mode!
+      (pixils/make-mode
+        {:name "inline-modal"
+         :init (fn [state ctx]
+                 (assoc state :initialized? true))})
+      {:open? true})
+  )");
+
+  ASSERT_TRUE(session.process_messages());
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "inline-modal");
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:open? true :initialized? true}");
+}
+
+TEST_F(SessionChildrenTest, push_mode_bang_rejects_inline_component_value)
+{
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils/push-mode!
+      (pixils/make-component {:name "inline-component"}))
+  )"),
+               Roo::InvocationException);
+}
+
+TEST_F(SessionChildrenTest, program_initial_component_is_wrapped_in_root_mode)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent app-body
+      {:init (fn [state ctx]
+               (assoc state :ready? true))})
+    (pixils/defprogram app {:initial-mode 'app-body})
+  )");
+
+  Pixils::load_program(runtime, session);
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  ASSERT_NE(session.active_mode->definition, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "app-body-root");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto component = session.active_mode->children[0];
+  ASSERT_NE(component, nullptr);
+  ASSERT_NE(component->component, nullptr);
+  ASSERT_NE(component->definition, nullptr);
+  EXPECT_EQ(component->definition->name, "app-body");
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:ready? true}");
+  EXPECT_EQ(component->state->to_string(), "{:ready? true}");
 }
 
 TEST_F(SessionChildrenTest, child_content_size_hook_informs_layout_bounds)
@@ -822,7 +971,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_compound_state_selector_to_a
 }
 
 TEST_F(SessionChildrenTest,
-       root_mode_theme_component_selector_applies_to_mode_that_extends_component)
+       root_component_theme_selector_applies_to_wrapped_component)
 {
   runtime.eval(R"(
     (pixils/deftheme root-theme
@@ -842,11 +991,14 @@ TEST_F(SessionChildrenTest,
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
-  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
-  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
-  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
-  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 2);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto component = session.active_mode->children[0];
+  ASSERT_NE(component, nullptr);
+  ASSERT_TRUE(component->effective_style.text.has_value());
+  ASSERT_TRUE(component->effective_style.text->font.has_value());
+  ASSERT_TRUE(component->effective_style.text->scale.has_value());
+  EXPECT_EQ(*component->effective_style.text->font, "font/console");
+  EXPECT_EQ(*component->effective_style.text->scale, 2);
 }
 
 TEST_F(SessionChildrenTest, root_mode_theme_applies_class_selector_to_active_view)

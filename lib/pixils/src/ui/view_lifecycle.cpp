@@ -117,28 +117,58 @@ namespace
   };
 
   ResolvedViewDefinition resolve_child_definition(const Pixils::Runtime::ChildSlot& slot,
-                                                  const Roo::sptr_val& modes)
+                                                  const Roo::sptr_val& modes,
+                                                  const Roo::sptr_val& components)
   {
+    if (!slot.component_name.empty())
+    {
+      auto component_val =
+        Roo::Dict::get_property(components, Roo::symbol(slot.component_name));
+      if (!component_val || component_val->type == Roo::Value::Type::NIL)
+      {
+        throw Roo::InvocationException("Unknown child component '" + slot.component_name +
+                                       "' referenced by child slot '" + slot.id + "'");
+      }
+      auto* component = Pixils::Script::component_from_registry_value(component_val);
+      if (!component)
+      {
+        throw Roo::InvocationException("Child slot '" + slot.id +
+                                       "' resolved component '" + slot.component_name +
+                                       "' to non-component value");
+      }
+      return ResolvedViewDefinition{
+        .definition = component, .mode = nullptr, .component = component};
+    }
+
     auto mode_val = Roo::Dict::get_property(modes, Roo::symbol(slot.mode_name));
-    if (!mode_val || mode_val->type == Roo::Value::Type::NIL)
+    if (mode_val && mode_val->type != Roo::Value::Type::NIL)
+    {
+      if (!Pixils::Script::HostType::MODE.is_type_of(*mode_val))
+      {
+        throw Roo::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
+                                       slot.mode_name + "' to non-mode value");
+      }
+      auto* mode = &Roo::obj<Pixils::Runtime::Mode>(*mode_val);
+      return ResolvedViewDefinition{
+        .definition = mode, .mode = mode, .component = nullptr};
+    }
+
+    auto component_val = Roo::Dict::get_property(components, Roo::symbol(slot.mode_name));
+    if (!component_val || component_val->type == Roo::Value::Type::NIL)
     {
       throw Roo::InvocationException("Unknown child mode '" + slot.mode_name +
                                      "' referenced by child slot '" + slot.id + "'");
     }
 
-    if (!Pixils::Script::is_view_definition_registry_value(mode_val))
+    auto* component = Pixils::Script::component_from_registry_value(component_val);
+    if (!component)
     {
       throw Roo::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
-                                     slot.mode_name + "' to non-view-definition value");
+                                     slot.mode_name + "' to non-component value");
     }
-
-    auto* component = Pixils::Script::component_from_registry_value(mode_val);
-    Pixils::Runtime::Mode* mode = Pixils::Script::HostType::MODE.is_type_of(*mode_val)
-                                    ? &Roo::obj<Pixils::Runtime::Mode>(*mode_val)
-                                    : nullptr;
     return ResolvedViewDefinition{
-      .definition = &Pixils::Script::definition_from_registry_value(mode_val, "Child mode"),
-      .mode = mode,
+      .definition = component,
+      .mode = nullptr,
       .component = component};
   }
 
@@ -231,6 +261,13 @@ namespace
       append_class_names(definition.class_names, Pixils::Script::parse_mode_classes(class_val));
     }
 
+    auto drag_val = get("drag");
+    if (drag_val->type != Roo::Value::Type::NIL)
+    {
+      Roo::Context ctx(runtime);
+      definition.drag = Pixils::Script::parse_mode_drag_policy(ctx, drag_val);
+    }
+
     auto focusable_val = get("focusable");
     if (focusable_val->type != Roo::Value::Type::NIL)
     {
@@ -309,6 +346,7 @@ namespace Pixils::UI
 
   std::shared_ptr<Runtime::View> build_view_tree(const Runtime::ChildSlot& slot,
                                                  const Roo::sptr_val& modes,
+                                                 const Roo::sptr_val& components,
                                                  Roo::Runtime& runtime,
                                                  const std::string& parent_state_policy)
   {
@@ -328,7 +366,7 @@ namespace Pixils::UI
     }
     else
     {
-      auto resolved = resolve_child_definition(slot, modes);
+      auto resolved = resolve_child_definition(slot, modes, components);
       if (resolved.component)
       {
         view.owned_component = std::make_unique<Runtime::Component>(*resolved.component);
@@ -367,7 +405,7 @@ namespace Pixils::UI
     for (const auto& grandchild_slot : view.definition->children)
     {
       view.children.push_back(
-        build_view_tree(grandchild_slot, modes, runtime, view.state_policy));
+        build_view_tree(grandchild_slot, modes, components, runtime, view.state_policy));
     }
 
     auto root = std::make_shared<Runtime::View>(std::move(view));

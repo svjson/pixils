@@ -36,6 +36,7 @@ namespace Pixils::Runtime
     }
 
     auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
+    auto components = runtime.lookup(Script::ID__PIXILS__COMPONENTS);
     auto& render_ctx =
       Roo::obj<RenderContext>(*runtime.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
     auto* assets = render_ctx.asset_registry.get();
@@ -61,7 +62,8 @@ namespace Pixils::Runtime
         continue;
       }
 
-      auto new_child = UI::build_view_tree(replacement.child_slot, modes, runtime);
+      auto new_child =
+        UI::build_view_tree(replacement.child_slot, modes, components, runtime);
       UI::attach_style_view_tree(new_child, view.get());
       parent_state =
         UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
@@ -71,7 +73,8 @@ namespace Pixils::Runtime
 
     for (auto& append : appends)
     {
-      auto new_child = UI::build_view_tree(append.child_slot, modes, runtime);
+      auto new_child =
+        UI::build_view_tree(append.child_slot, modes, components, runtime);
       UI::attach_style_view_tree(new_child, view.get());
       parent_state =
         UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);

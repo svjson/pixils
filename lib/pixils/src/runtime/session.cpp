@@ -10,6 +10,7 @@
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/context.h>
+#include <pixils/runtime/component_root.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
@@ -315,22 +316,62 @@ namespace Pixils::Runtime
       }
     }
 
-    Roo::sptr_val resolve_mode_value(const Roo::sptr_val& modes,
-                                     const std::string& mode_name)
+    Roo::sptr_val component_root_mode_value(const Runtime::Component& component)
     {
-      auto mode = Roo::Dict::get_property(modes, Roo::symbol(mode_name));
-      if (!mode || mode->type == Roo::Value::Type::NIL)
+      return Script::ModeAdapter::make_unique(make_component_root_mode(component));
+    }
+
+    Roo::sptr_val root_mode_value(const Roo::sptr_val& mode)
+    {
+      if (mode && Script::HostType::MODE.is_type_of(*mode))
       {
-        throw Roo::InvocationException("Unknown mode '" + mode_name + "'");
+        return mode;
       }
 
-      if (!Script::HostType::MODE.is_type_of(*mode))
+      throw Roo::InvocationException("Cannot push non-mode value");
+    }
+
+    Roo::sptr_val resolve_named_root_mode_value(const Roo::sptr_val& modes,
+                                                const Roo::sptr_val& components,
+                                                const std::string& mode_name)
+    {
+      auto mode = Roo::Dict::get_property(modes, Roo::symbol(mode_name));
+      if (mode && mode->type != Roo::Value::Type::NIL)
       {
+        if (Script::HostType::MODE.is_type_of(*mode))
+        {
+          return mode;
+        }
+
         throw Roo::InvocationException("Identifier '" + mode_name +
                                        "' resolved to non-mode value");
       }
 
-      return mode;
+      auto component = Roo::Dict::get_property(components, Roo::symbol(mode_name));
+      if (component && component->type != Roo::Value::Type::NIL)
+      {
+        if (auto* component_obj = Script::component_from_registry_value(component))
+        {
+          return component_root_mode_value(*component_obj);
+        }
+
+        throw Roo::InvocationException("Identifier '" + mode_name +
+                                       "' resolved to non-component value");
+      }
+
+      throw Roo::InvocationException("Unknown mode or component '" + mode_name + "'");
+    }
+
+    Roo::sptr_val resolve_root_mode_reference(const Roo::sptr_val& modes,
+                                              const Roo::sptr_val& components,
+                                              const Roo::sptr_val& mode_ref)
+    {
+      if (mode_ref && mode_ref->type == Roo::Value::Type::SYMBOL)
+      {
+        return resolve_named_root_mode_value(modes, components, mode_ref->str());
+      }
+
+      return root_mode_value(mode_ref);
     }
 
     std::optional<UI::Theme> lookup_theme(Roo::Runtime& runtime, const std::string& name)
@@ -498,6 +539,7 @@ namespace Pixils::Runtime
     , mode_stack(roo_runtime.lookup(Script::ID__PIXILS__MODE_STACK),
                  roo_runtime.lookup(Script::ID__PIXILS__MODE_STACK_MESSAGES))
     , modes(roo_runtime.lookup(Script::ID__PIXILS__MODES))
+    , components(roo_runtime.lookup(Script::ID__PIXILS__COMPONENTS))
     , hook_args(hook_args)
   {
   }
@@ -578,6 +620,8 @@ namespace Pixils::Runtime
   {
     PIXILS_BENCHMARK_COUNT(runtime_push_mode_calls);
 
+    auto root_mode = root_mode_value(mode);
+
     std::optional<UI::Theme> inherited_theme = resolved_application_theme;
     /**
      * Flush the current active context's state to the Roo stack before pushing,
@@ -596,9 +640,9 @@ namespace Pixils::Runtime
     metadata.restore_focus = focus_state;
     frame_metadata.push_back(std::move(metadata));
     focus_state.clear();
-    this->mode_stack.push(mode, state);
+    this->mode_stack.push(root_mode, state);
 
-    auto& mode_obj = Roo::obj<Mode>(*mode);
+    auto& mode_obj = Roo::obj<Mode>(*root_mode);
 
     active_mode = Pixils::UI::build_root_view(mode_obj, state, overrides, roo_runtime);
     active_mode->inherited_theme = inherited_theme;
@@ -616,7 +660,7 @@ namespace Pixils::Runtime
     for (const auto& slot : active_mode->definition->children)
     {
       this->active_mode->children.push_back(
-        Pixils::UI::build_view_tree(slot, modes, roo_runtime));
+        Pixils::UI::build_view_tree(slot, modes, components, roo_runtime));
       this->active_mode->mark_children_changed();
       Pixils::UI::attach_style_view_tree(this->active_mode->children.back(),
                                          this->active_mode.get());
@@ -635,7 +679,7 @@ namespace Pixils::Runtime
                           const Roo::sptr_val& state,
                           const Roo::sptr_val& overrides)
   {
-    auto mode = resolve_mode_value(modes, mode_name);
+    auto mode = resolve_named_root_mode_value(modes, components, mode_name);
     this->push_mode(mode, state, overrides);
   }
 
@@ -710,7 +754,8 @@ namespace Pixils::Runtime
         {
           mode_stack.update_state(active_mode->state);
           auto overrides_val = Roo::Dict::get_property(message, Roo::keyword("overrides"));
-          push_mode(Roo::Dict::get_property(message, Roo::keyword("mode"))->str(),
+          auto mode_val = Roo::Dict::get_property(message, Roo::keyword("mode"));
+          push_mode(resolve_root_mode_reference(modes, components, mode_val),
                     Roo::Dict::get_property(message, Roo::keyword("state")),
                     overrides_val ? overrides_val : Roo::Constant::NIL);
           active_frame_changed = true;

@@ -285,7 +285,11 @@ TEST_F(ComposableAppSessionFixtureTest,
 
   ASSERT_NO_THROW(session().push_mode("counter", eval("{:value 123}")));
   ASSERT_NE(session().active_mode, nullptr);
-  EXPECT_EQ(session().active_mode->definition->name, "counter");
+  EXPECT_EQ(session().active_mode->definition->name, "counter-root");
+  ASSERT_EQ(session().active_mode->children.size(), 1u);
+  ASSERT_NE(session().active_mode->children[0], nullptr);
+  ASSERT_NE(session().active_mode->children[0]->definition, nullptr);
+  EXPECT_EQ(session().active_mode->children[0]->definition->name, "counter");
 
   auto value =
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("value"));
@@ -388,6 +392,7 @@ TEST_F(ComposableAppSessionFixtureTest,
   EXPECT_FALSE(program.initial_mode.empty());
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->definition->name, program.initial_mode);
+  EXPECT_EQ(session().active_mode->children.size(), 0u);
 }
 
 TEST_F(ComposableAppSessionFixtureTest,
@@ -402,6 +407,7 @@ TEST_F(ComposableAppSessionFixtureTest,
   EXPECT_FALSE(program.initial_mode.empty());
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->definition->name, program.initial_mode);
+  EXPECT_EQ(session().active_mode->children.size(), 0u);
 }
 
 TEST_F(ComposableAppSessionFixtureTest,

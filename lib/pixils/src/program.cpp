@@ -37,9 +37,17 @@ namespace Pixils
 
       auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
       auto mode_keys = Roo::Dict::map_keys(*modes);
-      if (mode_keys.size() == 0) throw Roo::RooException("No modes defined");
+      if (mode_keys.size() > 0)
+      {
+        program.initial_mode = mode_keys.front()->str();
+        return;
+      }
 
-      program.initial_mode = mode_keys.front()->str();
+      auto components = runtime.lookup(Script::ID__PIXILS__COMPONENTS);
+      auto component_keys = Roo::Dict::map_keys(*components);
+      if (component_keys.size() == 0) throw Roo::RooException("No modes defined");
+
+      program.initial_mode = component_keys.front()->str();
     }
 
   } // namespace

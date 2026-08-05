@@ -26,6 +26,12 @@ namespace Pixils::Runtime
   };
 
   /**
+   * Create a state binding value for runtime-generated view definitions.
+   * An empty path binds the child to the whole parent state.
+   */
+  Roo::sptr_val make_state_binding(Roo::sptr_val_v path = {}, bool writable = true);
+
+  /**
    * Apply state_binding to produce the child state handed to hooks. For a
    * whole-path binding the child state is extracted from the parent at that
    * path. For a map binding, bound keys are overlaid on top of view.state

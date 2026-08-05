@@ -15,12 +15,16 @@ namespace
                                                   const std::string& name)
   {
     auto val = rt.eval("(get pixils/modes '" + name + ")");
+    if (!val || val->type == Roo::Value::Type::NIL)
+    {
+      val = rt.eval("(get pixils/components '" + name + ")");
+    }
     return Pixils::Script::definition_from_registry_value(val, "test mode lookup");
   }
 
   Pixils::Runtime::Component& get_component(Roo::Runtime& rt, const std::string& name)
   {
-    auto val = rt.eval("(get pixils/modes '" + name + ")");
+    auto val = rt.eval("(get pixils/components '" + name + ")");
     auto* component = Pixils::Script::component_from_registry_value(val);
     if (!component)
     {
@@ -44,6 +48,19 @@ TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
   EXPECT_EQ(*mode.update, *Roo::Constant::NIL);
   EXPECT_EQ(*mode.content_size, *Roo::Constant::NIL);
   EXPECT_EQ(*mode.render, *Roo::Constant::NIL);
+}
+
+TEST_F(DefModeTest, defmode_registers_mode_only_in_mode_registry)
+{
+  runtime.eval("(pixils/defmode registry-mode {})");
+
+  auto mode_val = runtime.eval("(get pixils/modes 'registry-mode)");
+  auto component_val = runtime.eval("(get pixils/components 'registry-mode)");
+
+  ASSERT_NE(mode_val, nullptr);
+  EXPECT_NE(mode_val->type, Roo::Value::Type::NIL);
+  ASSERT_NE(component_val, nullptr);
+  EXPECT_EQ(component_val->type, Roo::Value::Type::NIL);
 }
 
 TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
@@ -73,6 +90,10 @@ TEST_F(DefModeTest, defcomponent_creates_component_definition)
   ASSERT_EQ(component.ui_state_keys.size(), 1u);
   EXPECT_EQ(component.ui_state_keys[0], "pressed");
   EXPECT_EQ(component.name, "test-button");
+
+  auto mode_val = runtime.eval("(get pixils/modes 'test-button)");
+  ASSERT_NE(mode_val, nullptr);
+  EXPECT_EQ(mode_val->type, Roo::Value::Type::NIL);
 }
 
 TEST_F(DefModeTest, defmode_rejects_component_ui_state_fields)
@@ -288,14 +309,16 @@ TEST_F(DefModeTest, string_children_are_normalized_to_text_nodes)
 
   Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 2u);
-  EXPECT_EQ(mode.children[0].mode_name, "ui/text");
+  EXPECT_EQ(mode.children[0].component_name, "ui/text");
+  EXPECT_TRUE(mode.children[0].mode_name.empty());
   EXPECT_EQ(mode.children[0].id, "ui/text-0");
   auto first_value =
     Roo::Dict::get_property(mode.children[0].initial_state, Roo::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->str(), "Hello");
 
-  EXPECT_EQ(mode.children[1].mode_name, "ui/text");
+  EXPECT_EQ(mode.children[1].component_name, "ui/text");
+  EXPECT_TRUE(mode.children[1].mode_name.empty());
   EXPECT_EQ(mode.children[1].id, "ui/text-1");
   auto second_value =
     Roo::Dict::get_property(mode.children[1].initial_state, Roo::keyword("value"));
@@ -312,7 +335,8 @@ TEST_F(DefModeTest, raw_string_children_value_is_one_text_node)
 
   Pixils::Runtime::ViewDefinition& mode = get_definition(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 1u);
-  EXPECT_EQ(mode.children[0].mode_name, "ui/text");
+  EXPECT_EQ(mode.children[0].component_name, "ui/text");
+  EXPECT_TRUE(mode.children[0].mode_name.empty());
   auto value =
     Roo::Dict::get_property(mode.children[0].initial_state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);

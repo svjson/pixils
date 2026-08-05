@@ -33,15 +33,14 @@
                           :label (desktop-icon-label state)
                           :image (desktop-icon-image state)
                           :selected (desktop-icon-selected? state))]
-    (do
-      (when pos
-        (ui/style! (:view ctx)
-                   {:position :absolute
-                    :left (:x pos)
-                    :top (:y pos)}))
+    (when pos
       (ui/style! (:view ctx)
-                 {:hidden (icon/icon-hidden? state)})
-      next-state)))
+                 {:position :absolute
+                  :left (:x pos)
+                  :top (:y pos)}))
+    (ui/style! (:view ctx)
+               {:hidden (icon/icon-hidden? state)})
+    next-state))
 
 (defcomponent ui/desktop-icon-image
   {:class :ui/desktop-icon-image
@@ -50,19 +49,18 @@
            :background {:fit :contain
                         :align :center}}
    :update (fn [state ctx]
-             (do
-               (if (keyword? (:image state))
-                 (ui/style! (:view ctx)
-                            {:background {:image (:image state)
-                                          :fit :contain
-                                          :align :center}
-                             :hidden false})
-                 (ui/style! (:view ctx)
-                            {:background nil
-                             :hidden true}))
+             (if (keyword? (:image state))
                (ui/style! (:view ctx)
-                          {:opacity (if (:dragging? state) 0.4 1.0)})
-               state))})
+                          {:background {:image (:image state)
+                                        :fit :contain
+                                        :align :center}
+                           :hidden false})
+               (ui/style! (:view ctx)
+                          {:background nil
+                           :hidden true}))
+             (ui/style! (:view ctx)
+                        {:opacity (if (:dragging? state) 0.4 1.0)})
+             state)})
 
 (defcomponent ui/desktop-icon-label
   {:class :ui/desktop-icon-label
@@ -147,7 +145,7 @@
 ;; Make functions
 
 (defun make-desktop-icon [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
-  (merge {:extend 'ui/desktop-icon
+  (merge {:component 'ui/desktop-icon
           :style (or style {})
           :state (desktop-icon-state opts)
           :children (desktop-icon-children opts)}
@@ -160,7 +158,7 @@
          (if on-drop {:on-drop on-drop} {})))
 
 (defun make-desktop-icon-preview [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
-  (merge {:extend 'ui/desktop-icon-preview
+  (merge {:component 'ui/desktop-icon-preview
           :style (or style {})
           :state (desktop-icon-state opts)
           :children (desktop-icon-children opts)}

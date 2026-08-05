@@ -36,6 +36,26 @@
 
 namespace Pixils::Script
 {
+  namespace HostType
+  {
+    ExactHostTypeRef::ExactHostTypeRef(const Roo::HostTypeRef& host_type,
+                                       const std::string& name)
+      : Roo::TypeRef(Roo::Value::Type::ANY, Roo::Form::ANY, name)
+      , host_type(host_type)
+    {
+    }
+
+    bool ExactHostTypeRef::is_type_of(const Roo::Value& val) const
+    {
+      return host_type.is_type_of(val);
+    }
+
+    bool ExactHostTypeRef::is_type_of(const Roo::AST::ASTNode& obj) const
+    {
+      return host_type.is_type_of(obj);
+    }
+  } // namespace HostType
+
   namespace MapKey
   {
     SHKEY(ALIGN, "align");
@@ -556,7 +576,7 @@ namespace Pixils::Script
     Roo::uptr_exec_node lower_component_declaration(Roo::LowerContext& ctx,
                                                     const Roo::sptr_ast_node& ast_node)
     {
-      auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
+      auto components = ctx.ctx->lookup(ID__PIXILS__COMPONENTS);
       auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
       auto name_str = Roo::string(name_expr->str());
 
@@ -571,7 +591,7 @@ namespace Pixils::Script
                              component_expr->to_string());
       }
 
-      set_runtime_map_key_property(modes, name_expr, component_coercion.result);
+      set_runtime_map_key_property(components, name_expr, component_coercion.result);
 
       RenderContext& rc =
         Roo::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
@@ -775,22 +795,28 @@ namespace Pixils::Script
     /* PushModeBangFunction - push-mode! */
     FUNC_IMPL(
       PushModeBangFunction,
-      MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL_VALUE)),
+      MULTI_SIG((FN_ARGS((&HostType::MODE_REFERENCE)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
-                (FN_ARGS((&Roo::Type::SYMBOL_VALUE), (&Roo::Type::ANY)),
+                (FN_ARGS((&HostType::MODE_REFERENCE), (&Roo::Type::ANY)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
-                (FN_ARGS((&Roo::Type::SYMBOL_VALUE), (&Roo::Type::ANY), (&Roo::Type::MAP)),
+                (FN_ARGS((&HostType::MODE_REFERENCE), (&Roo::Type::ANY), (&Roo::Type::MAP)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
 
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
+      auto mode_ref = args.front();
+      if (!mode_ref || mode_ref->type == Roo::Value::Type::NIL)
+      {
+        throw Roo::TypeError("push-mode! expects a non-nil mode reference");
+      }
+
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Roo::append(*message_queue,
                   Roo::map({Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
                             Roo::keyword(std::get<std::string>(MapKey::PUSH->value)),
                             Roo::keyword(std::get<std::string>(MapKey::MODE->value)),
-                            args.front(),
+                            mode_ref,
                             Roo::keyword(std::get<std::string>(MapKey::STATE->value)),
                             args.size() > 1 ? args[1] : Roo::Constant::NIL,
                             Roo::keyword("overrides"),
@@ -1302,6 +1328,7 @@ namespace Pixils::Script
   {
     values.emplace("mode-stack", Roo::vector({}));
     values.emplace("mode-stack-messages", Roo::vector({}));
+    values.emplace("components", Roo::map({}));
     values.emplace("modes", Roo::map({}));
     values.emplace("themes", Roo::map({}));
     values.emplace("defpointer", Macro::DefPointerForm::make());

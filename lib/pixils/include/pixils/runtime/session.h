@@ -60,6 +60,7 @@ namespace Pixils::Runtime
     RenderContext& render_ctx;
     ModeStack mode_stack;
     Roo::sptr_val modes;
+    Roo::sptr_val components;
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
     std::vector<ModeFrameMetadata> frame_metadata;

@@ -132,10 +132,10 @@ namespace Pixils::Script
     if (opts.contains("extend"))
     {
       auto extends_name = opts.str("extend", "");
-      auto modes = ctx.lookup(ID__PIXILS__MODES);
-      auto base_val = Roo::Dict::get_property(modes, Roo::symbol(extends_name));
+      auto components = ctx.lookup(ID__PIXILS__COMPONENTS);
+      auto base_val = Roo::Dict::get_property(components, Roo::symbol(extends_name));
       if (!base_val || base_val->type == Roo::Value::Type::NIL)
-        throw Roo::InvocationException("defcomponent :extends - unknown base mode '" +
+        throw Roo::InvocationException("defcomponent :extends - unknown base component '" +
                                        extends_name + "'");
 
       auto base_component = component_from_registry_value(base_val);
@@ -146,12 +146,8 @@ namespace Pixils::Script
       }
       else
       {
-        if (!HostType::MODE.is_type_of(*base_val))
-        {
-          throw Roo::InvocationException("defcomponent :extends - base '" + extends_name +
-                                         "' resolved to non-mode value");
-        }
-        mode_base = Roo::obj<Runtime::Mode>(*base_val);
+        throw Roo::InvocationException("defcomponent :extends - base '" + extends_name +
+                                       "' resolved to non-component value");
       }
     }
 

@@ -14,6 +14,7 @@
 
 namespace Pixils::Runtime
 {
+  struct Component;
   struct Mode;
 
   struct ImageDependency
@@ -57,10 +58,11 @@ namespace Pixils::Runtime
 
   /**
    * A slot in a layout tree: which definition to place there and how to
-   * identify it. Named child slots resolve `mode_name` from the definition
-   * registry and carry sizing, positioning and per-instance hook/style
-   * overrides in `overrides`. Anonymous child slots carry `anonymous_mode`
-   * directly and do not require a registry entry.
+   * identify it. Named child slots resolve either `mode_name` or
+   * `component_name` from its corresponding registry and carry sizing,
+   * positioning and per-instance hook/style overrides in `overrides`.
+   * Anonymous child slots carry `anonymous_mode` directly and do not require a
+   * registry entry.
    *
    * `id` is a sibling-unique key used to store this child's state in the parent
    * state map. Auto-generated as `mode-name-N` or `anonymous-N` if not set
@@ -69,6 +71,7 @@ namespace Pixils::Runtime
   struct ChildSlot
   {
     std::string mode_name;
+    std::string component_name;
     std::string id;
     std::shared_ptr<Mode> anonymous_mode = nullptr;
     Roo::sptr_val initial_state;

@@ -120,9 +120,9 @@ namespace Pixils::UI::Components
 
   void register_text_node_component(Roo::Runtime& runtime)
   {
-    auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
+    auto components = runtime.lookup(Script::ID__PIXILS__COMPONENTS);
     Roo::Dict::set_property(
-      modes,
+      components,
       Roo::symbol("ui/text"),
       Script::ComponentAdapter::make_unique(make_text_node_component()));
   }
