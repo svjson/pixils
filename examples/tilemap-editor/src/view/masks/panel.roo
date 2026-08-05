@@ -1,0 +1,272 @@
+(ns tilemap-editor.view.masks.panel
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.masks.detail.panel :as detail-panel]
+            [tilemap-editor.view.masks.dialogs :as mask-dialogs]
+            [tilemap-editor.view.masks.mask-sets.panel :as mask-sets-panel]
+            [tilemap-editor.view.masks.masks.panel :as masks-panel]
+            [tilemap-editor.view.terrains.actions :as actions]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defcomponent mask-set-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [mask-set (model/selected-mask-set
+                             (:mask-sets state)
+                             (:selected-mask-set-index state))
+                   mask (model/selected-mask mask-set
+                                             (:selected-mask-index state))
+                   mask-tileset (model/selected-mask-source-tileset state)
+                   mask-tile-options (data/tile-options (:tilesets state)
+                                                         mask-tileset)
+                   mask-tile-items (model/selected-mask-tile-items state)
+                   selected-mask-tile-item-index
+                   (let [index (:selected-mask-tile-item-index state)]
+                     (when (and (some? index)
+                                (>= index 0)
+                                (< index (count mask-tile-items)))
+                       index))
+                   selected-mask-source-tile
+                   (or (:selected-mask-source-tile state)
+                       (:value (head mask-tile-options)))]
+               (assoc state
+                      :selected-mask-set-label
+                      (if mask-set (model/mask-set-label mask-set) "")
+                      :selected-mask-set-id
+                      (if mask-set
+                        (model/transition-id-label (:id mask-set))
+                        "")
+                      :selected-mask-set-size
+                      (model/selected-mask-set-size state)
+                      :selected-mask-count
+                      (str (count (:masks mask-set)))
+                      :selected-mask-label
+                      (if mask (model/mask-label mask) "")
+                      :selected-mask-id
+                      (if mask
+                        (model/transition-id-label (:id mask))
+                        "")
+                      :selected-mask-source-tile selected-mask-source-tile
+                      :selected-mask-tile-items
+                      mask-tile-items
+                      :selected-mask-tile-item-index
+                      selected-mask-tile-item-index
+                      :mask-editor-disabled? (nil? mask)
+                      :mask-set-editor-disabled? (nil? mask-set)
+                      :mask-tile-add-disabled?
+                      (or (nil? mask)
+                          (nil? selected-mask-source-tile))
+                      :mask-add-disabled? (nil? mask-set))))
+   :on {:mask/set-select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-mask-set-index (:payload event)
+                 :selected-mask-index nil
+                 :selected-mask-tile-item-index nil
+                 :mask-detail-tab :mask-set))
+        :mask/set-add
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-set-add-dialog! state ctx))
+        :mask/set-edit
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-set-edit-dialog! state ctx))
+        :mask/set-delete
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-set-delete-confirm-dialog! state ctx))
+        :mask/select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-mask-index (:payload event)
+                 :selected-mask-tile-item-index nil
+                 :mask-detail-tab :mask))
+        :mask/add
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-add-dialog! state ctx))
+        :mask/edit
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-edit-dialog! state ctx))
+        :mask/delete
+        (fn [state event ctx]
+          (mask-dialogs/open-mask-delete-confirm-dialog! state ctx))
+        :mask/source-type-change
+        (fn [state event ctx]
+          (actions/change-selected-mask-source-type state (:payload event)))
+        :form/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [payload (:payload event)]
+            (case (:field-id payload)
+              :mask-set-width
+              (actions/change-selected-mask-set-size state :w (:value payload))
+
+              :mask-set-height
+              (actions/change-selected-mask-set-size state :h (:value payload))
+
+              :default state)))
+        :mask/source-tileset-change
+        (fn [state event ctx]
+          (assoc (actions/change-selected-mask-source-tileset
+                  state
+                  (:payload event))
+                 :selected-mask-source-tile nil))
+        :mask/source-tile-select
+        (fn [state event ctx]
+          (assoc state :selected-mask-source-tile (:payload event)))
+        :mask/tile-item-add
+        (fn [state event ctx]
+          (if-let [tile-ref (or (:selected-mask-source-tile state)
+                                (:value (head (data/tile-options
+                                               (:tilesets state)
+                                               (model/selected-mask-source-tileset
+                                                state)))))]
+            (actions/add-selected-mask-tile state tile-ref)
+            state))
+        :mask/tile-item-add-at
+        (fn [state event ctx]
+          (let [index (count (model/selected-mask-tile-items state))
+                state (actions/add-selected-mask-tile-at
+                       state
+                       (:payload event))]
+            (if (> (count (model/selected-mask-tile-items state)) index)
+              (assoc state :selected-mask-tile-item-index index)
+              state)))
+        :mask/tile-item-select
+        (fn [state event ctx]
+          (assoc state :selected-mask-tile-item-index (:payload event)))
+        :mask/tile-item-offset-change
+        (fn [state event ctx]
+          (actions/change-selected-mask-tile-item-offset
+           state
+           (:payload event)))
+        :mask/tile-item-tile-change
+        (fn [state event ctx]
+          (actions/change-selected-mask-tile-item-tile
+           state
+           (:payload event)))
+        :mask/tile-item-delete
+        (fn [state event ctx]
+          (assoc (actions/delete-selected-mask-tile-item
+                  state
+                  (:payload event))
+                 :selected-mask-tile-item-index nil))
+        :menu/select
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                command (-> payload :payload :command)
+                index (-> payload :payload :index)]
+            (if (and (= (:type payload) :action)
+                     (= :remove command)
+                     (some? index))
+              (let [state (actions/delete-selected-mask-tile-item
+                           state
+                           index)]
+                (ui/stop-propagation! event)
+                (assoc state :selected-mask-tile-item-index nil))
+              state)))
+        :mask/set-context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                mask-set-index (:mask-set-index payload)
+                command (:command payload)
+                state (assoc state
+                             :selected-mask-set-index mask-set-index
+                             :selected-mask-index nil)]
+            (case command
+              :rename
+              (mask-dialogs/open-mask-set-edit-dialog! state ctx)
+
+              :delete
+              (mask-dialogs/open-mask-set-delete-confirm-dialog! state ctx)
+
+              :default
+              state)))
+        :mask/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                mask-index (:mask-index payload)
+                command (:command payload)
+                state (assoc state :selected-mask-index mask-index)]
+            (case command
+              :rename
+              (mask-dialogs/open-mask-edit-dialog! state ctx)
+
+              :duplicate
+              (mask-dialogs/open-mask-duplicate-dialog! state ctx)
+
+              :delete
+              (mask-dialogs/open-mask-delete-confirm-dialog! state ctx)
+
+              :default
+              state)))
+        :mask/set-add-dialog-result
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+            (actions/add-mask-set state (:id payload) (:name payload))
+
+            :default state))
+        :mask/set-edit-dialog-result
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+            (actions/edit-selected-mask-set
+             state
+             (:id payload)
+             (:name payload))
+
+            :default state))
+        :mask/set-delete-confirm-result
+        (fn [state {:keys [payload]} ctx]
+          (if (and (= (:choice payload) :dialog/ok)
+                   (some? (-> payload :payload :mask-set-index)))
+            (actions/delete-selected-mask-set
+             (assoc state
+                    :selected-mask-set-index
+                    (-> payload :payload :mask-set-index)))
+            state))
+        :mask/add-dialog-result
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+            (actions/add-mask state (:id payload) (:name payload))
+
+            :default state))
+        :mask/duplicate-dialog-result
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+            (assoc (actions/duplicate-selected-mask
+                    state
+                    (:id payload)
+                    (:name payload))
+                   :mask-detail-tab :mask
+                   :selected-mask-tile-item-index nil)
+
+            :default state))
+        :mask/edit-dialog-result
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+            (actions/edit-selected-mask state (:id payload) (:name payload))
+
+            :default state))
+        :mask/delete-confirm-result
+        (fn [state {:keys [payload]} ctx]
+          (if (and (= (:choice payload) :dialog/ok)
+                   (some? (-> payload :payload :mask-index)))
+            (actions/delete-selected-mask
+             (assoc state
+                    :selected-mask-index
+                    (-> payload :payload :mask-index)))
+            state))
+        :tab-panel/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (assoc state :mask-detail-tab (-> event :payload :tab)))}
+   :children [(mask-sets-panel/make)
+              (masks-panel/make)
+              (detail-panel/make)]})

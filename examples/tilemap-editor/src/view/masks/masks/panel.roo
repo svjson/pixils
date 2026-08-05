@@ -1,0 +1,39 @@
+(ns tilemap-editor.view.masks.masks.panel
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.view.masks.masks.list))
+
+(defun make []
+  {:class :ui/panel
+   :style {:width 230
+           :height :fill
+           :layout {:direction :column
+                    :gap 6}}
+   :state {:mask-sets (ui/bind-state :mask-sets)
+           :selected-mask-set-index (ui/bind-state :selected-mask-set-index)
+           :selected-mask-index (ui/bind-state :selected-mask-index)
+           :mask-add-disabled? (ui/bind-state :mask-add-disabled?)}
+   :children [{:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 4}}
+               :children [{:mode 'ui/text
+                           :class :ui/title
+                           :style {:width :fill}
+                           :state {:value "Masks"}}
+                          {:mode 'ui/button
+                           :class :ui/toolbar-button
+                           :state {:label "+"
+                                   :disabled? (ui/bind-state
+                                               :mask-add-disabled?)}
+                           :on-click (fn [state event ctx]
+                                       (unless (:disabled? state)
+                                         (ui/emit! (:view ctx) :mask/add))
+                                       state)}]}
+              {:mode 'mask-workspace-mask-list
+               :state {:mask-sets (ui/bind-state :mask-sets)
+                       :selected-mask-set-index
+                       (ui/bind-state :selected-mask-set-index)
+                       :selected-mask-index
+                       (ui/bind-state :selected-mask-index)}}]})

@@ -1,0 +1,77 @@
+(ns tilemap-editor.view.masks.detail.mask.panel
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.view.masks.detail.mask.composition.canvas
+            tilemap-editor.view.masks.detail.mask.composition.offset-input
+            tilemap-editor.view.masks.detail.mask.composition.selected-tile
+            [tilemap-editor.view.masks.detail.mask.palette :as palette]
+            [tilemap-editor.view.masks.detail.mask.source :as source]
+            [tilemap-editor.view.masks.detail.mask-set :as mask-set-detail]))
+
+(defun make []
+  (concat [{:mode 'ui/text
+            :class :ui/title
+            :state {:value "Mask"}}
+           (mask-set-detail/summary-field
+            "Name"
+            (ui/bind-state :selected-mask-label))
+           (mask-set-detail/summary-field
+            "Id"
+            (ui/bind-state :selected-mask-id))]
+          (source/make)
+          [{:style {:width :fill
+                    :height :fill
+                    :layout {:direction :row
+                             :gap 12}}
+            :state (ui/bind-state)
+            :children [{:style {:width palette/width
+                                :height :fill
+                                :layout {:direction :column
+                                         :gap 6}}
+                        :state (ui/bind-state)
+                        :children [{:mode 'ui/text
+                                    :class :ui/muted
+                                    :state {:value "Tiles"}}
+                                   {:mode 'mask-source-tile-palette
+                                    :state {:mask-sets (ui/bind-state :mask-sets)
+                                            :selected-mask-set-index
+                                            (ui/bind-state
+                                             :selected-mask-set-index)
+                                            :selected-mask-index
+                                            (ui/bind-state :selected-mask-index)
+                                            :tilesets (ui/bind-state :tilesets)
+                                            :mask-editor-disabled?
+                                            (ui/bind-state
+                                             :mask-editor-disabled?)}}]}
+                       {:style {:width :shrink
+                                :height :shrink
+                                :layout {:direction :column
+                                         :gap 6}}
+                        :state (ui/bind-state)
+                        :children [{:mode 'ui/text
+                                    :class :ui/muted
+                                    :state {:value "Composition"}}
+                                   {:mode 'mask-composition-canvas
+                                    :state {:mask-sets (ui/bind-state :mask-sets)
+                                            :selected-mask-set-index
+                                            (ui/bind-state
+                                             :selected-mask-set-index)
+                                            :selected-mask-index
+                                            (ui/bind-state :selected-mask-index)
+                                            :tilesets (ui/bind-state :tilesets)
+                                            :selected-mask-tile-items
+                                            (ui/bind-state
+                                             :selected-mask-tile-items)
+                                            :selected-mask-tile-item-index
+                                            (ui/bind-state
+                                             :selected-mask-tile-item-index)}}
+                                   {:mode 'mask-selected-tile-editor
+                                    :state {:mask-sets (ui/bind-state :mask-sets)
+                                            :selected-mask-set-index
+                                            (ui/bind-state
+                                             :selected-mask-set-index)
+                                            :selected-mask-index
+                                            (ui/bind-state :selected-mask-index)
+                                            :selected-mask-tile-item-index
+                                            (ui/bind-state
+                                             :selected-mask-tile-item-index)}}]}]}]))

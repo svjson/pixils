@@ -1,0 +1,98 @@
+(ns tilemap-editor.view.masks.detail.mask.source
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun control-field [label child]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :state (ui/bind-state)
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              child]})
+
+(defun tileset-id-from-combo-payload [tilesets payload]
+  (let [value (:value payload)]
+    (if (number? value)
+      (data/tileset-key tilesets value)
+      (or value
+          (data/tileset-key tilesets (:selected-index payload))))))
+
+(defcomponent mask-workspace-source-type-selector
+  {:id "mask-source-type-selector"
+   :style {:width 180
+           :height 22}
+   :update (fn [state ctx]
+             (let [mask-set (model/selected-mask-set
+                             (:mask-sets state)
+                             (:selected-mask-set-index state))
+                   mask (model/selected-mask mask-set
+                                             (:selected-mask-index state))]
+               (assoc state
+                      :source-type-options model/mask-source-type-options
+                      :selected-source-type-index
+                      (model/mask-source-type-index mask)
+                      :disabled? (nil? mask))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :mask/source-type-change
+                    (-> event :payload :value))
+          state)}
+   :children [(cb/make {:options (ui/bind-state :source-type-options)
+                        :selected-index
+                        (ui/bind-state :selected-source-type-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent mask-workspace-source-tileset-selector
+  {:id "mask-workspace-source-tileset-selector"
+   :style {:width 180
+           :height 22}
+   :update (fn [state ctx]
+             (let [tileset-id (model/selected-mask-source-tileset state)]
+               (assoc state
+                      :tileset-options (data/tileset-options (:tilesets state))
+                      :selected-tileset-index
+                      (data/tileset-index (:tilesets state) tileset-id)
+                      :disabled? (or (:mask-editor-disabled? state)
+                                     (empty? (:tilesets state))))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :mask/source-tileset-change
+                    (tileset-id-from-combo-payload
+                     (:tilesets state)
+                     (:payload event)))
+          state)}
+   :children [(cb/make {:options (ui/bind-state :tileset-options)
+                        :selected-index
+                        (ui/bind-state :selected-tileset-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defun make []
+  [(control-field
+    "Source"
+    {:mode 'mask-workspace-source-type-selector
+     :state {:mask-sets (ui/bind-state :mask-sets)
+             :selected-mask-set-index
+             (ui/bind-state :selected-mask-set-index)
+             :selected-mask-index (ui/bind-state :selected-mask-index)}})
+   (control-field
+    "Tileset"
+    {:mode 'mask-workspace-source-tileset-selector
+     :state {:mask-sets (ui/bind-state :mask-sets)
+             :selected-mask-set-index
+             (ui/bind-state :selected-mask-set-index)
+             :selected-mask-index (ui/bind-state :selected-mask-index)
+             :tilesets (ui/bind-state :tilesets)
+             :mask-editor-disabled?
+             (ui/bind-state :mask-editor-disabled?)}})])

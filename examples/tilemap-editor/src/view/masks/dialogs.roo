@@ -1,0 +1,104 @@
+(ns tilemap-editor.view.masks.dialogs
+  (:require [pixils.ui.dialog :as dialog]
+            [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun open-mask-set-add-dialog! [state ctx]
+  "Open the mask-set identity dialog for a new mask set."
+  (let [mask-set (model/make-mask-set (:mask-sets state))]
+    (identity-dialog/open! ctx
+                          {:title "Add Mask Set"
+                           :id (model/keyword-label (:id mask-set))
+                           :name (or (:label mask-set) "")
+                           :result-event :mask/set-add-dialog-result}))
+  state)
+
+(defun open-mask-set-edit-dialog! [state ctx]
+  "Open the mask-set identity dialog for the selected mask set."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))]
+    (identity-dialog/open! ctx
+                          {:title "Rename Mask Set"
+                           :id (model/keyword-label (:id mask-set))
+                           :name (or (:label mask-set) "")
+                           :result-event
+                           :mask/set-edit-dialog-result}))
+  state)
+
+(defun open-mask-set-delete-confirm-dialog! [state ctx]
+  "Open the delete confirmation for the selected mask set."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))]
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Mask Set"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete mask set \""
+                                 (model/mask-set-label mask-set)
+                                 "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :mask/set-delete-confirm-result
+      :payload {:mask-set-index (:selected-mask-set-index state)}}))
+  state)
+
+(defun open-mask-add-dialog! [state ctx]
+  "Open the mask identity dialog for a new mask in the selected mask set."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))
+             mask (model/make-mask (:masks mask-set))]
+    (identity-dialog/open! ctx
+                          {:title "Add Mask"
+                           :id (model/keyword-label (:id mask))
+                           :name (or (:label mask) "")
+                           :result-event :mask/add-dialog-result}))
+  state)
+
+(defun open-mask-edit-dialog! [state ctx]
+  "Open the mask identity dialog for the selected mask."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))
+             mask (model/selected-mask mask-set (:selected-mask-index state))]
+    (identity-dialog/open! ctx
+                          {:title "Rename Mask"
+                           :id (model/keyword-label (:id mask))
+                           :name (or (:label mask) "")
+                           :result-event :mask/edit-dialog-result}))
+  state)
+
+(defun open-mask-duplicate-dialog! [state ctx]
+  "Open the mask identity dialog for duplicating the selected mask."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))
+             masks (or (:masks mask-set) [])
+             mask (model/selected-mask mask-set (:selected-mask-index state))
+             name (when mask (model/duplicate-mask-name masks mask))]
+    (identity-dialog/open! ctx
+                          {:title "Duplicate Mask"
+                           :id (kebab-case name)
+                           :name name
+                           :result-event
+                           :mask/duplicate-dialog-result}))
+  state)
+
+(defun open-mask-delete-confirm-dialog! [state ctx]
+  "Open the delete confirmation for the selected mask."
+  (when-let [mask-set (model/selected-mask-set (:mask-sets state)
+                                               (:selected-mask-set-index state))
+             mask (model/selected-mask mask-set (:selected-mask-index state))]
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Mask"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete mask \""
+                                 (model/mask-label mask)
+                                 "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :mask/delete-confirm-result
+      :payload {:mask-index (:selected-mask-index state)}}))
+  state)

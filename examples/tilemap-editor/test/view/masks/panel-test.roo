@@ -1,6 +1,12 @@
-(ns tilemap-editor.view.masks.layout-test
+(ns tilemap-editor.view.masks.panel-test
   (:require proof.core
-            [tilemap-editor.view.masks.layout :as layout]))
+            [tilemap-editor.view.masks.detail.mask.composition.canvas :as canvas]
+            [tilemap-editor.view.masks.detail.mask.composition.selected-tile
+             :as selected-tile]
+            [tilemap-editor.view.masks.detail.mask.palette :as palette]
+            [tilemap-editor.view.masks.detail.panel :as details]
+            [tilemap-editor.view.masks.forms :as mask-forms]
+            [tilemap-editor.view.masks.masks.row :as mask-row]))
 
 (def test-tilesets
   [{:id :terrain
@@ -23,56 +29,69 @@
                                   :tileset :terrain
                                   :tiles []}}]}]})
 
-(deftest mask-canvas-view-size-uses_selected_mask_set_dimensions
+(deftest mask-canvas-view-size-uses-selected-mask-set-dimensions
   (is (= {:w 48
           :h 40}
-         (layout/mask-canvas-view-size
+         (canvas/view-size
           (assoc-in test-state
                     [:mask-sets 0 :mask-size]
                     {:w 32
                      :h 24})))))
 
-(deftest mask-canvas-item-context-menu-removes_tiles
-  (let [item (head (:items (layout/mask-canvas-item-context-menu 2)))]
+(deftest mask-canvas-item-context-menu-removes-tiles
+  (let [item (head (:items (canvas/item-context-menu 2)))]
     (is (= "Remove" (:label item)))
     (is (= :remove (-> item :payload :command)))
     (is (= 2 (-> item :payload :index)))))
 
-(deftest mask-context-menu-includes_duplicate_command
-  (let [items (:items layout/mask-context-menu)
+(deftest mask-context-menu-includes-duplicate-command
+  (let [items (:items mask-row/context-menu)
         duplicate (nth items 1)]
     (is (= "Duplicate Mask" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
-(deftest mask-palette-tile-at-position-finds_swatch_tile
+(deftest mask-set-detail-editor-uses-pixils-form-for-size
+  (let [panel (details/make)
+        tabs (head (:children panel))
+        mask-set-tab (head (-> tabs :state :tabs))
+        size-form (nth (-> mask-set-tab :child :children) 3)
+        state (:state size-form)]
+    (is (= 'pixils/form (:mode size-form)))
+    (is (= mask-forms/mask-set-size-schema (:schema state)))
+    (is (= mask-forms/mask-set-size-text
+           (get-in state [:form/render-opts :text])))
+    (is (= mask-forms/mask-set-size-layout (:form/layout state)))
+    (is (= :live (:form/mode state)))))
+
+(deftest mask-palette-tile-at-position-finds-swatch-tile
   (is (= :edge-e
-         (layout/mask-palette-tile-at-position
+         (palette/tile-at-position
           test-state
           {:x 36 :y 2}
           {:w 150 :h 192})))
   (is (nil?
-       (layout/mask-palette-tile-at-position
+       (palette/tile-at-position
         test-state
         {:x 33 :y 2}
         {:w 150 :h 192}))))
 
-(deftest mask-canvas-selected-index-rejects_stale_indices
+(deftest mask-canvas-selected-index-rejects-stale-indices
   (is (= 0
-         (layout/mask-canvas-selected-index
+         (selected-tile/selected-index
           {:selected-mask-tile-item-index 0
            :selected-mask-tile-items [{:tile :edge-n}]})))
   (is (nil?
-       (layout/mask-canvas-selected-index
+       (selected-tile/selected-index
         {:selected-mask-tile-item-index 1
          :selected-mask-tile-items [{:tile :edge-n}]}))))
 
-(deftest selected-mask-tile-item-state-exposes_selected_offset
+(deftest selected-mask-tile-item-state-exposes-selected-offset
   (is (= {:selected-mask-tile-item-valid-index 1
           :selected-mask-tile-item-label "edge-e"
           :selected-mask-tile-offset-x -2
           :selected-mask-tile-offset-y 9
           :selected-mask-tile-offset-disabled? false}
-         (layout/selected-mask-tile-item-state
+         (selected-tile/selected-state
           {:selected-mask-tile-item-index 1
            :selected-mask-tile-items [{:tile :edge-n
                                        :offset {:x 0
@@ -81,52 +100,19 @@
                                        :offset {:x -2
                                                 :y 9}}]}))))
 
-(deftest selected-mask-tile-item-state-disables_stale_selection
+(deftest selected-mask-tile-item-state-disables-stale-selection
   (is (= {:selected-mask-tile-item-valid-index nil
           :selected-mask-tile-item-label "Select a tile"
           :selected-mask-tile-offset-x 0
           :selected-mask-tile-offset-y 0
           :selected-mask-tile-offset-disabled? true}
-         (layout/selected-mask-tile-item-state
+         (selected-tile/selected-state
           {:selected-mask-tile-item-index 4
            :selected-mask-tile-items [{:tile :edge-n
                                        :offset {:x 3
                                                 :y 4}}]}))))
 
-(deftest apply-mask-tile-item-offset-change-updates_single_axis
-  (let [state (assoc-in test-state
-                        [:mask-sets 0 :masks 0 :source :tiles]
-                        [{:tile :edge-n
-                          :offset {:x 2
-                                   :y 3}}])
-        state (layout/apply-mask-tile-item-offset-change
-               state
-               {:index 0
-                :axis :x
-                :value -4})]
-    (is (= {:x -4
-            :y 3}
-           (get-in state
-                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset])))))
-
-(deftest apply-mask-tile-item-offset-change-updates_both_axes
-  (let [state (assoc-in test-state
-                        [:mask-sets 0 :masks 0 :source :tiles]
-                        [{:tile :edge-n
-                          :offset {:x 2
-                                   :y 3}}])
-        state (layout/apply-mask-tile-item-offset-change
-               state
-               {:index 0
-                :axis :both
-                :value {:x 6
-                        :y -1}})]
-    (is (= {:x 6
-            :y -1}
-           (get-in state
-                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset])))))
-
-(deftest mask-tile-nudge-payload-moves_selected_tile_one_pixel
+(deftest mask-tile-nudge-payload-moves-selected-tile-one-pixel
   (let [state {:selected-mask-tile-item-index 0
                :selected-mask-tile-items [{:tile :edge-n
                                            :offset {:x 2
@@ -135,27 +121,27 @@
             :axis :both
             :value {:x 1
                     :y 3}}
-           (layout/mask-tile-nudge-payload state :key/left)))
+           (selected-tile/nudge-payload state :key/left)))
     (is (= {:index 0
             :axis :both
             :value {:x 2
                     :y 4}}
-           (layout/mask-tile-nudge-payload state :key/down)))))
+           (selected-tile/nudge-payload state :key/down)))))
 
-(deftest mask-tile-nudge-payload-ignores_stale_selection
-  (is (nil? (layout/mask-tile-nudge-payload
+(deftest mask-tile-nudge-payload-ignores-stale-selection
+  (is (nil? (selected-tile/nudge-payload
              {:selected-mask-tile-item-index 1
               :selected-mask-tile-items [{:tile :edge-n
                                           :offset {:x 2
                                                    :y 3}}]}
              :key/right))))
 
-(deftest mask-canvas-drop-payload-adds_source_tile_at_drop_position
+(deftest mask-canvas-drop-payload-adds-source-tile-at-drop-position
   (is (= {:tile :edge-n
           :tileset :terrain
           :offset {:x 8
                    :y 9}}
-         (layout/mask-canvas-drop-payload
+         (canvas/drop-payload
           test-state
           {:payload {:kind :mask/source-tile
                      :tile :edge-n
@@ -165,12 +151,12 @@
            :position {:x 20
                       :y 22}}))))
 
-(deftest mask-canvas-drop-payload-accepts_tileset_grid_tile
+(deftest mask-canvas-drop-payload-accepts-tileset-grid-tile
   (is (= {:tile :edge-e
           :tileset :terrain
           :offset {:x 4
                    :y 6}}
-         (layout/mask-canvas-drop-payload
+         (canvas/drop-payload
           test-state
           {:payload {:kind :tileset/tile
                      :source-tileset-index 0
@@ -180,12 +166,12 @@
            :position {:x 20
                       :y 22}}))))
 
-(deftest mask-canvas-drag-payload-identifies_composed_tile
+(deftest mask-canvas-drag-payload-identifies-composed-tile
   (is (= {:kind :mask/composed-tile
           :index 1
           :start-offset {:x 4
                          :y 5}}
-         (layout/mask-canvas-drag-payload
+         (canvas/drag-payload
           (assoc test-state
                  :selected-mask-tile-items
                  [{:tile :edge-n

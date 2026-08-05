@@ -1,0 +1,54 @@
+(ns tilemap-editor.view.masks.mask-sets.list
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as lb]
+            [tilemap-editor.view.masks.mask-sets.row :as row]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun make-list-box [mask-sets selected-index]
+  (let [mask-sets (or mask-sets [])
+        options (model/mask-set-options mask-sets)]
+    (lb/make {:options options
+              :selected-indices (model/selected-mask-set-indices
+                                 mask-sets
+                                 selected-index)
+              :force-selection? true
+              :item-child row/make
+              :style {:width :fill
+                      :height :fill}
+              :row-height row/row-height
+              :visible-rows (max 1 (count options))
+              :content-width 180
+              :disabled? (empty? options)})))
+
+(defcomponent mask-workspace-set-list
+  {:id "global-mask-set-list"
+   :style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-mask-sets nil
+                  :rendered-selected-mask-set-index nil))
+   :update (fn [state ctx]
+             (let [mask-sets (or (:mask-sets state) [])
+                   selected-index (:selected-mask-set-index state)]
+               (when (or (not= mask-sets (:rendered-mask-sets state))
+                         (not= selected-index
+                               (:rendered-selected-mask-set-index state)))
+                 (ui/replace-child!
+                  (:view ctx)
+                  "global-mask-set-list-box"
+                  (merge {:id "global-mask-set-list-box"}
+                         (make-list-box mask-sets selected-index))))
+               (assoc state
+                      :rendered-mask-sets mask-sets
+                      :rendered-selected-mask-set-index selected-index)))
+   :on {:list-box/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :mask/set-select
+                    (head (-> event :payload :selected-indices)))
+          state)}
+   :children [(merge {:id "global-mask-set-list-box"}
+                     (make-list-box [] nil))]})

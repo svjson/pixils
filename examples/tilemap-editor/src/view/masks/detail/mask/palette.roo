@@ -1,0 +1,140 @@
+(ns tilemap-editor.view.masks.detail.mask.palette
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as lb]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(def cell-size 32)
+(def gap 2)
+(def width 150)
+(def height 192)
+
+(defun mask-source-tile-size [state]
+  (let [tileset (data/tileset-definition (:tilesets state)
+                                         (model/selected-mask-source-tileset
+                                          state))]
+    (data/map-tile-dim (or (:tile-size tileset) data/tile-dim))))
+
+(defun mask-source-tile-options [state]
+  (data/tile-options (:tilesets state)
+                     (model/selected-mask-source-tileset state)))
+
+(defun mask-source-tile [state tile-ref]
+  (data/tile-in (:tilesets state)
+                (model/selected-mask-source-tileset state)
+                tile-ref))
+
+(defun stride []
+  (+ cell-size gap))
+
+(defun columns [bounds]
+  (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) gap)
+                 (stride)))))
+
+(defun index-at-position [position bounds item-count]
+  (let [stride (stride)
+        col (int (/ (:x position) stride))
+        row (int (/ (:y position) stride))
+        index (+ col (* row (columns bounds)))]
+    (when (and (>= (:x position) 0)
+               (>= (:y position) 0)
+               (< (mod (:x position) stride) cell-size)
+               (< (mod (:y position) stride) cell-size)
+               (< index item-count))
+      index)))
+
+(defun cell-rect [index columns]
+  (let [columns (max 1 (or columns 1))
+        stride (stride)]
+    {:x (* (mod index columns) stride)
+     :y (* (int (/ index columns)) stride)
+     :w cell-size
+     :h cell-size}))
+
+(defun drag-offset [event rect]
+  (let [pos (:start-position event)]
+    {:x (- (:x pos) (:x rect))
+     :y (- (:y pos) (:y rect))}))
+
+(defun drag-payload [state event ctx]
+  (let [options (mask-source-tile-options state)
+        columns (columns (-> ctx :view :bounds))
+        index (index-at-position (:start-position event)
+                                 (-> ctx :view :bounds)
+                                 (count options))
+        option (when-let [index index] (nth options index))
+        rect (cell-rect (or index 0) columns)]
+    (when option
+      {:kind :mask/source-tile
+       :tileset (model/selected-mask-source-tileset state)
+       :tile (:value option)
+       :tile-size (mask-source-tile-size state)
+       :offset (drag-offset event rect)})))
+
+(defun tile-at-position [state position bounds]
+  (let [options (mask-source-tile-options state)
+        index (index-at-position position bounds (count options))
+        option (when-let [index index] (nth options index))]
+    (:value option)))
+
+(defun emit-tile-replace! [state event ctx]
+  (let [tile-ref (tile-at-position state
+                                   (:position event)
+                                   (-> ctx :view :bounds))]
+    (when (and (= (:button event) :left)
+               (lb/held-shift? ctx)
+               (some? tile-ref))
+      (ui/stop-propagation! event)
+      (ui/emit! (:view ctx)
+                :mask/tile-item-tile-change
+                tile-ref))
+    state))
+
+(defun draw-cell! [state option index columns]
+  (let [rect (cell-rect index columns)
+        tile (mask-source-tile state (:value option))]
+    (r/rect! rect {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+    (when tile
+      (tr/draw-tile! tile
+                     {:x (+ (:x rect) 4)
+                      :y (+ (:y rect) 4)
+                      :w (- (:w rect) 8)
+                      :h (- (:h rect) 8)}))
+    (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})))
+
+(defcomponent mask-source-tile-palette
+  {:focusable true
+   :class :ui/content
+   :style {:width width
+           :height height
+           :clip true
+           :cursor :pointer}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload drag-payload}
+   :on-mouse-up emit-tile-replace!
+   :update (fn [state ctx]
+             (assoc state
+                    :tile-options (mask-source-tile-options state)
+                    :disabled? (or (:mask-editor-disabled? state)
+                                   (empty? (mask-source-tile-options state)))))
+   :render (fn [state ctx]
+             (let [options (or (:tile-options state) [])
+                   columns (columns (-> ctx :view :bounds))]
+               (r/rect! {:x 0
+                         :y 0
+                         :w (-> ctx :view :bounds :w)
+                         :h (-> ctx :view :bounds :h)}
+                        {:fill true
+                         :color {:r 0x0f :g 0x12 :b 0x15}})
+               (for-indexed [index option options]
+                 (draw-cell! state option index columns))
+               (r/rect! {:x 0
+                         :y 0
+                         :w (-> ctx :view :bounds :w)
+                         :h (-> ctx :view :bounds :h)}
+                        {:color {:r 0x1f :g 0x26 :b 0x2d}})))})

@@ -1,0 +1,22 @@
+(ns tilemap-editor.view.masks.forms
+  (:require [pixils.tilemap.project.model :as data]))
+
+(def mask-set-size-schema
+  "Schema for the mask-set dimensions edited by the standalone masks workspace."
+  {:mask-set-width {:type :integer
+                    :path [:w]
+                    :min data/min-map-dimension
+                    :max data/max-map-dimension}
+   :mask-set-height {:type :integer
+                     :path [:h]
+                     :min data/min-map-dimension
+                     :max data/max-map-dimension}})
+
+(def mask-set-size-text
+  "Field labels for the mask-set dimension form."
+  {:mask-set-width "Width"
+   :mask-set-height "Height"})
+
+(def mask-set-size-layout
+  "Layout for the mask-set dimension form."
+  [:mask-set-width :mask-set-height])

@@ -1,0 +1,30 @@
+(ns tilemap-editor.view.masks.detail.mask.composition.offset-input
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.number-input :as ni]))
+
+(defcomponent mask-tile-offset-input
+  {:style {:width 58
+           :height 22}
+   :on {:number-input/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :mask/tile-item-offset-change
+                    {:index (:index state)
+                     :axis (:axis state)
+                     :value (-> event :payload :value)})
+          state)}
+   :children [(ni/make {:value (ui/bind-state :value)
+                        :step 1
+                        :allow-negative? true
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width :fill
+                                :height :fill}})]})
+
+(defun make [index axis value disabled?]
+  {:mode 'mask-tile-offset-input
+   :state {:index index
+           :axis axis
+           :value value
+           :disabled? disabled?}})

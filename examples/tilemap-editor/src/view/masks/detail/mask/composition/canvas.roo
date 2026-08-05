@@ -1,0 +1,188 @@
+(ns tilemap-editor.view.masks.detail.mask.composition.canvas
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.menu :as menu]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.masks.detail.mask.composition.selected-tile :as selected-tile]
+            [tilemap-editor.view.masks.detail.mask.palette :as palette]
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(def padding 8)
+
+(defun view-size [state]
+  (let [size (model/selected-mask-set-size state)]
+    {:w (+ (:w size) (* 2 padding))
+     :h (+ (:h size) (* 2 padding))}))
+
+(defun item-context-menu [index]
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Remove"
+            :action :mask/tile-item-context-dummy
+            :payload {:command :remove
+                      :index index}}]})
+
+(defun item-rect [state item]
+  (let [tile-size (palette/mask-source-tile-size state)
+        offset (or (:offset item) {:x 0 :y 0})]
+    {:x (+ padding (or (:x offset) 0))
+     :y (+ padding (or (:y offset) 0))
+     :w (:w tile-size)
+     :h (:h tile-size)}))
+
+(defun point-in-rect? [point rect]
+  (and (>= (:x point) (:x rect))
+       (>= (:y point) (:y rect))
+       (< (:x point) (+ (:x rect) (:w rect)))
+       (< (:y point) (+ (:y rect) (:h rect)))))
+
+(defun item-index-at-position [state position]
+  (let [items (or (:selected-mask-tile-items state) [])]
+    (reduce (range 0 (dec (count items)))
+            nil
+            (fn [match index]
+              (let [item (nth items index)]
+                (if (point-in-rect? position (item-rect state item))
+                  index
+                  match))))))
+
+(defun drag-payload [state event ctx]
+  (let [index (item-index-at-position state (:start-position event))]
+    (when-let [index index]
+      (let [item (nth (:selected-mask-tile-items state) index)
+            offset (or (:offset item) {:x 0 :y 0})]
+        {:kind :mask/composed-tile
+         :index index
+         :start-offset offset}))))
+
+(defun emit-selection! [state event ctx]
+  (let [index (item-index-at-position state (:position event))]
+    (ui/emit! (:view ctx) :mask/tile-item-select index)
+    (assoc state :selected-mask-tile-item-index index)))
+
+(defun open-item-context-menu! [state event ctx index]
+  (menu/open-context-menu! (item-context-menu index)
+                           (:global-position event)
+                           state
+                           ctx)
+  (assoc state :context-mask-tile-item-index index))
+
+(defun dropped-offset [event payload]
+  (let [position (or (:position event) {:x padding
+                                        :y padding})
+        drag-offset (or (:offset payload) {:x 0 :y 0})]
+    {:x (int (- (:x position) (:x drag-offset) padding))
+     :y (int (- (:y position) (:y drag-offset) padding))}))
+
+(defun drop-payload [state event]
+  (let [payload (:payload event)]
+    (case (:kind payload)
+      :mask/source-tile
+      {:tile (:tile payload)
+       :tileset (:tileset payload)
+       :offset (dropped-offset event payload)}
+
+      :tileset/tile
+      {:tile (-> payload :tile :id)
+       :tileset (data/tileset-key (:tilesets state)
+                                  (:source-tileset-index payload))
+       :offset (dropped-offset event payload)}
+
+      :default
+      nil)))
+
+(defun emit-drag! [state event ctx]
+  (let [payload (:payload event)]
+    (when (= (:kind payload) :mask/composed-tile)
+      (let [delta (or (:total-delta event) {:x 0 :y 0})
+            start (or (:start-offset payload) {:x 0 :y 0})]
+        (ui/emit! (:view ctx)
+                  :mask/tile-item-offset-change
+                  {:index (:index payload)
+                   :axis :both
+                   :value {:x (int (+ (:x start) (:x delta)))
+                           :y (int (+ (:y start) (:y delta)))}}))
+      state)))
+
+(defun draw-item! [state item index]
+  (let [tile (palette/mask-source-tile state (:tile item))
+        rect (item-rect state item)
+        selected? (= index (selected-tile/selected-index state))
+        border-color (if selected?
+                       {:r 0xff :g 0xd1 :b 0x66}
+                       {:r 0x5d :g 0xc9 :b 0x9a})]
+    (when tile
+      (tr/draw-tile! tile rect))
+    (r/rect! rect {:color border-color})))
+
+(defcomponent mask-composition-canvas
+  {:focusable true
+   :class :ui/content
+   :style {:width (+ data/tile-size (* 2 padding))
+           :height (+ data/tile-size (* 2 padding))
+           :clip true
+           :cursor :pointer}
+   :update (fn [state ctx]
+             (let [size (view-size state)]
+               (assoc-in! ctx [:view :style :width] (:w size))
+               (assoc-in! ctx [:view :style :height] (:h size))
+               state))
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload drag-payload}
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    (emit-selection! state event ctx))
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (let [index (item-index-at-position state (:position event))]
+                    (if (and (= (:button event) :right)
+                             (some? index))
+                      (open-item-context-menu! state event ctx index)
+                      state)))
+   :on-drag emit-drag!
+   :on-key-down selected-tile/emit-nudge!
+   :on-drop (fn [state event ctx]
+              (when-let [drop (drop-payload state event)]
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :mask/tile-item-add-at
+                          drop))
+              state)
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)
+                             command (-> payload :payload :command)
+                             index (-> payload :payload :index)]
+                         (if (and (= (:type payload) :action)
+                                  (= :remove command)
+                                  (some? index))
+                           (let [state (assoc state
+                                              :selected-mask-tile-item-index
+                                              nil)]
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :mask/tile-item-delete
+                                       index)
+                             state)
+                           state)))}
+   :render (fn [state ctx]
+             (let [bounds (-> ctx :view :bounds)
+                   items (or (:selected-mask-tile-items state) [])
+                   inner {:x padding
+                          :y padding
+                          :w (- (:w bounds) (* 2 padding))
+                          :h (- (:h bounds) (* 2 padding))}]
+               (r/rect! {:x 0 :y 0 :w (:w bounds) :h (:h bounds)}
+                        {:fill true
+                         :color {:r 0x0f :g 0x12 :b 0x15}})
+               (r/rect! inner {:fill true
+                               :color {:r 0x18 :g 0x1d :b 0x22}})
+               (r/rect! inner {:color {:r 0x32 :g 0x3b :b 0x45}})
+               (for-indexed [index item items]
+                 (draw-item! state item index))
+               (when (empty? items)
+                 (r/text! "Drop tiles here"
+                          {:x (+ (:x inner) 12)
+                           :y (+ (:y inner) 16)}
+                          {:color {:r 0x86 :g 0x91 :b 0x9b}}))))})

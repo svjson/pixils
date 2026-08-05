@@ -1,0 +1,50 @@
+(ns tilemap-editor.view.masks.detail.mask-set
+  (:require [pixils.form :as form]
+            [pixils.ui :as ui]
+            [tilemap-editor.view.masks.forms :as mask-forms]))
+
+(defun summary-field [label value]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value value}}]})
+
+(defun make []
+  [{:mode 'ui/text
+    :class :ui/title
+    :state {:value "Mask Set"}}
+   (summary-field "Name"
+                  (ui/bind-state :selected-mask-set-label))
+   (summary-field "Id"
+                  (ui/bind-state :selected-mask-set-id))
+   (form/make {:schema mask-forms/mask-set-size-schema
+               :text mask-forms/mask-set-size-text
+               :layout mask-forms/mask-set-size-layout
+               :mode :live
+               :value (ui/bind-state :selected-mask-set-size)
+               :style {:width 210
+                       :height :shrink
+                       :layout {:direction :column
+                                :gap 6}}
+               :row-style {:width :fill
+                           :height :shrink
+                           :layout {:direction :column
+                                    :gap 6}}
+               :field-style {:width :fill
+                             :height 24
+                             :layout {:direction :row
+                                      :align-items :center
+                                      :gap 8}}
+               :field-label-style {:width 92}
+               :control-style {:width 86
+                               :height 22}})
+   (summary-field "Masks"
+                  (ui/bind-state :selected-mask-count))])
