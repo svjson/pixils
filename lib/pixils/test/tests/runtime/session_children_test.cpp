@@ -1537,6 +1537,50 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
   EXPECT_TRUE(Roo::is_truthy(*dismissed));
 }
 
+TEST_F(SessionStateTreeTest, pop_mode_result_keeps_component_root_source_name_alive)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent popup-body
+      {:update (fn [state ctx]
+                 (pixils/pop-mode! {:dismissed? true}))})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:opened? false :result nil})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-body)
+                       (assoc state :opened? true))))
+       :on {:pop/result (fn [state ev ctx]
+                          (assoc state :result {:source-mode (:source-mode ev)
+                                                :payload (:payload ev)}))}})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->definition->name, "popup-body-root");
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
+
+  auto result =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
+  ASSERT_NE(result, nullptr);
+
+  auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
+  auto payload = Roo::Dict::get_property(result, Roo::keyword("payload"));
+  auto dismissed = Roo::Dict::get_property(payload, Roo::keyword("dismissed?"));
+
+  ASSERT_NE(source_mode, nullptr);
+  ASSERT_NE(payload, nullptr);
+  ASSERT_NE(dismissed, nullptr);
+  EXPECT_EQ(source_mode->str(), "popup-body-root");
+  EXPECT_TRUE(Roo::is_truthy(*dismissed));
+}
+
 TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_keep_distinct_local_states)
 {
   // Given - two children using the same mode type with different local initial state

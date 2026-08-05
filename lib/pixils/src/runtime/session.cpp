@@ -551,7 +551,7 @@ namespace Pixils::Runtime
     if (mode_stack.size() > 1)
     {
       auto popped_frame = mode_stack.peek();
-      auto* popped_mode = popped_frame.first;
+      auto popped_mode_name = popped_frame.mode->name;
       auto frame_meta = frame_metadata.empty() ? ModeFrameMetadata{} : frame_metadata.back();
 
       mode_stack.pop();
@@ -570,7 +570,7 @@ namespace Pixils::Runtime
       ctx_stack.pop_back();
 
       auto restored_frame = mode_stack.peek();
-      auto saved_state = restored_frame.second;
+      auto saved_state = restored_frame.state;
       active_mode->set_state_if_changed(saved_state);
       for (auto& child : active_mode->children)
       {
@@ -581,7 +581,7 @@ namespace Pixils::Runtime
       auto pop_event_key = frame_meta.origin_event->type != Roo::Value::Type::NIL
                              ? frame_meta.origin_event
                              : KEYWORD__POP_RESULT;
-      auto pop_event_source_mode = Roo::symbol(popped_mode->name);
+      auto pop_event_source_mode = Roo::symbol(popped_mode_name);
       std::vector<std::shared_ptr<View>> path;
 
       if (frame_meta.origin_view &&

@@ -19,12 +19,12 @@ namespace Pixils::Runtime
     Roo::append(*stack, Roo::vector({mode, state}));
   }
 
-  std::pair<Mode*, Roo::sptr_val> ModeStack::peek()
+  ModeStackFrame ModeStack::peek()
   {
     auto frame = Roo::get_child(*stack, size() - 1);
+    auto mode_value = Roo::get_child(*frame, 0);
 
-    return std::make_pair(&Roo::obj<Mode>(*Roo::get_child(*frame, 0)),
-                          Roo::get_child(*frame, 1));
+    return {mode_value, &Roo::obj<Mode>(*mode_value), Roo::get_child(*frame, 1)};
   }
 
   void ModeStack::pop()

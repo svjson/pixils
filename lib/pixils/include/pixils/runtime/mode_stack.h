@@ -7,6 +7,13 @@ namespace Pixils::Runtime
 {
   struct Mode;
 
+  struct ModeStackFrame
+  {
+    Roo::sptr_val mode_value;
+    Mode* mode = nullptr;
+    Roo::sptr_val state;
+  };
+
   class ModeStack
   {
     Roo::sptr_val stack;
@@ -16,7 +23,7 @@ namespace Pixils::Runtime
     ModeStack(const Roo::sptr_val& stack, const Roo::sptr_val& message_queue);
 
     void push(const Roo::sptr_val& mode, const Roo::sptr_val& state);
-    std::pair<Mode*, Roo::sptr_val> peek();
+    ModeStackFrame peek();
     void pop();
 
     void update_state(const Roo::sptr_val& state, size_t offset = 0);
