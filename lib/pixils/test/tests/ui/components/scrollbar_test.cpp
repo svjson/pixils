@@ -15,6 +15,11 @@ namespace
   {
     return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
+
+  Roo::sptr_val get_map_key(const Roo::sptr_val& value, const std::string& key)
+  {
+    return Roo::Dict::get_property(value, Roo::keyword(key));
+  }
 } // namespace
 
 TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
@@ -367,22 +372,76 @@ TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
   update_cycle();
 
   auto active_part = get_state_key(scrollbar, "active-part");
+  auto ui_active_part = get_map_key(scrollbar->ui_state, "active-part");
   auto pressed = get_state_key(handle, "pressed");
+  auto ui_pressed = get_map_key(handle->ui_state, "pressed");
   ASSERT_NE(active_part, nullptr);
+  ASSERT_NE(ui_active_part, nullptr);
   ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
   EXPECT_EQ(active_part->to_string(), ":handle");
+  EXPECT_EQ(ui_active_part->to_string(), ":handle");
   EXPECT_EQ(pressed->to_string(), "true");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
 
   input().mouse_up({5, 20});
   update_cycle();
   update_cycle();
 
   active_part = get_state_key(scrollbar, "active-part");
+  ui_active_part = get_map_key(scrollbar->ui_state, "active-part");
   pressed = get_state_key(handle, "pressed");
+  ui_pressed = get_map_key(handle->ui_state, "pressed");
   ASSERT_NE(active_part, nullptr);
+  ASSERT_NE(ui_active_part, nullptr);
   ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
   EXPECT_EQ(active_part->to_string(), "nil");
+  EXPECT_EQ(ui_active_part->to_string(), "nil");
   EXPECT_EQ(pressed->to_string(), "false");
+  EXPECT_EQ(ui_pressed->to_string(), "false");
+}
+
+TEST_F(ScrollbarTest, scrollbar_active_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}
+                   :update (fn [state ctx]
+                             {:axis (:axis state)
+                              :content-size (:content-size state)
+                              :value (:value state)})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  input().mouse_down({5, 20});
+  update_cycle();
+
+  auto ui_active_part = get_map_key(scrollbar->ui_state, "active-part");
+  auto ui_drag_kind = get_map_key(scrollbar->ui_state, "drag-kind");
+  auto ui_pressed = get_map_key(handle->ui_state, "pressed");
+  ASSERT_NE(ui_active_part, nullptr);
+  ASSERT_NE(ui_drag_kind, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(ui_active_part->to_string(), ":handle");
+  EXPECT_EQ(ui_drag_kind->to_string(), ":handle");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
 }
 
 TEST_F(ScrollbarTest, base_theme_scrollbar_buttons_use_generated_outline_arrows)

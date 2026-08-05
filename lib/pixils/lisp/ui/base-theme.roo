@@ -120,6 +120,7 @@
   {:default-variant :base
    :vars {:base {:split-pane-resizer-size 6
                  :scrollbar-size 14
+                 :scrollbar-min-handle-size 12
                  :surface {:r 0xff :g 0xff :b 0xff}
                  :panel-bg {:r 0xcc :g 0xcc :b 0xcc}
                  :field-bg {:r 0xff :g 0xff :b 0xff}
