@@ -18,6 +18,7 @@ namespace Pixils::Script
    */
   inline constexpr std::string_view NS__PIXILS__RECT = "pixils.rect";
 
+  inline constexpr std::string_view FN__ALIGN = "align";
   inline const std::string FN__PIXILS__MAKE_RECT = "pixils.rect/make-rect";
   inline constexpr std::string_view FN__NORMALIZE_POINT = "normalize-point";
 
@@ -38,6 +39,55 @@ namespace Pixils::Script
     FUNC(InsidePFunction, inside);
     /*! @brief Checks if to Rects intersect each other */
     FUNC(IntersectPFunction, intersect);
+    /*!
+     * RectAlignFunction - pixils.rect/align
+     *
+     * Aligns a size inside a rect and returns the resulting rect.
+     *
+     * The numeric form places the inner size at normalized x/y factors. Use `0`
+     * for the start edge, `0.5` for the center, and `1` for the end edge.
+     *
+     * The keyword form accepts one of `:top-left`, `:top-center`, `:top-right`,
+     * `:center-left`, `:center`, `:center-right`, `:bottom-left`,
+     * `:bottom-center`, or `:bottom-right`.
+     *
+     * The options-map form separates the point in the outer rect (`:at`) from
+     * the point on the aligned inner rect (`:origin`). When `:origin` is omitted,
+     * it defaults to the same anchor as `:at`.
+     *
+     * Usage:
+     * @code
+     * (pixils.rect/align {:x 10 :y 20 :w 100 :h 50}
+     *                    {:w 20 :h 10}
+     *                    0.5
+     *                    0.5)
+     * => {:x 50 :y 40 :w 20 :h 10}
+     *
+     * (pixils.rect/align {:x 10 :y 20 :w 100 :h 50}
+     *                    {:w 20 :h 10}
+     *                    :bottom-center)
+     * => {:x 50 :y 60 :w 20 :h 10}
+     *
+     * (pixils.rect/align {:x 10 :y 20 :w 100 :h 50}
+     *                    {:w 20 :h 10}
+     *                    {:at :center
+     *                     :origin :top-left})
+     * => {:x 60 :y 45 :w 20 :h 10}
+     * @endcode
+     *
+     * @returns A `pixils.rect` for the aligned size and position.
+     *
+     * | Param          | Description                                          |
+     * | -------------- | ---------------------------------------------------- |
+     * | rect           | Rect that receives the aligned size.                 |
+     * | size           | Map with numeric `:w` and `:h` entries.              |
+     * | x-factor       | Horizontal alignment factor; `0.5` centers.          |
+     * | y-factor       | Vertical alignment factor; `0.5` centers.            |
+     * | anchor         | Keyword anchor for both `:at` and `:origin`.         |
+     * | options        | Map with `:at` anchor and optional `:origin` anchor. |
+     */
+    FUNC(RectAlignFunction, align_numeric, align_anchor, align_options);
+
     /*!
      * @brief Return a point at normalized coordinates inside a rect.
      *

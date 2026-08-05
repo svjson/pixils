@@ -1,6 +1,7 @@
 (ns pixils.ui.collapsible
   (:require pixils
             [pixils.image :as img]
+            [pixils.rect :as rect]
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
@@ -8,12 +9,15 @@
 ;; Internal support functions
 
 (defun centered-image-pos [bounds dim]
-  {:x (max 0 (int (/ (- (or (:w bounds) 0)
-                        (or (:w dim) 0))
-                     2)))
-   :y (max 0 (int (/ (- (or (:h bounds) 0)
-                        (or (:h dim) 0))
-                     2)))})
+  (let [aligned (rect/align {:x 0
+                             :y 0
+                             :w (or (:w bounds) 0)
+                             :h (or (:h bounds) 0)}
+                            {:w (or (:w dim) 0)
+                             :h (or (:h dim) 0)}
+                            :center)]
+    {:x (max 0 (:x aligned))
+     :y (max 0 (:y aligned))}))
 
 (defun render-collapsible-marker! [state ctx]
   (let [theme (ui/theme-var ctx :collapsible {})
