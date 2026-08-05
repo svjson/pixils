@@ -1,0 +1,100 @@
+(ns tilemap-editor.view.property-sets.actions-test
+  (:require proof.core
+            [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.property-sets.actions :as actions]))
+
+(def movement-property-set
+  {:id :movement
+   :label "Movement"
+   :properties [{:id :walkable
+                 :label "Walkable"
+                 :type :enum
+                 :values [:yes :no]
+                 :default :yes}]})
+
+(defun property-set-state []
+  {:property-sets [movement-property-set]
+   :selected-property-set-index 0
+   :selected-property-definition-index 0
+   :tilesets [{:id :terrain
+               :property-sets [:movement]
+               :properties {:walkable :no}}]
+   :terrain-sets [{:id :overworld
+                   :property-sets [:movement]}]})
+
+(deftest property-set-actions-record-workbook-history
+  (let [state (actions/add-property-set {:property-sets []}
+                                        "collision"
+                                        "Collision")
+        undone (editor-workbook/undo state)]
+    (is (= :collision (get-in state [:property-sets 0 :id])))
+    (is (= "Add property set" (editor-workbook/undo-label state)))
+    (is (= [] (:property-sets undone)))))
+
+(deftest property-set-edit-records-workbook-history
+  (let [state (actions/edit-property-set (property-set-state)
+                                         "collision"
+                                         "Collision")
+        undone (editor-workbook/undo state)]
+    (is (= :collision (get-in state [:property-sets 0 :id])))
+    (is (= [:collision] (get-in state [:tilesets 0 :property-sets])))
+    (is (= "Edit property set" (editor-workbook/undo-label state)))
+    (is (= :movement (get-in undone [:property-sets 0 :id])))
+    (is (= [:movement] (get-in undone [:tilesets 0 :property-sets])))))
+
+(deftest property-set-delete-records-workbook-history
+  (let [state (actions/delete-property-set (property-set-state))
+        undone (editor-workbook/undo state)]
+    (is (= [] (:property-sets state)))
+    (is (= [] (get-in state [:tilesets 0 :property-sets])))
+    (is (= "Delete property set" (editor-workbook/undo-label state)))
+    (is (= :movement (get-in undone [:property-sets 0 :id])))
+    (is (= [:movement] (get-in undone [:tilesets 0 :property-sets])))))
+
+(deftest property-definition-actions-record-workbook-history
+  (let [state (actions/add-property-definition
+               {:property-sets [{:id :movement
+                                 :label "Movement"
+                                 :properties []}]
+                :selected-property-set-index 0}
+               "cost"
+               "Cost")
+        undone (editor-workbook/undo state)]
+    (is (= :cost (get-in state [:property-sets 0 :properties 0 :id])))
+    (is (= "Add property" (editor-workbook/undo-label state)))
+    (is (= [] (get-in undone [:property-sets 0 :properties])))))
+
+(deftest property-definition-field-actions-record-workbook-history
+  (let [state (actions/change-property-definition-field
+               (property-set-state)
+               :label
+               "Can Walk")
+        undone (editor-workbook/undo state)]
+    (is (= "Can Walk" (get-in state [:property-sets 0 :properties 0 :label])))
+    (is (= "Rename property" (editor-workbook/undo-label state)))
+    (is (= "Walkable"
+           (get-in undone [:property-sets 0 :properties 0 :label])))))
+
+(deftest property-definition-enum-actions-record-workbook-history
+  (let [state (actions/change-property-definition-enum-value
+               (property-set-state)
+               1
+               "maybe")
+        undone (editor-workbook/undo state)]
+    (is (= [:yes :maybe]
+           (get-in state [:property-sets 0 :properties 0 :values])))
+    (is (= "Change property enum value" (editor-workbook/undo-label state)))
+    (is (= [:yes :no]
+           (get-in undone [:property-sets 0 :properties 0 :values])))))
+
+(deftest property-definition-type-action-records-workbook-history
+  (let [state (actions/change-property-definition-type
+               (property-set-state)
+               :number)
+        undone (editor-workbook/undo state)]
+    (is (= :number (get-in state [:property-sets 0 :properties 0 :type])))
+    (is (nil? (get-in state [:property-sets 0 :properties 0 :values])))
+    (is (= "Change property type" (editor-workbook/undo-label state)))
+    (is (= :enum (get-in undone [:property-sets 0 :properties 0 :type])))
+    (is (= [:yes :no]
+           (get-in undone [:property-sets 0 :properties 0 :values])))))

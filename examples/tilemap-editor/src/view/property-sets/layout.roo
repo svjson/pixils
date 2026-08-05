@@ -3,7 +3,7 @@
             tilemap-editor.view.property-sets.lists
             [tilemap-editor.view.property-sets.panels :as panels]
             [tilemap-editor.view.property-sets.targets :as targets]
-            [tilemap-editor.view.property-sets.workspace :as workspace]))
+            tilemap-editor.view.property-sets.workspace))
 
 (defun make-property-set-list-panel []
   (panels/make-property-set-list-panel))
@@ -16,6 +16,3 @@
 
 (defun property-value-list-content-child [state]
   (targets/property-value-list-content-child state))
-
-(defun property-set-workspace-children []
-  (workspace/property-set-workspace-children))

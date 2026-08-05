@@ -1,0 +1,99 @@
+(ns tilemap-editor.view.property-sets.actions
+  (:require [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.property-sets.model :as model]))
+
+(defun add-property-set
+  "Adds a property set and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to state
+                             "Add property set"
+                             (model/add-property-set-with-id state id label)))
+
+(defun edit-property-set
+  "Updates the selected property set identity and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Edit property set"
+   (model/set-selected-property-set-identity state id label)))
+
+(defun delete-property-set
+  "Deletes the selected property set and records the document edit in workbook history."
+  [state]
+  (editor-workbook/change-to state
+                             "Delete property set"
+                             (model/delete-selected-property-set state)))
+
+(defun add-property-definition
+  "Adds a property definition to the selected property set and records the document edit in workbook history."
+  [state id label]
+  (editor-workbook/change-to
+   state
+   "Add property"
+   (model/add-property-definition-with-id state id label)))
+
+(defun change-property-definition-field
+  "Updates a property definition field and records the document edit in workbook history."
+  [state field value]
+  (cond
+    (= field :id)
+    (editor-workbook/change-to state
+                               "Change property id"
+                               (model/set-selected-property-id state value))
+
+    (= field :label)
+    (editor-workbook/change-to state
+                               "Rename property"
+                               (model/set-selected-property-label state value))
+
+    (= field :default)
+    (editor-workbook/change-to
+     state
+     "Change property default"
+     (model/set-selected-property-default state value))
+
+    (= field :values)
+    (editor-workbook/change-to
+     state
+     "Change property enum values"
+     (model/set-selected-property-enum-values state value))
+
+    :default state))
+
+(defun change-property-definition-enum-default
+  "Updates the selected enum property default and records the document edit in workbook history."
+  [state value]
+  (editor-workbook/change-to
+   state
+   "Change property enum default"
+   (model/set-selected-property-enum-default state value)))
+
+(defun add-property-definition-enum-value
+  "Adds an enum value to the selected property and records the document edit in workbook history."
+  [state]
+  (editor-workbook/change-to state
+                             "Add property enum value"
+                             (model/add-selected-property-enum-value state)))
+
+(defun change-property-definition-enum-value
+  "Updates an enum value on the selected property and records the document edit in workbook history."
+  [state index value]
+  (editor-workbook/change-to
+   state
+   "Change property enum value"
+   (model/set-selected-property-enum-value state index value)))
+
+(defun remove-property-definition-enum-value
+  "Removes an enum value from the selected property and records the document edit in workbook history."
+  [state index]
+  (editor-workbook/change-to
+   state
+   "Remove property enum value"
+   (model/remove-selected-property-enum-value state index)))
+
+(defun change-property-definition-type
+  "Updates the selected property type and records the document edit in workbook history."
+  [state type]
+  (editor-workbook/change-to state
+                             "Change property type"
+                             (model/set-selected-property-type state type)))
