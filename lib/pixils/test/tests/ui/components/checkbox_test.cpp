@@ -8,6 +8,11 @@ using CheckboxTest = RenderFixture;
 
 namespace
 {
+  Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
+  {
+    return Roo::Dict::get_property(value, Roo::keyword(key));
+  }
+
   int child_int(const Roo::sptr_val& value, size_t index)
   {
     return Roo::get_child(*value, index)->num().get_int();
@@ -53,6 +58,75 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   ASSERT_NE(last_change, nullptr);
   EXPECT_EQ(show_grid->to_string(), "false");
   EXPECT_EQ(last_change->to_string(), "{:checked? false :value nil}");
+}
+
+TEST_F(CheckboxTest, checkbox_shared_state_policy_records_pressed_in_state_and_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/checkbox
+                   :style {:width 80 :height 24}
+                   :state {:label "Show grid"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto checkbox = session.active_mode->children[0];
+  ASSERT_NE(checkbox, nullptr);
+  auto pressed = get_key(checkbox->state, "pressed");
+  auto ui_pressed = get_key(checkbox->ui_state, "pressed");
+  ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "true");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(checkbox->children.size(), 2u);
+  auto box = checkbox->children[0];
+  ASSERT_NE(box, nullptr);
+  auto box_pressed = get_key(box->state, "pressed");
+  ASSERT_NE(box_pressed, nullptr);
+  EXPECT_EQ(box_pressed->to_string(), "true");
+}
+
+TEST_F(CheckboxTest, checkbox_pressed_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/checkbox
+                   :style {:width 80 :height 24}
+                   :state {:label "Show grid"
+                           :checked? false}
+                   :update (fn [state ctx]
+                             {:label (:label state)
+                              :checked? (:checked? state)})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto checkbox = session.active_mode->children[0];
+  ASSERT_NE(checkbox, nullptr);
+  auto ui_pressed = get_key(checkbox->ui_state, "pressed");
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+
+  ASSERT_EQ(checkbox->children.size(), 2u);
+  auto box = checkbox->children[0];
+  ASSERT_NE(box, nullptr);
+  auto box_pressed = get_key(box->state, "pressed");
+  ASSERT_NE(box_pressed, nullptr);
+  EXPECT_EQ(box_pressed->to_string(), "true");
 }
 
 TEST_F(CheckboxTest, checkbox_mark_passes_include_one_pixel_horizontal_offset)
