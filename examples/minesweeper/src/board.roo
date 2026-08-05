@@ -12,12 +12,15 @@
 ;; Mine layer mode
 
 (def tile-size 16)
+(def board-cell-size
+  "Rendered width and height of one Minesweeper board cell."
+  17)
 
 (defmode mine-layer-mode
   {:render 'pixils.examples.minesweeper.board/mine-layer-render!
    :content-size (fn [state ctx]
-                   {:w (* 17 (-> state :settings :w))
-                    :h (* 17 (-> state :settings :h))})
+                   {:w (* board-cell-size (-> state :settings :w))
+                    :h (* board-cell-size (-> state :settings :h))})
    :resources {:images {:mine "../assets/mine.png"
                         :flag "../assets/flag.png"
                         :num-1 "../assets/num1.png"
@@ -57,7 +60,9 @@
 
 (defcomponent board-button
   {:extend 'ui/button
-   :style {:width 17 :height 17 :border {:thickness 0}}
+   :style {:width board-cell-size
+           :height board-cell-size
+           :border {:thickness 0}}
    :update (fn [state ctx]
              (let [flagged (-> state :mask :flagged?)
                    state (-> state
@@ -80,6 +85,8 @@
   {:style {:layout {:direction :row}}
    :children (dotimes [n 9]
                {:mode 'board-button
+                :style {:max-width board-cell-size
+                        :max-height board-cell-size}
                 :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}})})
 
 
@@ -87,17 +94,21 @@
                                          {:mode 'board-button-row
                                           :state {:y n
                                                   :mask-row (ui/bind-state :board-mask n)}
-                                          :style {:height 17}})})
+                                          :style {:height board-cell-size
+                                                  :max-height board-cell-size}})})
 
 (defun make-board-button-row [y settings]
   {:mode 'board-button-row
    :id (str "row-" y)
    :state {:y y
            :mask-row (ui/bind-state :board-mask y)}
-   :style {:height 17}
+   :style {:height board-cell-size
+           :max-height board-cell-size}
    :children (dotimes [x (:w settings)]
                {:mode 'board-button
                 :id (str "cell-" x)
+                :style {:max-width board-cell-size
+                        :max-height board-cell-size}
                 :state {:x x
                         :y (ui/bind-state :y)
                         :mask (ui/bind-state :mask-row x)}})})
@@ -154,7 +165,7 @@
       (let [cell-coord (-> e
                            :position
                            (pt/- {:x 3 :y 3})
-                           (pt/div 17)
+                           (pt/div board-cell-size)
                            pt/int)
             cells (concat cell-coord
                           (map gl/directions
