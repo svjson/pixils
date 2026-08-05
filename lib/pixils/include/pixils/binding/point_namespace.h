@@ -29,6 +29,8 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__DISTANCE = "distance";
   inline constexpr std::string_view FN__DISTANCE_SQUARED = "distance-squared";
   inline constexpr std::string_view FN__CLAMP = "clamp";
+  inline constexpr std::string_view FN__MAX = "max";
+  inline constexpr std::string_view FN__MIN = "min";
   inline constexpr std::string_view FN__TRANSLATE = "translate";
   inline constexpr std::string_view FN__TRANSLATE_X = "translate-x";
   inline constexpr std::string_view FN__TRANSLATE_Y = "translate-y";
@@ -46,6 +48,8 @@ namespace Pixils::Script
   {
     HOST_TYPE(POINT, "HPoint", std::string(FN__PIXILS__POINT__MAKE_POINT));
 
+    inline const Roo::MultiRef NUMBER_OR_POINT({&Roo::Type::NUMBER, &POINT},
+                                               "number|HPoint");
     inline const Roo::SeqRef VECTOR_OF_POINT(&Roo::Type::VECTOR, &POINT, "[HPoint]");
 
   } // namespace HostType
@@ -68,8 +72,82 @@ namespace Pixils::Script
     FUNC(DistanceBetween, distance);
     /*! @brief Squared Euclidean distance between two points */
     FUNC(DistanceSquared, distance_squared);
-    /*! @brief Clamp point to rect bounds */
-    FUNC(ClampPoint, clamp);
+    /*!
+     * Returns a point where each axis is the lesser of the input point axis and
+     * the matching bound axis. The bound may be a point or a scalar number; a
+     * scalar applies to both axes.
+     *
+     * Usage:
+     * @code
+     * (pixils.point/min {:x 10 :y 20} 15)
+     * => {:x 10 :y 15}
+     *
+     * (pixils.point/min {:x 10 :y 20} {:x 8 :y 30})
+     * => {:x 8 :y 20}
+     * @endcode
+     *
+     * @returns A `pixils.point` with per-axis minimum values.
+     *
+     * | Param | Description                               |
+     * | ----- | ----------------------------------------- |
+     * | point | Point to compare.                         |
+     * | bound | Point or scalar upper bound for each axis. |
+     */
+    FUNC(PointMinimum, point_min);
+    /*!
+     * Returns a point where each axis is the greater of the input point axis and
+     * the matching bound axis. The bound may be a point or a scalar number; a
+     * scalar applies to both axes.
+     *
+     * Usage:
+     * @code
+     * (pixils.point/max {:x -5 :y 20} 0)
+     * => {:x 0 :y 20}
+     *
+     * (pixils.point/max {:x -5 :y 20} {:x -2 :y 30})
+     * => {:x -2 :y 30}
+     * @endcode
+     *
+     * @returns A `pixils.point` with per-axis maximum values.
+     *
+     * | Param | Description                               |
+     * | ----- | ----------------------------------------- |
+     * | point | Point to compare.                         |
+     * | bound | Point or scalar lower bound for each axis. |
+     */
+    FUNC(PointMaximum, point_max);
+    /*!
+     * Clamps a point to either a rect or explicit per-axis bounds.
+     *
+     * The two-argument form accepts a rect and clamps `point` to the rect
+     * bounds. The three-argument form accepts minimum and maximum bounds, where
+     * each bound may be a point or a scalar number. A scalar applies to both
+     * axes.
+     *
+     * Usage:
+     * @code
+     * (pixils.point/clamp {:x -5 :y 30} {:x 10 :y 20 :w 100 :h 50})
+     * => {:x 10 :y 30}
+     *
+     * (pixils.point/clamp {:x -5 :y 20} 0 15)
+     * => {:x 0 :y 15}
+     *
+     * (pixils.point/clamp {:x -20 :y 80}
+     *                     {:x -15 :y -30}
+     *                     {:x 15 :y 55})
+     * => {:x -15 :y 55}
+     * @endcode
+     *
+     * @returns A `pixils.point` clamped to the requested bounds.
+     *
+     * | Param | Description                                         |
+     * | ----- | --------------------------------------------------- |
+     * | point | Point to clamp.                                     |
+     * | rect  | Rect bounds for the two-argument form.              |
+     * | min   | Point or scalar minimum bound for each axis.        |
+     * | max   | Point or scalar maximum bound for each axis.        |
+     */
+    FUNC(ClampPoint, clamp_rect, clamp_bounds);
     /*! @brief Translate point by x/y delta */
     FUNC(TranslatePoint, translate);
     /*! @brief Translate point along x axis */

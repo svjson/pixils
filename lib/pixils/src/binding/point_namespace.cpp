@@ -10,6 +10,30 @@
 
 namespace Pixils::Script
 {
+  namespace
+  {
+    Point point_bound_from_value(const Roo::sptr_val& value, const std::string& name)
+    {
+      if (!value || value->type == Roo::Value::Type::NIL)
+      {
+        throw Roo::TypeError(name + " bound cannot be nil");
+      }
+
+      if (value->type == Roo::Value::Type::NUMBER)
+      {
+        const float bound = value->f32();
+        return Point{bound, bound};
+      }
+
+      return Roo::obj<Point>(*value);
+    }
+
+    Point clamp_point_to_bounds(const Point& point, const Point& min, const Point& max)
+    {
+      return Point{std::max(min.x, std::min(point.x, max.x)),
+                   std::max(min.y, std::min(point.y, max.y))};
+    }
+  } // namespace
 
   namespace MapKey
   {
@@ -81,22 +105,62 @@ namespace Pixils::Script
       return Roo::number(a.distance_squared_to(b));
     }
 
+    /* PointMinimum */
+    FUNC_IMPL(PointMinimum,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::NUMBER_OR_POINT)),
+                   EXEC_DISPATCH(&PointMinimum::exec_point_min))));
+
+    EXEC_BODY(PointMinimum, exec_point_min)
+    {
+      const Point& point = Roo::obj<Point>(*args[0]);
+      const Point bound = point_bound_from_value(args[1], "Upper");
+
+      return PointAdapter::make_unique(std::min(point.x, bound.x),
+                                       std::min(point.y, bound.y));
+    }
+
+    /* PointMaximum */
+    FUNC_IMPL(PointMaximum,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::NUMBER_OR_POINT)),
+                   EXEC_DISPATCH(&PointMaximum::exec_point_max))));
+
+    EXEC_BODY(PointMaximum, exec_point_max)
+    {
+      const Point& point = Roo::obj<Point>(*args[0]);
+      const Point bound = point_bound_from_value(args[1], "Lower");
+
+      return PointAdapter::make_unique(std::max(point.x, bound.x),
+                                       std::max(point.y, bound.y));
+    }
+
     /* Clamp Point */
     FUNC_IMPL(ClampPoint,
-              SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
-                   EXEC_DISPATCH(&ClampPoint::exec_clamp))));
+              MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
+                         EXEC_DISPATCH(&ClampPoint::exec_clamp_rect)),
+                        (FN_ARGS((&HostType::POINT),
+                                 (&HostType::NUMBER_OR_POINT),
+                                 (&HostType::NUMBER_OR_POINT)),
+                         EXEC_DISPATCH(&ClampPoint::exec_clamp_bounds))));
 
-    EXEC_BODY(ClampPoint, exec_clamp)
+    EXEC_BODY(ClampPoint, exec_clamp_rect)
     {
       const Point& point = Roo::obj<Point>(*args[0]);
       const Rect& rect = Roo::obj<Rect>(*args[1]);
 
-      const float x = std::max(static_cast<float>(rect.x),
-                               std::min(point.x, static_cast<float>(rect.x + rect.w)));
-      const float y = std::max(static_cast<float>(rect.y),
-                               std::min(point.y, static_cast<float>(rect.y + rect.h)));
+      const Point min{static_cast<float>(rect.x), static_cast<float>(rect.y)};
+      const Point max{static_cast<float>(rect.x + rect.w),
+                      static_cast<float>(rect.y + rect.h)};
 
-      return PointAdapter::make_unique(x, y);
+      return PointAdapter::make_unique(clamp_point_to_bounds(point, min, max));
+    }
+
+    EXEC_BODY(ClampPoint, exec_clamp_bounds)
+    {
+      const Point& point = Roo::obj<Point>(*args[0]);
+      const Point min = point_bound_from_value(args[1], "Minimum");
+      const Point max = point_bound_from_value(args[2], "Maximum");
+
+      return PointAdapter::make_unique(clamp_point_to_bounds(point, min, max));
     }
 
     /* Translate Point */
@@ -257,6 +321,8 @@ namespace Pixils::Script
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
     values.emplace(FN__INT_POINT, Function::IntPointFunction::make());
     values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
+    values.emplace(FN__MAX, Function::PointMaximum::make());
+    values.emplace(FN__MIN, Function::PointMinimum::make());
     values.emplace(FN__MINUS, Function::PointMinus::make());
     values.emplace(FN__MULTIPLY, Function::PointMultiplication::make());
     values.emplace(FN__PLUS, Function::PointPlus::make());

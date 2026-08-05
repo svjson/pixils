@@ -39,6 +39,50 @@ TEST_F(PointTest, translate_y_moves_only_y_axis)
   EXPECT_EQ(y->num().get_int(), 27);
 }
 
+TEST_F(PointTest, min_limits_each_axis_to_scalar_bound)
+{
+  auto x = runtime.eval("(:x (pixils.point/min {:x 10 :y 20} 15))");
+  auto y = runtime.eval("(:y (pixils.point/min {:x 10 :y 20} 15))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), 10);
+  EXPECT_EQ(y->num().get_int(), 15);
+}
+
+TEST_F(PointTest, min_limits_each_axis_to_point_bound)
+{
+  auto x = runtime.eval("(:x (pixils.point/min {:x 10 :y 20} {:x 8 :y 30}))");
+  auto y = runtime.eval("(:y (pixils.point/min {:x 10 :y 20} {:x 8 :y 30}))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), 8);
+  EXPECT_EQ(y->num().get_int(), 20);
+}
+
+TEST_F(PointTest, max_limits_each_axis_to_scalar_bound)
+{
+  auto x = runtime.eval("(:x (pixils.point/max {:x -5 :y 20} 0))");
+  auto y = runtime.eval("(:y (pixils.point/max {:x -5 :y 20} 0))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), 0);
+  EXPECT_EQ(y->num().get_int(), 20);
+}
+
+TEST_F(PointTest, max_limits_each_axis_to_point_bound)
+{
+  auto x = runtime.eval("(:x (pixils.point/max {:x -5 :y 20} {:x -2 :y 30}))");
+  auto y = runtime.eval("(:y (pixils.point/max {:x -5 :y 20} {:x -2 :y 30}))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), -2);
+  EXPECT_EQ(y->num().get_int(), 30);
+}
+
 TEST_F(PointTest, clamp_limits_point_to_rect_bounds)
 {
   auto x =
@@ -50,6 +94,32 @@ TEST_F(PointTest, clamp_limits_point_to_rect_bounds)
   ASSERT_NE(y, nullptr);
   EXPECT_EQ(x->num().get_int(), 10);
   EXPECT_EQ(y->num().get_int(), 30);
+}
+
+TEST_F(PointTest, clamp_limits_point_to_scalar_bounds)
+{
+  auto x = runtime.eval("(:x (pixils.point/clamp {:x -5 :y 20} 0 15))");
+  auto y = runtime.eval("(:y (pixils.point/clamp {:x -5 :y 20} 0 15))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), 0);
+  EXPECT_EQ(y->num().get_int(), 15);
+}
+
+TEST_F(PointTest, clamp_limits_point_to_asymmetric_point_bounds)
+{
+  auto x = runtime.eval("(:x (pixils.point/clamp {:x -20 :y 80}"
+                        "                         {:x -15 :y -30}"
+                        "                         {:x 15 :y 55}))");
+  auto y = runtime.eval("(:y (pixils.point/clamp {:x -20 :y 80}"
+                        "                         {:x -15 :y -30}"
+                        "                         {:x 15 :y 55}))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(x->num().get_int(), -15);
+  EXPECT_EQ(y->num().get_int(), 55);
 }
 
 TEST_F(PointTest, wrap_repositions_point_to_opposite_edge_when_outside_bounds)
