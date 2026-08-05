@@ -4,13 +4,16 @@
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
+
+;; Internal support functions
+
 (defun centered-image-pos [bounds dim]
   {:x (max 0 (int (/ (- (or (:w bounds) 0)
-                       (or (:w dim) 0))
-                    2)))
+                        (or (:w dim) 0))
+                     2)))
    :y (max 0 (int (/ (- (or (:h bounds) 0)
-                       (or (:h dim) 0))
-                    2)))})
+                        (or (:h dim) 0))
+                     2)))})
 
 (defun render-collapsible-marker! [state ctx]
   (let [theme (ui/theme-var ctx :collapsible {})
@@ -37,14 +40,17 @@
         (let [label (or marker (if (:expanded? state) "v" ">"))
               args (reduce-kv (or (-> ctx :view :effective-style :text) {})
                               {}
-                              (fn [arg-map k v]
-                                (if (nil? v)
+                              (fn [arg-map style-key value]
+                                (if (nil? value)
                                   arg-map
-                                  (merge arg-map {k (if (= k :font)
-                                                     (if (keyword? v)
-                                                       v
-                                                       (keyword v))
-                                                     v)}))))]
+                                  (assoc arg-map
+                                         style-key
+                                         (case style-key
+                                           :font (if (keyword? value)
+                                                   value
+                                                   (keyword value))
+                                           :default
+                                           value)))))]
           (unless (empty? label)
             (r/text! label
                      (centered-image-pos (-> ctx :view :bounds)
@@ -59,17 +65,28 @@
 (defun class-map [class]
   (if class {:class class} {}))
 
+
+
+;; Internal components
+
 (defcomponent ui/collapsible-marker
   {:render render-collapsible-marker!})
 
 (defcomponent ui/collapsible-header
   {:focusable true
-   :update (fn [state ctx]
-             (assoc state
-                    :pressed
-                    (and (not (:disabled? state))
-                         (contains? (-> ctx :view :interaction :pressed) :left)
-                         (-> ctx :view :interaction :hovered))))
+   :ui/state-keys [:pressed]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :pressed
+                     (if (contains? ui-state :pressed)
+                       (:pressed ui-state)
+                       (:pressed state))))
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state
+                       :pressed
+                       (and (not (:disabled? state))
+                            (contains? (-> ctx :view :interaction :pressed) :left)
+                            (-> ctx :view :interaction :hovered))))
    :on-click (fn [state event ctx]
                (when (and (not (:disabled? state))
                           (= (:button event) :left))
@@ -82,14 +99,46 @@
   {:init sync-collapsible-content-style!
    :update sync-collapsible-content-style!})
 
+
+; Main component
+
 (defcomponent ui/collapsible
   {:class :ui/collapsible})
 
-(defun make [{:keys [title expanded? marker? expanded-marker collapsed-marker
-                     expanded-image collapsed-image disabled? value class style state init update on
-                     header-style header-class marker-style marker-class
-                     title-style title-class header-children content-style
-                     content-class content-state children]}]
+
+
+;; Make functions
+
+(defun make
+  "Builds a ui/collapsible child entry.
+
+  Options:
+
+  ```roo
+  {:title \"Advanced\"
+   :expanded? (ui/bind-state :advanced?)
+   :marker? true
+   :collapsed-marker \"+\"
+   :expanded-marker \"-\"
+   :disabled? false
+   :value :advanced
+   :class :settings/section
+   :style {...}
+   :header-style {...}
+   :content-style {...}
+   :children [...]}
+  ```
+
+  The returned component owns the application-facing `:expanded?` state and
+  emits `:collapsible/toggle` with `{:expanded? bool :value value}` when the
+  header is clicked. The header's transient `:pressed` value is component UI
+  state, kept visible in ordinary state by the default shared state policy
+  during migration."
+  [{:keys [title expanded? marker? expanded-marker collapsed-marker
+           expanded-image collapsed-image disabled? value class style state init update on
+           header-style header-class marker-style marker-class
+           title-style title-class header-children content-style
+           content-class content-state children]}]
   (let [collapsible-state (merge (or state {})
                                  {:title title
                                   :expanded? expanded?
@@ -121,24 +170,23 @@
                                        :disabled? (ui/bind-state :disabled?)
                                        :value (ui/bind-state :value)}
                                :children (concat
-                                           (if (not= (:marker? collapsible-state) false)
-                                             [(merge
-                                               {:mode 'ui/collapsible-marker
-                                                :style (or marker-style {})
-                                                :state {:expanded? (ui/bind-state :expanded?)
-                                                        :expanded-marker expanded-marker
-                                                        :collapsed-marker collapsed-marker
-                                                        :expanded-image expanded-image
-                                                        :collapsed-image collapsed-image}}
-                                               (class-map marker-class))]
-                                             [])
-                                           (if header-children
-                                             header-children
-                                             [(merge {:mode 'ui/text
-                                                      :class :ui/collapsible-title
-                                                      :style (or title-style {})
-                                                      :state {:value (ui/bind-state :title)}}
-                                                     (class-map title-class))]))}
+                                          (if (not= (:marker? collapsible-state) false)
+                                            [(merge
+                                              {:mode 'ui/collapsible-marker
+                                               :style (or marker-style {})
+                                               :state {:expanded? (ui/bind-state :expanded?)
+                                                       :expanded-marker expanded-marker
+                                                       :collapsed-marker collapsed-marker
+                                                       :expanded-image expanded-image
+                                                       :collapsed-image collapsed-image}}
+                                              (class-map marker-class))]
+                                            [])
+                                          (or header-children
+                                              [(merge {:mode 'ui/text
+                                                       :class :ui/collapsible-title
+                                                       :style (or title-style {})
+                                                       :state {:value (ui/bind-state :title)}}
+                                                      (class-map title-class))]))}
                               (class-map header-class))
                        (merge {:mode 'ui/collapsible-content
                                :id "content"

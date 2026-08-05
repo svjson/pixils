@@ -129,6 +129,68 @@ TEST_F(CollapsibleTest, disabled_collapsible_header_does_not_toggle)
   EXPECT_EQ(expanded->to_string(), "false");
 }
 
+TEST_F(CollapsibleTest, header_shared_state_policy_records_pressed_in_state_and_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/collapsible-header
+                   :style {:width 120 :height 20}
+                   :state {:title "Advanced"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto header = session.active_mode->children[0];
+  ASSERT_NE(header, nullptr);
+
+  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
+  update_cycle();
+
+  auto pressed = state_property(header->state, "pressed");
+  auto ui_pressed = state_property(header->ui_state, "pressed");
+  ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "true");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+}
+
+TEST_F(CollapsibleTest, header_pressed_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/collapsible-header
+                   :style {:width 120 :height 20}
+                   :state {:title "Advanced"
+                           :disabled? false}
+                   :update (fn [state ctx]
+                             {:title (:title state)
+                              :disabled? (:disabled? state)})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto header = session.active_mode->children[0];
+  ASSERT_NE(header, nullptr);
+
+  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
+  update_cycle();
+
+  auto pressed = state_property(header->state, "pressed");
+  auto ui_pressed = state_property(header->ui_state, "pressed");
+  ASSERT_NE(pressed, nullptr);
+  ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "true");
+  EXPECT_EQ(ui_pressed->to_string(), "true");
+}
+
 TEST_F(CollapsibleTest, collapsible_can_omit_marker)
 {
   runtime.eval(R"(
