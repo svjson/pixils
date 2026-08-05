@@ -317,7 +317,7 @@ toggle buttons. Clicks emit `:option-box/change` with
 selected by default; set `:selection-required? false` only when a standalone
 option should be allowed to toggle off.
 
-For mutually exclusive choices, use `pixils.ui.option-box/make-group`. Each
+For mutually exclusive choices, use `pixils.ui.option-box-group/make`. Each
 option can provide `:label`, `:value`, `:id`, `:disabled?`, `:style`, `:class`,
 and extra child `:state`. The group stores the selected value in `:selected`,
 keeps child `:selected?` states in sync, and emits `:option-box-group/change`
@@ -330,7 +330,7 @@ the group should allow no selected option.
   {:on {:option-box-group/change
         (fn [state event ctx]
           (assoc state :terrain-rule-application (-> event :payload :selected)))}
-   :children [(pixils.ui.option-box/make-group
+   :children [(pixils.ui.option-box-group/make
                {:options [{:label "Preview only" :value :preview}
                           {:label "Bake on paint" :value :paint-baked}]
                 :selected (pixils.ui/bind-state :terrain-rule-application)})]})

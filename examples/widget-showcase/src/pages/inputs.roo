@@ -5,7 +5,7 @@
             [pixils.ui.combo-box :as combo-box]
             [pixils.ui.color-picker :as color-picker]
             [pixils.ui.number-input :as number-input]
-            [pixils.ui.option-box :as option-box]
+            [pixils.ui.option-box-group :as option-box-group]
             [pixils.ui.progress-bar :as progress-bar]
             [pixils.ui.slider :as slider]
             [pixils.ui.toggle-button :as toggle-button]
@@ -38,7 +38,7 @@
                [(checkbox/make {:label "Checkbox"
                                 :checked? (ui/bind-state :checked?)
                                 :value :checked})
-                (option-box/make-group
+                (option-box-group/make
                  {:selected (ui/bind-state :option-value)
                   :options [{:label "First option"
                              :value :one}

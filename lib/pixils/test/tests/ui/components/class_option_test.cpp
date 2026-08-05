@@ -36,7 +36,7 @@ TEST_F(ClassOptionTest, public_make_functions_apply_class_to_outer_component)
                   (pixils.ui.option-box/make
                    {:class :class-test/option-box
                     :label "Option"})
-                  (pixils.ui.option-box/make-group
+                  (pixils.ui.option-box-group/make
                    {:class :class-test/option-box-group
                     :options [{:label "One" :value :one}]})
                   (pixils.ui.toggle-button/make

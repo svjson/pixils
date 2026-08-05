@@ -16,6 +16,8 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/base-theme.roo
   ui/button.roo
   ui/toggle-button.roo
+  ui/option-box.roo
+  ui/option-box-group.roo
   ui/window.roo
   ui/dialog.roo
   ui/popover.roo

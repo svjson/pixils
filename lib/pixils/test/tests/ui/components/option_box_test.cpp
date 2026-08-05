@@ -157,7 +157,7 @@ TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by
     (pixils/defmode root-mode
       {:on {:option-box-group/change (fn [state event ctx]
                                         (assoc state :last-change (:payload event)))}
-       :children [(pixils.ui.option-box/make-group
+       :children [(pixils.ui.option-box-group/make
                    {:options [{:label "Tiles" :value :tiles}
                               {:label "Terrain" :value :terrain}]})]})
   )");
