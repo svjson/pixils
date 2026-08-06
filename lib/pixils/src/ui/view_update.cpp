@@ -209,6 +209,11 @@ namespace Pixils::UI
                                                hook_args.update_args[1],
                                                view.state));
       run_update_ui_hook(view_ptr, hook_args, rt);
+      view.set_state_if_changed(
+        Runtime::apply_pending_child_mutations(rt,
+                                               view_ptr,
+                                               hook_args.update_args[1],
+                                               view.state));
 
       for (auto& child : view.children)
       {

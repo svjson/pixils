@@ -51,6 +51,9 @@ TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
   ASSERT_EQ(option->children.size(), 2u);
   EXPECT_EQ(option->children[0]->definition->name, "ui/option-box-indicator");
   EXPECT_EQ(option->children[1]->definition->name, "ui/option-box-label");
+  EXPECT_EQ(get_key(option->ui_state, "label")->str(), "Terrain");
+  EXPECT_EQ(get_key(option->ui_state, "value")->to_string(), ":terrain");
+  EXPECT_EQ(get_key(option->ui_state, "selected?")->to_string(), "false");
 
   input().mouse_down({5, 5});
   update_cycle();
@@ -72,10 +75,13 @@ TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
   update_cycle();
 
   selected = get_key(option->state, "selected?");
+  auto ui_selected = get_key(option->ui_state, "selected?");
   last_change = get_key(session.active_mode->state, "last-change");
   ASSERT_NE(selected, nullptr);
+  ASSERT_NE(ui_selected, nullptr);
   ASSERT_NE(last_change, nullptr);
   EXPECT_EQ(selected->to_string(), "true");
+  EXPECT_EQ(ui_selected->to_string(), "true");
   EXPECT_EQ(last_change->to_string(), "{:selected? true :value :terrain :index nil}");
 }
 
@@ -124,9 +130,7 @@ TEST_F(OptionBoxTest, option_box_pressed_state_survives_custom_update)
                            :value :terrain
                            :selected? false}
                    :update (fn [state ctx]
-                             {:label (:label state)
-                              :value (:value state)
-                              :selected? (:selected? state)})}]})
+                             {})}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -139,8 +143,26 @@ TEST_F(OptionBoxTest, option_box_pressed_state_survives_custom_update)
   ASSERT_NE(session.active_mode, nullptr);
   auto option = session.active_mode->children[0];
   ASSERT_NE(option, nullptr);
+  auto label = get_key(option->state, "label");
+  auto ui_label = get_key(option->ui_state, "label");
+  auto value = get_key(option->state, "value");
+  auto ui_value = get_key(option->ui_state, "value");
+  auto selected = get_key(option->state, "selected?");
+  auto ui_selected = get_key(option->ui_state, "selected?");
   auto ui_pressed = get_key(option->ui_state, "pressed");
+  ASSERT_NE(label, nullptr);
+  ASSERT_NE(ui_label, nullptr);
+  ASSERT_NE(value, nullptr);
+  ASSERT_NE(ui_value, nullptr);
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(ui_selected, nullptr);
   ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(label->str(), "Terrain");
+  EXPECT_EQ(ui_label->str(), "Terrain");
+  EXPECT_EQ(value->to_string(), ":terrain");
+  EXPECT_EQ(ui_value->to_string(), ":terrain");
+  EXPECT_EQ(selected->to_string(), "false");
+  EXPECT_EQ(ui_selected->to_string(), "false");
   EXPECT_EQ(ui_pressed->to_string(), "true");
 
   ASSERT_EQ(option->children.size(), 2u);
@@ -181,6 +203,9 @@ TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by
   ASSERT_NE(terrain, nullptr);
   EXPECT_EQ(get_key(tiles->state, "selected?")->to_string(), "true");
   EXPECT_EQ(get_key(terrain->state, "selected?")->to_string(), "false");
+  EXPECT_EQ(get_key(group->ui_state, "selected")->to_string(), ":tiles");
+  EXPECT_EQ(get_key(tiles->ui_state, "selected?")->to_string(), "true");
+  EXPECT_EQ(get_key(terrain->ui_state, "selected?")->to_string(), "false");
 
   input().mouse_down({terrain->bounds.x + (terrain->bounds.w / 2),
                       terrain->bounds.y + (terrain->bounds.h / 2)});
@@ -214,9 +239,47 @@ TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by
   update_cycle();
 
   selected = get_key(group->state, "selected");
+  auto ui_group_selected = get_key(group->ui_state, "selected");
   ASSERT_NE(selected, nullptr);
+  ASSERT_NE(ui_group_selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":terrain");
+  EXPECT_EQ(ui_group_selected->to_string(), ":terrain");
   EXPECT_EQ(get_key(terrain->state, "selected?")->to_string(), "true");
+  EXPECT_EQ(get_key(terrain->ui_state, "selected?")->to_string(), "true");
+}
+
+TEST_F(OptionBoxTest, option_box_group_selection_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(merge (pixils.ui.option-box-group/make
+                          {:options [{:label "Tiles" :value :tiles}
+                                     {:label "Terrain" :value :terrain}]
+                           :selected :terrain})
+                         {:update (fn [state ctx]
+                                    {})})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto group = session.active_mode->children[0];
+  ASSERT_NE(group, nullptr);
+  auto selected = get_key(group->state, "selected");
+  auto ui_selected = get_key(group->ui_state, "selected");
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(ui_selected, nullptr);
+  EXPECT_EQ(selected->to_string(), ":terrain");
+  EXPECT_EQ(ui_selected->to_string(), ":terrain");
+
+  ASSERT_EQ(group->children.size(), 1u);
+  auto column = group->children[0];
+  ASSERT_NE(column, nullptr);
+  ASSERT_EQ(column->children.size(), 2u);
+  EXPECT_EQ(get_key(column->children[0]->ui_state, "selected?")->to_string(), "false");
+  EXPECT_EQ(get_key(column->children[1]->ui_state, "selected?")->to_string(), "true");
 }
 
 TEST_F(OptionBoxTest, windows_option_box_indicator_draws_unselected_outer_circle)

@@ -7,19 +7,33 @@
 
 ;; Public state functions
 
-(defun selected? [state]
+(defun selected?
+  "Returns true when option box state contains an explicit true :selected? value."
+  [state]
   (= (:selected? state) true))
 
-(defun option-disabled? [option]
+(defun option-disabled?
+  "Returns true when an authored option map contains an explicit true
+  :disabled? value."
+  [option]
   (= (:disabled? option) true))
 
-(defun option-label [option]
+(defun option-label
+  "Returns the display label for an authored option map.
+
+  The label is resolved from :label, :title, :name, then the string form of
+  :value."
+  [option]
   (or (:label option)
       (:title option)
       (:name option)
       (str (:value option))))
 
-(defun option-value [option]
+(defun option-value
+  "Returns the selection value for an authored option map.
+
+  :value wins when present; :id is used as a fallback."
+  [option]
   (if-let [value (:value option)]
     value
     (:id option)))
@@ -95,12 +109,13 @@
 ;; Inner components
 
 (defcomponent ui/option-box-indicator
-  {:render render-option-box-indicator!})
+  {:ui/state-keys [:selected :pressed]
+   :render render-option-box-indicator!})
 
 (defcomponent ui/option-box-label
   {:children [{:mode 'ui/text
                :style {:width :fill}
-               :state {:value (ui/bind-state :label)}}]})
+               :state {:value (ui/project-state :label)}}]})
 
 
 
@@ -109,46 +124,59 @@
 (defcomponent ui/option-box
   {:focusable true
    :class :ui/option-box
-   :ui/state-keys [:pressed]
+   :ui/state-keys [:label
+                   :value
+                   :selected?
+                   :selection-required?
+                   :force-selection?
+                   :disabled?
+                   :index
+                   :pressed]
    :style {:layout {:direction :row
                     :align-items :center
                     :gap 4}}
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
+                     :selected?
+                     (selected? ui-state)
                      :pressed
                      (if (contains? ui-state :pressed)
                        (:pressed ui-state)
                        (:pressed state))))
    :update-ui (fn [ui-state state ctx]
-                (assoc ui-state :pressed (and (not (:disabled? state))
-                                              (contains? (-> ctx :view :interaction :pressed) :left)
-                                              (-> ctx :view :interaction :hovered))))
-   :init (fn [state ctx]
-           (assoc state :selected? (selected? state)))
-   :update (fn [state ctx]
-             (assoc state :selected? (selected? state)))
+                (assoc ui-state
+                       :selected?
+                       (selected? ui-state)
+                       :pressed
+                       (and (not (get ui-state :disabled? (:disabled? state)))
+                            (contains? (-> ctx :view :interaction :pressed) :left)
+                            (-> ctx :view :interaction :hovered))))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     state)
    :on-click (fn [state event ctx]
-               (let [next-selected? (if (and (selected? state)
-                                             (option-box-selection-required? state))
+               (let [ui-state (-> ctx :view :ui-state)
+                     disabled? (get ui-state :disabled? (:disabled? state))
+                     next-selected? (if (and (selected? ui-state)
+                                             (option-box-selection-required? ui-state))
                                       true
-                                      (not (selected? state)))]
-                 (when (not (:disabled? state))
-                   (ui/emit! (:view ctx)
-                             :option-box/change
-                             {:selected? next-selected?
-                              :value (:value state)
-                              :index (:index state)}))
-                 (if (:disabled? state)
+                                      (not (selected? ui-state)))]
+                 (if disabled?
                    state
-                   (assoc state :selected? next-selected?))))
+                   (do
+                     (ui/set-ui-state! ctx
+                                       (assoc ui-state :selected? next-selected?))
+                     (ui/emit! (:view ctx)
+                               :option-box/change
+                               {:selected? next-selected?
+                                :value (get ui-state :value (:value state))
+                                :index (get ui-state :index (:index state))})
+                     (assoc state :selected? next-selected?)))))
    :children [{:mode 'ui/option-box-indicator
-               :state {:selected (ui/bind-state :selected?)
-                       :pressed (ui/bind-state :pressed)}}
+               :state {:component {:selected (ui/project-state :selected?)
+                                    :pressed (ui/project-state :pressed)}}}
               {:mode 'ui/option-box-label
-               :state {:label (ui/bind-state :label)}}]})
+               :state {:label (ui/project-state :label)}}]})
 
 
 ;; Make functions
@@ -173,21 +201,37 @@
    :state-policy :shared}
   ```
 
-  :selected?, :value, and :index are application-facing state. :pressed is
-  component UI state owned by ui/option-box; the default shared state policy
-  keeps it visible in ordinary state during migration."
+  Stock option-box behavior values are written under `:state :component`.
+  Static values, `ui/bind-state`, and `ui/project-state` are accepted for
+  component entries. Ordinary :state entries remain available for caller
+  application state. During migration, component keys supplied directly in
+  :state are also copied into :component, and the default shared state policy
+  keeps declared component keys visible in ordinary state."
   [{:keys [label value selected? selection-required? force-selection? disabled?
-           index class style state ui-state state-policy]}]
-  (merge {:mode 'ui/option-box
-          :style (or style {})
-          :state (merge (or state {})
-                        {:label label
-                         :value value
-                         :selected? selected?
-                         :selection-required? selection-required?
-                         :force-selection? force-selection?
-                         :disabled? disabled?
-                         :index index})}
-         (if class {:class class} {})
-         (if ui-state {:ui-state ui-state} {})
-         (if state-policy {:ui/state-policy state-policy} {})))
+           index class style state ui-state state-policy] :as opts}]
+  (let [state (or state {})
+        component (cond-> (merge (select-keys state
+                                              [:label
+                                               :value
+                                               :selected?
+                                               :selection-required?
+                                               :force-selection?
+                                               :disabled?
+                                               :index
+                                               :pressed])
+                                 (or (:component state) {}))
+                    (contains? opts :label) (assoc :label label)
+                    (contains? opts :value) (assoc :value value)
+                    (contains? opts :selected?) (assoc :selected? selected?)
+                    (contains? opts :selection-required?) (assoc :selection-required?
+                                                                 selection-required?)
+                    (contains? opts :force-selection?) (assoc :force-selection?
+                                                              force-selection?)
+                    (contains? opts :disabled?) (assoc :disabled? disabled?)
+                    (contains? opts :index) (assoc :index index))]
+    (cond-> {:mode 'ui/option-box
+             :style (or style {})
+             :state (assoc state :component component)}
+      class (assoc :class class)
+      ui-state (assoc :ui-state ui-state)
+      state-policy (assoc :ui/state-policy state-policy))))
