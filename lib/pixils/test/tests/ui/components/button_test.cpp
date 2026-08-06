@@ -538,7 +538,7 @@ TEST_F(ButtonTest, button_inner_pressed_state_survives_outer_custom_update)
                    :style {:width 40 :height 24}
                    :state {:label "OK"}
                    :update (fn [state ctx]
-                             {:label (:label state)})}]})
+                             {})}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -550,8 +550,14 @@ TEST_F(ButtonTest, button_inner_pressed_state_survives_outer_custom_update)
 
   auto button = session.active_mode->children[0];
   ASSERT_NE(button, nullptr);
+  auto button_label = get_key(button->state, "label");
+  auto button_ui_label = get_key(button->ui_state, "label");
   auto button_ui_pressed = get_key(button->ui_state, "pressed");
+  ASSERT_NE(button_label, nullptr);
+  ASSERT_NE(button_ui_label, nullptr);
   ASSERT_NE(button_ui_pressed, nullptr);
+  EXPECT_EQ(button_label->str(), "OK");
+  EXPECT_EQ(button_ui_label->str(), "OK");
   EXPECT_EQ(button_ui_pressed->to_string(), "true");
   ASSERT_EQ(button->children.size(), 1u);
   auto inner = button->children[0];
@@ -728,6 +734,8 @@ TEST_F(ButtonTest, make_button_builds_button_child_with_state_and_handlers)
   EXPECT_EQ(button->bounds.h, 24);
   EXPECT_EQ(get_key(button->state, "label")->str(), "Run");
   EXPECT_EQ(get_key(button->state, "value")->to_string(), ":run");
+  EXPECT_EQ(get_key(button->ui_state, "label")->str(), "Run");
+  EXPECT_EQ(get_key(button->ui_state, "value")->to_string(), ":run");
 
   input().mouse_down({10, 10});
   update_cycle();

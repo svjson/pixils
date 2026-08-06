@@ -77,27 +77,26 @@ namespace Pixils::Runtime
     }
 
     /**
-     * Delegate update, hover tracking, and event dispatch to UI helpers.
+     * Delegate update, hover tracking, and event dispatch to UI functions.
      * Non-modal overlays can pass pointer interaction through to the mode below.
      */
     if (hook_args.events)
     {
       auto interaction_root = active_mode;
       size_t interaction_offset = 0;
-      if (active_mode && active_mode->mode && active_mode->mode->composition.interaction_pass &&
-          !ctx_stack.empty())
+      if (active_mode && active_mode->mode &&
+          active_mode->mode->composition.interaction_pass && !ctx_stack.empty())
       {
         interaction_root = ctx_stack.back();
         interaction_offset = 1;
       }
 
-      bool late_interaction_update =
-        Pixils::UI::dispatch_interactions(interaction_root,
-                                          mouse_state,
-                                          focus_state,
-                                          *hook_args.events,
-                                          hook_args,
-                                          roo_runtime);
+      bool late_interaction_update = Pixils::UI::dispatch_interactions(interaction_root,
+                                                                       mouse_state,
+                                                                       focus_state,
+                                                                       *hook_args.events,
+                                                                       hook_args,
+                                                                       roo_runtime);
       if (late_interaction_update)
       {
         Pixils::UI::update_view_tree(interaction_root,

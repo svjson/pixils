@@ -622,7 +622,7 @@
             :name "Tiles"
             :file-name "/tmp/maps/tiles.png"}]))))
 
-(deftest selected-resource-helpers-follow-selected-id
+(deftest selected-resource-functions-follow-selected-id
   (let [items [{:id :a}
                {:id :b}]]
     (is (= 1 (resources/selected-resource-index items :b)))

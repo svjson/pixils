@@ -40,14 +40,14 @@ class ComposableAppFixtureTest : public ComposableAppFixture
 TEST_F(ComposableAppFixtureTest, loads_composed_app_with_cross_file_require_resolution)
 {
   AppFixture::AppManifest manifest(
-    {inline_unit("helpers-api", {}, {"(defun helper-answer [] 42)"}),
+    {inline_unit("example-api", {}, {"(defun example-answer [] 42)"}),
      inline_unit("main-api",
-                 {"[pixils.test.app.helpers :as helpers]"},
-                 {"(defun answer [] (helpers/helper-answer))"})},
-    {AppFixture::ManifestFile{.id = "helpers",
-                              .disk_path = "pixils/test/app/helpers.roo",
-                              .namespace_name = "pixils.test.app.helpers",
-                              .unit_ids = {"helpers-api"}},
+                 {"[pixils.test.app.example :as example]"},
+                 {"(defun answer [] (example/example-answer))"})},
+    {AppFixture::ManifestFile{.id = "example",
+                              .disk_path = "pixils/test/app/example.roo",
+                              .namespace_name = "pixils.test.app.example",
+                              .unit_ids = {"example-api"}},
      AppFixture::ManifestFile{.id = "main",
                               .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
@@ -62,20 +62,20 @@ TEST_F(ComposableAppFixtureTest,
        loads_app_after_unit_override_without_changing_manifest_file_shape)
 {
   AppFixture::AppManifest manifest(
-    {inline_unit("helpers-api", {}, {"(defun helper-answer [] 10)"}),
+    {inline_unit("example-api", {}, {"(defun example-answer [] 10)"}),
      inline_unit("main-api",
-                 {"[pixils.test.app.helpers :as helpers]"},
-                 {"(defun answer [] (helpers/helper-answer))"})},
-    {AppFixture::ManifestFile{.id = "helpers",
-                              .disk_path = "pixils/test/app/helpers.roo",
-                              .namespace_name = "pixils.test.app.helpers",
-                              .unit_ids = {"helpers-api"}},
+                 {"[pixils.test.app.example :as example]"},
+                 {"(defun answer [] (example/example-answer))"})},
+    {AppFixture::ManifestFile{.id = "example",
+                              .disk_path = "pixils/test/app/example.roo",
+                              .namespace_name = "pixils.test.app.example",
+                              .unit_ids = {"example-api"}},
      AppFixture::ManifestFile{.id = "main",
                               .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"main-api"}}});
 
-  manifest.upsert_unit(inline_unit("helpers-api", {}, {"(defun helper-answer [] 99)"}));
+  manifest.upsert_unit(inline_unit("example-api", {}, {"(defun example-answer [] 99)"}));
 
   load_app(manifest, "pixils.test.app.main", {"pixils/test/app/main.roo"});
 

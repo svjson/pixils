@@ -11,12 +11,12 @@
 class SliderTest : public RenderFixture
 {
  protected:
-  std::shared_ptr<Pixils::Runtime::View> render_slider_for_theme(
-    const std::string& theme)
+  std::shared_ptr<Pixils::Runtime::View> render_slider_for_theme(const std::string& theme)
   {
     runtime.eval(std::string(R"(
       (pixils/defprogram slider-test-program
-        {:theme ')") + theme + R"(
+        {:theme ')") +
+                 theme + R"(
          :initial-mode 'root-mode})
 
       (pixils/defmode root-mode
@@ -57,8 +57,7 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   input().mouse_down({95, 5});
   update_cycle();
 
-  auto zoom =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("zoom"));
+  auto zoom = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("zoom"));
   ASSERT_NE(zoom, nullptr);
   EXPECT_EQ(zoom->num().get_int(), 4);
 }
@@ -374,7 +373,7 @@ TEST_F(SliderTest, slider_primitives_use_theme_or_state_override)
   EXPECT_EQ(Roo::get_child(*result, 20)->num().get_int(), 80);
 }
 
-TEST_F(SliderTest, slider_render_helpers_read_effective_style)
+TEST_F(SliderTest, slider_render_functions_read_effective_style)
 {
   auto result = runtime.eval(R"(
     (let [ctx {:view {:style {:background {:r 255 :g 255 :b 255}
@@ -430,8 +429,7 @@ TEST_F(SliderTest, windows_95_theme_styles_slider_handle)
   ASSERT_TRUE(slider->effective_style.background->color.has_value());
   ASSERT_TRUE(slider->effective_style.border.has_value());
 
-  EXPECT_EQ(*slider->effective_style.background->color,
-            (Pixils::Color{0, 0, 0, 0}));
+  EXPECT_EQ(*slider->effective_style.background->color, (Pixils::Color{0, 0, 0, 0}));
   EXPECT_EQ(slider->effective_style.border->top_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->right_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->bottom_thickness(), 0);
@@ -528,8 +526,7 @@ TEST_F(SliderTest, windows_3_theme_styles_slider_handle)
   ASSERT_TRUE(slider->effective_style.background->color.has_value());
   ASSERT_TRUE(slider->effective_style.border.has_value());
 
-  EXPECT_EQ(*slider->effective_style.background->color,
-            (Pixils::Color{0, 0, 0, 0}));
+  EXPECT_EQ(*slider->effective_style.background->color, (Pixils::Color{0, 0, 0, 0}));
   EXPECT_EQ(slider->effective_style.border->top_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->right_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->bottom_thickness(), 0);

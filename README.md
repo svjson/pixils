@@ -142,7 +142,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
 | `ui/progress-bar` | Passive horizontal or vertical progress indicator for literal or bound numeric values. |
-| `ui/dialog-frame` | Full-screen overlay used by dialog helpers such as `open-confirm!` and `open-dialog!`. |
+| `ui/dialog-frame` | Full-screen overlay used by dialog layouts such as `open-confirm!` and `open-dialog!`. |
 | `ui/file-dialog-body` | File chooser body used by `pixils.ui.file-dialog/open-file-dialog!`. |
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
@@ -499,7 +499,7 @@ parts: `:track-color`, `:button-color`, `:button-border-color`, `:handle-color`,
 The first version expects explicit `:content-size` and stores its offset in
 `{:offset {:x N :y N}}`. The viewport uses `:clip true`, and the content view is
 positioned absolutely inside that clipped area. Pass `:scroll-x? false` or
-`:scroll-y? false` to omit one axis from helper-created panes. `:content-state-key`
+`:scroll-y? false` to omit one axis from panes. `:content-state-key`
 can wrap the pane's `:content-state` binding in a named child-state key when the
 scrolling content needs state from the owner.
 
@@ -526,7 +526,7 @@ The built-in button presets are `:dialog/ok`, `:dialog/ok-cancel`, `:dialog/yes-
 Dialog windows use `:auto-focus :first-body` by default, so the first enabled
 input or button in the body receives initial focus.
 
-`pixils.ui.dialog/open-dialog!` is the lower-level helper for custom dialog windows. It
+`pixils.ui.dialog/open-dialog!` is the lower-level function for custom dialog windows. It
 pushes `ui/dialog-frame`, creates the window, and wraps result handlers so user code returns
 the value to deliver to the origin instead of calling `pop-mode!` itself. Use `:state` for
 dialog-local state, `:body` for the window body, and `:results` to map custom events to
@@ -573,7 +573,7 @@ for single-file callers.
   :result-event :project/open-result})
 ```
 
-Use `:mode :file-dialog/save` for save dialogs. The helper also accepts `:position`,
+Use `:mode :file-dialog/save` for save dialogs. The function also accepts `:position`,
 `:style`, `:filename`, and `:result-event`. Open dialogs accept `:multi-file? true`
 or `:multi-select? true` to allow selecting more than one file.
 
@@ -600,7 +600,7 @@ application-provided `:content-size`. Add `:reorderable? true` in grid mode to e
 when a dragged icon payload matches one of the container's child items by id.
 Set `:icon-count` or `:item-count` when only the first N children should be
 treated as icons. Alternatively, set `:icon-count-key` to a state collection key;
-the default helper uses `:items` when present.
+the default function uses `:items` when present.
 
 For the common "grid in a scroll pane" case, use
 `pixils.ui.icon-container/make-grid`. It creates an auto-managed `ui/scroll-pane`
