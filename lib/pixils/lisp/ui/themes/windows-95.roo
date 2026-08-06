@@ -4,31 +4,20 @@
             [pixils.render :as r]
             [pixils.ui.theme-assets :as theme-assets]))
 
-(def theme-bundle :windows-95-theme)
-(def menu-option-checkmark :windows-95-theme/menu-option-checkmark)
-(def scrollbar-arrow-up :windows-95-theme/scrollbar-arrow-up)
-(def scrollbar-arrow-down :windows-95-theme/scrollbar-arrow-down)
-(def scrollbar-arrow-left :windows-95-theme/scrollbar-arrow-left)
-(def scrollbar-arrow-right :windows-95-theme/scrollbar-arrow-right)
-(def submenu-chevron-highlighted :windows-95-theme/submenu-chevron-highlighted)
-(def tree-disclosure-collapsed :windows-95-theme/tree-disclosure-collapsed)
-(def tree-disclosure-expanded :windows-95-theme/tree-disclosure-expanded)
-
 (defun draw-menu-option-checkmark! []
   (let [color c/BLACK]
-    (do
-      (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
-      (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
-      (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
-      (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
-      (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
-      (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
-      (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
-      (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
-      (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
-      (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
-      (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
-      (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
+    (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
+    (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
+    (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
+    (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
+    (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+    (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
+    (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
+    (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
+    (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
+    (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
+    (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
+    (r/line! {:x 3 :y 9} {:x 3 :y 9} color)))
 
 (defun draw-filled-arrow-with-color! [direction color]
   (case direction
@@ -78,16 +67,25 @@
 (defun draw-scrollbar-arrow-right! []
   (draw-filled-arrow-with-color! :right c/BLACK))
 
+(defun draw-combo-box-button-image! []
+  (r/line! {:x 0 :y 0} {:x 4 :y 0} c/BLACK)
+  (r/line! {:x 1 :y 1} {:x 3 :y 1} c/BLACK)
+  (r/line! {:x 2 :y 2} {:x 2 :y 2} c/BLACK))
+
+(defun draw-combo-box-button-image-bright! []
+  (r/line! {:x 0 :y 0} {:x 4 :y 0} c/WHITE)
+  (r/line! {:x 1 :y 1} {:x 3 :y 1} c/WHITE)
+  (r/line! {:x 2 :y 2} {:x 2 :y 2} c/WHITE))
+
 (defun draw-tree-disclosure-box! [collapsed?]
-  (do
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:fill true
-              :color c/WHITE})
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:color c/BLACK})
-    (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
-    (when collapsed?
-      (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK))))
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:fill true
+            :color c/WHITE})
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:color c/BLACK})
+  (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
+  (when collapsed?
+    (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK)))
 
 (defun draw-tree-disclosure-collapsed! []
   (draw-tree-disclosure-box! true))
@@ -96,39 +94,46 @@
   (draw-tree-disclosure-box! false))
 
 (defun ensure-windows-95-theme-assets! []
-  (do
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          menu-option-checkmark
-                                          {:size {:w 8 :h 10}}
-                                          draw-menu-option-checkmark!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          submenu-chevron-highlighted
-                                          {:size {:w 4 :h 7}}
-                                          draw-submenu-chevron-highlighted!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-up
-                                          {:size {:w 7 :h 4}}
-                                          draw-scrollbar-arrow-up!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-down
-                                          {:size {:w 7 :h 4}}
-                                          draw-scrollbar-arrow-down!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-left
-                                          {:size {:w 4 :h 7}}
-                                          draw-scrollbar-arrow-left!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-right
-                                          {:size {:w 4 :h 7}}
-                                          draw-scrollbar-arrow-right!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-collapsed
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-collapsed!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-expanded
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-expanded!)))
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/menu-option-checkmark
+                                        {:size {:w 8 :h 10}}
+                                        draw-menu-option-checkmark!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/submenu-chevron-highlighted
+                                        {:size {:w 4 :h 7}}
+                                        draw-submenu-chevron-highlighted!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/scrollbar-arrow-up
+                                        {:size {:w 7 :h 4}}
+                                        draw-scrollbar-arrow-up!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/scrollbar-arrow-down
+                                        {:size {:w 7 :h 4}}
+                                        draw-scrollbar-arrow-down!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/scrollbar-arrow-left
+                                        {:size {:w 4 :h 7}}
+                                        draw-scrollbar-arrow-left!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/scrollbar-arrow-right
+                                        {:size {:w 4 :h 7}}
+                                        draw-scrollbar-arrow-right!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/combo-box-button-image
+                                        {:size {:w 5 :h 3}}
+                                        draw-combo-box-button-image!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/combo-box-button-image-bright
+                                        {:size {:w 5 :h 3}}
+                                        draw-combo-box-button-image-bright!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/tree-disclosure-collapsed
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-collapsed!)
+  (theme-assets/ensure-generated-image! :windows-95-theme
+                                        :windows-95-theme/tree-disclosure-expanded
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-expanded!))
 
 (ensure-windows-95-theme-assets!)
 
@@ -311,6 +316,7 @@
                                            :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
                   :collapsible {:collapsed-image :windows-95-theme/scrollbar-arrow-right
                                 :expanded-image :windows-95-theme/scrollbar-arrow-down}
+                  :combo-box-button-image :windows-95-theme/combo-box-button-image
                   :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                              :down-image :windows-95-theme/scrollbar-arrow-down
                                              :left-image :windows-95-theme/scrollbar-arrow-left
@@ -362,6 +368,7 @@
                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
                  :collapsible {:collapsed-image :windows-95-theme/tree-disclosure-collapsed
                                :expanded-image :windows-95-theme/tree-disclosure-expanded}
+                 :combo-box-button-image :windows-95-theme/combo-box-button-image-bright
                  :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                             :down-image :windows-95-theme/scrollbar-arrow-down
                                             :left-image :windows-95-theme/scrollbar-arrow-left
@@ -514,9 +521,15 @@
                                             :align-items :center
                                             :gap 0}}
 
-            'ui/combo-box-button {:width 16
+            'ui/combo-box-button {:background (var :panel-bg)
+                                  :border (var :scrollbar-button-border-style)
+                                  :width 16
                                   :max-width 16
                                   :height :fill}
+
+            '(ui/combo-box-button {:pressed true})
+            {:background (var :button-pressed-bg)
+             :border (var :scrollbar-button-pressed-border-style)}
 
             'ui/combo-box-popup-panel {:background (var :field-bg)
                                        :border (var :solid-border-style)}

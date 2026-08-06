@@ -4,14 +4,6 @@
             [pixils.render :as r]
             [pixils.ui.theme-assets :as theme-assets]))
 
-(def theme-bundle :classic-blue-theme)
-(def scrollbar-arrow-up :classic-blue-theme/scrollbar-arrow-up)
-(def scrollbar-arrow-down :classic-blue-theme/scrollbar-arrow-down)
-(def scrollbar-arrow-left :classic-blue-theme/scrollbar-arrow-left)
-(def scrollbar-arrow-right :classic-blue-theme/scrollbar-arrow-right)
-(def tree-disclosure-collapsed :classic-blue-theme/tree-disclosure-collapsed)
-(def tree-disclosure-expanded :classic-blue-theme/tree-disclosure-expanded)
-
 (defun draw-classic-scrollbar-arrow-with-color! [direction color]
   (case direction
     :up (do
@@ -57,15 +49,14 @@
   (draw-classic-scrollbar-arrow-with-color! :right c/WHITE))
 
 (defun draw-tree-disclosure-box! [collapsed?]
-  (do
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:fill true
-              :color {:r 0xe6 :g 0xea :b 0xee}})
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:color c/BLACK})
-    (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
-    (when collapsed?
-      (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK))))
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:fill true
+            :color {:r 0xe6 :g 0xea :b 0xee}})
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:color c/BLACK})
+  (r/line! {:x 2 :y 4} {:x 6 :y 4} c/BLACK)
+  (when collapsed?
+    (r/line! {:x 4 :y 2} {:x 4 :y 6} c/BLACK)))
 
 (defun draw-tree-disclosure-collapsed! []
   (draw-tree-disclosure-box! true))
@@ -74,31 +65,30 @@
   (draw-tree-disclosure-box! false))
 
 (defun ensure-classic-blue-theme-assets! []
-  (do
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-up
-                                          {:size {:w 7 :h 4}}
-                                          draw-scrollbar-arrow-up!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-down
-                                          {:size {:w 7 :h 4}}
-                                          draw-scrollbar-arrow-down!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-left
-                                          {:size {:w 4 :h 7}}
-                                          draw-scrollbar-arrow-left!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-right
-                                          {:size {:w 4 :h 7}}
-                                          draw-scrollbar-arrow-right!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-collapsed
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-collapsed!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-expanded
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-expanded!)))
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/scrollbar-arrow-up
+                                        {:size {:w 7 :h 4}}
+                                        draw-scrollbar-arrow-up!)
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/scrollbar-arrow-down
+                                        {:size {:w 7 :h 4}}
+                                        draw-scrollbar-arrow-down!)
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/scrollbar-arrow-left
+                                        {:size {:w 4 :h 7}}
+                                        draw-scrollbar-arrow-left!)
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/scrollbar-arrow-right
+                                        {:size {:w 4 :h 7}}
+                                        draw-scrollbar-arrow-right!)
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/tree-disclosure-collapsed
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-collapsed!)
+  (theme-assets/ensure-generated-image! :classic-blue-theme
+                                        :classic-blue-theme/tree-disclosure-expanded
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-expanded!))
 
 (ensure-classic-blue-theme-assets!)
 
@@ -217,6 +207,7 @@
                  :menu-submenu-indicator {:text ">"}
                  :collapsible {:collapsed-image :classic-blue-theme/tree-disclosure-collapsed
                                :expanded-image :classic-blue-theme/tree-disclosure-expanded}
+                 :combo-box-button-image :classic-blue-theme/scrollbar-arrow-down
                  :scrollbar-button-symbols {:up-image :classic-blue-theme/scrollbar-arrow-up
                                             :down-image :classic-blue-theme/scrollbar-arrow-down
                                             :left-image :classic-blue-theme/scrollbar-arrow-left

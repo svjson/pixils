@@ -263,10 +263,6 @@
                                                         0.5
                                                         0.5)})))))})
 
-(defcomponent ui/combo-box-button
-  {:extend 'ui/scrollbar-button
-   :class :ui/combo-box-button})
-
 (defcomponent ui/scrollbar-handle
   {:content-size (fn [state ctx]
                    (let [axis (case (:axis state)

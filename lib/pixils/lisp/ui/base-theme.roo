@@ -3,14 +3,6 @@
             [pixils.render :as r]
             [pixils.ui.theme-assets :as theme-assets]))
 
-(def theme-bundle :base-theme)
-(def menu-option-checkmark :base-theme/menu-option-checkmark)
-(def scrollbar-arrow-up :base-theme/scrollbar-arrow-up)
-(def scrollbar-arrow-down :base-theme/scrollbar-arrow-down)
-(def scrollbar-arrow-left :base-theme/scrollbar-arrow-left)
-(def scrollbar-arrow-right :base-theme/scrollbar-arrow-right)
-(def tree-disclosure-collapsed :base-theme/tree-disclosure-collapsed)
-(def tree-disclosure-expanded :base-theme/tree-disclosure-expanded)
 (def menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
 (def scrollbar-arrow-color {:r 0x00 :g 0x00 :b 0x00})
 (def tree-disclosure-bg {:r 0xff :g 0xff :b 0xff})
@@ -49,27 +41,32 @@
   (draw-outline-scrollbar-arrow-up-with-color! scrollbar-arrow-color))
 
 (defun draw-scrollbar-arrow-down! []
-  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
-                                :rotation 3.14159265}))
+  (r/image! :base-theme/scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                            :rotation 3.14159265}))
 
 (defun draw-scrollbar-arrow-left! []
-  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
-                                :rotation -1.57079633}))
+  (r/image! :base-theme/scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                            :rotation -1.57079633}))
 
 (defun draw-scrollbar-arrow-right! []
-  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
-                                :rotation 1.57079633}))
+  (r/image! :base-theme/scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                            :rotation 1.57079633}))
+
+(defun draw-combo-box-button-image! []
+  (r/line! {:x 0 :y 0} {:x 6 :y 0} scrollbar-arrow-color)
+  (r/line! {:x 1 :y 1} {:x 5 :y 1} scrollbar-arrow-color)
+  (r/line! {:x 2 :y 2} {:x 4 :y 2} scrollbar-arrow-color)
+  (r/line! {:x 3 :y 3} {:x 3 :y 3} scrollbar-arrow-color))
 
 (defun draw-tree-disclosure-box! [collapsed?]
-  (do
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:fill true
-              :color tree-disclosure-bg})
-    (r/rect! {:x 0 :y 0 :w 9 :h 9}
-             {:color tree-disclosure-fg})
-    (r/line! {:x 2 :y 4} {:x 6 :y 4} tree-disclosure-fg)
-    (when collapsed?
-      (r/line! {:x 4 :y 2} {:x 4 :y 6} tree-disclosure-fg))))
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:fill true
+            :color tree-disclosure-bg})
+  (r/rect! {:x 0 :y 0 :w 9 :h 9}
+           {:color tree-disclosure-fg})
+  (r/line! {:x 2 :y 4} {:x 6 :y 4} tree-disclosure-fg)
+  (when collapsed?
+    (r/line! {:x 4 :y 2} {:x 4 :y 6} tree-disclosure-fg)))
 
 (defun draw-tree-disclosure-collapsed! []
   (draw-tree-disclosure-box! true))
@@ -78,35 +75,38 @@
   (draw-tree-disclosure-box! false))
 
 (defun ensure-base-theme-assets! []
-  (do
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          menu-option-checkmark
-                                          {:size {:w 8 :h 10}}
-                                          draw-menu-option-checkmark!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-up
-                                          {:size {:w 9 :h 9}}
-                                          draw-scrollbar-arrow-up!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-down
-                                          {:size {:w 9 :h 9}}
-                                          draw-scrollbar-arrow-down!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-left
-                                          {:size {:w 9 :h 9}}
-                                          draw-scrollbar-arrow-left!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-right
-                                          {:size {:w 9 :h 9}}
-                                          draw-scrollbar-arrow-right!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-collapsed
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-collapsed!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          tree-disclosure-expanded
-                                          {:size {:w 9 :h 9}}
-                                          draw-tree-disclosure-expanded!)))
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/menu-option-checkmark
+                                        {:size {:w 8 :h 10}}
+                                        draw-menu-option-checkmark!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/scrollbar-arrow-up
+                                        {:size {:w 9 :h 9}}
+                                        draw-scrollbar-arrow-up!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/scrollbar-arrow-down
+                                        {:size {:w 9 :h 9}}
+                                        draw-scrollbar-arrow-down!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/scrollbar-arrow-left
+                                        {:size {:w 9 :h 9}}
+                                        draw-scrollbar-arrow-left!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/scrollbar-arrow-right
+                                        {:size {:w 9 :h 9}}
+                                        draw-scrollbar-arrow-right!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/combo-box-button-image
+                                        {:size {:w 7 :h 4}}
+                                        draw-combo-box-button-image!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/tree-disclosure-collapsed
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-collapsed!)
+  (theme-assets/ensure-generated-image! :base-theme
+                                        :base-theme/tree-disclosure-expanded
+                                        {:size {:w 9 :h 9}}
+                                        draw-tree-disclosure-expanded!))
 
 (ensure-base-theme-assets!)
 
@@ -183,6 +183,7 @@
                  :menu-submenu-indicator {:text ">"}
                  :collapsible {:collapsed-image :base-theme/tree-disclosure-collapsed
                                :expanded-image :base-theme/tree-disclosure-expanded}
+                 :combo-box-button-image :base-theme/combo-box-button-image
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up
                                             :down-image :base-theme/scrollbar-arrow-down
                                             :left-image :base-theme/scrollbar-arrow-left
@@ -302,7 +303,8 @@
 
     'ui/tree-view-disclosure {:text {:color (var :text)}}
 
-    'ui/combo-box {:background (var :field-bg)
+    'ui/combo-box {:min-height 22
+                   :background (var :field-bg)
                    :border (var :inset-border-style)}
 
     'ui/combo-box-trigger {:padding [3 5]
@@ -310,9 +312,18 @@
                                     :align-items :center
                                     :gap :space-between}}
 
-    'ui/combo-box-button {:width 14
+    'ui/combo-box-button {:background (var :surface)
+                          :border (var :inset-border-style)
+                          :width 14
                           :max-width 14
                           :height :fill}
+
+    '(ui/combo-box-button {:pressed true})
+    {:background (var :disabled-bg)}
+
+    'ui/combo-box-button:disabled
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
 
     'ui/combo-box-trigger:hover
     {:text {:color (var :selection-text)}

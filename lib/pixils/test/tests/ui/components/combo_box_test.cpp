@@ -127,7 +127,7 @@ namespace
   }
 } // namespace
 
-TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
+TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_combo_box_button)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -152,10 +152,138 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
   auto button = trigger->children[1];
   ASSERT_NE(button, nullptr);
   EXPECT_EQ(button->definition->name, "ui/combo-box-button");
-  ASSERT_GE(button->definition->selector_modes.size(), 2u);
+  ASSERT_EQ(button->definition->selector_modes.size(), 1u);
   EXPECT_EQ(button->definition->selector_modes[0], "ui/combo-box-button");
-  EXPECT_EQ(button->definition->selector_modes[1], "ui/scrollbar-button");
   ASSERT_TRUE(button->effective_style.border.has_value());
+  ASSERT_TRUE(button->effective_theme.vars.count("base") > 0);
+  auto image = button->effective_theme.vars.at("base").at("combo-box-button-image");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->to_string(), ":base-theme/combo-box-button-image");
+
+  auto symbols = button->effective_theme.vars.at("base").at("scrollbar-button-symbols");
+  ASSERT_NE(symbols, nullptr);
+  auto scrollbar_down = Roo::Dict::get_property(symbols, Roo::keyword("down-image"));
+  ASSERT_NE(scrollbar_down, nullptr);
+  EXPECT_NE(image->to_string(), scrollbar_down->to_string());
+
+  const RenderOperation* rendered_combo_icon = nullptr;
+  for (const auto& op : render_target()->render_ops)
+  {
+    if (op.type == RenderOpType::RENDER_COPY && op.rendered_rect.w == 7 &&
+        op.rendered_rect.h == 4)
+      rendered_combo_icon = &op;
+  }
+  ASSERT_NE(rendered_combo_icon, nullptr);
+  EXPECT_GE(rendered_combo_icon->rendered_rect.x, 0);
+  EXPECT_GE(rendered_combo_icon->rendered_rect.y, 0);
+  EXPECT_LE(rendered_combo_icon->rendered_rect.x + rendered_combo_icon->rendered_rect.w,
+            button->bounds.w);
+  EXPECT_LE(rendered_combo_icon->rendered_rect.y + rendered_combo_icon->rendered_rect.h,
+            button->bounds.h);
+}
+
+TEST_F(ComboBoxTest, windows_3_dark_combo_box_button_uses_combo_specific_image)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto button = trigger->children[1];
+  ASSERT_NE(button, nullptr);
+  ASSERT_TRUE(button->effective_theme.vars.count("dark") > 0);
+
+  auto image = button->effective_theme.vars.at("dark").at("combo-box-button-image");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->to_string(), ":windows-3-theme/combo-box-button-image-dark");
+
+  auto symbols = button->effective_theme.vars.at("dark").at("scrollbar-button-symbols");
+  ASSERT_NE(symbols, nullptr);
+  auto scrollbar_down = Roo::Dict::get_property(symbols, Roo::keyword("down-image"));
+  ASSERT_NE(scrollbar_down, nullptr);
+  EXPECT_NE(image->to_string(), scrollbar_down->to_string());
+}
+
+TEST_F(ComboBoxTest, windows_95_dark_combo_box_button_uses_bright_combo_image)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :theme-variant :dark
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto button = trigger->children[1];
+  ASSERT_NE(button, nullptr);
+  ASSERT_TRUE(button->effective_theme.vars.count("dark") > 0);
+
+  auto image = button->effective_theme.vars.at("dark").at("combo-box-button-image");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->to_string(), ":windows-95-theme/combo-box-button-image-bright");
+}
+
+TEST_F(ComboBoxTest, classic_blue_combo_box_button_reuses_scrollbar_down_image)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto button = trigger->children[1];
+  ASSERT_NE(button, nullptr);
+  ASSERT_TRUE(button->effective_theme.vars.count("dark") > 0);
+
+  auto image = button->effective_theme.vars.at("dark").at("combo-box-button-image");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->to_string(), ":classic-blue-theme/scrollbar-arrow-down");
 }
 
 TEST_F(ComboBoxTest, natural_height_and_popup_rows_use_default_ttf_font_metrics)
@@ -347,6 +475,56 @@ TEST_F(ComboBoxTest, focused_combo_box_arrow_keys_change_selection_without_openi
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(selected_index->num().get_int(), 0);
   EXPECT_EQ(value->to_string(), ":a");
+}
+
+TEST_F(ComboBoxTest, combo_box_component_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/combo-box
+                   :style {:width 100}
+                   :state {:component {:options [{:value :a :label "Alpha"}
+                                                  {:value :b :label "Beta"}
+                                                  {:value :c :label "Gamma"}]
+                                       :selected-index 0
+                                       :row-height 10
+                                       :max-height 20}}
+                   :update (fn [state ctx] {})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  render_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
+
+  input().mouse_down({5, 37});
+  update_cycle();
+  input().mouse_up({5, 37});
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->definition->name, "root-mode");
+  update_cycle();
+
+  combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  auto ui_selected_index =
+    Roo::Dict::get_property(combo->ui_state, Roo::keyword("selected-index"));
+  ASSERT_NE(ui_selected_index, nullptr);
+  EXPECT_EQ(ui_selected_index->num().get_int(), 1);
+
+  auto selected_index = Roo::Dict::get_property(combo->state, Roo::keyword("selected-index"));
+  ASSERT_NE(selected_index, nullptr);
+  EXPECT_EQ(selected_index->num().get_int(), 1);
 }
 
 TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
@@ -852,6 +1030,15 @@ TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicke
 
   ASSERT_NE(session.active_mode, nullptr);
   EXPECT_EQ(session.active_mode->definition->name, "root-mode");
+
+  input().mouse_up({5, 5});
+  update_cycle();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
 }
 
 TEST_F(ComboBoxTest, combo_box_popup_flips_above_when_below_would_leave_screen)

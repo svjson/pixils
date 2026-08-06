@@ -5,18 +5,14 @@
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
-
-;; Inner button
 
-(defun button-border-side-thickness [ctx side]
-  (let [border (-> ctx :view :effective-style :border)
-        side-style (get border side)]
-    (or (:thickness side-style)
-        (:thickness border)
-        0)))
+
+;; Internal geometry support
 
 (defun button-content-origin-inset [ctx side]
-  (+ (button-border-side-thickness ctx side)
+  (+ (or (:thickness (-> ctx :view :effective-style :border (get side)))
+         (:thickness (-> ctx :view :effective-style :border))
+         0)
      (get (-> ctx :view :effective-style :padding) side 0)))
 
 (defun button-interaction-pressed?
@@ -126,9 +122,9 @@
 
 
 
-;; Outer button component
+;; UI State hooks
 
-(defun init-pressed-state
+(defun init-component-state
   "Returns initial button component state. Authored component :pressed wins over
   legacy ordinary :state :pressed when both are present."
   [ui-state state ctx]
@@ -138,11 +134,16 @@
            (:pressed ui-state)
            (:pressed state))))
 
-(defun sync-pressed-state
+(defun update-component-state
   "Returns button UI state with :pressed derived from runtime interaction and
   component button flags."
   [ui-state state ctx]
   (assoc ui-state :pressed (button-interaction-pressed? state ctx)))
+
+
+
+;; Inner button
+
 
 (defcomponent ui/button-inner {:style {:width :fill
                                        :height :fill
@@ -153,8 +154,8 @@
                                                :force-pressed?
                                                :inhibit-pressed?
                                                :pressed]
-                               :init-ui init-pressed-state
-                               :update-ui sync-pressed-state
+                               :init-ui init-component-state
+                               :update-ui update-component-state
                                :children [{:mode 'ui/text
                                            :style {:width :fill
                                                    :text {:align :center}}
@@ -167,6 +168,10 @@
                                                       ctx
                                                       (:image state)))))})
 
+
+
+;; Outer button component
+
 (defcomponent ui/button {:focusable true
                          :ui/state-keys [:label
                                          :image
@@ -175,8 +180,8 @@
                                          :force-pressed?
                                          :inhibit-pressed?
                                          :pressed]
-                         :init-ui init-pressed-state
-                         :update-ui sync-pressed-state
+                         :init-ui init-component-state
+                         :update-ui update-component-state
                          :children [{:mode 'ui/button-inner
                                      :state {:component {:pressed (ui/project-state :pressed)
                                                          :disabled? (ui/project-state
@@ -187,6 +192,10 @@
                                                                             :inhibit-pressed?)
                                                          :image (ui/project-state :image)
                                                          :label (ui/project-state :label)}}}]})
+
+
+
+;; Make functions
 
 (defun make
   "Builds a ui/button child entry from common button options. :state contains
