@@ -153,8 +153,7 @@
   an existing scrollbar geometry map."
   [geometry coord grab-offset]
   (let [track (:track geometry)
-        handle (:handle geometry)
-        span (max 1 (- (:size track) (:size handle)))
+        span (max 1 (- (:size track) (-> geometry :handle :size)))
         max-value (:max-value geometry)]
     (cond
       (= max-value 0)
@@ -409,13 +408,12 @@
                       :drag-kind (get ui-state :drag-kind (:drag-kind state))
                       :grab-offset (get ui-state :grab-offset (:grab-offset state))}))
    :update-ui (fn [ui-state state ctx]
-                (if (and (:active-part ui-state)
-                         (not (contains? (-> ctx :view :interaction :pressed) :left)))
-                  (merge ui-state
-                         {:active-part nil
+                (cond-> ui-state
+                  (and (:active-part ui-state)
+                       (not (contains? (-> ctx :view :interaction :pressed) :left)))
+                  (merge {:active-part nil
                           :drag-kind nil
-                          :grab-offset nil})
-                  ui-state))
+                          :grab-offset nil})))
 
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
@@ -568,27 +566,27 @@
            state-policy init update on on-mouse-down on-mouse-up on-drag-start
            on-drag on-drag-end]}]
   (let [state (or state {})]
-    (merge {:mode 'ui/scrollbar
-            :style (or style {})
-            :state (assoc state
-                          :component
-                          (merge (or (:component state) {})
-                                 {:axis axis
-                                  :value value
-                                  :content-size content-size
-                                  :viewport-size viewport-size
-                                  :step step}))}
-           (if class {:class class} {})
-           (if ui-state {:ui-state ui-state} {})
-           (if state-policy {:ui/state-policy state-policy} {})
-           (if init {:init init} {})
-           (if update {:update update} {})
-           (if on {:on on} {})
-           (if on-mouse-down {:on-mouse-down on-mouse-down} {})
-           (if on-mouse-up {:on-mouse-up on-mouse-up} {})
-           (if on-drag-start {:on-drag-start on-drag-start} {})
-           (if on-drag {:on-drag on-drag} {})
-           (if on-drag-end {:on-drag-end on-drag-end} {}))))
+    (cond-> {:mode 'ui/scrollbar
+             :style (or style {})
+             :state (assoc state
+                           :component
+                           (merge (:component state)
+                                  {:axis axis
+                                   :value value
+                                   :content-size content-size
+                                   :viewport-size viewport-size
+                                   :step step}))}
+      class (assoc :class class)
+      ui-state (assoc :ui-state ui-state)
+      state-policy (assoc :ui/state-policy state-policy)
+      init (assoc :init init)
+      update (assoc :update update)
+      on (assoc :on on)
+      on-mouse-down (assoc :on-mouse-down on-mouse-down)
+      on-mouse-up (assoc :on-mouse-up on-mouse-up)
+      on-drag-start (assoc :on-drag-start on-drag-start)
+      on-drag (assoc :on-drag on-drag)
+      on-drag-end (assoc :on-drag-end on-drag-end))))
 
 (defcomponent ui/scrollbar-corner
   {:content-size scrollbar-content-size})

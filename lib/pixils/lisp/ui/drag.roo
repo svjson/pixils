@@ -3,7 +3,7 @@
 
 
 
-;; Shared UI helpers
+;; Shared draggable functionality
 
 (def default-drag-threshold 3)
 

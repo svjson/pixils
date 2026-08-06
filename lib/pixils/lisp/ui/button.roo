@@ -114,27 +114,23 @@
                         (button-image-opacity image))
         pos (button-image-position state ctx image)
         dim (button-image-dim ctx image)
-        scale (button-image-scale ctx image)
-        opts (if (and dim (not= scale 1))
-               {:target {:x (:x pos)
-                         :y (:y pos)
-                         :w (:w dim)
-                         :h (:h dim)}}
-               {:pos pos})
-        opts (if source
-               (assoc opts :source source)
-               opts)]
-    (if opacity
-      (assoc opts :opacity opacity)
-      opts)))
+        scale (button-image-scale ctx image)]
+    (cond-> (if (and dim (not= scale 1))
+              {:target {:x (:x pos)
+                        :y (:y pos)
+                        :w (:w dim)
+                        :h (:h dim)}}
+              {:pos pos})
+      source (assoc :source source)
+      opacity (assoc :opacity opacity))))
 
 
 
 ;; Outer button component
 
 (defun init-pressed-state
-  "Returns initial button UI state. Authored :ui-state :pressed wins over
-  ordinary :state :pressed when both are present."
+  "Returns initial button component state. Authored component :pressed wins over
+  legacy ordinary :state :pressed when both are present."
   [ui-state state ctx]
   (assoc ui-state
          :pressed
@@ -144,20 +140,25 @@
 
 (defun sync-pressed-state
   "Returns button UI state with :pressed derived from runtime interaction and
-  ordinary button flags."
+  component button flags."
   [ui-state state ctx]
   (assoc ui-state :pressed (button-interaction-pressed? state ctx)))
 
 (defcomponent ui/button-inner {:style {:width :fill
                                        :height :fill
                                        :clip true}
-                               :ui/state-keys [:pressed]
+                               :ui/state-keys [:label
+                                               :image
+                                               :disabled?
+                                               :force-pressed?
+                                               :inhibit-pressed?
+                                               :pressed]
                                :init-ui init-pressed-state
                                :update-ui sync-pressed-state
                                :children [{:mode 'ui/text
                                            :style {:width :fill
                                                    :text {:align :center}}
-                                           :state {:value (ui/bind-state :label)}}]
+                                           :state {:value (ui/project-state :label)}}]
                                :render (fn [state {:keys [view] :as ctx}]
                                          (when (button-image-key (:image state))
                                            (r/image! (button-image-key (:image state))
@@ -167,36 +168,79 @@
                                                       (:image state)))))})
 
 (defcomponent ui/button {:focusable true
-                         :ui/state-keys [:pressed]
+                         :ui/state-keys [:label
+                                         :image
+                                         :disabled?
+                                         :value
+                                         :force-pressed?
+                                         :inhibit-pressed?
+                                         :pressed]
                          :init-ui init-pressed-state
                          :update-ui sync-pressed-state
                          :children [{:mode 'ui/button-inner
-                                     :state {:pressed (ui/bind-state :pressed)
-                                             :disabled? (ui/bind-state :disabled?)
-                                             :force-pressed? (ui/bind-state :force-pressed?)
-                                             :inhibit-pressed? (ui/bind-state
-                                                               :inhibit-pressed?)
-                                             :image (ui/bind-state :image)
-                                             :label (ui/bind-state :label)}}]})
+                                     :state {:component {:pressed (ui/project-state :pressed)
+                                                         :disabled? (ui/project-state
+                                                                     :disabled?)
+                                                         :force-pressed? (ui/project-state
+                                                                          :force-pressed?)
+                                                         :inhibit-pressed? (ui/project-state
+                                                                            :inhibit-pressed?)
+                                                         :image (ui/project-state :image)
+                                                         :label (ui/project-state :label)}}}]})
 
 (defun make
   "Builds a ui/button child entry from common button options. :state contains
-  application-facing button values; :ui-state contains public component-local
-  state; :state-policy controls whether selected UI state keys are synchronized
-  with ordinary state."
+  caller application state; button behavior values are written under
+  `:state :component`.
+
+  Options:
+
+  ```roo
+  {:label \"Run\"
+   :image :icons/run
+   :disabled? false
+   :value :run
+   :state {:clicks 0}
+   :state-policy :shared}
+  ```
+
+  Static values, `ui/bind-state`, and `ui/project-state` are accepted for
+  component entries. For example:
+
+  ```roo
+  (pixils.ui.button/make
+    {:label \"Save\"
+     :disabled? (ui/project-state :form-invalid?)
+     :state {:clicks (ui/bind-state :save-clicks)}})
+  ```
+
+  During migration, component keys supplied directly in :state are also copied
+  into :component, and the default shared state policy keeps declared component
+  keys visible in ordinary state."
   [{:keys [label image disabled? value class style state ui-state state-policy
            init update on on-click]}]
-  (merge {:mode 'ui/button
-          :style (or style {})
-          :state (merge (or state {})
-                        {:label label
-                         :image image
-                         :disabled? disabled?
-                         :value value})}
-         (if class {:class class} {})
-         (if ui-state {:ui-state ui-state} {})
-         (if state-policy {:ui/state-policy state-policy} {})
-         (if init {:init init} {})
-         (if update {:update update} {})
-         (if on {:on on} {})
-         (if on-click {:on-click on-click} {})))
+  (let [state (or state {})]
+    (cond-> {:mode 'ui/button
+             :style (or style {})
+             :state (assoc state
+                           :component
+                           (merge (select-keys state
+                                               [:label
+                                                :image
+                                                :disabled?
+                                                :value
+                                                :force-pressed?
+                                                :inhibit-pressed?
+                                                :pressed])
+                                  (:component state)
+                                  {:label label
+                                   :image image
+                                   :disabled? disabled?
+                                   :value value}))}
+            class (assoc :class class)
+            ui-state (assoc :ui-state ui-state)
+            state-policy (assoc :ui/state-policy state-policy)
+            init (assoc :init init)
+            update (assoc :update update)
+            on (assoc :on on)
+            on-click (assoc :on-click on-click))))
