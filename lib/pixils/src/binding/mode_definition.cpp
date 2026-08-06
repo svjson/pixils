@@ -300,6 +300,27 @@ namespace Pixils::Script
     return entry;
   }
 
+  bool has_component_state_channel(const Roo::sptr_val& state_val)
+  {
+    return state_val && state_val->type == Roo::Value::Type::MAP &&
+           Roo::Dict::contains_key(*state_val, "component");
+  }
+
+  Roo::sptr_val state_without_component_channel(const Roo::sptr_val& state_val)
+  {
+    if (!has_component_state_channel(state_val)) return state_val;
+
+    auto result = Roo::map({});
+    for (const auto& key : Roo::Dict::map_sptr_keys(state_val))
+    {
+      if (key->str() != "component")
+      {
+        Roo::Dict::set_property(result, key, Roo::Dict::get_property(state_val, key));
+      }
+    }
+    return result;
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Roo::Context& ctx,
                                                     const Roo::sptr_val& children_val)
   {
@@ -365,9 +386,20 @@ namespace Pixils::Script
       if (slot.anonymous_mode && slot.anonymous_mode->name.empty())
         slot.anonymous_mode->name = slot.id;
 
-      auto [binding, initial] = Runtime::parse_state_binding(child_opts.val("state"));
+      auto state_val = child_opts.val("state");
+      slot.raw_state = state_val;
+      auto [binding, initial] =
+        Runtime::parse_state_binding(state_without_component_channel(state_val));
       slot.state_binding = binding;
       slot.initial_state = initial;
+      if (has_component_state_channel(state_val))
+      {
+        slot.has_component_state = true;
+        auto [component_binding, component_initial] = Runtime::parse_state_binding(
+          Roo::Dict::get_property(state_val, Roo::keyword("component")));
+        slot.component_state_binding = component_binding;
+        slot.initial_component_state = component_initial;
+      }
       if (child_opts.contains("ui-state"))
       {
         slot.has_initial_ui_state = true;

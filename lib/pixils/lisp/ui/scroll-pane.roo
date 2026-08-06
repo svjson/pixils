@@ -82,10 +82,10 @@
               {:mode 'ui/scrollbar
                :class :scroll-pane/vertical-scrollbar
                :style {:height :fill}
-               :state {:axis :y
-                       :value (ui/bind-state :offset :y)
-                       :step (ui/bind-state :step)
-                       :content-size (ui/bind-state :content-size :h)}}]})
+               :state {:component {:axis :y
+                                   :value (ui/bind-state :offset :y)
+                                   :step (ui/bind-state :step)
+                                   :content-size (ui/bind-state :content-size :h)}}}]})
 
 (defcomponent ui/scroll-pane-footer
   {:style {:width :fill
@@ -95,10 +95,10 @@
                :class :scroll-pane/horizontal-scrollbar
                :style {:width :fill
                        :height :fill}
-               :state {:axis :x
-                       :value (ui/bind-state :offset :x)
-                       :step (ui/bind-state :step)
-                       :content-size (ui/bind-state :content-size :w)}}
+               :state {:component {:axis :x
+                                   :value (ui/bind-state :offset :x)
+                                   :step (ui/bind-state :step)
+                                   :content-size (ui/bind-state :content-size :w)}}}
               {:mode 'ui/scrollbar-corner
                :class :scroll-pane/corner
                :style {}}]})
@@ -147,20 +147,20 @@
   {:mode 'ui/scrollbar
    :class :scroll-pane/vertical-scrollbar
    :style {:height :fill}
-   :state {:axis :y
-           :value (ui/bind-state :offset :y)
-           :step (ui/bind-state :step)
-           :content-size (ui/bind-state :content-size :h)}})
+   :state {:component {:axis :y
+                       :value (ui/bind-state :offset :y)
+                       :step (ui/bind-state :step)
+                       :content-size (ui/bind-state :content-size :h)}}})
 
 (defun scroll-pane-horizontal-scrollbar-child []
   {:mode 'ui/scrollbar
    :class :scroll-pane/horizontal-scrollbar
    :style {:width :fill
            :height :fill}
-   :state {:axis :x
-           :value (ui/bind-state :offset :x)
-           :step (ui/bind-state :step)
-           :content-size (ui/bind-state :content-size :w)}})
+   :state {:component {:axis :x
+                       :value (ui/bind-state :offset :x)
+                       :step (ui/bind-state :step)
+                       :content-size (ui/bind-state :content-size :w)}}})
 
 (defun scroll-pane-corner-child []
   {:mode 'ui/scrollbar-corner

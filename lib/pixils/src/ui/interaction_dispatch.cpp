@@ -94,7 +94,8 @@ namespace Pixils::UI
     {
       return (view->definition->on_drag_start &&
               view->definition->on_drag_start->type != Roo::Value::Type::NIL) ||
-             (view->definition->on_drag && view->definition->on_drag->type != Roo::Value::Type::NIL) ||
+             (view->definition->on_drag &&
+              view->definition->on_drag->type != Roo::Value::Type::NIL) ||
              (view->definition->on_drag_end &&
               view->definition->on_drag_end->type != Roo::Value::Type::NIL);
     }
@@ -220,8 +221,10 @@ namespace Pixils::UI
                                        const std::shared_ptr<Runtime::View>& parent)
     {
       if (!child || !parent) return;
-      parent->set_state_if_changed(
-        Runtime::merge_state(parent->state, *child, child->state));
+      parent->set_state_if_changed(Runtime::merge_component_ui_state(
+        Runtime::merge_state(parent->state, *child, child->state),
+        *child,
+        child->ui_state));
     }
 
     void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain)
@@ -396,8 +399,11 @@ namespace Pixils::UI
         .policy = drag_state.policy,
       };
 
-      bubble_drag_hook(
-        chain, &Runtime::ViewDefinition::on_drag_start, drag_start_ev, hook_args, rt);
+      bubble_drag_hook(chain,
+                       &Runtime::ViewDefinition::on_drag_start,
+                       drag_start_ev,
+                       hook_args,
+                       rt);
       drag_state.active = true;
       drag_state.last_global_pos = gp;
     }
@@ -927,8 +933,8 @@ namespace Pixils::UI
 
     bool is_focusable(const std::shared_ptr<Runtime::View>& view)
     {
-      return view && view->definition && view->definition->focusable && !view_disabled(view) &&
-             !view_suppresses_interaction(view);
+      return view && view->definition && view->definition->focusable &&
+             !view_disabled(view) && !view_suppresses_interaction(view);
     }
 
     bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,
@@ -1473,8 +1479,11 @@ namespace Pixils::UI
       KeyboardEvent event;
       event.key = events.key_down;
       event.held_keys = events.held_keys;
-      bubble_keyboard_hook(
-        chain, &Runtime::ViewDefinition::on_key_down, event, hook_args, runtime);
+      bubble_keyboard_hook(chain,
+                           &Runtime::ViewDefinition::on_key_down,
+                           event,
+                           hook_args,
+                           runtime);
       if (!event.propagation_stopped && focus_view_by_tab(root, focus_state, event))
       {
         event.propagation_stopped = true;
@@ -1488,8 +1497,11 @@ namespace Pixils::UI
       KeyboardEvent event;
       event.key = events.key_up;
       event.held_keys = events.held_keys;
-      bubble_keyboard_hook(
-        chain, &Runtime::ViewDefinition::on_key_up, event, hook_args, runtime);
+      bubble_keyboard_hook(chain,
+                           &Runtime::ViewDefinition::on_key_up,
+                           event,
+                           hook_args,
+                           runtime);
     }
   }
 

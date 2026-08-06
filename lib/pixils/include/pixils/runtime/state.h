@@ -40,7 +40,7 @@ namespace Pixils::Runtime
    * the first local state has been established.
    */
   Roo::sptr_val extract_state(const Roo::sptr_val& parent,
-                                 const Pixils::Runtime::View& view);
+                              const Pixils::Runtime::View& view);
 
   /**
    * Write bound keys from child_state back into parent state. Unbound views do
@@ -48,11 +48,36 @@ namespace Pixils::Runtime
    * declared in state_binding; non-bound keys remain in view.state.
    */
   Roo::sptr_val merge_state(const Roo::sptr_val& parent,
-                               const Pixils::Runtime::View& view,
-                               const Roo::sptr_val& child_state);
+                            const Pixils::Runtime::View& view,
+                            const Roo::sptr_val& child_state);
+
+  /**
+   * Apply a component view's `:state {:component ...}` binding channel to its
+   * UI state. Component-state bindings are resolved from the parent state just
+   * like ordinary child state bindings, but they target declared component UI
+   * state keys instead of the view's application state.
+   */
+  Roo::sptr_val extract_component_ui_state(const Roo::sptr_val& parent,
+                                           const Pixils::Runtime::View& view);
+
+  /**
+   * Write writable `:state {:component ...}` bindings from a component view's
+   * UI state back into the parent application state.
+   */
+  Roo::sptr_val merge_component_ui_state(const Roo::sptr_val& parent,
+                                         const Pixils::Runtime::View& view,
+                                         const Roo::sptr_val& ui_state);
 
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
   bool bind_state_writable(const Roo::sptr_val& val);
+
+  /**
+   * Returns true when a view's ordinary state binding controls a top-level key.
+   * This is used by component shared-state migration policy so legacy
+   * `:state {:key (ui/bind-state ...)}` component inputs can continue to feed
+   * declared UI state keys while the component owns their continuity.
+   */
+  bool state_binding_controls_key(const Pixils::Runtime::View& view, const std::string& key);
 
   /**
    * Parse a raw :state value from a child slot entry into its binding and

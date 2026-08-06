@@ -2,6 +2,7 @@
 #include "pixils/runtime/view.h"
 
 #include <pixils/benchmark/counters.h>
+#include <pixils/runtime/state.h>
 #include <pixils/ui/event.h>
 
 #include <roo/runtime/dict.h>
@@ -112,7 +113,8 @@ namespace Pixils::Runtime
     bool changed = false;
     for (const auto& key : component->ui_state_keys)
     {
-      if (map_contains_key(state, key) && !map_contains_key(next_ui_state, key))
+      if (map_contains_key(state, key) &&
+          (!map_contains_key(next_ui_state, key) || state_binding_controls_key(*this, key)))
       {
         Roo::Dict::set_property(next_ui_state,
                                 Roo::keyword(key),

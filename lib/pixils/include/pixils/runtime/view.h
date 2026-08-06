@@ -50,6 +50,7 @@ namespace Pixils::Runtime
      */
     std::unique_ptr<Mode> owned_mode;
     std::unique_ptr<Component> owned_component;
+    Roo::sptr_val component_state_binding = Roo::Constant::NIL;
     Roo::sptr_val state = Roo::Constant::NIL;
     Roo::sptr_val initial_state = Roo::Constant::NIL;
     Roo::sptr_val ui_state = Roo::Constant::NIL;

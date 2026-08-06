@@ -54,6 +54,44 @@ namespace
     return hook && hook->type != Roo::Value::Type::NIL;
   }
 
+  bool declared_component_ui_key(const Pixils::Runtime::View& view, const Roo::sptr_val& key)
+  {
+    if (!view.component || !key) return false;
+    const auto& keys = view.component->ui_state_keys;
+    return std::find(keys.begin(), keys.end(), key->str()) != keys.end();
+  }
+
+  Roo::sptr_val merge_declared_component_ui_state(const Pixils::Runtime::View& view,
+                                                  const Roo::sptr_val& base,
+                                                  const Roo::sptr_val& next)
+  {
+    auto result = base && base->type == Roo::Value::Type::MAP ? Roo::Dict::shallow_copy(base)
+                                                              : Roo::map({});
+    if (!next || next->type != Roo::Value::Type::MAP) return result;
+
+    for (const auto& key : Roo::Dict::map_sptr_keys(next))
+    {
+      if (declared_component_ui_key(view, key))
+      {
+        Roo::Dict::set_property(result, key, Roo::Dict::get_property(next, key));
+      }
+    }
+    return result;
+  }
+
+  Roo::sptr_val merge_ui_state_maps(const Roo::sptr_val& base, const Roo::sptr_val& next)
+  {
+    auto result = base && base->type == Roo::Value::Type::MAP ? Roo::Dict::shallow_copy(base)
+                                                              : Roo::map({});
+    if (!next || next->type != Roo::Value::Type::MAP) return result;
+
+    for (const auto& key : Roo::Dict::map_sptr_keys(next))
+    {
+      Roo::Dict::set_property(result, key, Roo::Dict::get_property(next, key));
+    }
+    return result;
+  }
+
   Roo::sptr_val invoke_ui_state_hook(Roo::Runtime& runtime,
                                      const std::shared_ptr<Pixils::Runtime::View>& view,
                                      const Roo::sptr_val& hook,
@@ -132,12 +170,12 @@ namespace
       auto* component = Pixils::Script::component_from_registry_value(component_val);
       if (!component)
       {
-        throw Roo::InvocationException("Child slot '" + slot.id +
-                                       "' resolved component '" + slot.component_name +
-                                       "' to non-component value");
+        throw Roo::InvocationException("Child slot '" + slot.id + "' resolved component '" +
+                                       slot.component_name + "' to non-component value");
       }
-      return ResolvedViewDefinition{
-        .definition = component, .mode = nullptr, .component = component};
+      return ResolvedViewDefinition{.definition = component,
+                                    .mode = nullptr,
+                                    .component = component};
     }
 
     auto mode_val = Roo::Dict::get_property(modes, Roo::symbol(slot.mode_name));
@@ -149,8 +187,7 @@ namespace
                                        slot.mode_name + "' to non-mode value");
       }
       auto* mode = &Roo::obj<Pixils::Runtime::Mode>(*mode_val);
-      return ResolvedViewDefinition{
-        .definition = mode, .mode = mode, .component = nullptr};
+      return ResolvedViewDefinition{.definition = mode, .mode = mode, .component = nullptr};
     }
 
     auto component_val = Roo::Dict::get_property(components, Roo::symbol(slot.mode_name));
@@ -166,10 +203,9 @@ namespace
       throw Roo::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
                                      slot.mode_name + "' to non-component value");
     }
-    return ResolvedViewDefinition{
-      .definition = component,
-      .mode = nullptr,
-      .component = component};
+    return ResolvedViewDefinition{.definition = component,
+                                  .mode = nullptr,
+                                  .component = component};
   }
 
   void apply_definition_overrides(Pixils::Runtime::ViewDefinition& definition,
@@ -258,7 +294,8 @@ namespace
     auto class_val = get("class");
     if (class_val->type != Roo::Value::Type::NIL)
     {
-      append_class_names(definition.class_names, Pixils::Script::parse_mode_classes(class_val));
+      append_class_names(definition.class_names,
+                         Pixils::Script::parse_mode_classes(class_val));
     }
 
     auto drag_val = get("drag");
@@ -353,6 +390,7 @@ namespace Pixils::UI
     Runtime::View view;
     view.id = slot.id;
     view.state_binding = slot.state_binding;
+    view.component_state_binding = slot.component_state_binding;
     view.state = slot.initial_state;
     view.initial_state = slot.initial_state;
     view.state_policy = slot.state_policy.value_or(parent_state_policy);
@@ -390,7 +428,12 @@ namespace Pixils::UI
     }
     if (view.has_component_ui_state())
     {
-      view.ui_state = slot.has_initial_ui_state ? slot.initial_ui_state : Roo::map({});
+      view.ui_state =
+        merge_declared_component_ui_state(view, Roo::map({}), slot.initial_component_state);
+      if (slot.has_initial_ui_state)
+      {
+        view.ui_state = merge_ui_state_maps(view.ui_state, slot.initial_ui_state);
+      }
       view.initial_ui_state = view.ui_state;
     }
     else if (slot.has_initial_ui_state)
@@ -400,6 +443,14 @@ namespace Pixils::UI
     else if (slot.state_policy.has_value())
     {
       throw Roo::TypeError("Child :ui/state-policy requires a component mode");
+    }
+    if (!view.has_component_ui_state() && slot.has_component_state)
+    {
+      auto [binding, initial] = Runtime::parse_state_binding(slot.raw_state);
+      view.state_binding = binding;
+      view.component_state_binding = Roo::Constant::NIL;
+      view.state = initial;
+      view.initial_state = initial;
     }
 
     for (const auto& grandchild_slot : view.definition->children)
@@ -444,6 +495,7 @@ namespace Pixils::UI
     if (new_state->type != Roo::Value::Type::NIL) ctx.set_state_if_changed(new_state);
     if (ctx.has_component_ui_state())
     {
+      ctx.set_ui_state_if_changed(Runtime::extract_component_ui_state(parent_state, ctx));
       ctx.seed_ui_state_from_shared_state_policy();
       auto next_ui_state = invoke_ui_state_hook(runtime,
                                                 view,
@@ -460,7 +512,10 @@ namespace Pixils::UI
         init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state));
     }
 
-    return Runtime::merge_state(parent_state, ctx, ctx.state);
+    return Runtime::merge_component_ui_state(
+      Runtime::merge_state(parent_state, ctx, ctx.state),
+      ctx,
+      ctx.ui_state);
   }
 
   void init_root_view(Asset::Registry& assets,
@@ -479,6 +534,7 @@ namespace Pixils::UI
     ctx.set_state_if_changed(new_state);
     if (ctx.has_component_ui_state())
     {
+      ctx.set_ui_state_if_changed(Runtime::extract_component_ui_state(ctx.state, ctx));
       ctx.seed_ui_state_from_shared_state_policy();
       auto next_ui_state = invoke_ui_state_hook(runtime,
                                                 view,

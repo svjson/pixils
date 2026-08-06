@@ -25,6 +25,15 @@ namespace Pixils::UI
       }
     }
 
+    Roo::sptr_val merge_view_state(const Roo::sptr_val& parent_state,
+                                   const Runtime::View& view)
+    {
+      return Runtime::merge_component_ui_state(
+        Runtime::merge_state(parent_state, view, view.state),
+        view,
+        view.ui_state);
+    }
+
   } // namespace
 
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
@@ -65,17 +74,17 @@ namespace Pixils::UI
             restore_subtree_state(child, receiver.state);
           }
         }
-        if (parent_state)
+      }
+      if (parent_state)
+      {
+        auto merged = merge_view_state(*parent_state, receiver);
+        if (parent_view)
         {
-          auto merged = Runtime::merge_state(*parent_state, receiver, receiver.state);
-          if (parent_view)
-          {
-            parent_view->set_state_if_changed(merged);
-          }
-          else
-          {
-            *parent_state = merged;
-          }
+          parent_view->set_state_if_changed(merged);
+        }
+        else
+        {
+          *parent_state = merged;
         }
       }
       if (!event.propagation_stopped)

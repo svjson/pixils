@@ -7,6 +7,14 @@
 
 using StateBindingTest = SessionFixture;
 
+namespace
+{
+  Roo::sptr_val map_key(const Roo::sptr_val& value, const std::string& key)
+  {
+    return Roo::Dict::get_property(value, Roo::keyword(key));
+  }
+} // namespace
+
 /**
  * Whole-path bind-state: child :state is (ui/bind-state :data), so child.state
  * must equal the value of :data in the parent state after init.
@@ -55,6 +63,102 @@ TEST_F(StateBindingTest, map_binding_overlays_bound_keys_from_parent_into_child_
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
   EXPECT_EQ(child->state->to_string(), "{:board {:x 7}}");
+}
+
+TEST_F(StateBindingTest, component_state_channel_initializes_declared_ui_state_keys)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'child-component
+                   :ui/state-policy :isolated
+                   :state {:component {:value 42}
+                           :label "App state"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  auto ui_value = map_key(child->ui_state, "value");
+  auto state_value = map_key(child->state, "value");
+  auto label = map_key(child->state, "label");
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(ui_value->to_string(), "42");
+  EXPECT_EQ(state_value->to_string(), "nil");
+  ASSERT_NE(label, nullptr);
+  EXPECT_EQ(label->str(), "App state");
+}
+
+TEST_F(StateBindingTest, component_state_bindings_push_ui_state_changes_to_parent)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]
+       :update-ui (fn [ui-state state ctx]
+                    (assoc ui-state :value 99))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:value 1})
+       :children [{:mode 'child-component
+                   :state {:component {:value (pixils.ui/bind-state :value)}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+
+  auto value = map_key(session.active_mode->state, "value");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), "99");
+}
+
+TEST_F(StateBindingTest, component_state_projection_does_not_push_ui_state_changes_to_parent)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]
+       :update-ui (fn [ui-state state ctx]
+                    (assoc ui-state :value 99))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:value 1})
+       :children [{:mode 'child-component
+                   :state {:component {:value (pixils.ui/project-state :value)}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+
+  auto value = map_key(session.active_mode->state, "value");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), "1");
+}
+
+TEST_F(StateBindingTest, component_ui_state_survives_application_update_replacement)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]
+       :update (fn [state ctx] {})
+       :update-ui (fn [ui-state state ctx] ui-state)})
+    (pixils/defmode root-mode
+      {:children [{:mode 'child-component
+                   :ui/state-policy :isolated
+                   :state {:component {:value 42}
+                           :label "App state"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  auto ui_value = map_key(child->ui_state, "value");
+  auto state_value = map_key(child->state, "value");
+  auto label = map_key(child->state, "label");
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(ui_value->to_string(), "42");
+  EXPECT_EQ(state_value->to_string(), "nil");
+  EXPECT_EQ(label->to_string(), "nil");
 }
 
 TEST_F(StateBindingTest, nested_map_binding_overlays_bound_keys_from_parent_into_child_state)
@@ -110,7 +214,8 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
   EXPECT_EQ(session.active_mode->state->to_string(), "{:board {:x 99}}");
 }
 
-TEST_F(StateBindingTest, map_projection_does_not_propagate_child_state_changes_back_to_parent)
+TEST_F(StateBindingTest,
+       map_projection_does_not_propagate_child_state_changes_back_to_parent)
 {
   // Given
   runtime.eval(R"(
@@ -186,7 +291,8 @@ TEST_F(StateBindingTest, nested_map_binding_propagates_child_state_changes_back_
             "{:expanded [:project :src] :selected :main}");
 }
 
-TEST_F(StateBindingTest, nested_map_projection_does_not_propagate_child_state_changes_back_to_parent)
+TEST_F(StateBindingTest,
+       nested_map_projection_does_not_propagate_child_state_changes_back_to_parent)
 {
   // Given
   runtime.eval(R"(

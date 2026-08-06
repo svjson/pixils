@@ -75,10 +75,14 @@ namespace Pixils::Runtime
     std::string id;
     std::shared_ptr<Mode> anonymous_mode = nullptr;
     Roo::sptr_val initial_state;
+    Roo::sptr_val raw_state = Roo::Constant::NIL;
     Roo::sptr_val initial_ui_state = Roo::Constant::NIL;
+    Roo::sptr_val initial_component_state = Roo::Constant::NIL;
     bool has_initial_ui_state = false;
+    bool has_component_state = false;
     Roo::sptr_val overrides = Roo::Constant::NIL;
     Roo::sptr_val state_binding = Roo::Constant::NIL;
+    Roo::sptr_val component_state_binding = Roo::Constant::NIL;
     std::optional<std::string> state_policy = std::nullopt;
   };
 

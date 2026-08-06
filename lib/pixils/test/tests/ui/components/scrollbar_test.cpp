@@ -1,17 +1,16 @@
 #include "../../render_fixture.h"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-
-#include <algorithm>
 
 using ScrollbarTest = RenderFixture;
 
 namespace
 {
   Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                 const std::string& key)
+                              const std::string& key)
   {
     return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
@@ -117,8 +116,7 @@ TEST_F(ScrollbarTest, standalone_scrollbar_uses_axis_and_value_on_first_render)
   EXPECT_GT(horizontal_handle->bounds.x, horizontal_track->bounds.x);
   EXPECT_EQ(horizontal_handle->bounds.h, horizontal_track->bounds.h);
 
-  EXPECT_EQ(vertical_track->bounds.y,
-            vertical->bounds.y + vertical->children[0]->bounds.h);
+  EXPECT_EQ(vertical_track->bounds.y, vertical->bounds.y + vertical->children[0]->bounds.h);
   EXPECT_EQ(vertical->children[2]->bounds.y + vertical->children[2]->bounds.h,
             vertical->bounds.y + vertical->bounds.h);
   EXPECT_GT(vertical_handle->bounds.y, vertical_track->bounds.y);
@@ -335,13 +333,102 @@ TEST_F(ScrollbarTest, dragging_proportional_handle_to_end_sets_max_value)
 
   input().mouse_down({scrollbar->bounds.x + 5, scrollbar->bounds.y + 20});
   update_cycle();
-  input().mouse_move({scrollbar->bounds.x + 5,
-                      scrollbar->bounds.y + scrollbar->bounds.h - 15});
+  input().mouse_move(
+    {scrollbar->bounds.x + 5, scrollbar->bounds.y + scrollbar->bounds.h - 15});
   update_cycle();
 
   auto value = get_state_key(scrollbar, "value");
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 200);
+}
+
+TEST_F(ScrollbarTest, component_state_channel_drives_initial_scrollbar_value)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:component {:axis :y
+                                       :content-size 400
+                                       :viewport-size 200
+                                       :value 50}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  auto ui_value = get_map_key(scrollbar->ui_state, "value");
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(ui_value->num().get_int(), 50);
+
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+  EXPECT_GT(handle->bounds.y, track->bounds.y);
+}
+
+TEST_F(ScrollbarTest, component_state_binding_pushes_scrollbar_value_to_parent)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:offset 0})
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:component {:axis :y
+                                       :content-size 400
+                                       :viewport-size 200
+                                       :step 10
+                                       :value (pixils.ui/bind-state :offset)}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 195});
+  update_cycle();
+
+  auto value = get_state_key(session.active_mode, "offset");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->num().get_int(), 10);
+}
+
+TEST_F(ScrollbarTest, component_ui_state_survives_empty_application_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:component {:axis :y
+                                       :content-size 400
+                                       :viewport-size 200
+                                       :step 10
+                                       :value 0}}
+                   :update (fn [state ctx] {})}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+
+  input().mouse_down({5, 195});
+  update_cycle();
+
+  auto ui_value = get_map_key(scrollbar->ui_state, "value");
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(ui_value->num().get_int(), 10);
 }
 
 TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
@@ -498,51 +585,59 @@ TEST_F(ScrollbarTest, base_theme_scrollbar_buttons_use_generated_outline_arrows)
   EXPECT_EQ(left->to_string(), ":generated");
   EXPECT_EQ(right->to_string(), ":generated");
 
-  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             9);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
-                         ":base-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :base-theme "
+                    ":base-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             9);
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op)
-                                { return op.type == RenderOpType::RENDER_COPY; });
+  auto copy_ops =
+    std::count_if(render_target()->render_ops.begin(),
+                  render_target()->render_ops.end(),
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_GE(copy_ops, 4);
 }
 
@@ -600,51 +695,59 @@ TEST_F(ScrollbarTest, windows_95_scrollbar_buttons_use_generated_theme_symbols)
   EXPECT_EQ(down->to_string(), ":generated");
   EXPECT_EQ(left->to_string(), ":generated");
   EXPECT_EQ(right->to_string(), ":generated");
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             7);
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op)
-                                { return op.type == RenderOpType::RENDER_COPY; });
+  auto copy_ops =
+    std::count_if(render_target()->render_ops.begin(),
+                  render_target()->render_ops.end(),
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_GE(copy_ops, 4);
 }
 
@@ -716,63 +819,69 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_buttons_use_generated_theme_symbols)
   EXPECT_EQ(vertical_scrollbar->children[0]->bounds.w, 15);
   EXPECT_EQ(vertical_scrollbar->children[0]->bounds.h, 15);
 
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             7);
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op)
-                                { return op.type == RenderOpType::RENDER_COPY; });
+  auto copy_ops =
+    std::count_if(render_target()->render_ops.begin(),
+                  render_target()->render_ops.end(),
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_GE(copy_ops, 4);
 
-  auto centered_start_arrow =
-    std::any_of(render_target()->render_ops.begin(),
-                render_target()->render_ops.end(),
-                [](const auto& op) {
-                  return op.type == RenderOpType::RENDER_COPY &&
-                         op.rendered_rect.x == 3 &&
-                         op.rendered_rect.y == 3 &&
-                         op.rendered_rect.w == 7 &&
-                         op.rendered_rect.h == 7;
-  });
+  auto centered_start_arrow = std::any_of(
+    render_target()->render_ops.begin(),
+    render_target()->render_ops.end(),
+    [](const auto& op)
+    {
+      return op.type == RenderOpType::RENDER_COPY && op.rendered_rect.x == 3 &&
+             op.rendered_rect.y == 3 && op.rendered_rect.w == 7 && op.rendered_rect.h == 7;
+    });
   EXPECT_TRUE(centered_start_arrow);
 }
 
@@ -830,51 +939,59 @@ TEST_F(ScrollbarTest, classic_blue_scrollbar_buttons_use_generated_theme_symbols
   EXPECT_EQ(down->to_string(), ":generated");
   EXPECT_EQ(left->to_string(), ":generated");
   EXPECT_EQ(right->to_string(), ":generated");
-  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-up))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-up))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-down))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-down))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-left))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-left))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
-                         ":classic-blue-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :classic-blue-theme "
+                    ":classic-blue-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             7);
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op)
-                                { return op.type == RenderOpType::RENDER_COPY; });
+  auto copy_ops =
+    std::count_if(render_target()->render_ops.begin(),
+                  render_target()->render_ops.end(),
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_GE(copy_ops, 4);
 }
 
