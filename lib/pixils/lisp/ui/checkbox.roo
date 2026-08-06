@@ -92,7 +92,8 @@
 ;; Inner components
 
 (defcomponent ui/checkbox-box
-  {:render (fn [state ctx]
+  {:ui/state-keys [:checked? :mark-color :pressed]
+   :render (fn [state ctx]
              (let [bounds (-> ctx :view :bounds)
                    image (checkbox-image state ctx)]
                (if image
@@ -113,7 +114,7 @@
 
 (defcomponent ui/checkbox-label
   {:children [{:mode 'ui/text
-               :state {:value (ui/bind-state :label)}}]})
+               :state {:value (ui/project-state :label)}}]})
 
 
 
@@ -122,33 +123,48 @@
 (defcomponent ui/checkbox
   {:focusable true
    :class :ui/checkbox
-   :ui/state-keys [:pressed]
+   :ui/state-keys [:label
+                   :checked?
+                   :value
+                   :disabled?
+                   :mark-color
+                   :pressed]
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
+                     :checked?
+                     (checked? ui-state)
                      :pressed
                      (if (contains? ui-state :pressed)
                        (:pressed ui-state)
                        (:pressed state))))
    :update-ui (fn [ui-state state ctx]
-                (assoc ui-state :pressed (and (not (:disabled? state))
+                (assoc ui-state
+                       :checked?
+                       (checked? ui-state)
+                       :pressed
+                       (and (not (get ui-state :disabled? (:disabled? state)))
                                               (contains? (-> ctx :view :interaction :pressed) :left)
                                               (-> ctx :view :interaction :hovered))))
-   :init (fn [state ctx]
-           (assoc state :checked? (checked? state)))
-   :update (fn [state ctx]
-             (assoc state :checked? (checked? state)))
    :on-click (fn [state event ctx]
-               (let [checked? (not (checked? state))]
-                 (ui/emit! (:view ctx)
-                           :checkbox/change
-                           {:checked? checked?
-                            :value (:value state)})
-                 (assoc state :checked? checked?)))
+               (let [ui-state (-> ctx :view :ui-state)
+                     disabled? (get ui-state :disabled? (:disabled? state))
+                     checked? (not (checked? ui-state))]
+                 (if disabled?
+                   state
+                   (do
+                     (ui/set-ui-state! ctx
+                                       (assoc ui-state :checked? checked?))
+                     (ui/emit! (:view ctx)
+                               :checkbox/change
+                               {:checked? checked?
+                                :value (get ui-state :value (:value state))})
+                     (assoc state :checked? checked?)))))
    :children [{:mode 'ui/checkbox-box
-               :state {:checked? (ui/bind-state :checked?)
-                       :pressed (ui/bind-state :pressed)}}
+               :state {:component {:checked? (ui/project-state :checked?)
+                                    :mark-color (ui/project-state :mark-color)
+                                    :pressed (ui/project-state :pressed)}}}
               {:mode 'ui/checkbox-label
-               :state {:label (ui/bind-state :label)}}]})
+               :state {:label (ui/project-state :label)}}]})
 
 
 
@@ -163,6 +179,8 @@
   {:label \"Show grid\"
    :checked? true
    :value :show-grid
+   :disabled? false
+   :mark-color {:r 0 :g 0 :b 0}
    :class :settings/checkbox
    :style {...}
    :box-style {...}
@@ -172,24 +190,39 @@
    :state-policy :shared}
   ```
 
-  :checked? and :value are application-facing state. :pressed is component UI
-  state owned by ui/checkbox; the default shared state policy keeps it visible
-  in ordinary state during migration."
-  [{:keys [label checked? value class style box-style label-style state ui-state
-           state-policy]}]
-  (merge {:mode 'ui/checkbox
-          :style (or style {})
-          :state (merge (or state {})
-                        {:label label
-                         :checked? checked?
-                         :value value})
-          :children [{:mode 'ui/checkbox-box
-                      :style (or box-style {})
-                      :state {:checked? (ui/bind-state :checked?)
-                              :pressed (ui/bind-state :pressed)}}
-                     {:mode 'ui/checkbox-label
-                      :style (or label-style {})
-                      :state {:label (ui/bind-state :label)}}]}
-         (if class {:class class} {})
-         (if ui-state {:ui-state ui-state} {})
-         (if state-policy {:ui/state-policy state-policy} {})))
+  Stock checkbox behavior values are written under `:state :component`. Static
+  values, `ui/bind-state`, and `ui/project-state` are accepted for component
+  entries. Ordinary :state entries remain available for caller application
+  state. During migration, component keys supplied directly in :state are also
+  copied into :component, and the default shared state policy keeps declared
+  component keys visible in ordinary state."
+  [{:keys [label checked? value disabled? mark-color class style box-style
+           label-style state ui-state state-policy] :as opts}]
+  (let [state (or state {})
+        component (cond-> (merge (select-keys state
+                                              [:label
+                                               :checked?
+                                               :value
+                                               :disabled?
+                                               :mark-color
+                                               :pressed])
+                                 (or (:component state) {}))
+                          label (assoc :label label)
+                          checked? (assoc :checked? checked?)
+                          value (assoc :value value)
+                          disabled? (assoc :disabled? disabled?)
+                          mark-color (assoc :mark-color mark-color))]
+    (cond-> {:mode 'ui/checkbox
+             :style (or style {})
+             :state (assoc state :component component)
+             :children [{:mode 'ui/checkbox-box
+                         :style (or box-style {})
+                         :state {:component {:checked? (ui/project-state :checked?)
+                                             :mark-color (ui/project-state :mark-color)
+                                             :pressed (ui/project-state :pressed)}}}
+                        {:mode 'ui/checkbox-label
+                         :style (or label-style {})
+                         :state {:label (ui/project-state :label)}}]}
+            class (assoc :class class)
+            ui-state (assoc :ui-state ui-state)
+            state-policy (assoc :ui/state-policy state-policy))))

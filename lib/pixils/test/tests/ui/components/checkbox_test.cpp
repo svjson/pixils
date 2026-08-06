@@ -44,6 +44,8 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   ASSERT_EQ(checkbox->children.size(), 2u);
   EXPECT_EQ(checkbox->children[0]->definition->name, "ui/checkbox-box");
   EXPECT_EQ(checkbox->children[1]->definition->name, "ui/checkbox-label");
+  EXPECT_EQ(get_key(checkbox->ui_state, "label")->str(), "Show grid");
+  EXPECT_EQ(get_key(checkbox->ui_state, "checked?")->to_string(), "true");
 
   input().mouse_down({5, 5});
   update_cycle();
@@ -58,6 +60,7 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   ASSERT_NE(last_change, nullptr);
   EXPECT_EQ(show_grid->to_string(), "false");
   EXPECT_EQ(last_change->to_string(), "{:checked? false :value nil}");
+  EXPECT_EQ(get_key(checkbox->ui_state, "checked?")->to_string(), "false");
 }
 
 TEST_F(CheckboxTest, checkbox_shared_state_policy_records_pressed_in_state_and_ui_state)
@@ -103,8 +106,7 @@ TEST_F(CheckboxTest, checkbox_pressed_state_survives_custom_update)
                    :state {:label "Show grid"
                            :checked? false}
                    :update (fn [state ctx]
-                             {:label (:label state)
-                              :checked? (:checked? state)})}]})
+                             {})}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -117,8 +119,20 @@ TEST_F(CheckboxTest, checkbox_pressed_state_survives_custom_update)
   ASSERT_NE(session.active_mode, nullptr);
   auto checkbox = session.active_mode->children[0];
   ASSERT_NE(checkbox, nullptr);
+  auto label = get_key(checkbox->state, "label");
+  auto ui_label = get_key(checkbox->ui_state, "label");
+  auto checked = get_key(checkbox->state, "checked?");
+  auto ui_checked = get_key(checkbox->ui_state, "checked?");
   auto ui_pressed = get_key(checkbox->ui_state, "pressed");
+  ASSERT_NE(label, nullptr);
+  ASSERT_NE(ui_label, nullptr);
+  ASSERT_NE(checked, nullptr);
+  ASSERT_NE(ui_checked, nullptr);
   ASSERT_NE(ui_pressed, nullptr);
+  EXPECT_EQ(label->str(), "Show grid");
+  EXPECT_EQ(ui_label->str(), "Show grid");
+  EXPECT_EQ(checked->to_string(), "false");
+  EXPECT_EQ(ui_checked->to_string(), "false");
   EXPECT_EQ(ui_pressed->to_string(), "true");
 
   ASSERT_EQ(checkbox->children.size(), 2u);
