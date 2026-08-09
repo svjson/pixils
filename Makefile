@@ -1,6 +1,13 @@
 BUILD_TYPE ?= Release
+FILTER ?=
+GTEST_FILTER_ARG := $(if $(FILTER),--gtest_filter=$(FILTER),)
 PREFIX ?= $(HOME)/.local
 CTEST_PARALLEL_LEVEL ?= $(shell nproc)
+
+CORE_TEST_BINARY := build/lib/pixils/test/testpixils
+ifeq ($(OS),Windows_NT)
+  CORE_TEST_BINARY := build/lib/pixils/test/testpixils.exe
+endif
 
 .PHONY: configure build install test test-core test-libraries test-examples \
 	test-cmake test-proof test-proof-libraries test-proof-examples benchmark \
@@ -21,7 +28,7 @@ install:
 test: test-core test-libraries test-examples
 
 test-core: build
-	cd build && ctest --output-on-failure --parallel $(CTEST_PARALLEL_LEVEL) -L core
+	$(if $(FILTER),$(CORE_TEST_BINARY) $(GTEST_FILTER_ARG),cd build && ctest --output-on-failure --parallel $(CTEST_PARALLEL_LEVEL) -L core)
 
 test-libraries: build
 	cd build && ctest --output-on-failure --parallel $(CTEST_PARALLEL_LEVEL) -L libraries
