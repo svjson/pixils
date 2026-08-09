@@ -521,8 +521,8 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
-  EXPECT_EQ(*get_key(result, "type"), *Roo::Value::string("confirm"));
-  EXPECT_EQ(*get_key(result, "mode"), *Roo::Value::string("file-dialog/open"));
+  EXPECT_EQ(*get_key(result, "type"), *Roo::Value::keyword("confirm"));
+  EXPECT_EQ(*get_key(result, "mode"), *Roo::Value::keyword("file-dialog/open"));
   EXPECT_EQ(*get_key(result, "path"),
             *Roo::Value::string((project.root / "tilemap-editor.edn").string()));
   EXPECT_EQ(*get_key(result, "directory"), *Roo::Value::string(project.path()));

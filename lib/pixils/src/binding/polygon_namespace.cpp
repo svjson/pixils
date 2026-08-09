@@ -7,6 +7,7 @@
 #include <clipper2/clipper.h>
 #include <cmath>
 #include <limits>
+#include <roo/exception.h>
 #include <roo/host/schema.h>
 #include <roo/runtime/seq.h>
 
@@ -206,7 +207,7 @@ namespace Pixils::Script
       const int precision = opts.i32("precision", DEFAULT_BOOLEAN_PRECISION);
       if (precision < -8 || precision > 8)
       {
-        throw Roo::TypeError(context + ": :precision must be between -8 and 8.");
+        throw Roo::InvocationException(context + ": :precision must be between -8 and 8.");
       }
       return precision;
     }
@@ -565,7 +566,7 @@ namespace Pixils::Script
         const int segments = opts.i32("segments", DEFAULT_SHAPE_SEGMENTS);
         if (segments < 3)
         {
-          throw Roo::TypeError(context + ": :segments must be at least 3.");
+          throw Roo::InvocationException(context + ": :segments must be at least 3.");
         }
         return segments;
       }
@@ -579,7 +580,7 @@ namespace Pixils::Script
         const float threshold = opts.f32("threshold", DEFAULT_SIMPLIFY_THRESHOLD);
         if (threshold < 0.0f)
         {
-          throw Roo::TypeError(context + ": :threshold must be non-negative.");
+          throw Roo::InvocationException(context + ": :threshold must be non-negative.");
         }
         return threshold;
       }
@@ -806,12 +807,11 @@ namespace Pixils::Script
       return polygons_to_value(Geometry::polygon_union(polygons, precision));
     }
 
-    FUNC_IMPL(
-      PolygonSimplifyFunction,
-      MULTI_SIG((FN_ARGS((&Type::POLYGON_INPUT)),
-                 EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify)),
-                (FN_ARGS((&Type::POLYGON_INPUT), (&Roo::Type::MAP)),
-                 EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify_with_opts))));
+    FUNC_IMPL(PolygonSimplifyFunction,
+              MULTI_SIG((FN_ARGS((&Type::POLYGON_INPUT)),
+                         EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify)),
+                        (FN_ARGS((&Type::POLYGON_INPUT), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&PolygonSimplifyFunction::exec_simplify_with_opts))));
 
     EXEC_BODY(PolygonSimplifyFunction, exec_simplify)
     {

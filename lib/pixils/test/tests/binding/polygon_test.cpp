@@ -1,6 +1,7 @@
 #include "../fixture.h"
 
 #include <gtest/gtest.h>
+#include <roo/exception.h>
 #include <string>
 
 class PolygonTest : public BaseFixture
@@ -147,10 +148,10 @@ TEST_F(PolygonTest, polygon_shape_generators_return_empty_for_non_positive_radiu
 TEST_F(PolygonTest, polygon_shape_generators_reject_too_few_segments)
 {
   EXPECT_THROW(runtime.eval("(pixils.polygon/circle {:x 10 :y 20 :r 4} {:segments 2})"),
-               Roo::TypeError);
+               Roo::InvocationException);
   EXPECT_THROW(runtime.eval("(pixils.polygon/ellipse {:x 10 :y 20 :rx 4 :ry 8} "
                             "{:segments 2})"),
-               Roo::TypeError);
+               Roo::InvocationException);
 }
 
 TEST_F(PolygonTest, polygon_intersection_returns_overlapping_regions)
@@ -249,7 +250,8 @@ TEST_F(PolygonTest, polygon_boolean_ops_accept_precision_option)
 
 TEST_F(PolygonTest, polygon_boolean_ops_reject_invalid_precision)
 {
-  EXPECT_THROW(runtime.eval("(pixils.polygon/union [] {:precision 9})"), Roo::TypeError);
+  EXPECT_THROW(runtime.eval("(pixils.polygon/union [] {:precision 9})"),
+               Roo::InvocationException);
 }
 
 TEST_F(PolygonTest, polygon_simplify_removes_redundant_collinear_vertices)
@@ -329,7 +331,7 @@ TEST_F(PolygonTest, polygon_simplify_rejects_negative_threshold)
                             "[{:x 0 :y 0} {:x 5 :y 0} {:x 10 :y 0} "
                             " {:x 10 :y 10} {:x 0 :y 10}] "
                             "{:threshold -0.1})"),
-               Roo::TypeError);
+               Roo::InvocationException);
 }
 
 TEST_F(PolygonTest, polygon_contains_point_including_boundary)
