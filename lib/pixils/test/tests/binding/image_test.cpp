@@ -2,6 +2,7 @@
 #include "../render_fixture.h"
 
 #include <gtest/gtest.h>
+#include <roo/exception.h>
 #include <sdl3_mock/mock_resources.h>
 
 class ImageTest : public BaseFixture
@@ -289,7 +290,7 @@ TEST_F(ImageTest, add_image_requires_dynamic_bundle)
 
   // Then
   EXPECT_THROW(runtime.eval("(pixils.resource/add-image! :static-assets/ship \"ship.png\")"),
-               std::runtime_error);
+               Roo::InvocationException);
 }
 
 TEST_F(GeneratedImageTest, dynamic_bundle_images_can_be_created_from_lisp_drawing)
@@ -558,7 +559,7 @@ TEST_F(GeneratedImageTest, redraw_image_requires_existing_size)
       {:size {:w 5 :h 4}}
       (fn [] nil))
   )"),
-               std::runtime_error);
+               Roo::InvocationException);
 }
 
 TEST_F(GeneratedImageTest, create_image_requires_dynamic_bundle)
@@ -573,5 +574,5 @@ TEST_F(GeneratedImageTest, create_image_requires_dynamic_bundle)
       {:size {:w 4 :h 4}}
       (fn [] nil))
   )"),
-               std::runtime_error);
+               Roo::InvocationException);
 }
