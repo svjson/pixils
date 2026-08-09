@@ -331,7 +331,8 @@ namespace Pixils::Script
                                         {"state", &Roo::Type::ANY},
                                         {"ui-state", &Roo::Type::ANY},
                                         {"state-policy", &Roo::Type::KEYWORD},
-                                        {"ui/state-policy", &Roo::Type::KEYWORD}});
+                                        {"ui/state-policy", &Roo::Type::KEYWORD},
+                                        {"after-layout-ui", &Roo::Type::ANY}});
 
     std::unordered_map<std::string, int> name_counts;
     std::vector<Runtime::ChildSlot> slots;

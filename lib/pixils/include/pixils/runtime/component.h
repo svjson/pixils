@@ -13,6 +13,7 @@ namespace Pixils::Runtime
   {
     Roo::sptr_val init_ui = Roo::Constant::NIL;
     Roo::sptr_val update_ui = Roo::Constant::NIL;
+    Roo::sptr_val after_layout_ui = Roo::Constant::NIL;
     std::vector<std::string> ui_state_keys;
   };
 

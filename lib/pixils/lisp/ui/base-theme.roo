@@ -165,6 +165,7 @@
                  :selection-bg {:r 0x00 :g 0x00 :b 0x00}
                  :selection-text {:r 0xff :g 0xff :b 0xff}
                  :desktop-icon-label-padding 1
+                 :list-box-row-height 20
                  :list-box-item-padding {:t 3
                                          :r 5
                                          :b 3

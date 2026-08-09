@@ -250,9 +250,11 @@ namespace
     {
       apply_component_hook(component->init_ui, "init-ui");
       apply_component_hook(component->update_ui, "update-ui");
+      apply_component_hook(component->after_layout_ui, "after-layout-ui");
     }
     else if (get("init-ui")->type != Roo::Value::Type::NIL ||
-             get("update-ui")->type != Roo::Value::Type::NIL)
+             get("update-ui")->type != Roo::Value::Type::NIL ||
+             get("after-layout-ui")->type != Roo::Value::Type::NIL)
     {
       throw Roo::TypeError("Child UI hooks require a component mode");
     }

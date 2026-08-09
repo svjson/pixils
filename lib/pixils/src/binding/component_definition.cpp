@@ -18,7 +18,8 @@ namespace Pixils::Script
   {
     bool is_component_definition_key(const std::string& key)
     {
-      return key == "init-ui" || key == "update-ui" || key == "ui/state-keys";
+      return key == "init-ui" || key == "update-ui" || key == "after-layout-ui" ||
+             key == "ui/state-keys";
     }
 
     Roo::sptr_val mode_definition_map(const Roo::sptr_val& definition_map)
@@ -116,9 +117,10 @@ namespace Pixils::Script
                                                      const Roo::sptr_val& definition_map)
   {
     static Roo::MapSchema component_schema({},
-                                           {{"extend", &Roo::Type::SYMBOL_VALUE},
+                                            {{"extend", &Roo::Type::SYMBOL_VALUE},
                                             {"init-ui", &Roo::Type::ANY},
                                             {"update-ui", &Roo::Type::ANY},
+                                            {"after-layout-ui", &Roo::Type::ANY},
                                             {"ui/state-keys", &Roo::Type::VECTOR}});
 
     auto opts = component_schema.bind(ctx, *definition_map);
@@ -165,6 +167,7 @@ namespace Pixils::Script
 
     apply_hook(component.init_ui, "init-ui");
     apply_hook(component.update_ui, "update-ui");
+    apply_hook(component.after_layout_ui, "after-layout-ui");
     if (opts.contains("ui/state-keys"))
     {
       component.ui_state_keys = parse_ui_state_keys(opts.val("ui/state-keys"));

@@ -2,14 +2,13 @@
 
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
-#include <gtest/gtest.h>
-#include <roo/runtime/dict.h>
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <gtest/gtest.h>
+#include <roo/runtime/dict.h>
 #include <string>
 
 using FileDialogTest = RenderFixture;
@@ -40,10 +39,9 @@ namespace
 
     TempProject()
     {
-      const auto suffix =
-        std::chrono::steady_clock::now().time_since_epoch().count();
-      root = fs::temp_directory_path() /
-             ("pixils-file-dialog-test-" + std::to_string(suffix));
+      const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+      root =
+        fs::temp_directory_path() / ("pixils-file-dialog-test-" + std::to_string(suffix));
       fs::create_directories(root / "assets");
       write(root / "tilemap-editor.edn", "{:name \"editor\"}");
       write(root / "demo-map.edn", "{:name \"demo\"}");
@@ -178,7 +176,8 @@ TEST_F(FileDialogTest, open_file_dialog_adds_dialog_specific_classes_for_theming
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  state))})
   )");
@@ -236,9 +235,9 @@ TEST_F(FileDialogTest, file_list_keeps_dialog_dimensions_when_directory_count_ch
   TempProject::write(project.root / "extra-1.edn", "{}");
   TempProject::write(project.root / "extra-2.edn", "{}");
   TempProject::write(project.root / "extra-3.edn", "{}");
-  TempProject::write(project.root / "assets" /
-                       "a-very-long-file-name-that-should-not-resize-the-dialog.edn",
-                     "{}");
+  TempProject::write(
+    project.root / "assets" / "a-very-long-file-name-that-should-not-resize-the-dialog.edn",
+    "{}");
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -248,7 +247,8 @@ TEST_F(FileDialogTest, file_list_keeps_dialog_dimensions_when_directory_count_ch
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  state))})
   )");
@@ -267,21 +267,21 @@ TEST_F(FileDialogTest, file_list_keeps_dialog_dimensions_when_directory_count_ch
 
   auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
   ASSERT_NE(assets, nullptr);
-  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
-                      assets->bounds.y + (assets->bounds.h / 2)});
+  input().mouse_down(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
   update_cycle();
-  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
-                    assets->bounds.y + (assets->bounds.h / 2)});
+  input().mouse_up(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
   update_cycle();
-  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
-                      assets->bounds.y + (assets->bounds.h / 2)},
-                     SDL_BUTTON_LEFT,
-                     2);
+  input().mouse_down(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
-  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
-                    assets->bounds.y + (assets->bounds.h / 2)},
-                   SDL_BUTTON_LEFT,
-                   2);
+  input().mouse_up(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
   frame_cycle();
   frame_cycle();
@@ -323,7 +323,8 @@ TEST_F(FileDialogTest, large_font_file_list_scroll_range_uses_measured_row_heigh
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  state))})
   )");
@@ -370,7 +371,8 @@ TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_pat
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  state))})
   )");
@@ -381,11 +383,11 @@ TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_pat
 
   auto path_input = find_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(path_input, nullptr);
-  input().mouse_down({path_input->bounds.x + 2,
-                      path_input->bounds.y + (path_input->bounds.h / 2)});
+  input().mouse_down(
+    {path_input->bounds.x + 2, path_input->bounds.y + (path_input->bounds.h / 2)});
   update_cycle();
-  input().mouse_up({path_input->bounds.x + 2,
-                    path_input->bounds.y + (path_input->bounds.h / 2)});
+  input().mouse_up(
+    {path_input->bounds.x + 2, path_input->bounds.y + (path_input->bounds.h / 2)});
   update_cycle();
 
   press_ctrl_a(input(), [&] { update_cycle(); });
@@ -399,11 +401,10 @@ TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_pat
   ASSERT_NE(file_dialog_body, nullptr);
   EXPECT_EQ(get_key(file_dialog_body->state, "path")->str(), project.path());
   EXPECT_EQ(get_key(file_dialog_body->state, "pending-path")->str(), "z");
-  EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->type,
-            Roo::Value::Type::NIL);
+  EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->type, Roo::Value::Type::NIL);
 
-  auto original_entry = find_list_item_with_label(session.active_mode,
-                                                 "    tilemap-editor.edn");
+  auto original_entry =
+    find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(original_entry, nullptr);
 
   input().key_down(SDLK_RETURN);
@@ -435,7 +436,8 @@ TEST_F(FileDialogTest, invalid_initial_path_opens_empty_dialog_without_crashing)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(missing_path) + R"(
+                   :path )" +
+               lisp_string(missing_path) + R"(
                    :result-event :project/open-result})
                  state))})
   )");
@@ -469,7 +471,8 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -490,14 +493,14 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
 
   auto entry = find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(entry, nullptr);
-  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
-                      entry->bounds.y + (entry->bounds.h / 2)},
-                     SDL_BUTTON_LEFT);
+  input().mouse_down(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
   session.render_mode();
-  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
-                    entry->bounds.y + (entry->bounds.h / 2)},
-                   SDL_BUTTON_LEFT);
+  input().mouse_up(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
   session.render_mode();
 
@@ -518,12 +521,12 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
-  EXPECT_EQ(get_key(result, "type")->str(), "confirm");
-  EXPECT_EQ(get_key(result, "mode")->str(), "file-dialog/open");
-  EXPECT_EQ(get_key(result, "path")->str(),
-            (project.root / "tilemap-editor.edn").string());
-  EXPECT_EQ(get_key(result, "directory")->str(), project.path());
-  EXPECT_EQ(get_key(result, "filename")->str(), "tilemap-editor.edn");
+  EXPECT_EQ(*get_key(result, "type"), *Roo::Value::string("confirm"));
+  EXPECT_EQ(*get_key(result, "mode"), *Roo::Value::string("file-dialog/open"));
+  EXPECT_EQ(*get_key(result, "path"),
+            *Roo::Value::string((project.root / "tilemap-editor.edn").string()));
+  EXPECT_EQ(*get_key(result, "directory"), *Roo::Value::string(project.path()));
+  EXPECT_EQ(*get_key(result, "filename"), *Roo::Value::string("tilemap-editor.edn"));
 }
 
 TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
@@ -539,7 +542,8 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
                   ctx
                   {:title "Open Projects"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :multi-file? true
                    :result-event :project/open-result})
                  {:result nil}))
@@ -561,28 +565,27 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
   session.render_mode();
 
   auto first = find_list_item_with_label(session.active_mode, "    demo-map.edn");
-  auto second =
-    find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
+  auto second = find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(first, nullptr);
   ASSERT_NE(second, nullptr);
 
-  input().mouse_down({first->bounds.x + (first->bounds.w / 2),
-                      first->bounds.y + (first->bounds.h / 2)},
-                     SDL_BUTTON_LEFT);
+  input().mouse_down(
+    {first->bounds.x + (first->bounds.w / 2), first->bounds.y + (first->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
-  input().mouse_up({first->bounds.x + (first->bounds.w / 2),
-                    first->bounds.y + (first->bounds.h / 2)},
-                   SDL_BUTTON_LEFT);
+  input().mouse_up(
+    {first->bounds.x + (first->bounds.w / 2), first->bounds.y + (first->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
 
   input().key_down(SDLK_LCTRL);
-  input().mouse_down({second->bounds.x + (second->bounds.w / 2),
-                      second->bounds.y + (second->bounds.h / 2)},
-                     SDL_BUTTON_LEFT);
+  input().mouse_down(
+    {second->bounds.x + (second->bounds.w / 2), second->bounds.y + (second->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
-  input().mouse_up({second->bounds.x + (second->bounds.w / 2),
-                    second->bounds.y + (second->bounds.h / 2)},
-                   SDL_BUTTON_LEFT);
+  input().mouse_up(
+    {second->bounds.x + (second->bounds.w / 2), second->bounds.y + (second->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
   input().key_up(SDLK_LCTRL);
   update_cycle();
@@ -612,8 +615,7 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
   EXPECT_EQ(get_key(session.active_mode->state, "second-path")->str(),
             (project.root / "tilemap-editor.edn").string());
   EXPECT_EQ(get_key(session.active_mode->state, "first-name")->str(), "demo-map.edn");
-  EXPECT_EQ(get_key(session.active_mode->state, "second-name")->str(),
-            "tilemap-editor.edn");
+  EXPECT_EQ(get_key(session.active_mode->state, "second-name")->str(), "tilemap-editor.edn");
 }
 
 TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
@@ -629,7 +631,8 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
                   ctx
                   {:title "Save Project"
                    :mode :file-dialog/save
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :filename "new-map.edn"
                    :result-event :project/save-result})
                  {:result nil}))
@@ -662,8 +665,7 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
   EXPECT_EQ(get_key(result, "mode")->str(), "file-dialog/save");
-  EXPECT_EQ(get_key(result, "path")->str(),
-            (project.root / "new-map.edn").string());
+  EXPECT_EQ(get_key(result, "path")->str(), (project.root / "new-map.edn").string());
   EXPECT_EQ(get_key(result, "filename")->str(), "new-map.edn");
 }
 
@@ -680,7 +682,8 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -694,8 +697,8 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
 
   auto combo = find_mode(session.active_mode, "ui/combo-box");
   ASSERT_NE(combo, nullptr);
-  input().mouse_down({combo->bounds.x + (combo->bounds.w / 2),
-                      combo->bounds.y + (combo->bounds.h / 2)});
+  input().mouse_down(
+    {combo->bounds.x + (combo->bounds.w / 2), combo->bounds.y + (combo->bounds.h / 2)});
   update_cycle();
 
   ASSERT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
@@ -715,14 +718,14 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
   ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
   auto entry = find_list_item_with_label(session.active_mode, "    readme.txt");
   ASSERT_NE(entry, nullptr);
-  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
-                      entry->bounds.y + (entry->bounds.h / 2)},
-                     SDL_BUTTON_LEFT);
+  input().mouse_down(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
   session.render_mode();
-  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
-                    entry->bounds.y + (entry->bounds.h / 2)},
-                   SDL_BUTTON_LEFT);
+  input().mouse_up(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT);
   update_cycle();
   session.render_mode();
 
@@ -760,7 +763,8 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -774,22 +778,22 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
 
   auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
   ASSERT_NE(assets, nullptr);
-  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
-                      assets->bounds.y + (assets->bounds.h / 2)});
+  input().mouse_down(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
   update_cycle();
-  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
-                    assets->bounds.y + (assets->bounds.h / 2)});
+  input().mouse_up(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
   update_cycle();
   session.render_mode();
-  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
-                      assets->bounds.y + (assets->bounds.h / 2)},
-                     SDL_BUTTON_LEFT,
-                     2);
+  input().mouse_down(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
-  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
-                    assets->bounds.y + (assets->bounds.h / 2)},
-                   SDL_BUTTON_LEFT,
-                   2);
+  input().mouse_up(
+    {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
   update_cycle();
   session.render_mode();
@@ -818,7 +822,8 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path )" + lisp_string(project.path()) + R"(
+                   :path )" +
+               lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -832,22 +837,22 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
 
   auto entry = find_list_item_with_label(session.active_mode, "    demo-map.edn");
   ASSERT_NE(entry, nullptr);
-  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
-                      entry->bounds.y + (entry->bounds.h / 2)});
+  input().mouse_down(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)});
   update_cycle();
-  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
-                    entry->bounds.y + (entry->bounds.h / 2)});
+  input().mouse_up(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)});
   update_cycle();
   session.render_mode();
-  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
-                      entry->bounds.y + (entry->bounds.h / 2)},
-                     SDL_BUTTON_LEFT,
-                     2);
+  input().mouse_down(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
-  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
-                    entry->bounds.y + (entry->bounds.h / 2)},
-                   SDL_BUTTON_LEFT,
-                   2);
+  input().mouse_up(
+    {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
+    SDL_BUTTON_LEFT,
+    2);
   update_cycle();
 
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");

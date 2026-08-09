@@ -8,6 +8,7 @@
 #include <pixils/font_registry.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
+#include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/base_theme.h>
 #include <pixils/ui/theme.h>
@@ -458,6 +459,12 @@ namespace Pixils::UI
              view->definition->after_layout->type != Roo::Value::Type::NIL;
     }
 
+    bool has_after_layout_ui_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      return view && view->component && view->component->after_layout_ui &&
+             view->component->after_layout_ui->type != Roo::Value::Type::NIL;
+    }
+
     std::optional<Dimension> invoke_content_size_hook(
       const std::shared_ptr<Pixils::Runtime::View>& child,
       Roo::Runtime& runtime,
@@ -526,6 +533,65 @@ namespace Pixils::UI
       return view->subtree_generation != previous_generation;
     }
 
+    bool invoke_after_layout_ui_hook(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                     Roo::Runtime& runtime,
+                                     const Roo::sptr_val& hook_ctx,
+                                     const Rect& parent_content)
+    {
+      if (!hook_ctx || hook_ctx->type == Roo::Value::Type::NIL) return false;
+      if (!has_after_layout_ui_hook(view)) return false;
+
+      PIXILS_BENCHMARK_COUNT(layout_after_layout_hook_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(layout_after_layout_hook_time_ns);
+
+      HookContext& native_hook_ctx = Roo::obj<HookContext>(*hook_ctx);
+      auto previous_view = native_hook_ctx.current_view;
+      auto previous_width = native_hook_ctx.available_width;
+      auto previous_height = native_hook_ctx.available_height;
+      const auto previous_generation = view->subtree_generation;
+
+      native_hook_ctx.current_view = view;
+      native_hook_ctx.available_width = parent_content.w;
+      native_hook_ctx.available_height = parent_content.h;
+
+      if (auto parent = view->parent)
+      {
+        view->set_ui_state_if_changed(
+          Runtime::extract_component_ui_state(parent->state, *view));
+      }
+      view->seed_ui_state_from_shared_state_policy();
+      view->sync_state_from_shared_ui_state_policy();
+
+      Roo::sptr_val_v args = {view->ui_state, view->state, hook_ctx};
+      Roo::Context exec_ctx(runtime);
+      auto result = view->component->after_layout_ui->exec().execute(exec_ctx, args);
+      auto next_ui_state =
+        (result && result->type != Roo::Value::Type::NIL) ? result : view->ui_state;
+      if (!next_ui_state || next_ui_state->type != Roo::Value::Type::MAP)
+      {
+        throw Roo::TypeError("Component :after-layout-ui must return a map or nil");
+      }
+
+      view->set_ui_state_if_changed(next_ui_state);
+      view->sync_state_from_shared_ui_state_policy();
+      if (auto parent = view->parent)
+      {
+        parent->set_state_if_changed(
+          Runtime::merge_component_ui_state(parent->state, *view, view->ui_state));
+      }
+
+      native_hook_ctx.current_view = previous_view;
+      native_hook_ctx.available_width = previous_width;
+      native_hook_ctx.available_height = previous_height;
+
+      if (view->subtree_generation != previous_generation)
+      {
+        PIXILS_BENCHMARK_COUNT(layout_after_layout_hook_state_changes);
+      }
+
+      return view->subtree_generation != previous_generation;
+    }
+
     bool run_after_layout_hooks(const std::shared_ptr<Pixils::Runtime::View>& view,
                                 Roo::Runtime& runtime,
                                 const Roo::sptr_val& hook_ctx,
@@ -534,6 +600,8 @@ namespace Pixils::UI
       if (!view) return false;
 
       bool changed = invoke_after_layout_hook(view, runtime, hook_ctx, parent_content);
+      changed = invoke_after_layout_ui_hook(view, runtime, hook_ctx, parent_content) ||
+                changed;
       Rect content = view->effective_style.content_rect(view->bounds);
       for (auto& child : view->children)
       {

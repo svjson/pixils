@@ -66,6 +66,12 @@ namespace
   {
     return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
+
+  Roo::sptr_val get_ui_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                 const std::string& key)
+  {
+    return Roo::Dict::get_property(view->ui_state, Roo::keyword(key));
+  }
 } // namespace
 
 TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
@@ -788,6 +794,45 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(ListBoxTest, list_box_component_state_survives_custom_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(assoc
+                   (pixils.ui.list-box/make
+                    {:options [{:value :a :label "Alpha"}
+                               {:value :b :label "Beta"}
+                               {:value :c :label "Gamma"}]
+                     :style {:width 100}
+                     :row-height 10
+                     :visible-rows 2
+                     :content-width 100
+                     :selected-indices [0]})
+                   :update
+                   (fn [state ctx] {}))]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  auto selected = get_ui_state_key(list_box, "selected-indices");
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), "[0]");
+
+  input().mouse_down({5, 15});
+  update_cycle();
+  input().mouse_up({5, 15});
+  update_cycle();
+  session.render_mode();
+
+  selected = get_ui_state_key(list_box, "selected-indices");
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), "[1]");
+}
+
 TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
 {
   runtime.eval(R"(
@@ -1345,6 +1390,10 @@ TEST_F(ListBoxTest, reorderable_list_box_placeholder_strategy_previews_drop)
   update_cycle();
   update_cycle();
   session.render_mode();
+
+  content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
 
   auto first = content->children[0];
   auto second = content->children[1];

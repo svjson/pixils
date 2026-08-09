@@ -133,6 +133,30 @@ TEST_F(StateBindingTest, component_state_projection_does_not_push_ui_state_chang
   EXPECT_EQ(value->to_string(), "1");
 }
 
+TEST_F(StateBindingTest, component_after_layout_ui_updates_bound_component_state)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]
+       :style {:height 17}
+       :after-layout-ui (fn [ui-state state ctx]
+                          (assoc ui-state
+                                 :value
+                                 (-> ctx :view :bounds :h)))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:value 1})
+       :children [{:mode 'child-component
+                   :state {:component {:value (pixils.ui/bind-state :value)}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto value = map_key(session.active_mode->state, "value");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), "17");
+}
+
 TEST_F(StateBindingTest, component_ui_state_survives_application_update_replacement)
 {
   runtime.eval(R"(

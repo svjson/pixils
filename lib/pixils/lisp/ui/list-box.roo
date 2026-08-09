@@ -1,28 +1,28 @@
 (ns pixils.ui.list-box
   (:require pixils
             pixils.ui.scroll-pane
+            [pixils.point :as pt]
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
+
+
+;; To be removed
+
 (def default-row-height 20)
 (def default-visible-rows 5)
-(def default-reorder-drag-threshold 3)
-(def default-reorder-visual-strategy :placeholder)
-(def default-list-item-padding {:t 3
-                                :r 5
-                                :b 3
-                                :l 5})
+
+
+
+;; Internal option management functions
 
 (defun option-label [option]
   (or (:label option)
       (:name option)
       (str (:value option))))
 
-(defun option-value [option]
-  (let [value (:value option)]
-    (if (nil? value)
-      (:id option)
-      value)))
+(defun option-value [{:keys [value id]}]
+  (or value id))
 
 (defun option-disabled? [option]
   (= (:disabled? option) true))
@@ -30,17 +30,17 @@
 (defun option-at [options index]
   (nth options index))
 
-(defun option-value-at [options index]
-  (option-value (option-at options index)))
+
+
+;; Internal selection management functions
 
 (defun selected-values-for [options indices]
-  (map indices (fn [index]
-                 (option-value-at options index))))
+  (for [index indices]
+    (-> options (option-at index) option-value)))
 
 (defun resolved-selected-indices [indices]
-  (if (or (nil? indices)
-          (= indices {}))
-    nil
+  (unless (or (nil? indices)
+              (= indices {}))
     indices))
 
 (defun selected-index? [indices index]
@@ -53,19 +53,18 @@
 (defun add-index [indices index]
   (if (contains? indices index)
     indices
-    (concat indices [index])))
+    (append indices index)))
 
 (defun first-enabled-index [options]
-  (let [match (head (filter (for-indexed [index option (or options [])]
-                              {:index index
-                               :option option})
-                            (fn [entry]
-                              (not (option-disabled? (:option entry))))))]
-    (when match
-      (:index match))))
+  (when-let [match (find-first (for-indexed [index option options]
+                                 {:index index
+                                  :option option})
+                               (fn [entry]
+                                 (not (option-disabled? (:option entry)))))]
+    (:index match)))
 
 (defun valid-option-index? [options index]
-  (and (not (nil? index))
+  (and (number? index)
        (>= index 0)
        (< index (count options))))
 
@@ -105,6 +104,9 @@
   (reduce items indices (fn [out index]
                           (add-index out index))))
 
+
+;; Interaction support
+
 (defun held-shift? [ctx]
   (or (contains? (:held-keys ctx) :key/shift)
       (contains? (:held-keys ctx) :key/left-shift)
@@ -129,7 +131,7 @@
 
 (defun reorder-visual-strategy [state]
   (or (:reorder-visual-strategy state)
-      default-reorder-visual-strategy))
+      :placeholder))
 
 (defun reorder-placeholder-strategy? [state]
   (let [strategy (reorder-visual-strategy state)]
@@ -167,25 +169,25 @@
       (add-indices selected range)
       range)))
 
-(defun list-box-click-selection [state payload]
-  (let [index (:index payload)]
-    (if (multi-select? state)
-      (cond
-        (:shift? payload)
-        (shift-click-selection state index (:ctrl? payload))
+(defun list-box-click-selection [state {:keys [index shift? ctrl?]}]
+  (if (multi-select? state)
+    (cond
+      shift?
+      (shift-click-selection state index ctrl?)
 
-        (:ctrl? payload)
-        (ctrl-click-selection state index)
+      ctrl?
+      (ctrl-click-selection state index)
 
-        :default
-        (single-click-selection state index))
-      (single-click-selection state index))))
+      :default
+      (single-click-selection state index))
+    (single-click-selection state index)))
 
 (defun selection-changed? [previous selected]
   (not= (or previous []) (or selected [])))
 
-(defun clamp [value low high]
-  (max low (min high value)))
+
+
+;; Render geometry support
 
 (defun list-box-content-height [options row-height]
   (* (count options) row-height))
@@ -212,24 +214,21 @@
                  (merge arg-map {k v})))))
 
 (defun list-box-item-padding [ctx]
-  (or (ui/theme-var ctx :list-box-item-padding nil)
-      default-list-item-padding))
+  (ui/theme-var ctx :list-box-item-padding nil))
 
 (defun list-box-item-padding-side [padding side]
-  (or (get padding side)
-      (cond
-        (= side :top) (get padding :t)
-        (= side :right) (get padding :r)
-        (= side :bottom) (get padding :b)
-        (= side :left) (get padding :l)
-        :default nil)
-      0))
+  (case side
+    :top (or (:top padding) (:t padding) 0)
+    :right (or (:right padding) (:r padding) 0)
+    :bottom (or (:bottom padding) (:b padding) 0)
+    :left (or (:left padding) (:l padding) 0)
+    :default 0))
 
 (defun list-box-measured-row-height [ctx]
   (let [dim (r/text-size "M" (text-args (list-box-style ctx)))
         padding (list-box-item-padding ctx)]
-    (max default-row-height
-         (+ (or (:h dim) 0)
+    (max (ui/theme-var ctx :list-box-row-height nil)
+         (+ (get dim :h 0)
             (list-box-item-padding-side padding :top)
             (list-box-item-padding-side padding :bottom)))))
 
@@ -239,7 +238,7 @@
 (defun list-box-measured-content-width [state ctx]
   (let [text-opts (text-args (list-box-style ctx))
         padding (list-box-item-padding ctx)
-        label-width (reduce (or (:options state) [])
+        label-width (reduce (:options state)
                             0
                             (fn [out option]
                               (max out
@@ -267,23 +266,23 @@
                            (:max-height state)
                            (:fixed-visible-rows? state)))
 
-(defun list-box-content-state [state]
-  (merge (reduce (or (:item-state-keys state) [])
+(defun list-box-content-state [ui-state state]
+  (merge (reduce (:item-state-keys ui-state)
                  {}
                  (fn [out key]
                    (merge out {key (get state key)})))
-         {:selected-indices (or (:selected-indices state) [])
-          :active-index (:active-index state)}))
+         {:selected-indices (or (:selected-indices ui-state) [])
+          :active-index (:active-index ui-state)}))
 
 (defun list-box-content-size [state ctx]
-  {:w (list-box-content-width state ctx)
-   :h (list-box-preferred-height state ctx)})
+  (let [state (get-in ctx [:view :ui-state] state)]
+    {:w (list-box-content-width state ctx)
+     :h (list-box-preferred-height state ctx)}))
 
-(defun list-box-stretches-items? [style]
-  (let [width (:width (or style {}))]
-    (and (not (nil? width))
-         (not= width :shrink)
-         (not= width :auto))))
+(defun list-box-stretches-items? [{:keys [width]}]
+  (and (some? width)
+       (not= width :shrink)
+       (not= width :auto)))
 
 (defun list-box-scroll-content-size [state]
   (let [content-height (list-box-content-height (:options state)
@@ -314,7 +313,7 @@
              :children children}))))
 
 (defun list-box-style-padding-side [style side]
-  (or (get (:padding style) side) 0))
+  (get (:padding style) side 0))
 
 (defun list-box-style-border-side-thickness [style side]
   (let [border (:border style)
@@ -332,8 +331,9 @@
 
 (defun list-box-managed-height [state ctx]
   (let [content-height (list-box-preferred-height state ctx)]
-    (if (= (-> (list-box-style ctx) :box-sizing) :content-box)
-      content-height
+    (case (-> (list-box-style ctx) :box-sizing)
+      :content-box content-height
+      :default
       (+ content-height (list-box-vertical-content-inset ctx)))))
 
 (defun list-box-managed-style [state ctx]
@@ -345,31 +345,18 @@
   (> (or (-> ctx :view :bounds :h) 0) 0))
 
 (defun child-at [children index]
-  (if (and (>= index 0)
-           (< index (count children)))
-    (nth children index)
-    nil))
-
-(defun left-mouse-held? [ctx]
-  (contains? (or (:mouse-held ctx) []) :left))
+  (when (and (>= index 0)
+             (< index (count children)))
+    (nth children index)))
 
 (defun list-box-content-view [ctx]
   (let [scroll-pane (child-at (ui/children ctx) 0)
-        row (if scroll-pane
-              (child-at (ui/children scroll-pane) 0)
-              nil)
-        viewport (if row
-                   (child-at (ui/children row) 0)
-                   nil)]
-    (if viewport
-      (child-at (ui/children viewport) 0)
-      nil)))
-
-(defun list-box-preview-local-y [ctx]
-  (let [pos (:mouse-pos ctx)
-        bounds (-> ctx :view :bounds)]
-    (when (and pos bounds)
-      (- (:y pos) (:y bounds)))))
+        row (when scroll-pane
+              (child-at (ui/children scroll-pane) 0))
+        viewport (when row
+                   (child-at (ui/children row) 0))]
+    (when viewport
+      (child-at (ui/children viewport) 0))))
 
 (defun list-box-navigation-base-index [state direction]
   (or (:anchor-index state)
@@ -379,7 +366,7 @@
         (count (:options state)))))
 
 (defun list-box-keyboard-target-index [state key]
-  (let [options (:options state)]
+  (let [{:keys [options]} state]
     (case key
       :key/down
       (next-enabled-index-from
@@ -402,9 +389,12 @@
       :default nil)))
 
 (defun list-box-visible-content-height [state ctx]
-  (or (-> ctx :view :bounds :h)
-      (list-box-preferred-height state ctx)
-      0))
+  (if-let [height (-> ctx :view :bounds :h)]
+    (case (-> (list-box-style ctx) :box-sizing)
+      :content-box height
+      :default (max 0 (- height (list-box-vertical-content-inset ctx))))
+    (or (list-box-preferred-height state ctx)
+        0)))
 
 (defun list-box-scroll-offset-for-index [state ctx index]
   (let [row-height (list-box-row-height state ctx)
@@ -427,10 +417,10 @@
                  offset-y)]
     (assoc offset :y (clamp next-y 0 max-offset))))
 
-(defun list-box-change-payload [state selected index]
+(defun list-box-change-payload [{:keys [option] :as state} selected index]
   {:selected-indices selected
    :selected-values (selected-values-for (:options state) selected)
-   :value (option-value-at (:options state) index)})
+   :value (-> options (option-at index) option-value)})
 
 (defun list-box-apply-keyboard-selection [state index ctx]
   (if (enabled-option-index? (:options state) index)
@@ -447,49 +437,42 @@
                              next-state
                              ctx
                              index))]
-      (do
-        (when changed?
-          (ui/emit! (:view ctx) :list-box/change payload))
-        next-state))
+      (when changed?
+        (ui/emit! (:view ctx) :list-box/change payload))
+      next-state)
     state))
 
 (defun list-box-on-key-down [state event ctx]
-  (if (:disabled? state)
-    state
-    (let [index (list-box-keyboard-target-index state (:key event))]
-      (if (nil? index)
-        state
+  (let [ui-state (-> ctx :view :ui-state)]
+    (if (:disabled? ui-state)
+      state
+      (if-let [index (list-box-keyboard-target-index ui-state (:key event))]
         (do
           (ui/stop-propagation! event)
-          (list-box-apply-keyboard-selection state index ctx))))))
+          (let [next-ui-state (list-box-apply-keyboard-selection ui-state index ctx)]
+            (ui/set-ui-state! ctx next-ui-state)
+            (assoc state
+                   :selected-indices (:selected-indices next-ui-state)
+                   :selected-values (:selected-values next-ui-state)
+                   :anchor-index (:anchor-index next-ui-state)
+                   :offset (:offset next-ui-state))))
+        state))))
 
 (defun list-box-reorder-drag-policy [threshold]
   {:start {:mode :threshold
-           :distance (or threshold default-reorder-drag-threshold)}
+           :distance (or threshold 3)}
    :payload (fn [state event ctx]
-              {:kind :list-box/reorder-item
-               :index (:reorder-index state)
-               :value (:reorder-value state)
-               :option (:reorder-option state)})})
+              (let [ui-state (-> ctx :view :ui-state)]
+                {:kind :list-box/reorder-item
+                 :index (:reorder-index ui-state)
+                 :value (:reorder-value ui-state)
+                 :option (:reorder-option ui-state)}))})
 
 (defun list-box-reorderable-child [child threshold]
-  (let [child (assoc child
-                     :drag
-                     (merge (or (:drag child) {})
-                            (list-box-reorder-drag-policy threshold)))]
-    (if (contains? child :on-drag-start)
-      child
-      (assoc child
-             :on-drag-start
-             (fn [state event ctx]
-               (do
-                 (ui/emit! (:view ctx)
-                           :list-box/reorder-drag-start
-                           {:index (:reorder-index state)
-                            :value (:reorder-value state)
-                            :option (:reorder-option state)
-                            :start-global-position (:start-global-position event)})
-                 state))))))
+  (assoc child
+         :drag
+         (merge (or (:drag child) {})
+                (list-box-reorder-drag-policy threshold))))
 
 (defun list-box-drop-index [state event]
   (let [row-height (or (:computed-row-height state)
@@ -498,7 +481,7 @@
         offset (or (:offset state) {:x 0 :y 0})
         y (+ (-> event :position :y) (or (:y offset) 0))
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
-    (max 0 (min (count (:options state)) raw))))
+    (clamp raw 0 (count (:options state)))))
 
 (defun list-box-drop-index-from-local-y [state local-y]
   (let [row-height (or (:computed-row-height state)
@@ -507,28 +490,26 @@
         offset (or (:offset state) {:x 0 :y 0})
         y (+ (or local-y 0) (or (:y offset) 0))
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
-    (max 0 (min (count (:options state)) raw))))
+    (clamp raw 0 (count (:options state)))))
 
 (defun list-box-reorder-target-index [from-index drop-index options]
-  (let [target (if (> drop-index from-index)
-                 (dec drop-index)
-                 drop-index)]
-    (max 0 (min (dec (count options)) target))))
-
-(defun same-point? [a b]
-  (and (= (:x a) (:x b))
-       (= (:y a) (:y b))))
+  (clamp (cond-> drop-index
+           (> drop-index from-index) dec)
+         0
+         (dec (count options))))
 
 (defun list-box-reorder-drag-for-drop [state event]
-  (let [payload (:payload event)]
-    (if (= (:kind payload) :list-box/reorder-item)
+  (let [{:keys [payload]} event]
+    (case (:kind payload)
+      :list-box/reorder-item
       payload
+
+      :default
       (let [drag (:reorder-drag state)]
-        (if (and drag
-                 (same-point? (:start-global-position drag)
-                              (:start-global-position event)))
-          drag
-          nil)))))
+        (when (and drag
+                   (pt/+ (:start-global-position drag)
+                         (:start-global-position event)))
+          drag)))))
 
 (defun list-box-reorder-event-payload [state event drag]
   (let [from-index (:index drag)
@@ -560,23 +541,16 @@
             :b 0
             :l 0}})
 
-(defun list-box-reset-item-visuals! [items]
-  (if (empty? items)
-    nil
-    (do
-      (ui/style! (head items) (list-box-flow-item-style 0 0))
-      (list-box-reset-item-visuals! (tail items)))))
-
-(defun list-box-preview-target-index [state local-y]
-  (let [drag (:reorder-drag state)
-        from-index (:index drag)
-        drop-index (list-box-drop-index-from-local-y state local-y)]
-    (list-box-reorder-target-index from-index drop-index (:options state))))
+(defun list-box-preview-target-index [state]
+  (list-box-reorder-target-index (:index (:reorder-drag state))
+                                 (list-box-drop-index-from-local-y
+                                  state
+                                  (-> state :reorder-drag :position :y))
+                                 (:options state)))
 
 (defun list-box-compact-item-index [index from-index]
-  (if (> index from-index)
-    (dec index)
-    index))
+  (cond-> index
+    (> index from-index) dec))
 
 (defun list-box-placeholder-before? [index from-index target-index]
   (and (not= index from-index)
@@ -589,232 +563,49 @@
        (= (list-box-compact-item-index index from-index)
           (- item-count 2))))
 
-(defun list-box-apply-placeholder-visuals! [state ctx items]
+(defun list-box-reorder-item-style [state index]
   (let [drag (:reorder-drag state)
         from-index (:index drag)
-        row-height (list-box-row-height state ctx)
-        item-count (count items)
-        local-y (list-box-preview-local-y ctx)
-        target-index (list-box-preview-target-index state local-y)
-        mouse-pos (:mouse-pos ctx)
-        start-pos (:start-global-position drag)
+        row-height (or (:computed-row-height state)
+                       (:row-height state)
+                       default-row-height)
+        target-index (list-box-preview-target-index state)
+        local-y (-> state :reorder-drag :position :y)
         drag-top (+ (* from-index row-height)
-                    (- (or (:y mouse-pos) 0)
-                       (or (:y start-pos) 0)))]
-    (list-box-apply-placeholder-visuals-indexed! items
-                                                 0
-                                                 item-count
-                                                 row-height
-                                                 from-index
-                                                 target-index
-                                                 drag-top)))
+                    (- (or local-y 0)
+                       (or (:y (:start-position drag)) 0)))]
+    (if (= index from-index)
+      (list-box-absolute-item-style row-height drag-top)
+      (list-box-flow-item-style (if (list-box-placeholder-before? index
+                                                                   from-index
+                                                                   target-index)
+                                  row-height
+                                  0)
+                                (if (list-box-placeholder-after? index
+                                                                 (count (:options state))
+                                                                 from-index
+                                                                 target-index)
+                                  row-height
+                                  0)))))
 
-(defun list-box-apply-placeholder-visuals-indexed! [items index item-count row-height from-index target-index drag-top]
-  (if (empty? items)
-    nil
-    (let [style (if (= index from-index)
-                  (list-box-absolute-item-style row-height drag-top)
-                  (list-box-flow-item-style (if (list-box-placeholder-before? index
-                                                                               from-index
-                                                                               target-index)
-                                              row-height
-                                              0)
-                                            (if (list-box-placeholder-after? index
-                                                                             item-count
-                                                                             from-index
-                                                                             target-index)
-                                              row-height
-                                              0)))]
-      (do
-        (ui/style! (head items) style)
-        (list-box-apply-placeholder-visuals-indexed! (tail items)
-                                                     (inc index)
-                                                     item-count
-                                                     row-height
-                                                     from-index
-                                                     target-index
-                                                     drag-top)))))
+(defun list-box-apply-reorder-visuals-indexed! [state items index]
+  (unless (empty? items)
+    (ui/style! (head items)
+               (if (and (reorderable? state)
+                        (:reorder-drag state)
+                        (reorder-placeholder-strategy? state))
+                 (list-box-reorder-item-style state index)
+                 (list-box-flow-item-style 0 0)))
+    (list-box-apply-reorder-visuals-indexed! state (tail items) (inc index))))
 
 (defun list-box-apply-reorder-visuals! [state ctx]
-  (let [content (list-box-content-view ctx)
-        items (if content
-                (ui/children content)
-                [])]
-    (cond
-      (empty? items)
-      nil
-
-      (not (reorderable? state))
-      nil
-
-      (or (nil? (:reorder-drag state))
-          (= (reorder-visual-strategy state) :none))
-      (list-box-reset-item-visuals! items)
-
-      (reorder-placeholder-strategy? state)
-      (list-box-apply-placeholder-visuals! state ctx items)
-
-      :default
-      (list-box-reset-item-visuals! items))))
-
-(defun list-box-update-reorder-visuals [state ctx]
-  (let [state (if (and (:reorder-drag state)
-                       (not (left-mouse-held? ctx)))
-                (assoc state :reorder-drag nil)
-                state)]
+  (let [content (list-box-content-view ctx)]
     (do
-      (list-box-apply-reorder-visuals! state ctx)
+      (when content
+        (list-box-apply-reorder-visuals-indexed! state
+                                                 (ui/children content)
+                                                 0))
       state)))
-
-(defcomponent ui/list-box-item
-  {:class [:ui/list-item :ui/list-box-item]
-   :style {:width :fill
-           :height default-row-height
-           :clip true
-           :layout {:direction :row
-                    :align-items :center}}
-   :init (fn [state ctx]
-           (assoc state :selected (selected-index? (:selected-indices state)
-                                                   (:index state))))
-   :update (fn [state ctx]
-             (assoc state :selected (selected-index? (:selected-indices state)
-                                                     (:index state))))
-   :on-mouse-down (fn [state event ctx]
-                    (ui/stop-propagation! event)
-                    state)
-   :on-click (fn [state event ctx]
-               (unless (:disabled? state)
-                 (ui/emit! (:view ctx)
-                           :list-box/item-click
-                           {:index (:index state)
-                            :value (:value state)
-                            :shift? (held-shift? ctx)
-                            :ctrl? (held-ctrl? ctx)}))
-               state)
-   :on-double-click (fn [state event ctx]
-                      (do
-                        (unless (:disabled? state)
-                          (ui/emit! (:view ctx)
-                                    :list-box/item-activate
-                                    {:index (:index state)
-                                     :value (:value state)
-                                     :shift? (held-shift? ctx)
-                                     :ctrl? (held-ctrl? ctx)}))
-                        state))
-   :children [{:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :label)}}]})
-
-(defcomponent ui/list-box
-  {:focusable true
-   :class :ui/list-box
-   :content-size list-box-content-size
-   :init (fn [state ctx]
-           (let [selected (or (resolved-selected-indices (:selected-indices state))
-                              (if (forced-selection? state)
-                                (if-let [index (first-enabled-index (:options state))]
-                                  [index]
-                                  [])
-                                []))]
-             (let [state (assoc (assoc (assoc (assoc state
-                                                       :selected-indices selected)
-                                                :anchor-index (or (:anchor-index state)
-                                                                  (head selected)))
-                                         :content-state
-                                         (list-box-content-state (assoc state
-                                                                       :selected-indices
-                                                                       selected)))
-                                :scroll-y?
-                                :auto)]
-               (list-box-sync-rendered-options state ctx))))
-   :update (fn [state ctx]
-             (list-box-update-reorder-visuals
-              (list-box-sync-rendered-options
-               (assoc state
-                      :content-state
-                      (list-box-content-state state))
-               ctx)
-              ctx))
-   :after-layout (fn [state ctx]
-                   (list-box-sync-rendered-options
-                    (assoc state
-                           :content-state
-                           (list-box-content-state state))
-                    ctx))
-   :on-key-down list-box-on-key-down
-   :on {:list-box/item-click (fn [state event ctx]
-                              (if (:reorder-drag state)
-                                (do
-                                  (ui/stop-propagation! event)
-                                  state)
-                                (let [payload (:payload event)
-                                      option (option-at (:options state) (:index payload))
-                                      disabled? (or (:disabled? state)
-                                                    (option-disabled? option))
-                                      selected (if disabled?
-                                                 (:selected-indices state)
-                                                 (list-box-click-selection state payload))
-                                      changed? (selection-changed?
-                                                (:selected-indices state)
-                                                selected)
-                                      next-state (assoc (assoc state
-                                                               :selected-indices selected)
-                                                        :anchor-index (:index payload))
-                                      values (selected-values-for (:options next-state)
-                                                                  selected)]
-                                  (do
-                                    (ui/stop-propagation! event)
-                                    (when (and (not disabled?) changed?)
-                                      (ui/emit! (:view ctx)
-                                                :list-box/change
-                                                {:selected-indices selected
-                                                 :selected-values values
-                                                 :value (:value payload)}))
-                                    (assoc next-state
-                                           :selected-values values)))))
-        :list-box/item-activate (fn [state event ctx]
-                                  (let [payload (:payload event)
-                                        option (option-at (:options state) (:index payload))
-                                        disabled? (or (:disabled? state)
-                                                      (option-disabled? option))
-                                        selected (if disabled?
-                                                   (:selected-indices state)
-                                                   (list-box-click-selection state payload))
-                                        values (selected-values-for (:options state)
-                                                                    selected)]
-                                    (do
-                                      (ui/stop-propagation! event)
-                                      (when (not disabled?)
-                                        (ui/emit! (:view ctx)
-                                                  :list-box/activate
-                                                  (merge payload
-                                                         {:selected-indices selected
-                                                          :selected-values values})))
-                                      state)))
-        :list-box/reorder-drag-start (fn [state event ctx]
-                                       (do
-                                         (ui/stop-propagation! event)
-                                         (assoc state
-                                                :reorder-drag
-                                                (:payload event))))}
-   :on-drop (fn [state event ctx]
-              (let [drag (list-box-reorder-drag-for-drop state event)
-                    from-index (:index drag)]
-                (if (and (reorderable? state)
-                         drag
-                         (valid-option-index? (:options state) from-index)
-                         (not (option-disabled? (option-at (:options state)
-                                                           from-index))))
-                  (let [event-payload (list-box-reorder-event-payload state event drag)]
-                    (do
-                      (ui/stop-propagation! event)
-                      (when (not= (:from-index event-payload)
-                                  (:to-index event-payload))
-                        (ui/emit! (:view ctx)
-                                  :list-box/reorder
-                                  event-payload))
-                      (assoc state :reorder-drag nil)))
-                  state)))})
 
 (defun stretch-list-box-item [child]
   (assoc child
@@ -822,7 +613,7 @@
          (merge (or (:style child) {})
                 {:width :fill})))
 
-(defun make-item-child [item-child index option row-height selected-indices hover-highlight? stretch-items? parent-disabled? reorderable? reorder-drag-threshold]
+(defun make-item-child [state item-child index option row-height selected-indices hover-highlight? stretch-items? parent-disabled? reorderable? reorder-drag-threshold]
   (let [disabled? (or parent-disabled?
                       (option-disabled? option))]
     (let [child (if item-child
@@ -832,27 +623,32 @@
                             :ui/list-item-hover
                             [])
                    :style {:height row-height}
-                   :state {:index index
-                           :value (option-value option)
-                           :label (option-label option)
-                           :disabled? disabled?
-                           :selected (selected-index? selected-indices index)
-                           :selected-indices (ui/bind-state :selected-indices)}})]
-      (let [child (assoc child
-                         :state
-                         (merge (or (:state child) {})
-                                {:disabled? disabled?
-                                 :selected (selected-index? selected-indices index)
-                                 :reorderable? reorderable?
-                                 :reorder-index index
-                                 :reorder-value (option-value option)
-                                 :reorder-option option}))
-            child (if reorderable?
-                    (list-box-reorderable-child child reorder-drag-threshold)
-                    child)]
-        (if stretch-items?
-          (stretch-list-box-item child)
-          child)))))
+                   :state {:component {:index index
+                                        :value (option-value option)
+                                        :label (option-label option)
+                                        :disabled? disabled?
+                                        :selected (selected-index? selected-indices index)
+                                        :selected-indices (ui/bind-state :selected-indices)}}})]
+      (let [item-state {:disabled? disabled?
+                        :selected (selected-index? selected-indices index)
+                        :reorderable? reorderable?
+                        :reorder-index index
+                        :reorder-value (option-value option)
+                        :reorder-option option}
+            child (if (-> child :state :component)
+                    (update child :state
+                            (fn [state]
+                              (update state :component
+                                      (fn [component]
+                                        (merge component item-state)))))
+                    (assoc child
+                           :state
+                           (merge (or (:state child) {})
+                                  item-state)))
+            child (cond-> child
+                    reorderable? (list-box-reorderable-child reorder-drag-threshold))]
+        (cond-> child
+          stretch-items? stretch-list-box-item)))))
 
 (defun list-box-item-children [state]
   (let [row-height (or (:computed-row-height state)
@@ -860,7 +656,8 @@
                        default-row-height)
         options (or (:options state) [])]
     (for-indexed [index option options]
-      (make-item-child (:item-child state)
+      (make-item-child state
+                       (:item-child state)
                        index
                        option
                        row-height
@@ -872,16 +669,17 @@
                        (:reorder-drag-threshold state)))))
 
 (defun list-box-render-key [state]
-  {:options (:options state)
-   :row-height (:row-height state)
-   :computed-row-height (:computed-row-height state)
-   :content-width (:content-width state)
-   :computed-content-width (:computed-content-width state)
-   :stretch-items? (:stretch-items? state)
-   :disabled? (:disabled? state)
-   :reorderable? (:reorderable? state)
-   :reorder-drag-threshold (:reorder-drag-threshold state)
-   :hover-highlight? (:hover-highlight? state)})
+  (select-keys state
+               [:options
+                :row-height
+                :computed-row-height
+                :content-width
+                :computed-content-width
+                :stretch-items?
+                :disabled?
+                :reorderable?
+                :reorder-drag-threshold
+                :hover-highlight?]))
 
 (defun list-box-scroll-pane-for-state [state]
   (list-box-scroll-pane-child state
@@ -897,79 +695,397 @@
         state (assoc state :computed-row-height computed-row-height)
         state (assoc state :computed-content-width computed-content-width)
         render-key (list-box-render-key state)]
-    (do
-      (when (not= render-key (:rendered-render-key state))
-        (ui/replace-child! (:view ctx)
-                           "scroll-pane"
-                           (list-box-scroll-pane-for-state state)))
-      (when (and (:managed-height? state)
-                 (list-box-can-sync-managed-height? ctx))
-        (ui/style! (:view ctx)
-                   (list-box-managed-style state ctx)))
-      (assoc state :rendered-render-key render-key))))
+    (when (not= render-key (:rendered-render-key state))
+      (ui/replace-child! (:view ctx)
+                         "scroll-pane"
+                         (list-box-scroll-pane-for-state state)))
+    (when (and (:managed-height? state)
+               (list-box-can-sync-managed-height? ctx))
+      (ui/style! (:view ctx)
+                 (list-box-managed-style state ctx)))
+    (assoc state :rendered-render-key render-key)))
 
-(defun make [{:keys [options class style row-height visible-rows max-height fixed-visible-rows? content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
-  (let [computed-row-height (or row-height default-row-height)
-        visible-rows (or visible-rows default-visible-rows)
-        options (or options [])
-        disabled? (or disabled? (:disabled? state))
+
+
+;; Internal components
+
+
+(defcomponent ui/list-box-item
+  {:class [:ui/list-item :ui/list-box-item]
+   :ui/state-keys [:index
+                   :value
+                   :label
+                   :disabled?
+                   :selected
+                   :selected-indices
+                   :reorderable?
+                   :reorder-index
+                   :reorder-value
+                   :reorder-option]
+   :style {:width :fill
+           :height default-row-height
+           :clip true
+           :layout {:direction :row
+                    :align-items :center}}
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :selected
+                     (if (nil? (:selected-indices ui-state))
+                       (:selected ui-state)
+                       (selected-index? (:selected-indices ui-state)
+                                        (:index ui-state)))))
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state
+                       :selected
+                       (if (nil? (:selected-indices ui-state))
+                         (:selected ui-state)
+                         (selected-index? (:selected-indices ui-state)
+                                          (:index ui-state)))))
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-click (fn [state event ctx]
+               (let [ui-state (-> ctx :view :ui-state)]
+                 (unless (:disabled? ui-state)
+                   (ui/emit! (:view ctx)
+                             :list-box/item-click
+                             {:index (:index ui-state)
+                              :value (:value ui-state)
+                              :shift? (held-shift? ctx)
+                              :ctrl? (held-ctrl? ctx)})))
+               state)
+   :on-double-click (fn [state event ctx]
+                      (let [ui-state (-> ctx :view :ui-state)]
+                        (unless (:disabled? ui-state)
+                          (ui/emit! (:view ctx)
+                                    :list-box/item-activate
+                                    {:index (:index ui-state)
+                                     :value (:value ui-state)
+                                     :shift? (held-shift? ctx)
+                                     :ctrl? (held-ctrl? ctx)})))
+                      state)
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defcomponent ui/list-box
+  {:focusable true
+   :class :ui/list-box
+   :ui/state-keys [:options
+                   :item-state-keys
+                   :row-height
+                   :explicit-row-height?
+                   :computed-row-height
+                   :auto-row-height?
+                   :visible-rows
+                   :max-height
+                   :fixed-visible-rows?
+                   :content-width
+                   :computed-content-width
+                   :auto-content-width?
+                   :managed-height?
+                   :stretch-items?
+                   :disabled?
+                   :reorderable?
+                   :reorder-drag-threshold
+                   :reorder-visual-strategy
+                   :item-child
+                   :hover-highlight?
+                   :selected-indices
+                   :selected-values
+                   :multi-select?
+                   :force-selection?
+                   :toggle-selected?
+                   :anchor-index
+                   :content-state
+                   :offset
+                   :scroll-y?
+                   :rendered-render-key
+                   :reorder-drag
+                   :reorder-drag-ended?]
+   :content-size list-box-content-size
+   :init-ui (fn [ui-state state ctx]
+           (let [selected (or (resolved-selected-indices (:selected-indices ui-state))
+                              (if (forced-selection? ui-state)
+                                (if-let [index (first-enabled-index (:options ui-state))]
+                                  [index]
+                                  [])
+                                []))]
+             (let [ui-state (assoc (assoc (assoc (assoc ui-state
+                                                          :selected-indices selected)
+                                                   :anchor-index (or (:anchor-index ui-state)
+                                                                     (head selected)))
+                                            :content-state
+                                            (list-box-content-state
+                                             (assoc ui-state
+                                                    :selected-indices
+                                                    selected)
+                                             state))
+                                   :scroll-y?
+                                   :auto)]
+               (list-box-sync-rendered-options ui-state ctx))))
+   :update-ui (fn [ui-state state ctx]
+             (list-box-apply-reorder-visuals!
+              (list-box-sync-rendered-options
+               (assoc ui-state
+                      :content-state
+                      (list-box-content-state ui-state state))
+               ctx)
+              ctx))
+   :after-layout-ui (fn [ui-state state ctx]
+                   (cond-> (list-box-apply-reorder-visuals!
+                            (list-box-sync-rendered-options
+                             (assoc ui-state
+                                    :content-state
+                                    (list-box-content-state ui-state state))
+                             ctx)
+                            ctx)
+                     (:reorder-drag-ended? ui-state) (assoc :reorder-drag nil
+                                                            :reorder-drag-ended?
+                                                            false)))
+   :on-key-down list-box-on-key-down
+   :on-drag-start (fn [state event ctx]
+                    (case (-> event :payload :kind)
+                      :list-box/reorder-item
+                      (let [ui-state (-> ctx :view :ui-state)]
+                        (ui/set-ui-state! ctx
+                                          (assoc ui-state
+                                                 :reorder-drag
+                                                 (assoc (:payload event)
+                                                        :position
+                                                        (:position event)
+                                                        :start-position
+                                                        (:start-position event)
+                                                        :start-global-position
+                                                        (:start-global-position event))
+                                                 :reorder-drag-ended?
+                                                 false))
+                        state)
+
+                      :default state))
+   :on-drag (fn [state event ctx]
+              (case (-> event :payload :kind)
+                :list-box/reorder-item
+                (let [ui-state (-> ctx :view :ui-state)]
+                  (ui/set-ui-state! ctx
+                                    (assoc ui-state
+                                           :reorder-drag
+                                           (assoc (or (:reorder-drag ui-state)
+                                                      (:payload event))
+                                                  :position
+                                                  (:position event))
+                                           :reorder-drag-ended?
+                                           false))
+                  state)
+
+                :default state))
+   :on-drag-end (fn [state event ctx]
+                  (ui/set-ui-state! ctx
+                                    (assoc (-> ctx :view :ui-state)
+                                           :reorder-drag-ended?
+                                           true))
+                  state)
+   :on {:list-box/item-click (fn [state event ctx]
+                              (let [ui-state (-> ctx :view :ui-state)]
+                              (if (:reorder-drag ui-state)
+                                (do
+                                  (ui/stop-propagation! event)
+                                  state)
+                                (let [payload (:payload event)
+                                      option (option-at (:options ui-state) (:index payload))
+                                      disabled? (or (:disabled? ui-state)
+                                                    (option-disabled? option))
+                                      selected (if disabled?
+                                                 (:selected-indices ui-state)
+                                                 (list-box-click-selection ui-state payload))
+                                      changed? (selection-changed?
+                                                (:selected-indices ui-state)
+                                                selected)
+                                      next-ui-state (assoc (assoc ui-state
+                                                                  :selected-indices selected)
+                                                           :anchor-index (:index payload))
+                                      values (selected-values-for (:options next-ui-state)
+                                                                  selected)
+                                      next-ui-state (assoc next-ui-state
+                                                           :selected-values
+                                                           values)]
+                                  (ui/stop-propagation! event)
+                                  (ui/set-ui-state! ctx next-ui-state)
+                                  (when (and (not disabled?) changed?)
+                                    (ui/emit! (:view ctx)
+                                              :list-box/change
+                                              {:selected-indices selected
+                                               :selected-values values
+                                               :value (:value payload)}))
+                                  (assoc state
+                                         :selected-indices selected
+                                         :selected-values values
+                                         :anchor-index (:index payload))))))
+        :list-box/item-activate (fn [state event ctx]
+                                  (let [ui-state (-> ctx :view :ui-state)
+                                        payload (:payload event)
+                                        option (option-at (:options ui-state) (:index payload))
+                                        disabled? (or (:disabled? ui-state)
+                                                      (option-disabled? option))
+                                        selected (if disabled?
+                                                   (:selected-indices ui-state)
+                                                   (list-box-click-selection ui-state payload))
+                                        values (selected-values-for (:options ui-state)
+                                                                    selected)]
+                                    (ui/stop-propagation! event)
+                                    (unless disabled?
+                                      (ui/emit! (:view ctx)
+                                                :list-box/activate
+                                                (merge payload
+                                                       {:selected-indices selected
+                                                        :selected-values values})))
+                                    state))}
+   :on-drop (fn [state event ctx]
+              (let [ui-state (-> ctx :view :ui-state)
+                    drag (list-box-reorder-drag-for-drop ui-state event)
+                    from-index (:index drag)]
+                (if (and (reorderable? ui-state)
+                         drag
+                         (valid-option-index? (:options ui-state) from-index)
+                         (not (option-disabled? (option-at (:options ui-state)
+                                                           from-index))))
+                  (let [event-payload (list-box-reorder-event-payload ui-state event drag)]
+                    (ui/stop-propagation! event)
+                    (when (not= (:from-index event-payload)
+                                (:to-index event-payload))
+                      (ui/emit! (:view ctx)
+                                :list-box/reorder
+                                event-payload))
+                    (ui/set-ui-state! ctx
+                                      (assoc ui-state
+                                             :reorder-drag nil
+                                             :reorder-drag-ended? false))
+                    (assoc state
+                           :reorder-drag nil
+                           :reorder-drag-ended? false))
+                  state)))})
+
+
+
+;; Make functions
+
+(defun make
+  "Builds a ui/list-box child entry.
+
+  Options:
+
+  ```roo
+  {:options [{:value :a :label \"Alpha\"}]
+   :selected-indices [0]
+   :multi-select? false
+   :force-selection? false
+   :toggle-selected? false
+   :row-height 20
+   :visible-rows 5
+   :max-height 120
+   :content-width 100
+   :hover-highlight? true
+   :reorderable? false
+   :class :settings/list
+   :style {...}
+   :state {...}
+   :ui-state {...}
+   :state-policy :shared}
+  ```
+
+  Stock list-box behavior values are written under `:state :component`.
+  Static values, `ui/bind-state`, and `ui/project-state` are accepted for
+  component entries. Ordinary :state entries remain available for caller
+  application state. During migration, component keys supplied directly in
+  :state are also copied into :component, and the default shared state policy
+  keeps declared component keys visible in ordinary state."
+  [{:keys [options class style row-height visible-rows max-height
+           fixed-visible-rows? content-width selected-indices multi-select?
+           force-selection? toggle-selected? hover-highlight? item-child
+           item-state-keys state disabled? reorderable? reorder-drag-threshold
+           reorder-visual-strategy ui-state state-policy] :as opts}]
+  (let [state (or state {})
+        component (cond-> (merge (select-keys state
+                                              [:options
+                                               :item-state-keys
+                                               :row-height
+                                               :visible-rows
+                                               :max-height
+                                               :fixed-visible-rows?
+                                               :content-width
+                                               :disabled?
+                                               :reorderable?
+                                               :reorder-drag-threshold
+                                               :reorder-visual-strategy
+                                               :item-child
+                                               :hover-highlight?
+                                               :selected-indices
+                                               :multi-select?
+                                               :force-selection?
+                                               :toggle-selected?])
+                                 (or (:component state) {}))
+                          (contains? opts :options) (assoc :options options)
+                          (contains? opts :item-state-keys) (assoc :item-state-keys
+                                                                   item-state-keys)
+                          (contains? opts :row-height) (assoc :row-height row-height)
+                          (contains? opts :visible-rows) (assoc :visible-rows
+                                                                visible-rows)
+                          (contains? opts :max-height) (assoc :max-height max-height)
+                          (contains? opts :fixed-visible-rows?) (assoc :fixed-visible-rows?
+                                                                       fixed-visible-rows?)
+                          (contains? opts :content-width) (assoc :content-width
+                                                                 content-width)
+                          (contains? opts :disabled?) (assoc :disabled? disabled?)
+                          (contains? opts :reorderable?) (assoc :reorderable?
+                                                                reorderable?)
+                          (contains? opts :reorder-drag-threshold) (assoc :reorder-drag-threshold
+                                                                          reorder-drag-threshold)
+                          (contains? opts :reorder-visual-strategy) (assoc :reorder-visual-strategy
+                                                                           reorder-visual-strategy)
+                          (contains? opts :item-child) (assoc :item-child item-child)
+                          (contains? opts :hover-highlight?) (assoc :hover-highlight?
+                                                                    hover-highlight?)
+                          (contains? opts :selected-indices) (assoc :selected-indices
+                                                                    selected-indices)
+                          (contains? opts :multi-select?) (assoc :multi-select?
+                                                                 multi-select?)
+                          (contains? opts :force-selection?) (assoc :force-selection?
+                                                                    force-selection?)
+                          (contains? opts :toggle-selected?) (assoc :toggle-selected?
+                                                                    toggle-selected?))
+        options (or (:options component) [])
+        row-height (:row-height component)
+        computed-row-height (or row-height default-row-height)
+        visible-rows (or (:visible-rows component) default-visible-rows)
+        content-width (:content-width component)
         computed-content-width (or content-width 1)
-        explicit-row-height? (not (nil? row-height))
         managed-height? (not (contains? (or style {}) :height))
-        content-height (list-box-content-height options computed-row-height)
         height (list-box-visible-height options
                                         computed-row-height
                                         visible-rows
-                                        max-height
-                                        fixed-visible-rows?)
+                                        (:max-height component)
+                                        (:fixed-visible-rows? component))
         final-style (merge {:height (if managed-height?
                                       :shrink
                                       height)
                             :width :shrink}
                            (or style {}))
-        stretch-items? (list-box-stretches-items? final-style)]
-    (merge {:mode 'ui/list-box
-            :style final-style
-            :state (merge (or state {})
-                          {:options options
-                           :item-state-keys item-state-keys
-                           :row-height row-height
-                           :explicit-row-height? explicit-row-height?
-                           :computed-row-height computed-row-height
-                           :auto-row-height? (nil? row-height)
-                           :visible-rows visible-rows
-                           :max-height max-height
-                           :fixed-visible-rows? fixed-visible-rows?
-                           :content-width content-width
-                           :computed-content-width computed-content-width
-                           :auto-content-width? (nil? content-width)
-                           :managed-height? managed-height?
-                           :stretch-items? stretch-items?
-                           :disabled? disabled?
-                           :reorderable? reorderable?
-                           :reorder-drag-threshold reorder-drag-threshold
-                           :reorder-visual-strategy reorder-visual-strategy
-                           :item-child item-child
-                           :hover-highlight? hover-highlight?
-                           :selected-indices selected-indices
-                           :multi-select? multi-select?
-                           :force-selection? force-selection?
-                           :toggle-selected? toggle-selected?})
-            :children [(list-box-scroll-pane-for-state
-                        {:row-height row-height
+        component (assoc component
+                         :options options
+                         :row-height row-height
+                         :explicit-row-height? (some? row-height)
                          :computed-row-height computed-row-height
-                         :explicit-row-height? explicit-row-height?
+                         :auto-row-height? (nil? row-height)
+                         :visible-rows visible-rows
                          :content-width content-width
                          :computed-content-width computed-content-width
-                         :options options
-                         :visible-rows visible-rows
-                         :max-height max-height
-                         :fixed-visible-rows? fixed-visible-rows?
-                         :stretch-items? stretch-items?
-                         :disabled? disabled?
-                         :reorderable? reorderable?
-                         :reorder-drag-threshold reorder-drag-threshold
-                         :item-child item-child
-                         :selected-indices selected-indices
-                         :hover-highlight? hover-highlight?})]}
-           (if class {:class class} {}))))
+                         :auto-content-width? (nil? content-width)
+                         :managed-height? managed-height?
+                         :stretch-items? (list-box-stretches-items? final-style))]
+    (cond-> {:mode 'ui/list-box
+             :style final-style
+             :state (assoc state :component component)
+             :children [(list-box-scroll-pane-for-state component)]}
+            class (assoc :class class)
+            ui-state (assoc :ui-state ui-state)
+            state-policy (assoc :ui/state-policy state-policy))))

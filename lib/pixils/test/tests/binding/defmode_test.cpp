@@ -81,12 +81,14 @@ TEST_F(DefModeTest, defcomponent_creates_component_definition)
     (pixils/defcomponent test-button
       {:init-ui (fn [ui-state state ctx] ui-state)
        :update-ui (fn [ui-state state ctx] ui-state)
+       :after-layout-ui (fn [ui-state state ctx] ui-state)
        :ui/state-keys [:pressed]})
   )");
 
   auto& component = get_component(runtime, "test-button");
   EXPECT_EQ(component.init_ui->type, Roo::Value::Type::FUNCTION);
   EXPECT_EQ(component.update_ui->type, Roo::Value::Type::FUNCTION);
+  EXPECT_EQ(component.after_layout_ui->type, Roo::Value::Type::FUNCTION);
   ASSERT_EQ(component.ui_state_keys.size(), 1u);
   EXPECT_EQ(component.ui_state_keys[0], "pressed");
   EXPECT_EQ(component.name, "test-button");
@@ -107,6 +109,10 @@ TEST_F(DefModeTest, defmode_rejects_component_ui_state_fields)
     runtime.eval(
       "(pixils/defmode bad-mode {:update-ui (fn [ui-state state ctx] ui-state)})"),
                Roo::TypeError);
+  EXPECT_THROW(
+    runtime.eval(
+      "(pixils/defmode bad-mode {:after-layout-ui (fn [ui-state state ctx] ui-state)})"),
+    Roo::TypeError);
 }
 
 TEST_F(DefModeTest, defcomponent_rejects_mode_composition)
