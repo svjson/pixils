@@ -64,6 +64,14 @@
            :anchor-index 0}
           :key/down))))
 
+(deftest list-box-change-payload-omits-out-of-range-selected-values
+  (is (= {:selected-indices [0 3]
+          :selected-values [:a]
+          :value :a}
+         (list-box/change-payload {:options [{:value :a}]}
+                                  [0 3]
+                                  0))))
+
 (deftest list-box-arrow-key-navigation-selects-next-enabled-item
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160

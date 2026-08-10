@@ -8,30 +8,6 @@
 
 
 
-;; Internal selection management functions
-
-(defun selected-values-for [options indices]
-  (for [index indices]
-    (-> options (nth index) option/value)))
-
-(defun add-index [indices index]
-  (if (contains? indices index)
-    indices
-    (append indices index)))
-
-(defun index-range-up [from to]
-  (if (> from to)
-    []
-    (concat [from] (index-range-up (inc from) to))))
-
-(defun index-range [from to]
-  (index-range-up (min from to) (max from to)))
-
-(defun add-indices [indices items]
-  (reduce items indices (fn [out index]
-                          (add-index out index))))
-
-
 ;; Interaction support
 
 (defun forced-selection? [state]
@@ -65,14 +41,11 @@
   (let [selected? (contains? selected-indices index)]
     (cond
       (and multi-select? shift?)
-      (let [anchor (or (:anchor-index state) index)
-            range (index-range anchor index)]
-        (if ctrl?
-          (add-indices selected-indices range)
-          range))
+      (let [anchor (or (:anchor-index state) index)]
+        (range (min anchor index) (max anchor index)))
 
       (and ctrl? multi-select? (not selected?))
-      (add-index selected-indices index)
+      (append selected-indices index)
 
       (and selected?
            (or toggle-selected? multi-select?))
@@ -119,7 +92,9 @@
 
 (defun change-payload [state selected index]
   {:selected-indices selected
-   :selected-values (selected-values-for (:options state) selected)
+   :selected-values (keep selected (fn [selected-index]
+                                     (option/value
+                                      (nth (:options state) selected-index))))
    :value (-> (:options state) (nth index) option/value)})
 
 (defun apply-keyboard-selection [state index ctx]
@@ -479,8 +454,11 @@
                                          next-ui-state (assoc (assoc ui-state
                                                                      :selected-indices selected)
                                                               :anchor-index (:index payload))
-                                         values (selected-values-for (:options next-ui-state)
-                                                                     selected)
+                                         values (keep selected
+                                                      (fn [selected-index]
+                                                        (option/value
+                                                         (nth (:options next-ui-state)
+                                                              selected-index))))
                                          next-ui-state (assoc next-ui-state
                                                               :selected-values
                                                               values)]
@@ -505,8 +483,11 @@
                                         selected (if disabled?
                                                    (:selected-indices ui-state)
                                                    (click-selection ui-state payload))
-                                        values (selected-values-for (:options ui-state)
-                                                                    selected)]
+                                        values (keep selected
+                                                     (fn [selected-index]
+                                                       (option/value
+                                                        (nth (:options ui-state)
+                                                             selected-index))))]
                                     (ui/stop-propagation! event)
                                     (unless disabled?
                                     (ui/emit! (:view ctx)

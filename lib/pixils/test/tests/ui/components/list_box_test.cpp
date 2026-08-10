@@ -1714,7 +1714,7 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
   EXPECT_EQ(changes->num().get_int(), 1);
 }
 
-TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
+TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_with_range)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -1755,12 +1755,14 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0 1]");
 
+  input().key_down(SDLK_LCTRL);
   input().key_down(SDLK_LSHIFT);
   input().mouse_down({5, 25});
   update_cycle();
   input().mouse_up({5, 25});
   update_cycle();
   input().key_up(SDLK_LSHIFT);
+  input().key_up(SDLK_LCTRL);
   update_cycle();
 
   selected =
