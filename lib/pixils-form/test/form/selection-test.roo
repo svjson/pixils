@@ -1,0 +1,47 @@
+(ns pixils.form.selection-test
+  (:require proof.core
+            [pixils.form.selection :as selection]))
+
+
+
+;; pixils.form.selection/actions
+
+(deftest actions/can-be-derived-from-editable-selection
+  (is (= [{:key :add
+           :id :form/new
+           :label "Add"
+           :disabled-when :new?}
+          {:key :save
+           :id :form/save-new
+           :label "Save"
+           :enabled-when [:and :new? :valid?]}
+          {:key :cancel
+           :id :form/cancel-new
+           :label "Cancel"
+           :enabled-when :new?}
+          {:key :delete
+           :id :form/delete
+           :label "Delete"
+           :enabled-when [:and [:not :new?] :selected-index]}]
+         (selection/actions {:editable? true}))))
+
+
+
+;; pixils.form.selection/actions-for-presentation
+
+(deftest actions-for-presentation/can-split-actions-by-presentation
+  (is (= {:toolbar [{:key :add
+                     :id :form/new
+                     :label "Add"
+                     :disabled-when :new?}]
+          :context-menu [{:key :delete
+                          :id :form/delete
+                          :label "Delete"
+                          :enabled-when
+                          [:and [:not :new?] :selected-index]}]}
+         (let [config {:actions [:add :delete]
+                       :action-presentation {:delete :context-menu}}]
+           {:toolbar
+            (selection/actions-for-presentation config :toolbar)
+            :context-menu
+            (selection/actions-for-presentation config :context-menu)}))))

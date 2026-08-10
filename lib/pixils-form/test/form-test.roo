@@ -1,6 +1,5 @@
 (ns pixils.form-test
   (:require proof.core
-            [pixils.form.actions :as form-actions]
             [pixils.form :as form]))
 
 (def person-schema
@@ -18,1247 +17,165 @@
    :field/age 0
    :label (str "New Person " (inc index))})
 
-(defun form-body [view]
-  (head (:children view)))
-
-(defun form-children [view]
-  (:children (form-body view)))
-
-(defun form-child [view index]
-  (nth (form-children view) index))
-
-(defun class-list [view]
-  (let [class (:class view)]
-    (cond
-      (nil? class) []
-      (keyword? class) [class]
-      :default class)))
-
-(defun view-class? [view class]
-  (contains? (class-list view) class))
-
-(defun object-control-children [view]
-  (:children (head (:children view))))
-
-(defun group-box-body [view]
-  (-> view :children head :children head))
-
-
 
 
 ;; pixils.form/normalized-form-state
 
+(deftest normalized-form-state/defaults-to-transient-mode
+  (is (= :transient
+         (:form/mode
+          (form/normalized-form-state
+           {:schema person-schema
+            :value {:field/name "Ada"}
+            :context {}}
+           nil)))))
 
-(deftest normalized-form-state/records-data-ownership-mode
-  (let [transient-state
-        (form/normalized-form-state {:schema person-schema
-                                     :value {:field/name "Ada"}
-                                     :context {}}
-                                    nil)
-        live-state
-        (form/normalized-form-state {:schema person-schema
-                                     :value {:field/name "Ada"}
-                                     :context {}
-                                     :mode :live}
-                                    nil)]
-    (is (= :transient
-           (:form/mode transient-state)))
-    (is (= :live
-           (:form/mode live-state)))))
-
-
-
-
-;; pixils.form/make
-
-
-(deftest make/keeps-component-mode-separate-from-form-mode
-  (let [transient-view (form/make {:schema person-schema
-                                   :value {:field/name "Ada"
-                                           :field/age 36}})
-        live-view (form/make {:schema person-schema
-                              :value {:field/name "Ada"
-                                      :field/age 36}
-                              :mode :live})]
-    (is (= 'pixils/form (:mode transient-view)))
-    (is (= :transient
-           (-> transient-view :state :form/mode)))
-    (is (= 'pixils/form (:mode live-view)))
-    (is (= :live
-           (-> live-view :state :form/mode)))))
-
-(deftest make/renders-fill-width-form-body
-  (let [view (form/make {:schema person-schema
-                         :value {:field/name "Ada"
-                                 :field/age 36}})
-        body (form-body view)]
-    (is (= :pixils/form-body (:class body)))
-    (is (= :fill (-> body :style :width)))
-    (is (= :shrink (-> body :style :height)))))
-
-(deftest make/renders-theme-backed-structural-classes
-  (let [view (form/make {:schema person-schema
-                         :value {:field/name "Ada"
-                                 :field/age 36}
-                         :theme-styles? true})
-        body (form-body view)
-        field (head (:children body))
-        label (head (:children field))
-        control (nth (:children field) 1)]
-    (is (= :pixils/form (:class view)))
-    (is (= :pixils/form-body (:class body)))
-    (is (= :pixils/form-field (:class field)))
-    (is (= {:visibility :visible} (:style field)))
-    (is (= [:ui/muted :pixils/form-label] (:class label)))
-    (is (= {} (:style label)))
-    (is (= [:pixils/form-control :pixils/form-text-control]
-           (:class control)))
-    (is (= {} (:style control)))))
-
-(deftest make/renders-slider-field-with-built-in-slider-control
-  (let [view (form/make {:schema {:opacity {:type :slider
-                                            :min 0
-                                            :max 1
-                                            :step 0.05}}
-                         :value {:opacity 0.75}})
-        field (form-child view 0)
-        control (nth (:children field) 1)]
-    (is (= 'pixils/form-slider-control
-           (:mode control)))
-    (is (= [:pixils/form-control :pixils/form-slider-control]
-           (:class control)))
-    (is (= :x
-           (-> control :state :axis)))
-    (is (= 0
-           (-> control :state :min)))
-    (is (= 1
-           (-> control :state :max)))
-    (is (= 0.05
-           (-> control :state :step)))))
-
-(deftest make/keeps-stable-dimensions-with-theme-styles
-  (let [view (form/make {:schema {:zoom {:type :slider
-                                         :min 1
-                                         :max 4}}
-                         :value {:zoom 2}
-                         :theme-styles? true})
-        field (form-child view 0)
-        control (nth (:children field) 1)]
-    (is (= form/default-slider-control-style
-           (:style control)))
-    (is (= form/default-slider-style
-           (-> control :state :slider-style)))
-    (is (= :fill
-           (-> control :state :slider-style :width)))
-    (is (= 220
-           (-> control :state :slider-style :min-width)))
-    (is (= form/default-slider-value-style
-           (-> control :state :value-style)))))
-
-(deftest make/renders-color-field-with-built-in-color-picker
-  (let [view (form/make {:schema {:accent {:type :color}}
-                         :value {:accent {:r 12 :g 34 :b 56 :a 255}}})
-        field (form-child view 0)
-        control (nth (:children field) 1)]
-    (is (= 'ui/color-picker
-           (:mode control)))
-    (is (= [:pixils/form-control :pixils/form-color-control]
-           (:class control)))
-    (is (not (nil? (-> control :state :value))))))
-
-(deftest make/passes-color-picker-options
-  (let [view (form/make {:schema {:accent {:type :color
-                                           :read-only? true
-                                           :allow-alpha? false
-                                           :editor false
-                                           :dialog-title "Accent Color"
-                                           :swatch-class :paint/accent-swatch
-                                           :swatch-style {:width 32
-                                                          :height 18}}}
-                         :value {:accent {:r 12 :g 34 :b 56}}})
-        field (form-child view 0)
-        control (nth (:children field) 1)
-        swatch (head (:children control))]
-    (is (= true
-           (-> control :state :disabled?)))
-    (is (= false
-           (-> control :state :allow-alpha?)))
-    (is (= false
-           (-> control :state :editor)))
-    (is (= "Accent Color"
-           (-> control :state :dialog-title)))
-    (is (= [:ui/color-picker-swatch :paint/accent-swatch]
-           (:class swatch)))
-    (is (= {:width 32
-            :height 18}
-           (:style swatch)))))
-
-(deftest make/renders-top-level-layout-sections-as-group-boxes
-  (let [view (form/make {:schema person-schema
-                         :value {:field/name "Ada"
-                                 :field/age 36
-                                 :profile {:city "London"}}
-                         :layout [{:type :section
-                                   :title "Identity"
-                                   :layout [:field/name
-                                            :field/city]}]})
-        section (form-child view 0)
-        body (group-box-body section)]
-    (is (= 'ui/group-box (:mode section)))
-    (is (= :pixils/form-section (:class section)))
-    (is (= "Identity"
-           (-> section :state :title)))
-    (is (= 'ui/group-box-body (:mode body)))
-    (is (= :pixils/form-section-body (:class body)))
-    (is (= 2 (count (:children body))))
-    (is (= 'pixils/form-field
-           (-> body :children head :mode)))))
-
-(deftest make/renders-nested-layout-sections-as-plain-containers
-  (let [view (form/make {:schema person-schema
-                         :value {:field/name "Ada"
-                                 :field/age 36}
-                         :layout [{:type :section
-                                   :title "Outer"
-                                   :layout [{:type :section
-                                             :title "Inner"
-                                             :layout [:field/name]}]}]})
-        outer (form-child view 0)
-        outer-body (group-box-body outer)
-        inner (head (:children outer-body))
-        inner-title (head (:children inner))
-        inner-body (nth (:children inner) 1)]
-    (is (= 'ui/group-box (:mode outer)))
-    (is (= :pixils/form-section (:class outer)))
-    (is (nil? (:mode inner)))
-    (is (= :pixils/form-nested-section (:class inner)))
-    (is (= 'ui/text (:mode inner-title)))
-    (is (= [:ui/muted :pixils/form-nested-section-title]
-           (:class inner-title)))
-    (is (= "Inner"
-           (-> inner-title :state :value)))
-    (is (= :pixils/form-nested-section-body
-           (:class inner-body)))
-    (is (= 'pixils/form-field
-           (-> inner-body :children head :mode)))))
-
-(deftest make/renders-selection-dialog-add-action
-  (let [view (form/make
-              {:schema person-schema
-               :value {:field/name "Ada"
-                       :field/age 36}
-               :items [{:field/name "Ada"
-                        :field/age 36}]
-               :selected-index 0
-               :new-value-fn empty-person
-               :selection-defaults
-               {:actions {:add true
-                          :delete true}
-                :action-presentation {:delete :context-menu}}
-               :layout [[:row
-                         {:type :selection
-                          :item-label [:field/name]
-                          :visible-rows 4}
-                         {:type :form
-                          :layout [:field/name]}]]})
-        state (:state view)
-        row-view (form-child view 0)
-        selection-view (head (:children row-view))
-        toolbar (nth (:children selection-view) 1)]
-    (is (= 4
-           (-> state :form/selection :visible-rows)))
-    (is (= {:add true
-            :delete true}
-           (-> state :form/selection :actions)))
-    (is (= {:delete :context-menu}
-           (-> state :form/selection :action-presentation)))
-    (is (= empty-person (:new-value-fn state)))
-    (is (= [:form/new]
-           (map (:children toolbar)
-                (fn [action]
-                  (-> action :state :event)))))))
-
-(deftest make/normalizes-combined-model-projection
-  (let [view (form/make {:model :person
-                         :models {:person
-                                  {:schema person-schema
-                                   :value {:field/name "Ada"
-                                           :field/age 36}}
-                                  :people
-                                  {:value [{:field/name "Ada"
-                                            :field/age 36}]}
-                                  :selected-person-index
-                                  {:value 0
-                                   :transient? true}
-                                  :new-person?
-                                  {:value false
-                                   :transient? true}
-                                  :new-person
-                                  {:value {:field/name ""
-                                           :field/age 0}
-                                   :transient? true}}
-                         :projection {:target :person
-                                      :items :people
-                                      :selected-index
-                                      :selected-person-index
-                                      :new? :new-person?
-                                      :new-value :new-person}
-                         :layout [:field/name]
-                         :selection {:items :people
-                                     :selected-index
-                                     :selected-person-index}})
-        state (:state view)]
-    (is (= person-schema (:schema state)))
-    (is (= {:field/name "Ada"
-            :field/age 36}
-           (:value state)))
-    (is (= [{:field/name "Ada"
-             :field/age 36}]
-           (:items state)))
-    (is (= 0 (:selected-index state)))
-    (is (= false (:new? state)))
-    (is (= {:field/name ""
-            :field/age 0}
-           (:new-value state)))))
-
-(deftest make/renders-combined-model-layout-from-resolved-schema
-  (let [view (form/make {:model :person
-                         :models {:person
-                                  {:schema person-schema
-                                   :value {:field/name "Ada"
-                                           :field/age 36}}}
-                         :text {:field/name "Name"}
-                         :layout [:field/name]})
-        field-view (form-child view 0)]
-    (is (= 2 (count (:children field-view))))
-    (is (= "Name"
-           (get-in field-view [:children 0 :state :value])))))
-
-(deftest make/renders-keyword-fields-with-prefixed-input
-  (let [view (form/make {:schema {:field/id {:type :keyword
-                                             :required true
-                                             :auto-focus? true}}
-                         :text {:field/id "Id"}
-                         :layout [:field/id]
-                         :value {:field/id :scene/ground}})
-        field-view (form-child view 0)
-        control (nth (:children field-view) 1)]
-    (is (= 'pixils/form-keyword-input (:mode control)))
-    (is (= "scene/ground"
-           (get-in control [:state :value])))
-    (is (= true (get-in control [:state :auto-focus?])))))
-
-(deftest make/renders-valid-values-fields-with-select-control
-  (let [view (form/make {:schema {:field/role
-                                  {:type :keyword
-                                   :valid-values
-                                   [:role/stable-lad
-                                    :role/stable-master]}}
-                         :text {:field/role "Role"}
-                         :layout [:field/role]
-                         :value {:field/role :role/stable-lad}})
-        field-view (form-child view 0)
-        control (nth (:children field-view) 1)]
-    (is (= 'pixils/form-select-control (:mode control)))
-    (is (= [{:value nil
-             :label ""}
-            {:value :role/stable-lad
-             :label "role/stable-lad"}
-            {:value :role/stable-master
-             :label "role/stable-master"}]
-           (get-in control [:state :options])))))
-
-(deftest make/renders-context-backed-valid-values-fields-with-select-control
-  (let [view (form/make {:schema {:field/place
-                                  {:type :keyword
-                                   :required true
-                                   :valid-values
-                                   {:from [:vocabularies :places]
-                                    :value-path [:id]
-                                    :label-path [:label]}}}
-                         :context {:vocabularies
-                                   {:places
-                                    [{:id :place/dawnkeep-stables
-                                      :label "Dawnkeep Stables"}]}}
-                         :layout [:field/place]
-                         :value {:field/place
-                                 :place/dawnkeep-stables}})
-        field-view (form-child view 0)
-        control (nth (:children field-view) 1)]
-    (is (= 'pixils/form-select-control (:mode control)))
-    (is (= [{:value :place/dawnkeep-stables
-             :label "Dawnkeep Stables"}]
-           (get-in control [:state :options])))))
-
-(deftest make/renders-dependent-valid-values-with-current-form-value
-  (let [view (form/make {:schema {:source
-                                  {:type :keyword
-                                   :required true
-                                   :valid-values [:landmarks
-                                                  :terrain]}
-                                  :id
-                                  {:type :keyword
-                                   :required true
-                                   :valid-values
-                                   {:from {:field [:source]
-                                           :sources
-                                           {:landmarks [:landmarks]
-                                            :terrain [:terrain]}}
-                                    :value-path [:value]
-                                    :label-path [:label]}}}
-                         :context {:landmarks [{:value :dawnkeep
-                                                :label "Dawnkeep"}]
-                                   :terrain [{:value :blackmere
-                                              :label "Blackmere"}]}
-                         :layout [:source :id]
-                         :value {:source :terrain
-                                 :id :blackmere}})
-        id-view (form-child view 1)
-        control (nth (:children id-view) 1)]
-    (is (= 'pixils/form-select-control (:mode control)))
-    (is (= [:id] (get-in control [:state :field-path])))
-    (is (= [{:value :blackmere
-             :label "Blackmere"}]
-           (filter (get-in control [:state :options])
-                   (fn [option]
-                     (= :blackmere (:value option))))))))
-
-(deftest make/renders-active-discriminated-union-fields
-  (let [view (form/make {:schema
-                         {:definitions
-                          {:rule-base
-                           {:type :object
-                            :fields {:type {:type :keyword
-                                            :valid-values
-                                            [:preferred-position :edge]}}}
-                           :preferred-position-rule
-                           {:extends :rule-base
-                            :fields {:point {:type :number}}}
-                           :edge-rule
-                           {:extends :rule-base
-                            :fields {:target {:type :keyword}}}}
-                          :schema {:type :union
-                                   :discriminator :type
-                                   :base {:ref :rule-base}
-                                   :variants
-                                   {:preferred-position
-                                    {:ref :preferred-position-rule}
-                                    :edge {:ref :edge-rule}}}}
-                         :value {:type :preferred-position
-                                 :point 3}})
-        union-control (form-child view 0)
-        union-children (object-control-children union-control)
-        type-view (head union-children)
-        point-view (nth union-children 1)
-        target-view (nth union-children 2)]
-    (is (= 'pixils/form-object-control (:mode union-control)))
-    (is (nil? (-> union-control :state :field-path-prefix)))
-    (is (= 2 (count union-children)))
-    (is (= :type (-> type-view :state :field-id)))
-    (is (= 'pixils/form-field (:mode point-view)))
-    (is (contains? (:state point-view) :form-value))
-    (is (= :visible (get-in point-view [:style :visibility])))
-    (is (nil? target-view))))
-
-(deftest make/renders-nested-discriminated-union-field
-  (let [view (form/make {:schema
-                         {:definitions
-                          {:effect-base
-                           {:type :object
-                            :fields {:kind {:type :keyword
-                                            :valid-values
-                                            [:move :wait]}}}
-                           :move-effect
-                           {:extends :effect-base
-                            :fields {:distance {:type :number}}}
-                           :wait-effect
-                           {:extends :effect-base
-                            :fields {:duration {:type :integer}}}
-                           :effect
-                           {:type :union
-                            :discriminator :kind
-                            :base {:ref :effect-base}
-                            :variants {:move {:ref :move-effect}
-                                       :wait {:ref :wait-effect}}}}
-                          :schema {:field/effect {:ref :effect}}}
-                         :layout [:field/effect]
-                         :value {:field/effect {:kind :move
-                                                :distance 1.5}}})
-        effect-view (form-child view 0)
-        union-control (nth (:children effect-view) 1)
-        union-children (object-control-children union-control)
-        kind-view (head union-children)
-        kind-control (nth (:children kind-view) 1)
-        distance-view (nth union-children 1)
-        distance-control (nth (:children distance-view) 1)
-        duration-view (nth union-children 2)]
-    (is (= 'pixils/form-object-control (:mode union-control)))
-    (is (= 2 (count union-children)))
-    (is (= [:field/effect :kind] (get-in kind-view [:state :field-path])))
-    (is (= [:kind] (get-in kind-view [:state :local-field-path])))
-    (is (= [:field/effect :kind]
-           (get-in kind-control [:state :field-path])))
-    (is (= [:kind]
-           (get-in kind-control [:state :local-field-path])))
-    (is (= [:field/effect :distance]
-           (get-in distance-view [:state :field-path])))
-    (is (= [:distance] (get-in distance-view [:state :local-field-path])))
-    (is (= 'pixils/form-select-control (:mode kind-control)))
-    (is (= 'ui/number-input (:mode distance-control)))
-    (is (= :visible (get-in kind-view [:style :visibility])))
-    (is (= :visible (get-in distance-view [:style :visibility])))
-    (is (nil? duration-view))))
-
-(deftest make/renders-nested-union-field-with-active-variant-layout
-  (let [view (form/make {:schema
-                         {:definitions
-                          {:effect-base
-                           {:type :object
-                            :fields {:kind {:type :keyword
-                                            :valid-values [:move :wait]}}}
-                           :move-effect
-                           {:extends :effect-base
-                            :fields {:distance {:type :number}}}
-                           :wait-effect
-                           {:extends :effect-base
-                            :fields {:duration {:type :integer}}}
-                           :effect
-                           {:type :union
-                            :discriminator :kind
-                            :base {:ref :effect-base}
-                            :variants {:move {:ref :move-effect}
-                                       :wait {:ref :wait-effect}}}}
-                          :schema {:field/effect {:ref :effect}}}
-                         :layout {:root [:field/effect]
-                                  :fragments
-                                  {:effect
-                                   {:cases
-                                    [{:where {:variant :move}
-                                      :layout [:distance :kind]}
-                                     {:where {:variant :wait}
-                                      :layout [:duration :kind]}]}}}
-                         :value {:field/effect {:kind :move
-                                                :distance 1.5}}})
-        effect-view (form-child view 0)
-        union-control (nth (:children effect-view) 1)]
-    (is (= [:distance :kind]
-           (map (object-control-children union-control)
-                (fn [field]
-                  (-> field :state :local-field-path head)))))))
-
-(deftest make/renders-fragment-case-matching-any-selector
-  (let [view (form/make {:schema
-                         {:definitions
-                          {:effect-base
-                           {:type :object
-                            :fields {:kind {:type :keyword
-                                            :valid-values [:move]}}}
-                           :move-effect
-                           {:extends :effect-base
-                            :fields {:distance {:type :number}}}
-                           :effect
-                           {:type :union
-                            :discriminator :kind
-                            :base {:ref :effect-base}
-                            :variants {:move {:ref :move-effect}}}}
-                          :schema {:primary {:ref :effect}
-                                   :secondary {:ref :effect}}}
-                         :layout {:root [:primary :secondary]
-                                  :fragments
-                                  {:effect
-                                   {:default [:kind]
-                                    :cases
-                                    [{:where [{:path [:secondary]}
-                                              {:path [:alternate]}]
-                                      :layout [:distance :kind]}]}}}
-                         :value {:primary {:kind :move
-                                           :distance 1.5}
-                                 :secondary {:kind :move
-                                             :distance 2.5}}})
-        primary-view (form-child view 0)
-        primary-control (nth (:children primary-view) 1)
-        secondary-view (form-child view 1)
-        secondary-control (nth (:children secondary-view) 1)]
-    (is (= [:kind]
-           (map (object-control-children primary-control)
-                (fn [field]
-                  (-> field :state :local-field-path head)))))
-    (is (= [:distance :kind]
-           (map (object-control-children secondary-control)
-                (fn [field]
-                  (-> field :state :local-field-path head)))))))
-
-(deftest make/renders-active-union-object-field-with-missing-value
-  (let [view (form/make {:schema
-                         {:definitions
-                          {:rule-base
-                           {:type :object
-                            :fields {:type {:type :keyword
-                                            :valid-values [:distance-range]}}}
-                           :distance
-                           {:type :object
-                            :fields {:min {:type :number}
-                                     :max {:type :number}}}
-                           :distance-rule
-                           {:extends :rule-base
-                            :fields {:distance {:ref :distance}}}
-                           :rule
-                           {:type :union
-                            :discriminator :type
-                            :base {:ref :rule-base}
-                            :variants
-                            {:distance-range {:ref :distance-rule}}}}
-                          :schema {:field/rule {:ref :rule}}}
-                         :layout [:field/rule]
-                         :value {:field/rule {:type :distance-range}}})
-        rule-view (form-child view 0)
-        rule-control (nth (:children rule-view) 1)
-        rule-children (object-control-children rule-control)
-        distance-view (nth rule-children 1)
-        distance-control (nth (:children distance-view) 1)
-        distance-children (object-control-children distance-control)
-        min-view (head distance-children)
-        max-view (nth distance-children 1)]
-    (is (= :distance (-> distance-view :state :field-id)))
-    (is (= 'pixils/form-object-control (:mode distance-control)))
-    (is (= :min (-> min-view :state :field-id)))
-    (is (= :max (-> max-view :state :field-id)))))
-
-(deftest make/renders-fields-through-named-definition-references
-  (let [view (form/make {:schema {:definitions
-                                  {:stable-role
-                                   {:type :keyword
-                                    :valid-values
-                                    [:role/stable-lad
-                                     :role/stable-master]}}
-                                  :schema
-                                  {:field/role {:ref :stable-role}}}
-                         :text {:field/role "Role"}
-                         :layout [:field/role]
-                         :value {:field/role :role/stable-lad}})
-        field-view (form-child view 0)
-        control (nth (:children field-view) 1)]
-    (is (= 'pixils/form-select-control (:mode control)))
-    (is (= [{:value nil
-             :label ""}
-            {:value :role/stable-lad
-             :label "role/stable-lad"}
-            {:value :role/stable-master
-             :label "role/stable-master"}]
-           (get-in control [:state :options])))))
-
-(deftest make/renders-object-root-fields-without-explicit-layout
-  (let [view (form/make {:schema {:type :object
-                                  :fields {:relation
-                                           {:type :keyword
-                                            :valid-values
-                                            [:place-relation/works-at]}
-                                           :priority
-                                           {:type :integer
-                                            :min 1}}}
-                         :value {:relation :place-relation/works-at
-                                 :priority 10}})
-        relation-view (form-child view 0)
-        relation-control (nth (:children relation-view) 1)
-        priority-view (form-child view 1)
-        priority-control (nth (:children priority-view) 1)]
-    (is (= 2 (count (form-children view))))
-    (is (= 'pixils/form-select-control (:mode relation-control)))
-    (is (= 'ui/number-input (:mode priority-control)))))
-
-(deftest make/renders-number-fields-with-fractional-input-enabled
-  (let [number-view (form/make {:schema {:distance {:type :number}}
-                                :value {:distance 0.1}})
-        integer-view (form/make {:schema {:count {:type :integer}}
-                                 :value {:count 1}})
-        number-control (nth (:children (form-child number-view 0)) 1)
-        integer-control (nth (:children (form-child integer-view 0)) 1)]
-    (is (= 'ui/number-input (:mode number-control)))
-    (is (= true (get-in number-control [:state :allow-fractions?])))
-    (is (= :blur (get-in number-control [:state :commit-on])))
-    (is (= 'ui/number-input (:mode integer-control)))
-    (is (= false (get-in integer-control [:state :allow-fractions?])))
-    (is (= :blur (get-in integer-control [:state :commit-on])))))
-
-(deftest make/renders-fields-with-form-change-metadata
-  (let [view (form/make {:schema {:name {:type :text}
-                                  :count {:type :integer}
-                                  :enabled? {:type :boolean}
-                                  :role {:type :keyword
-                                         :valid-values [:a :b]}}
-                         :value {:name "Ada"
-                                 :count 1
-                                 :enabled? false
-                                 :role :a}})
-        fields (form-children view)
-        name-field (nth fields 0)
-        count-field (nth fields 1)
-        enabled-field (nth fields 2)
-        role-field (nth fields 3)
-        name-control (nth (:children name-field) 1)
-        count-control (nth (:children count-field) 1)
-        enabled-control (nth (:children enabled-field) 1)
-        role-control (nth (:children role-field) 1)]
-    (is (= :name (get-in name-field [:state :field-id])))
-    (is (= [:name] (get-in name-field [:state :field-path])))
-    (is (= 'pixils/form-text-control (:mode name-control)))
-    (is (= :count (get-in count-field [:state :field-id])))
-    (is (= [:count] (get-in count-field [:state :field-path])))
-    (is (= 'ui/number-input (:mode count-control)))
-    (is (= :enabled? (get-in enabled-field [:state :field-id])))
-    (is (= [:enabled?] (get-in enabled-field [:state :field-path])))
-    (is (= 'ui/checkbox (:mode enabled-control)))
-    (is (= 'pixils/form-select-control (:mode role-control)))
-    (is (= :role (get-in role-control [:state :field-id])))))
-
-(deftest make/renders-nested-object-fields
-  (let [view (form/make {:schema {:field/location
-                                  {:type :object
-                                   :fields {:place-id
-                                            {:type :keyword
-                                             :valid-values
-                                             [:place/dawnkeep-stables]}
-                                            :anchor
-                                            {:type :keyword}}}}
-                         :layout [:field/location]
-                         :value {:field/location
-                                 {:place-id
-                                  :place/dawnkeep-stables
-                                  :anchor :stable/aisle}}})
-        location-view (form-child view 0)
-        object-control (nth (:children location-view) 1)
-        object-children (object-control-children object-control)
-        place-view (head object-children)
-        place-control (nth (:children place-view) 1)
-        anchor-view (nth object-children 1)
-        anchor-control (nth (:children anchor-view) 1)]
-    (is (= 'pixils/form-object-control (:mode object-control)))
-    (is (= 2 (count object-children)))
-    (is (= 'pixils/form-select-control (:mode place-control)))
-    (is (= 'pixils/form-keyword-input (:mode anchor-control)))))
-
-(deftest make/uses-compact-fixed-label-width
-  (let [view (form/make {:schema {:shape
-                                  {:type :object
-                                   :fields {:radius
-                                            {:type :object
-                                             :fields {:x {:type :number}}}}}}
-                         :layout [:shape]
-                         :value {:shape {:radius {:x 1}}}
-                         :field-label-style {:width 112
-                                             :height 18}})
-        shape-view (form-child view 0)
-        shape-label (head (:children shape-view))
-        shape-control (nth (:children shape-view) 1)
-        radius-view (head (object-control-children shape-control))
-        radius-label (head (:children radius-view))
-        radius-control (nth (:children radius-view) 1)
-        x-view (head (object-control-children radius-control))
-        x-label (head (:children x-view))]
-    (is (= 112 (-> shape-label :style :width)))
-    (is (= 64 (-> radius-label :style :width)))
-    (is (= 64 (-> x-label :style :width)))))
-
-(deftest make/supports-explicit-label-style
-  (let [view (form/make {:schema {:shape
-                                  {:type :object
-                                   :fields {:radius
-                                            {:type :object
-                                             :fields {:x {:type :number}}}}}}
-                         :layout [:shape]
-                         :value {:shape {:radius {:x 1}}}
-                         :field-label-style {:width 112
-                                             :height 18}
-                         :nested-field-label-style {:width 72
-                                                    :height 18}})
-        shape-view (form-child view 0)
-        shape-label (head (:children shape-view))
-        shape-control (nth (:children shape-view) 1)
-        radius-view (head (object-control-children shape-control))
-        radius-label (head (:children radius-view))
-        radius-control (nth (:children radius-view) 1)
-        x-view (head (object-control-children radius-control))
-        x-label (head (:children x-view))]
-    (is (= 112 (-> shape-label :style :width)))
-    (is (= 72 (-> radius-label :style :width)))
-    (is (= 72 (-> x-label :style :width)))))
-
-(deftest make/renders-root-array-editor-for-object-items
-  (let [view (form/make {:schema {:type :array
-                                  :item-label {:path [:relation]}
-                                  :item-summary [{:label "Relation"
-                                                  :path [:relation]}
-                                                 {:label "Priority"
-                                                  :path [:priority]}]
-                                  :items {:type :object
-                                          :fields {:relation
-                                                   {:type :keyword
-                                                    :valid-values
-                                                    [:place-relation/works-at]}
-                                                   :priority
-                                                   {:type :integer}}}}
-                         :value [{:relation :place-relation/works-at
-                                  :priority 10}]})
-        array-control (form-child view 0)
-        content-row (head (:children array-control))
-        selection-view (head (:children content-row))
-        list-box (head (:children selection-view))
-        summary-view (nth (:children content-row) 1)
-        action-row (nth (:children array-control) 1)]
-    (is (= 'pixils/form-array-control (:mode array-control)))
-    (is (= 2 (count (:children array-control))))
-    (is (= 'pixils/form-selection (:mode selection-view)))
-    (is (= {:path [:relation]}
-           (-> selection-view :state :item-label)))
-    (is (= 5 (-> list-box :state :component :visible-rows)))
-    (is (= true (-> list-box :state :component :fixed-visible-rows?)))
-    (is (= {:width :fill
-            :height :fill}
-           (:style list-box)))
-    (is (= 'pixils/form-array-summary (:mode summary-view)))
-    (is (= [{:label "Relation"
-             :path [:relation]}
-            {:label "Priority"
-             :path [:priority]}]
-           (-> summary-view :state :specs)))
-    (is (= 3 (count (:children action-row))))))
-
-(deftest make/renders-nested-array-field-editor
-  (let [view (form/make {:schema {:field/relations
-                                  {:type :array
-                                   :items {:type :object
-                                           :fields {:place-id
-                                                    {:type :keyword
-                                                     :valid-values
-                                                     [:place/dawnkeep-stables]}
-                                                    :anchor
-                                                    {:type :keyword}}}}}
-                         :layout [:field/relations]
-                         :value {:field/relations
-                                 [{:place-id
-                                   :place/dawnkeep-stables
-                                   :anchor :stable/aisle}]}})
-        relations-view (form-child view 0)
-        array-control (nth (:children relations-view) 1)
-        content-row (head (:children array-control))
-        selection-view (head (:children content-row))
-        summary-view (nth (:children content-row) 1)
-        action-row (nth (:children array-control) 1)]
-    (is (= 'pixils/form-array-control (:mode array-control)))
-    (is (= 'pixils/form-selection (:mode selection-view)))
-    (is (= :form/edit-item
-           (-> selection-view :state :activate-event)))
-    (is (= 'pixils/form-array-summary (:mode summary-view)))
-    (is (= [{:label ":place-id"
-             :path [:place-id]}
-            {:label ":anchor"
-             :path [:anchor]}]
-           (-> summary-view :state :specs)))
-    (is (= 3 (count (:children action-row))))))
-
-(deftest make/supports-hierarchical-model-projection-layout
-  (let [view (form/make
-              {:models {:register
-                        {:models
-                         {:person
-                          {:schema person-schema
-                           :value {:field/name "Ada"
-                                   :field/age 36}}
-                          :people
-                          {:value [{:field/name "Ada"
-                                    :field/age 36}]}
-                          :selected-person-index
-                          {:value 0
-                           :transient? true}
-                          :new-person?
-                          {:value false
-                           :transient? true}
-                          :new-person
-                          {:value {:field/name ""
-                                   :field/age 0}
-                           :transient? true}}
-                         :projections
-                         {:current-person
-                          {:target [:register :person]
-                           :items [:register :people]
-                           :selected-index
-                           [:register :selected-person-index]
-                           :new? [:register :new-person?]
-                           :new-value [:register :new-person]}}}}
-               :text {:field/name "Name"}
-               :layout [{:type :row
-                         :children [{:type :form
-                                     :model [:register :person]
-                                     :layout [:field/name]}
-                                    {:type :selection
-                                     :projection
-                                     [:register :current-person]}]}]})
-        state (:state view)
-        row-view (form-child view 0)
-        form-view (head (:children row-view))
-        selection-view (nth (:children row-view) 1)]
-    (is (= person-schema (:schema state)))
-    (is (= {:field/name "Ada"
-            :field/age 36}
-           (:value state)))
-    (is (= 1 (count (form-children view))))
-    (is (= 2 (count (:children row-view))))
-    (is (contains? (:state row-view) :value))
-    (is (contains? (:state form-view) :value))
-    (is (= [{:field/name "Ada"
-             :field/age 36}]
-           (:items state)))
-    (is (= 'pixils/form-selection (:mode selection-view)))
-    (is (= 0 (:selected-index state)))
-    (is (= false (:new? state)))))
-
-(deftest make/supports-direct-master-detail-layout
-  (let [view (form/make
-              {:schema person-schema
-               :value {:field/name "Ada"
-                       :field/age 36}
-               :items [{:field/name "Ada"
-                        :field/age 36}
-                       {:field/name "Grace"
-                        :field/age 85}]
-               :selected-index 0
-               :new-value-fn empty-person
-               :layout [{:type :row
-                         :children [{:type :form
-                                     :layout [:field/name]}
-                                    {:type :selection
-                                     :class :person-list
-                                     :item-label [:field/name]}]}]})
-        state (:state view)
-        row-view (form-child view 0)
-        form-view (head (:children row-view))
-        selection-view (nth (:children row-view) 1)]
-    (is (= person-schema (:schema state)))
-    (is (= {:field/name "Ada"
-            :field/age 36}
-           (:value state)))
-    (is (= [{:field/name "Ada"
-             :field/age 36}
-            {:field/name "Grace"
-             :field/age 85}]
-           (:items state)))
-    (is (= 0 (:selected-index state)))
-    (is (= empty-person (:new-value-fn state)))
-    (is (contains? (:state form-view) :value))
-    (is (= 'pixils/form-selection (:mode selection-view)))
-    (is (= [:field/name]
-           (-> selection-view :state :item-label)))
-    (is (= true (view-class? selection-view :pixils/form-selection)))
-    (is (= true (view-class? selection-view :person-list)))))
-
-(deftest make/renders-selection-toolbar-actions
-  (let [view (form/make
-              {:schema person-schema
-               :value {:field/name "Ada"
-                       :field/age 36}
-               :items [{:field/name "Ada"
-                        :field/age 36}]
-               :selected-index 0
-               :layout [[:row
-                         {:type :selection
-                          :item-label [:field/name]
-                          :actions [:add :save :cancel :delete]}
-                         {:type :form
-                          :layout [:field/name]}]]})
-        row-view (form-child view 0)
-        selection-view (head (:children row-view))
-        list-box (head (:children selection-view))
-        toolbar (nth (:children selection-view) 1)]
-    (is (= 2 (count (:children selection-view))))
-    (is (= 'ui/list-box (:mode list-box)))
-    (is (= nil (-> list-box :state :component :item-child)))
-    (is (= :pixils/form-selection-toolbar (:class toolbar)))
-    (is (= [:form/new
-            :form/save-new
-            :form/cancel-new
-            :form/delete]
-           (map (:children toolbar)
-                (fn [action]
-                  (-> action :state :event)))))
-    (is (= [:form/new
-            :form/save-new
-            :form/cancel-new
-            :form/delete]
-           (map (-> view :state :form/actions)
-                form-actions/action-event-id)))))
-
-(deftest make/renders-selection-context-menu-actions
-  (let [view (form/make
-              {:schema person-schema
-               :value {:field/name "Ada"
-                       :field/age 36}
-               :items [{:field/name "Ada"
-                        :field/age 36}]
-               :selected-index 0
-               :layout [[:row
-                         {:type :selection
-                          :item-label [:field/name]
-                          :actions [:add :delete]
-                          :action-presentation
-                          {:delete :context-menu}}
-                         {:type :form
-                          :layout [:field/name]}]]})
-        row-view (form-child view 0)
-        selection-view (head (:children row-view))
-        list-box (head (:children selection-view))
-        toolbar (nth (:children selection-view) 1)
-        item-child (-> list-box :state :component :item-child)
-        item-view (item-child 0 {:value 0
-                                 :label "Ada"})]
-    (is (= [:form/new]
-           (map (:children toolbar)
-                (fn [action]
-                  (-> action :state :event)))))
-    (is (not (nil? item-child)))
-    (is (= 'pixils/form-selection-list-item (:mode item-view)))
-    (is (= [:delete]
-           (map (-> item-view :state :context-menu-actions) :key)))))
-
-(deftest make/supports-action-layout-nodes
-  (let [view (form/make
-              {:models {:register
-                        {:models
-                         {:person
-                          {:schema person-schema
-                           :value {:field/name "Ada"
-                                   :field/age 36}}
-                          :people
-                          {:value [{:field/name "Ada"
-                                    :field/age 36}]}
-                          :selected-person-index
-                          {:value 0}
-                          :new-person?
-                          {:value false}
-                          :new-person
-                          {:value {:field/name ""
-                                   :field/age 0}}}
-                         :projections
-                         {:current-person
-                          {:target [:register :person]
-                           :items [:register :people]
-                           :selected-index
-                           [:register :selected-person-index]
-                           :new? [:register :new-person?]
-                           :new-value [:register :new-person]}}}}
-               :layout [{:type :selection
-                         :projection [:register :current-person]}
-                        {:type :row
-                         :children [{:type :action
-                                     :id :person/new
-                                     :label "New"
-                                     :disabled-when :new?}
-                                    {:type :action
-                                     :id :person/save
-                                     :label "Save"
-                                     :enabled-when
-                                     [:and :new? :valid?]}]}]})
-        action-row (form-child view 1)
-        new-action (head (:children action-row))
-        save-action (nth (:children action-row) 1)]
-    (is (= 'pixils/form-action (:mode new-action)))
-    (is (= :person/new (get-in new-action [:state :event])))
-    (is (= "New" (get-in new-action [:state :label])))
-    (is (= :new? (get-in new-action [:state :disabled-when])))
-    (is (= [:and :new? :valid?]
-           (get-in save-action [:state :enabled-when])))))
-
-(deftest make/renders-map-row-and-group-layout-children
-  (let [view (form/make
-              {:schema person-schema
-               :value {:field/name "Ada"
-                       :field/age 36}
-               :layout [{:type :row
-                         :children [{:type :group
-                                     :layout [:field/name]}
-                                    {:type :group
-                                     :layout [:field/age]}]}]})
-        row-view (form-child view 0)
-        left-group (head (:children row-view))
-        right-group (nth (:children row-view) 1)]
-    (is (= :field/name
-           (-> left-group :children head :state :field-id)))
-    (is (= :field/age
-           (-> right-group :children head :state :field-id)))))
-
-(deftest make/supports-vector-layout-shorthand-with-classes
-  (is (= {:form {:class [:pixils/form :person-register-form]}
-          :row {:class [:pixils/form-row :person-main-row]
-                :state {:value {}}}
-          :fields {:class :pixils/form-fields
-                   :state {:value {}}}
-          :group {:class [:pixils/form-row
-                          :pixils/form-group
-                          :person-list-column]}
-          :selection {:mode 'pixils/form-selection
-                      :class [:pixils/form-selection :person-list]}
-          :action {:mode 'pixils/form-action
-                   :class [:pixils/form-action :person-new]
-                   :state {:event :person/new
-                           :disabled-when :new?}}}
-         (let [view
-               (form/make
-                {:class :person-register-form
-                 :models {:register
-                          {:models
-                           {:person
-                            {:schema person-schema
-                             :value {:field/name "Ada"
-                                     :field/age 36}}
-                            :people
-                            {:value [{:field/name "Ada"
-                                      :field/age 36}]}
-                            :selected-person-index
-                            {:value 0}
-                            :new-person?
-                            {:value false}
-                            :new-person
-                            {:value {:field/name ""
-                                     :field/age 0}}}
-                           :projections
-                           {:current-person
-                            {:target [:register :person]
-                             :items [:register :people]
-                             :selected-index
-                             [:register :selected-person-index]
-                             :new? [:register :new-person?]
-                             :new-value [:register :new-person]}}}}
-                 :layout [[:row.person-main-row
-                           [:form [:register :person] [:field/name]]
-                           [:group.person-list-column
-                            [:selection.person-list
-                             [:register :current-person]]
-                            [:button.person-new
-                             :person/new
-                             {:label "New"
-                              :disabled-when :new?}]]]]})
-               row-view (form-child view 0)
-               fields-view (head (:children row-view))
-               group-view (nth (:children row-view) 1)
-               selection-view (head (:children group-view))
-               action-view (nth (:children group-view) 1)]
-           {:form {:class (:class view)}
-            :row {:class (:class row-view)
-                  :state (select-keys (:state row-view) [:value])}
-            :fields {:class (:class fields-view)
-                     :state (select-keys (:state fields-view) [:value])}
-            :group {:class (:class group-view)}
-            :selection (select-keys selection-view [:mode :class])
-            :action {:mode (:mode action-view)
-                     :class (:class action-view)
-                     :state (select-keys (:state action-view)
-                                         [:event :disabled-when])}}))))
-
+(deftest normalized-form-state/preserves-live-mode
+  (is (= :live
+         (:form/mode
+          (form/normalized-form-state
+           {:schema person-schema
+            :value {:field/name "Ada"}
+            :context {}
+            :mode :live}
+           nil)))))
 
 
 
 ;; pixils.form/field-change-payload
 
-
-(deftest field-change-payload/accepts-color-values
-  (let [color {:r 10 :g 20 :b 30 :a 255}
-        payload (form/field-change-payload-with-commit
-                 {:field-id :accent
-                  :field-path [:accent]
-                  :local-field-path [:accent]
-                  :field-schema {:type :color}
-                  :form-value {:accent {:r 0 :g 0 :b 0 :a 255}}}
-                 color
-                 true)]
-    (is (= color (:value payload)))
-    (is (= {:accent color}
-           (:form-value payload)))))
-
 (deftest field-change-payload/reports-field-and-next-form-value
-  (let [payload (form/field-change-payload
-                 {:field-id :terrain-rule-exclusive
-                  :field-path [:exclusive?]
-                  :local-field-path [:exclusive?]
-                  :field-schema {:type :boolean
-                                 :path [:exclusive?]}
-                  :form-value {:exclusive? false
-                               :label "Grass edge"}}
-                 true)]
-    (is (= :terrain-rule-exclusive (:field-id payload)))
-    (is (= [:exclusive?] (:field-path payload)))
-    (is (= [:exclusive?] (:local-field-path payload)))
-    (is (= false (:old-value payload)))
-    (is (= true (:value payload)))
-    (is (= {:exclusive? true
-            :label "Grass edge"}
-           (:form-value payload)))))
+  (is (= {:field-id :terrain-rule-exclusive
+          :field-path [:exclusive?]
+          :local-field-path [:exclusive?]
+          :field-schema {:type :boolean
+                         :path [:exclusive?]}
+          :old-value false
+          :value true
+          :form-value {:exclusive? true
+                       :label "Grass edge"}}
+         (form/field-change-payload
+          {:field-id :terrain-rule-exclusive
+           :field-path [:exclusive?]
+           :local-field-path [:exclusive?]
+           :field-schema {:type :boolean
+                          :path [:exclusive?]}
+           :form-value {:exclusive? false
+                        :label "Grass edge"}}
+          true))))
 
 (deftest field-change-payload/canonicalizes-keyword-field-values
-  (let [payload (form/field-change-payload
-                 {:field-id :terrain-id
-                  :field-path [:id]
-                  :local-field-path [:id]
-                  :field-schema {:type :keyword}
-                  :form-value {:id :terrain/old}}
-                 "terrain/new")]
-    (is (= :terrain/new (:value payload)))
-    (is (= {:id :terrain/new}
-           (:form-value payload)))))
+  (is (= {:field-id :terrain-id
+          :field-path [:id]
+          :local-field-path [:id]
+          :field-schema {:type :keyword}
+          :old-value :terrain/old
+          :value :terrain/new
+          :form-value {:id :terrain/new}}
+         (form/field-change-payload
+          {:field-id :terrain-id
+           :field-path [:id]
+           :local-field-path [:id]
+           :field-schema {:type :keyword}
+           :form-value {:id :terrain/old}}
+          "terrain/new"))))
 
 (deftest field-change-payload/accepts-leading-colon-for-keywords
-  (let [payload (form/field-change-payload
-                 {:field-id :terrain-id
-                  :field-path [:id]
-                  :local-field-path [:id]
-                  :field-schema {:type :keyword}
-                  :form-value {:id :terrain/old}}
-                 ":terrain/new")]
-    (is (= :terrain/new (:value payload)))
-    (is (= {:id :terrain/new}
-           (:form-value payload)))))
+  (is (= :terrain/new
+         (:value
+          (form/field-change-payload
+           {:field-id :terrain-id
+            :field-path [:id]
+            :local-field-path [:id]
+            :field-schema {:type :keyword}
+            :form-value {:id :terrain/old}}
+           ":terrain/new")))))
 
 (deftest field-change-payload/clears-blank-keyword-fields
-  (let [payload (form/field-change-payload
-                 {:field-id :terrain-id
-                  :field-path [:id]
-                  :local-field-path [:id]
-                  :field-schema {:type :keyword}
-                  :form-value {:id :terrain/old}}
-                 "")]
-    (is (nil? (:value payload)))
-    (is (= {:id nil}
-           (:form-value payload)))))
+  (is (= {:field-id :terrain-id
+          :field-path [:id]
+          :local-field-path [:id]
+          :field-schema {:type :keyword}
+          :old-value :terrain/old
+          :value nil
+          :form-value {:id nil}}
+         (form/field-change-payload
+          {:field-id :terrain-id
+           :field-path [:id]
+           :local-field-path [:id]
+           :field-schema {:type :keyword}
+           :form-value {:id :terrain/old}}
+          ""))))
 
-(deftest field-change-payload/keeps-number-draft-text-until-commit
-  (let [state {:field-id :duration
-               :field-path [:duration]
-               :local-field-path [:duration]
-               :field-schema {:type :integer}
-               :form-value {:duration 50}}
-        draft (form/field-change-payload state "5")
-        committed (form/field-change-payload-with-commit state "5" true)]
-    (is (= "5" (:value draft)))
-    (is (= {:duration "5"} (:form-value draft)))
-    (is (= 5 (:value committed)))
-    (is (= {:duration 5} (:form-value committed)))))
+(deftest field-change-payload/keeps-number-draft-text
+  (is (= {:field-id :duration
+          :field-path [:duration]
+          :local-field-path [:duration]
+          :field-schema {:type :integer}
+          :old-value 50
+          :value "5"
+          :form-value {:duration "5"}}
+         (form/field-change-payload
+          {:field-id :duration
+           :field-path [:duration]
+           :local-field-path [:duration]
+           :field-schema {:type :integer}
+           :form-value {:duration 50}}
+          "5"))))
 
 (deftest field-change-payload/reports-root-form-value
-  (let [payload (form/field-change-payload
-                 {:form-value [{:id :terrain/dirt}]}
-                 [{:id :terrain/grass}])]
-    (is (= nil (:field-id payload)))
-    (is (= nil (:field-path payload)))
-    (is (= [{:id :terrain/dirt}]
-           (:old-value payload)))
-    (is (= [{:id :terrain/grass}]
-           (:value payload)))
-    (is (= [{:id :terrain/grass}]
-           (:form-value payload)))))
+  (is (= {:field-id nil
+          :field-path nil
+          :local-field-path nil
+          :field-schema nil
+          :old-value [{:id :terrain/dirt}]
+          :value [{:id :terrain/grass}]
+          :form-value [{:id :terrain/grass}]}
+         (form/field-change-payload
+         {:form-value [{:id :terrain/dirt}]}
+          [{:id :terrain/grass}]))))
 
+
+
+;; pixils.form/field-change-payload-with-commit
+
+(deftest field-change-payload-with-commit/accepts-color-values
+  (is (= {:field-id :accent
+          :field-path [:accent]
+          :local-field-path [:accent]
+          :field-schema {:type :color}
+          :old-value {:r 0 :g 0 :b 0 :a 255}
+          :value {:r 10 :g 20 :b 30 :a 255}
+          :form-value {:accent {:r 10 :g 20 :b 30 :a 255}}}
+         (form/field-change-payload-with-commit
+          {:field-id :accent
+           :field-path [:accent]
+           :local-field-path [:accent]
+           :field-schema {:type :color}
+           :form-value {:accent {:r 0 :g 0 :b 0 :a 255}}}
+          {:r 10 :g 20 :b 30 :a 255}
+          true))))
+
+(deftest field-change-payload-with-commit/canonicalizes-number-draft-text
+  (is (= {:field-id :duration
+          :field-path [:duration]
+          :local-field-path [:duration]
+          :field-schema {:type :integer}
+          :old-value 50
+          :value 5
+          :form-value {:duration 5}}
+         (form/field-change-payload-with-commit
+          {:field-id :duration
+           :field-path [:duration]
+           :local-field-path [:duration]
+           :field-schema {:type :integer}
+           :form-value {:duration 50}}
+          "5"
+          true))))
 
 
 
 ;; pixils.form/valid-value-options
-
 
 (deftest valid-value-options/resolve-labels-and-values
   (let [field-schema {:type :keyword
@@ -1293,57 +210,56 @@
             {:source :terrain})))))
 
 
-
 
 ;; pixils.form/validated-state
 
-
 (deftest validated-state/validates-current-value
-  (let [value {:field/name ""
-               :field/age -1}
-        state (form/validated-state
-               {:schema person-schema
-                :value value
-                :context {}
-                :valid? :stale
-                :errors :stale-errors})]
-    (is (= false (:valid? state)))
-    (is (= [{:rule :required}]
-           (get-in state [:errors :field/name])))
-    (is (= [{:rule :min
-             :min 0
-             :actual -1}]
-           (get-in state [:errors :field/age])))))
-
+  (is (= {:schema person-schema
+          :value {:field/name ""
+                  :field/age -1}
+          :context {}
+          :valid? false
+          :errors {:field/name [{:rule :required}]
+                   :field/age [{:rule :min
+                                :min 0
+                                :actual -1}]}}
+         (form/validated-state
+          {:schema person-schema
+           :value {:field/name ""
+                   :field/age -1}
+           :context {}
+           :valid? :stale
+           :errors :stale-errors}))))
 
 
 
 ;; pixils.form/changed-form-state
 
-
 (deftest changed-form-state/updates-value-and-validation-from-event-payload
-  (let [state (form/changed-form-state
-               {:schema person-schema
-                :value {:field/name "Ada"
-                        :field/age 36}
-                :context {}
-                :valid? true
-                :errors {}}
-               {:form-value {:field/name ""
-                             :field/age -1}})]
-    (is (= {:field/name ""
-            :field/age -1}
-           (:value state)))
-    (is (= false (:valid? state)))
-    (is (= [{:rule :required}]
-           (get-in state [:errors :field/name])))
-    (is (= [{:rule :min
-             :min 0
-             :actual -1}]
-           (get-in state [:errors :field/age])))))
+  (is (= {:schema person-schema
+          :value {:field/name ""
+                  :field/age -1}
+          :context {}
+          :valid? false
+          :errors {:field/name [{:rule :required}]
+                   :field/age [{:rule :min
+                                :min 0
+                                :actual -1}]}
+          :form/action-disabled {}}
+         (form/changed-form-state
+          {:schema person-schema
+           :value {:field/name "Ada"
+                   :field/age 36}
+           :context {}
+           :valid? true
+           :errors {}}
+          {:form-value {:field/name ""
+                        :field/age -1}}))))
 
 (deftest changed-form-state/keeps-deep-number-draft-text
-  (let [state {:schema {:shape {:type :object
+  (is (= "1200"
+         (-> (form/changed-form-state
+              {:schema {:shape {:type :object
                                 :fields {:radius
                                          {:type :object
                                           :fields {:x
@@ -1356,26 +272,35 @@
                                                                 :number}}}}}}}}}}
                :value {:shape {:radius {:x {:type :random
                                              :range {:min nil}}}}}}
-        draft (form/changed-form-state
-               state
-               {:field-path [:shape :radius :x :range :min]
-                :value "1200"
-                :commit? false})
-        committed (form/changed-form-state
-                   draft
-                   {:field-path [:shape :radius :x :range :min]
-                    :value 1200
-                    :commit? true})]
-    (is (= "1200"
-           (-> draft :value :shape :radius :x :range :min)))
-    (is (= 1200
-           (-> committed :value :shape :radius :x :range :min)))))
+              {:field-path [:shape :radius :x :range :min]
+               :value "1200"
+               :commit? false})
+             :value :shape :radius :x :range :min))))
 
+(deftest changed-form-state/commits-deep-number-value
+  (is (= 1200
+         (-> (form/changed-form-state
+              {:schema {:shape {:type :object
+                                :fields {:radius
+                                         {:type :object
+                                          :fields {:x
+                                                   {:type :object
+                                                    :fields {:range
+                                                             {:type :object
+                                                              :fields
+                                                              {:min
+                                                               {:type
+                                                                :number}}}}}}}}}}
+               :value {:shape {:radius {:x {:type :random
+                                             :range {:min "1200"}}}}}}
+              {:field-path [:shape :radius :x :range :min]
+               :value 1200
+               :commit? true})
+             :value :shape :radius :x :range :min))))
 
 
 
 ;; pixils.form/cached-form-field-state
-
 
 (deftest cached-form-field-state/reuses-visibility-when-inputs-match
   (let [state {:schema person-schema
@@ -1431,10 +356,8 @@
     (is (= false (:visible? changed)))))
 
 
-
 
 ;; pixils.form/branch-render-key
-
 
 (deftest branch-render-key/changes-for-active-branch-not-scalar-edits
   (let [schema-doc {:definitions
@@ -1469,24 +392,32 @@
                                          {}
                                          {})]
     (is (= move-key edited-move-key))
-    (is (not (= move-key wait-key)))))
-
+    (is (not= move-key wait-key))))
 
 
 
 ;; pixils.form/select-control-state
 
-
 (deftest select-control-state/preselects-current-value
-  (let [state (form/select-control-state
-               {:options [{:value nil
-                           :label ""}
-                          {:value :sit
-                           :label "sit"}
-                          {:value :stand
-                           :label "stand"}]
-                :value :stand})]
-    (is (= 2 (:selected-index state)))))
+  (is (= {:options [{:value nil
+                     :label ""}
+                    {:value :sit
+                     :label "sit"}
+                    {:value :stand
+                     :label "stand"}]
+          :value :stand
+          :select-options-key {:value :stand
+                               :valid-values nil
+                               :source {:valid-values nil}}
+          :selected-index 2}
+         (form/select-control-state
+          {:options [{:value nil
+                      :label ""}
+                     {:value :sit
+                      :label "sit"}
+                     {:value :stand
+                      :label "stand"}]
+           :value :stand}))))
 
 (deftest select-control-state/reuses-options-when-inputs-match
   (let [state (form/select-control-state
@@ -1530,10 +461,8 @@
     (is (= 1 (:selected-index changed)))))
 
 
-
 
 ;; pixils.form/valid-value-options-cache
-
 
 (deftest valid-value-options-cache/deduplicates-repeated-context-sources
   (let [valid-values {:from [:vocabularies :places]
@@ -1579,10 +508,8 @@
     (is (= 2 (count (keys cache))))))
 
 
-
 
 ;; pixils.form/form-value-with-field-value
-
 
 (deftest form-value-with-field-value/updates-nested-field-path
   (is (= {:target {:source :terrain
@@ -1600,43 +527,68 @@
           [{:id :terrain/grass}]))))
 
 
-
 
 ;; pixils.form/form-state-change-payload
 
-
 (deftest form-state-change-payload/canonicalizes-number-fields
-  (let [state {:schema {:type :object
-                        :fields {:id {:type :keyword}
-                                 :count {:type :integer}
-                                 :weight {:type :number}
-                                 :parts {:type :array
-                                         :items {:type :object
-                                                 :fields {:offset
-                                                          {:type
-                                                           :number}}}}}}
-               :value {:id "terrain/forest"
+  (is (= {:form-value {:id :terrain/forest
+                       :count 12
+                       :weight 0.5
+                       :parts [{:offset 1.25}]}
+          :value {:id :terrain/forest
+                  :count 12
+                  :weight 0.5
+                  :parts [{:offset 1.25}]}
+          :items nil
+          :selected-index nil
+          :new? nil}
+         (form/form-state-change-payload
+          {:schema {:type :object
+                    :fields {:id {:type :keyword}
+                             :count {:type :integer}
+                             :weight {:type :number}
+                             :parts {:type :array
+                                     :items {:type :object
+                                             :fields {:offset
+                                                      {:type :number}}}}}}
+           :value {:id "terrain/forest"
+                   :count "12"
+                   :weight "0.5"
+                   :parts [{:offset "1.25"}]}}))))
+
+
+
+;; pixils.form/form-state-draft-change-payload
+
+(deftest form-state-draft-change-payload/preserves-number-draft-text
+  (is (= {:form-value {:id "terrain/forest"
                        :count "12"
                        :weight "0.5"
-                       :parts [{:offset "1.25"}]}}
-        payload (form/form-state-change-payload state)
-        draft-payload (form/form-state-draft-change-payload state)]
-    (is (= {:id :terrain/forest
-            :count 12
-            :weight 0.5
-            :parts [{:offset 1.25}]}
-           (:value payload)))
-    (is (= {:id "terrain/forest"
-            :count "12"
-            :weight "0.5"
-            :parts [{:offset "1.25"}]}
-           (:value draft-payload)))))
-
+                       :parts [{:offset "1.25"}]}
+          :value {:id "terrain/forest"
+                  :count "12"
+                  :weight "0.5"
+                  :parts [{:offset "1.25"}]}
+          :items nil
+          :selected-index nil
+          :new? nil}
+         (form/form-state-draft-change-payload
+          {:schema {:type :object
+                    :fields {:id {:type :keyword}
+                             :count {:type :integer}
+                             :weight {:type :number}
+                             :parts {:type :array
+                                     :items {:type :object
+                                             :fields {:offset
+                                                      {:type :number}}}}}}
+           :value {:id "terrain/forest"
+                   :count "12"
+                   :weight "0.5"
+                   :parts [{:offset "1.25"}]}}))))
 
 
 
 ;; pixils.form/projection-state
-
 
 (deftest projection-state/selects-current-collection-item
   (let [state (form/projection-state
@@ -1682,10 +634,8 @@
     (is (= {:name "New Person"} (:projected-item state)))))
 
 
-
 
 ;; pixils.form/begin-new-state
-
 
 (deftest begin-new-state/uses-projection-factory
   (let [state (form/begin-new-state
@@ -1694,7 +644,7 @@
                 :selected-index 0
                 :new-value-fn empty-person})]
     (is (= true (:new? state)))
-    (is (= nil (:selected-index state)))
+    (is (nil? (:selected-index state)))
     (is (= 0 (:previous-selected-index state)))
     (is (= {:field/name ""
             :field/age 0
@@ -1703,10 +653,8 @@
     (is (= (:value state) (:new-value state)))))
 
 
-
 
 ;; pixils.form/save-new-state
-
 
 (deftest save-new-state/appends-and-selects-created-item
   (let [state (form/save-new-state
@@ -1724,7 +672,7 @@
            (:items state)))
     (is (= 1 (:selected-index state)))
     (is (= false (:new? state)))
-    (is (= nil (:new-value state)))))
+    (is (nil? (:new-value state)))))
 
 (deftest save-new-state/canonicalizes-submitted-number-drafts
   (let [state (form/save-new-state
@@ -1749,10 +697,8 @@
            (:value state)))))
 
 
-
 
 ;; pixils.form/delete-state
-
 
 (deftest delete-state/removes-selected-item-and-selects-next
   (let [state (form/delete-state
@@ -1767,10 +713,8 @@
            (:items state)))
     (is (= 1
            (:selected-index state)))
-    (is (= nil
-           (:projected-index state)))
-    (is (= nil
-           (:projected-item state)))))
+    (is (nil? (:projected-index state)))
+    (is (nil? (:projected-item state)))))
 
 (deftest delete-state/selects-previous-when-last-item-is-removed
   (let [state (form/delete-state
@@ -1788,24 +732,25 @@
                 :selected-index 0})]
     (is (= []
            (:items state)))
-    (is (= nil
-           (:selected-index state)))))
+    (is (nil? (:selected-index state)))))
 
-(deftest delete-state/without-valid-selection-is-no-op
-  (let [state {:items [{:name "Ada"}]
-               :selected-index nil}]
-    (is (= state
-           (form/delete-state state))))
-  (let [state {:items [{:name "Ada"}]
-               :selected-index 2}]
-    (is (= state
-           (form/delete-state state)))))
+(deftest delete-state/is-a-no-op-without-a-selection
+  (is (= {:items [{:name "Ada"}]
+          :selected-index nil}
+         (form/delete-state
+          {:items [{:name "Ada"}]
+           :selected-index nil}))))
 
+(deftest delete-state/is-a-no-op-with-an-out-of-range-selection
+  (is (= {:items [{:name "Ada"}]
+          :selected-index 2}
+         (form/delete-state
+          {:items [{:name "Ada"}]
+           :selected-index 2}))))
 
 
 
 ;; pixils.form/move-up-state
-
 
 (deftest move-up-state/swaps-selected-item-with-previous
   (let [state (form/move-up-state
@@ -1821,8 +766,7 @@
            (:items state)))
     (is (= 1
            (:selected-index state)))
-    (is (= nil
-           (:projected-index state)))))
+    (is (nil? (:projected-index state)))))
 
 (deftest move-up-state/is-a-no-op-at-the-first-item
   (is (= {:items [{:name "Ada"}
@@ -1834,10 +778,8 @@
            :selected-index 0}))))
 
 
-
 
 ;; pixils.form/move-down-state
-
 
 (deftest move-down-state/swaps-selected-item-with-next
   (let [state (form/move-down-state
@@ -1852,27 +794,34 @@
     (is (= 1
            (:selected-index state)))))
 
-(deftest move-down-state/is-a-no-op-at-the-boundary-or-during-a-new-session
-  (let [state {:items [{:name "Ada"}
-                       {:name "Grace"}]
-               :selected-index 1}]
-    (is (= state
-           (form/move-down-state state))))
-  (let [state {:items [{:name "Ada"}]
-               :selected-index nil}]
-    (is (= state
-           (form/move-down-state state))))
-  (let [state {:items [{:name "Ada"}]
-               :selected-index 0
-               :new? true}]
-    (is (= state
-           (form/move-down-state state)))))
+(deftest move-down-state/is-a-no-op-at-the-last-item
+  (is (= {:items [{:name "Ada"}
+                  {:name "Grace"}]
+          :selected-index 1}
+         (form/move-down-state
+          {:items [{:name "Ada"}
+                   {:name "Grace"}]
+           :selected-index 1}))))
 
+(deftest move-down-state/is-a-no-op-without-a-selection
+  (is (= {:items [{:name "Ada"}]
+          :selected-index nil}
+         (form/move-down-state
+          {:items [{:name "Ada"}]
+           :selected-index nil}))))
+
+(deftest move-down-state/is-a-no-op-during-a-new-session
+  (is (= {:items [{:name "Ada"}]
+          :selected-index 0
+          :new? true}
+         (form/move-down-state
+          {:items [{:name "Ada"}]
+           :selected-index 0
+           :new? true}))))
 
 
 
 ;; pixils.form/cancel-new-state
-
 
 (deftest cancel-new-state/restores-previous-selection
   (let [state (form/cancel-new-state
@@ -1882,13 +831,11 @@
                 :new-value {:field/name ""}})]
     (is (= 2 (:selected-index state)))
     (is (= false (:new? state)))
-    (is (= nil (:new-value state)))))
-
+    (is (nil? (:new-value state)))))
 
 
 
 ;; pixils.form/selection-options
-
 
 (deftest selection-options/support-data-driven-item-labels
   (let [options (form/selection-options
@@ -1902,71 +849,82 @@
            options))))
 
 
-
 
 ;; pixils.form/selection-add-dialog-config
 
-
-(deftest selection-add-dialog-config/is-inferred-from-actions
-  (let [dialog-actions (form-selection/actions
-                        {:actions {:add true
-                                   :delete true}})
-        inline-actions (form-selection/actions {:editable? true})
-        custom-dialog-actions
-        (form-selection/actions {:actions {:add {:dialog {:title "Add Person"
-                                                          :layout [:field/name]}}
-                                          :delete true}})
-        disabled-dialog-actions
-        (form-selection/actions {:actions {:add {:dialog false}
-                                          :delete true}})]
-    (is (= {}
-           (form/selection-add-dialog-config
-            {:form/actions dialog-actions}
-            (head dialog-actions))))
-    (is (nil?
+(deftest selection-add-dialog-config/infers-default-dialog-for-add-only-actions
+  (is (= {}
          (form/selection-add-dialog-config
-          {:form/actions inline-actions}
-          (head inline-actions))))
-    (is (= {:title "Add Person"
-            :layout [:field/name]}
-           (form/selection-add-dialog-config
-            {:form/actions custom-dialog-actions}
-            (head custom-dialog-actions))))
-    (is (nil?
-         (form/selection-add-dialog-config
-          {:form/actions disabled-dialog-actions}
-          (head disabled-dialog-actions))))))
+          {:form/actions [{:key :add
+                           :id :form/new}
+                          {:key :delete
+                           :id :form/delete}]}
+          {:key :add
+           :id :form/new}))))
 
+(deftest selection-add-dialog-config/keeps-editable-selection-inline
+  (is (nil?
+       (form/selection-add-dialog-config
+        {:form/actions [{:key :add
+                         :id :form/new}
+                        {:key :save
+                         :id :form/save-new}
+                        {:key :cancel
+                         :id :form/cancel-new}]}
+        {:key :add
+         :id :form/new}))))
+
+(deftest selection-add-dialog-config/returns-custom-dialog-configuration
+  (is (= {:title "Add Person"
+          :layout [:field/name]}
+         (form/selection-add-dialog-config
+          {:form/actions []}
+          {:key :add
+           :id :form/new
+           :dialog {:title "Add Person"
+                    :layout [:field/name]}}))))
+
+(deftest selection-add-dialog-config/respects-disabled-dialog-configuration
+  (is (nil?
+       (form/selection-add-dialog-config
+        {:form/actions []}
+        {:key :add
+         :id :form/new
+         :dialog false}))))
 
 
 
 ;; pixils.form/array-dialog-result-state
 
+(deftest array-dialog-result-state/appends-confirmed-new-item
+  (is (= {:items [{:name "Ada"}
+                  {:name "Grace"}
+                  {:name "Katherine"}]
+          :selected-index 2
+          :projected-index nil
+          :projected-item nil}
+         (form/array-dialog-result-state
+          {:items [{:name "Ada"}
+                   {:name "Grace"}]
+           :selected-index 0}
+          {:type :confirm
+           :new? true
+           :value {:name "Katherine"}}))))
 
-(deftest array-dialog-result-state/appends-and-replaces-items
-  (let [state {:items [{:name "Ada"}
-                       {:name "Grace"}]
-               :selected-index 0}
-        appended (form/array-dialog-result-state
-                  state
-                  {:type :confirm
-                   :new? true
-                   :value {:name "Katherine"}})
-        replaced (form/array-dialog-result-state
-                  state
-                  {:type :confirm
-                   :new? false
-                   :index 1
-                   :value {:name "Margaret"}})]
-    (is (= [{:name "Ada"}
-            {:name "Grace"}
-            {:name "Katherine"}]
-           (:items appended)))
-    (is (= 2 (:selected-index appended)))
-    (is (= [{:name "Ada"}
-            {:name "Margaret"}]
-           (:items replaced)))
-    (is (= 1 (:selected-index replaced)))))
+(deftest array-dialog-result-state/replaces-confirmed-existing-item
+  (is (= {:items [{:name "Ada"}
+                  {:name "Margaret"}]
+          :selected-index 1
+          :projected-index nil
+          :projected-item nil}
+         (form/array-dialog-result-state
+          {:items [{:name "Ada"}
+                   {:name "Grace"}]
+           :selected-index 0}
+          {:type :confirm
+           :new? false
+           :index 1
+           :value {:name "Margaret"}}))))
 
 (deftest array-dialog-result-state/canonicalizes-submitted-number-drafts
   (let [schema {:type :object
@@ -1988,61 +946,9 @@
              :weight 1.5}]
            (:items next-state)))))
 
-(deftest array-dialog-result-state/appends-and-projects-new-item
-  (let [state (form/form-state
-               {:schema person-schema
-                :value {:field/name "Ada"
-                        :field/age 36}
-                :items [{:field/name "Ada"
-                         :field/age 36}]
-                :selected-index 0
-                :new-value-fn empty-person})
-        next-state (form/form-state
-                    (form/array-dialog-result-state
-                     state
-                     {:type :confirm
-                      :new? true
-                      :value {:field/name "Grace"
-                              :field/age 85}}))]
-    (is (= [{:field/name "Ada"
-             :field/age 36}
-            {:field/name "Grace"
-             :field/age 85}]
-           (:items next-state)))
-    (is (= 1 (:selected-index next-state)))
-    (is (= {:field/name "Grace"
-            :field/age 85}
-           (:value next-state)))))
-
-(deftest array-dialog-result-state/replaces-existing-empty-item
-  (let [state {:items [{}]
-               :selected-index 0
-               :projected-index 0
-               :projected-item {}
-               :value {}}
-        replaced (form/array-dialog-result-state
-                  state
-                  {:type :confirm
-                   :new? false
-                   :index 0
-                   :value {:relation :place-relation/works-at
-                           :place-id :workstation/stable-hand-post
-                           :anchor :stand}})
-        projected (form/projection-state replaced)]
-    (is (= [{:relation :place-relation/works-at
-             :place-id :workstation/stable-hand-post
-             :anchor :stand}]
-           (:items replaced)))
-    (is (= {:relation :place-relation/works-at
-            :place-id :workstation/stable-hand-post
-            :anchor :stand}
-           (:value projected)))))
-
-
 
 
 ;; pixils.form/array-item-dialog-result
-
 
 (deftest array-item-dialog-result/canonicalizes-submitted-number-drafts
   (let [result (form/array-item-dialog-result
@@ -2063,75 +969,36 @@
            result))))
 
 
-
 
 ;; pixils.form/array-items-change-payload
 
-
 (deftest array-items-change-payload/reports-root-array-value
-  (let [payload (form/array-items-change-payload
-                 {:items [{:id :terrain/dirt}]}
-                 {:items [{:id :terrain/dirt}
-                          {:id :terrain/grass}]})]
-    (is (= nil (:field-path payload)))
-    (is (= true (:commit? payload)))
-    (is (= nil
-           (form/array-items-change-payload
-            {:items [{:id :terrain/grass}
-                     {:id :terrain/dirt}]}
-            {:items [{:id :terrain/grass}
-                     {:id :terrain/dirt}]})))
-    (is (= [{:id :terrain/dirt}
-            {:id :terrain/grass}]
-           (:form-value payload)))))
+  (is (= {:field-id nil
+          :field-path nil
+          :local-field-path nil
+          :field-schema nil
+          :old-value nil
+          :value [{:id :terrain/dirt}
+                  {:id :terrain/grass}]
+          :form-value [{:id :terrain/dirt}
+                       {:id :terrain/grass}]
+          :commit? true}
+         (form/array-items-change-payload
+          {:items [{:id :terrain/dirt}]}
+          {:items [{:id :terrain/dirt}
+                   {:id :terrain/grass}]}))))
 
-(deftest array-items-change-payload/uses-full-field-path
-  (let [view (form/array-control-view
-              :parts
-              {:type :array
-               :items {:type :object
-                       :fields {:id {:type :keyword}}}}
-              {:field-path-prefix [:shape]
-               :schema {:type :object
-                        :fields {:parts {:type :array
-                                         :items {:type :object
-                                                 :fields {:id
-                                                          {:type :keyword}}}}}}
-               :value {:parts [{:id :base}]}}
-              [{:id :base}])
-        state (assoc (:state view)
-                     :items [{:id :base}]
-                     :form-value {:shape {:parts [{:id :base}]}})
-        payload (form/array-items-change-payload
-                 state
-                 (assoc state
-                        :items [{:id :base}
-                                {:id :cove}]))
-        next-form-state
-        (form/changed-form-state
-         {:schema {:shape {:type :object
-                           :fields {:parts {:type :array
-                                            :items {:type :object
-                                                    :fields {:id
-                                                             {:type
-                                                              :keyword}}}}}}}
-          :value {:shape {:parts [{:id :base}]}}}
-         payload)]
-    (is (= [:shape :parts] (:field-path payload)))
-    (is (= [:parts] (:local-field-path payload)))
-    (is (= {:shape {:parts [{:id :base}
-                            {:id :cove}]}}
-           (:form-value payload)))
-    (is (= [{:id :base}
-            {:id :cove}]
-           (-> next-form-state :value :shape :parts)))
-    (is (nil? (-> next-form-state :value :parts)))))
-
+(deftest array-items-change-payload/returns-nil-when-items-are-unchanged
+  (is (nil?
+       (form/array-items-change-payload
+        {:items [{:id :terrain/grass}
+                 {:id :terrain/dirt}]}
+        {:items [{:id :terrain/grass}
+                 {:id :terrain/dirt}]}))))
 
 
 
 ;; pixils.form/move-item-state
-
 
 (deftest move-item-state/reorders-items-and-selected-index
   (let [state (form/move-item-state
@@ -2141,179 +1008,3 @@
                2)]
     (is (= [:b :c :a] (:items state)))
     (is (= 2 (:selected-index state)))))
-
-
-
-
-;; pixils.form/array-item-dialog-body
-
-
-(deftest array-item-dialog-body/renders-form-and-buttons
-  (let [body (form/array-item-dialog-body
-              {:type :object
-               :fields {:relation {:type :keyword}
-                        :priority {:type :integer}}}
-              {})
-        item-form (head (:children body))
-        button-row (nth (:children body) 1)]
-    (is (= 'ui/dialog-body (:mode body)))
-    (is (contains? (:state body) :value))
-    (is (contains? (:state body) :index))
-    (is (contains? (:state body) :new?))
-    (is (contains? (:on body) :form/draft-change))
-    (is (contains? (:on body) :dialog/button))
-    (is (= 'pixils/form (:mode item-form)))
-    (is (= true
-           (view-class? item-form :pixils/form)))
-    (is (= true
-           (view-class? item-form :pixils/form-array-item-form)))
-    (is (= "form-body" (-> item-form :children head :id)))
-    (is (= :pixils/form-body (-> item-form :children head :class)))
-    (is (= 'ui/dialog-button-row (:mode button-row)))
-    (is (= 2 (count (:children button-row))))))
-
-(deftest array-item-dialog-body/keeps-item-form-fill-width-with-theme-styles
-  (let [body (form/array-item-dialog-body
-              {:type :object
-               :fields {:opacity {:type :slider
-                                  :min 0
-                                  :max 1}}}
-              {:theme-styles? true})
-        item-form (head (:children body))]
-    (is (= [:pixils/form :pixils/form-array-item-form]
-           (:class item-form)))
-    (is (= form/default-array-dialog-form-style
-           (:style item-form)))))
-
-(deftest array-item-dialog-body/uses-configured-layout
-  (let [body (form/array-item-dialog-body
-              person-schema
-              {:layout [:field/name]
-               :value {:field/name "Ada"
-                       :field/age 36}})
-        item-form (head (:children body))]
-    (is (= 1
-           (count (form-children item-form))))
-    (is (= :field/name
-           (-> (form-children item-form) head :state :field-id)))))
-
-(deftest array-item-dialog-body/uses-global-fragment-layout
-  (let [body (form/array-item-dialog-body
-              {:type :object
-               :fields {:field/name {:type :text}
-                        :field/age {:type :integer}}}
-              {:layout {:fragments
-                        {:object [:field/age :field/name]}}
-               :value {:field/name "Ada"
-                       :field/age 36}})
-        item-form (head (:children body))]
-    (is (= [:field/age :field/name]
-           (map (form-children item-form)
-                (fn [field]
-                  (-> field :state :field-id)))))))
-
-(deftest array-item-dialog-body/renders-fragment-sections-as-top-level-sections
-  (let [body (form/array-item-dialog-body
-              {:type :object
-               :fields {:field/name {:type :text}}}
-              {:layout {:fragments
-                        {:object [{:type :section
-                                   :title "Identity"
-                                   :layout [:field/name]}]}}
-               :value {:field/name "Ada"}})
-        item-form (head (:children body))
-        section (head (form-children item-form))]
-    (is (= 'ui/group-box (:mode section)))
-    (is (= :pixils/form-section (:class section)))
-    (is (= "Identity"
-           (-> section :state :title)))))
-
-(deftest array-item-dialog-body/uses-active-root-union-variant-layout
-  (let [body (form/array-item-dialog-body
-              {:definitions
-               {:rule-base
-                {:type :object
-                 :fields {:type {:type :keyword
-                                 :valid-values [:preferred-position
-                                                :distance-range]}}}
-                :preferred-position-rule
-                {:extends :rule-base
-                 :fields {:point {:type :number}}}
-                :distance-range-rule
-                {:extends :rule-base
-                 :fields {:distance {:type :number}}}
-                :rule
-                {:type :union
-                 :discriminator :type
-                 :base {:ref :rule-base}
-                 :variants {:preferred-position
-                            {:ref :preferred-position-rule}
-                            :distance-range
-                             {:ref :distance-range-rule}}}}
-               :schema {:ref :rule}}
-              {:layout {:fragments
-                        {:rule {:cases
-                                [{:where {:variant :preferred-position}
-                                  :layout [:point :type]}
-                                 {:where {:variant :distance-range}
-                                  :layout [:distance :type]}]}}}
-               :value {:type :preferred-position
-                       :point 3}})
-        item-form (head (:children body))
-        union-control (head (form-children item-form))]
-    (is (= [:point :type]
-           (map (object-control-children union-control)
-                (fn [field]
-                  (-> field :state :field-id)))))))
-
-(deftest array-item-dialog-body/keeps-default-root-union-layout-dynamic
-  (let [body (form/array-item-dialog-body
-              {:definitions
-               {:rule-base
-                {:type :object
-                 :fields {:type {:type :keyword
-                                 :valid-values [:preferred-position
-                                                :distance-range]}}}
-                :preferred-position-rule
-                {:extends :rule-base
-                 :fields {:point {:type :number}}}
-                :distance-range-rule
-                {:extends :rule-base
-                 :fields {:distance {:type :number}}}
-                :rule
-                {:type :union
-                 :discriminator :type
-                 :base {:ref :rule-base}
-                 :variants {:preferred-position
-                            {:ref :preferred-position-rule}
-                            :distance-range
-                            {:ref :distance-range-rule}}}}
-               :schema {:ref :rule}}
-              {:value {:type :preferred-position
-                       :point 3}})
-        item-form (head (:children body))
-        union-control (head (form-children item-form))
-        union-children (object-control-children union-control)
-        point-view (nth union-children 1)
-        distance-view (nth union-children 2)]
-    (is (nil? (-> item-form :state :form/layout)))
-    (is (nil? (-> union-control :state :layout)))
-    (is (= :point (-> point-view :state :field-id)))
-    (is (nil? distance-view))))
-
-(deftest array-item-dialog-body/preserves-custom-controls
-  (let [custom-control (fn [field-id field-schema field-label opts]
-                         {:mode 'test/custom-control
-                          :state {:field-id field-id
-                                  :label field-label}})
-        body (form/array-item-dialog-body
-              {:type :object
-               :fields {:group {:type :group-membership}}}
-              {:controls {:group-membership custom-control}
-               :text {:group "Group"}})
-        item-form (head (:children body))
-        field-view (head (form-children item-form))
-        control (nth (:children field-view) 1)]
-    (is (= 'test/custom-control (:mode control)))
-    (is (= :group (-> control :state :field-id)))
-    (is (= "Group" (-> control :state :label)))))

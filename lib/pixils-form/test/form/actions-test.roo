@@ -1,0 +1,25 @@
+(ns pixils.form.actions-test
+  (:require proof.core
+            [pixils.form.actions :as actions]))
+
+
+
+;; pixils.form.actions/action-disabled?
+
+(deftest action-disabled?/returns-true-when-disabled-condition-matches
+  (is (= true (actions/action-disabled? {:form-state {:new? true}
+                                         :disabled-when :new?}))))
+
+(deftest action-disabled?/returns-true-when-enabled-condition-does-not-match
+  (is (= true (actions/action-disabled? {:form-state {:new? true
+                                                      :valid? false}
+                                         :enabled-when [:and :new? :valid?]}))))
+
+(deftest action-disabled?/returns-false-when-enabled-condition-matches
+  (is (= false (actions/action-disabled? {:form-state {:new? true
+                                                       :valid? true}
+                                          :enabled-when [:and :new? :valid?]}))))
+
+(deftest action-disabled?/treats-zero-index-as-present
+  (is (= false (actions/action-disabled? {:form-state {:selected-index 0}
+                                          :enabled-when :selected-index}))))

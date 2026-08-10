@@ -2,40 +2,80 @@
   (:require proof.core
             [pixils.form.layout :as layout]))
 
-(deftest normalizes-section-layout-shorthand
-  (let [item (layout/normalize-layout-item
-              [:section.identity "Identity" :field/name :field/age])]
-    (is (= :section (:type item)))
-    (is (= :identity (:class item)))
-    (is (= "Identity" (:title item)))
-    (is (= [:field/name :field/age] (:layout item)))))
 
-(deftest layout-searches-through-section-children
-  (let [selection {:type :selection
-                   :projection :people}
-        action {:type :action
-                :id :person/save}
-        form {:type :form
-              :projection :person
-              :layout [:field/name]}
-        section {:type :section
-                 :title "People"
-                 :layout [selection action form]}
-        layout [section]]
-    (is (= :people
-           (layout/layout-projection layout)))
-    (is (= selection
-           (layout/layout-selection layout)))
-    (is (= [action]
-           (layout/layout-actions layout)))))
+
+;; pixils.form.layout/normalize-layout-item
 
-(deftest section-wrapper-defaults-are-depth-aware
-  (is (= :group-box
-         (layout/section-wrapper {} {})))
-  (is (= :plain
-         (layout/section-wrapper {}
-                                 {:form/section-depth 1})))
-  (is (= :none
-         (layout/section-wrapper {}
-                                 {:form/section-depth 2
-                                  :section-wrappers {2 :none}}))))
+(deftest normalize-layout-item/normalizes-section-layout-shorthand
+  (is (= {:title "Identity"
+          :layout [:field/name :field/age]
+          :type :section
+          :class :identity}
+         (layout/normalize-layout-item
+          [:section.identity "Identity" :field/name :field/age]))))
+
+
+
+;; pixils.form.layout/layout-projection
+
+(deftest layout-projection/searches-through-section-children
+  (is (= :people
+         (layout/layout-projection
+          [{:type :section
+            :title "People"
+            :layout [{:type :selection
+                      :projection :people}
+                     {:type :action
+                      :id :person/save}
+                     {:type :form
+                      :projection :person
+                      :layout [:field/name]}]}]))))
+
+
+
+;; pixils.form.layout/layout-selection
+
+(deftest layout-selection/searches-through-section-children
+  (is (= {:type :selection
+          :projection :people}
+         (layout/layout-selection
+          [{:type :section
+            :title "People"
+            :layout [{:type :selection
+                      :projection :people}
+                     {:type :action
+                      :id :person/save}
+                     {:type :form
+                      :projection :person
+                      :layout [:field/name]}]}]))))
+
+
+
+;; pixils.form.layout/layout-actions
+
+(deftest layout-actions/searches-through-section-children
+  (is (= [{:type :action
+           :id :person/save}]
+         (layout/layout-actions
+          [{:type :section
+            :title "People"
+            :layout [{:type :selection
+                      :projection :people}
+                     {:type :action
+                      :id :person/save}
+                     {:type :form
+                      :projection :person
+                      :layout [:field/name]}]}]))))
+
+
+
+;; pixils.form.layout/section-wrapper
+
+(deftest section-wrapper/defaults-are-depth-aware
+  (is (= [:group-box :plain :none]
+         [(layout/section-wrapper {} {})
+          (layout/section-wrapper {}
+                                  {:form/section-depth 1})
+          (layout/section-wrapper {}
+                                  {:form/section-depth 2
+                                   :section-wrappers {2 :none}})])))

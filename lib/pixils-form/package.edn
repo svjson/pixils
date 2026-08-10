@@ -5,7 +5,7 @@
                 zoology "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src"]
- :namespace-roots {pixils ["src/pixils" "test"]}
+ :namespace-roots {pixils ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points []
  :test-entry-points []}
