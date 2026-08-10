@@ -100,11 +100,10 @@
                                   from (:from-index payload)
                                   to (:to-index payload)
                                   item (nth options from)
-                                  remaining (concat (take from options)
-                                                    (drop (inc from) options))
+                                  remaining (drop options from (inc from))
                                   reordered (concat (take to remaining)
                                                     [item]
-                                                    (drop to remaining))]
+                                                    (slice remaining to))]
 
                                 (ui/stop-propagation! event)
                                 (assoc state

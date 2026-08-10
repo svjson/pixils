@@ -586,6 +586,38 @@
           (is (= true
                  (:selected (runtime/view-state selected-row)))))))))
 
+(deftest lists-tab-reorder-list-drag-updates-state
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [lists-tab (runtime/find-view-containing app
+                                                  "ui/tab"
+                                                  ":tab-id :lists")]
+      (runtime/click! app lists-tab)
+      (settle-layout! app)
+      (let [row (runtime/find-view-containing app
+                                              "ui/list-box-item"
+                                              ":reorderable? true")
+            bounds (:bounds row)
+            x (+ (:x bounds) (view-center-x row))
+            y (+ (:y bounds) (view-center-y row))
+            drop-y (+ y 88)]
+        (runtime/mouse-down-at! app x y)
+        (runtime/update! app)
+        (runtime/mouse-move-at! app x drop-y)
+        (runtime/update! app)
+        (runtime/mouse-up-at! app x drop-y)
+        (runtime/update! app)
+        (settle-layout! app)
+        (let [state (runtime/active-state app)]
+          (is (= "List row reordered."
+                 (:message state)))
+          (is (not= :one
+                    (:value (head (:list-reorder-options state))))))))))
+
 (deftest lists-tab-renders-tree-view
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800
