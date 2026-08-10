@@ -646,8 +646,8 @@ TEST_F(ComboBoxTest, combo_box_popup_scroll_range_uses_measured_tall_item_height
 {
   runtime.eval(R"(
     (pixils/deftheme tall-list-item-theme
-      {:styles {'ui/list-box-item {:box-sizing :content-box
-                                   :padding [6 0]}}})
+      {:styles {'ui/option-item {:box-sizing :content-box
+                                 :padding [6 0]}}})
 
     (pixils/defmode root-mode
       {:theme ['pixils/base-theme 'tall-list-item-theme]

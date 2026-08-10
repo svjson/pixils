@@ -1,0 +1,404 @@
+(ns pixils.ui.option-list
+  (:require pixils
+            pixils.ui.scroll-pane
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.option-item :as option]))
+
+
+
+;; Geometry
+
+(defun content-height [options row-height]
+  (* (count options) row-height))
+
+(defun visible-height [options row-height visible-rows max-height fixed-visible-rows?]
+  (let [visible-height (* row-height visible-rows)
+        target-height (if fixed-visible-rows?
+                        visible-height
+                        (min visible-height
+                             (content-height options row-height)))]
+    (min (or max-height target-height)
+         target-height)))
+
+(defun style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
+(defun item-padding [ctx]
+  (ui/theme-var ctx :list-box-item-padding nil))
+
+(defun theme-row-height [ctx]
+  (ui/theme-var ctx :list-box-row-height nil))
+
+(defun theme-visible-rows [ctx]
+  (ui/theme-var ctx :list-box-visible-rows nil))
+
+(defun padding-side [padding side]
+  (case side
+    :top (or (:top padding) (:t padding) 0)
+    :right (or (:right padding) (:r padding) 0)
+    :bottom (or (:bottom padding) (:b padding) 0)
+    :left (or (:left padding) (:l padding) 0)
+    :default 0))
+
+(defun measured-row-height [ctx]
+  (let [dim (r/text-size "M" (text-args (style ctx)))
+        padding (item-padding ctx)]
+    (max (theme-row-height ctx)
+         (+ (get dim :h 0)
+            (padding-side padding :top)
+            (padding-side padding :bottom)))))
+
+(defun option-label-width [item text-opts]
+  (or (:w (r/text-size (option/label item) text-opts)) 0))
+
+(defun measured-content-width [state ctx]
+  (let [text-opts (text-args (style ctx))
+        padding (item-padding ctx)
+        label-width (reduce (:options state)
+                            0
+                            (fn [out item]
+                              (max out
+                                   (option-label-width item text-opts))))]
+    (max 1 (+ label-width
+              (padding-side padding :left)
+              (padding-side padding :right)))))
+
+(defun row-height [state ctx]
+  (or (:row-height state)
+      (when ctx (measured-row-height ctx))
+      (:computed-row-height state)))
+
+(defun visible-rows [state ctx]
+  (or (:visible-rows state)
+      (when ctx (theme-visible-rows ctx))
+      (:computed-visible-rows state)))
+
+(defun content-width [state ctx]
+  (or (:content-width state)
+      (when ctx (measured-content-width state ctx))
+      (:computed-content-width state)
+      1))
+
+(defun preferred-height [state ctx]
+  (visible-height (:options state)
+                  (row-height state ctx)
+                  (visible-rows state ctx)
+                  (:max-height state)
+                  (:fixed-visible-rows? state)))
+
+(defun content-state [ui-state state]
+  (merge (reduce (:item-state-keys ui-state)
+                 {}
+                 (fn [out key]
+                   (merge out {key (get state key)})))
+         {:selected-indices (or (:selected-indices ui-state) [])
+          :active-index (:active-index ui-state)}))
+
+(defun component-content-size [state ctx]
+  (let [state (get-in ctx [:view :ui-state] state)]
+    {:w (content-width state ctx)
+     :h (preferred-height state ctx)}))
+
+(defun stretches-items? [{:keys [width]}]
+  (and (some? width)
+       (not= width :shrink)
+       (not= width :auto)))
+
+(defun scroll-content-size [state]
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state))
+        height (if row-height
+                 (content-height (:options state) row-height)
+                 0)]
+    (if (:stretch-items? state)
+      {:h height}
+      {:w (content-width state nil)
+       :h height})))
+
+(defun style-padding-side [style side]
+  (get (:padding style) side 0))
+
+(defun style-border-side-thickness [style side]
+  (let [border (:border style)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun vertical-content-inset [ctx]
+  (let [style (style ctx)]
+    (+ (style-padding-side style :top)
+       (style-padding-side style :bottom)
+       (style-border-side-thickness style :top)
+       (style-border-side-thickness style :bottom))))
+
+(defun managed-height [state ctx]
+  (let [height (preferred-height state ctx)]
+    (case (-> (style ctx) :box-sizing)
+      :content-box height
+      :default
+      (+ height (vertical-content-inset ctx)))))
+
+(defun managed-style [state ctx]
+  (if (:managed-height? state)
+    {:height (managed-height state ctx)}
+    {}))
+
+(defun can-sync-managed-height? [ctx]
+  (> (or (-> ctx :view :bounds :h) 0) 0))
+
+(defun child-at [children index]
+  (when (and (>= index 0)
+             (< index (count children)))
+    (nth children index)))
+
+(defun content-view [ctx]
+  (let [scroll-pane (child-at (ui/children ctx) 0)
+        row (when scroll-pane
+              (child-at (ui/children scroll-pane) 0))
+        viewport (when row
+                   (child-at (ui/children row) 0))]
+    (when viewport
+      (child-at (ui/children viewport) 0))))
+
+(defun visible-content-height [state ctx]
+  (if-let [height (-> ctx :view :bounds :h)]
+    (case (-> (style ctx) :box-sizing)
+      :content-box height
+      :default (max 0 (- height (vertical-content-inset ctx))))
+    (or (preferred-height state ctx)
+        0)))
+
+(defun scroll-offset-for-index [state ctx index]
+  (let [row-height (row-height state ctx)
+        visible-height (visible-content-height state ctx)
+        content-height (content-height (:options state) row-height)
+        offset (or (:offset state) {:x 0 :y 0})
+        offset-y (or (:y offset) 0)
+        row-top (* index row-height)
+        row-bottom (+ row-top row-height)
+        visible-bottom (+ offset-y visible-height)
+        max-offset (max 0 (- content-height visible-height))
+        next-y (cond
+                 (< row-top offset-y)
+                 row-top
+
+                 (> row-bottom visible-bottom)
+                 (- row-bottom visible-height)
+
+                 :default
+                 offset-y)]
+    (assoc offset :y (clamp next-y 0 max-offset))))
+
+
+
+;; Items and scrolling
+
+(defun scroll-pane-child [state children]
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state))
+        content-size (scroll-content-size state)]
+    (merge {:id "scroll-pane"}
+           (pixils.ui.scroll-pane/make
+            {:style {:width :fill
+                     :height :fill}
+             :content-size content-size
+             :content-height-explicit? (:explicit-row-height? state)
+             :state {:offset (ui/bind-state :offset)
+                     :content-state (ui/bind-state :content-state)}
+             :scroll-x? false
+             :scroll-y? :auto
+             :step row-height
+             :children children}))))
+
+(defun stretch-item [child]
+  (assoc child
+         :style
+         (merge (or (:style child) {})
+                {:width :fill})))
+
+(defun apply-item-height [child height]
+  (if (or (nil? height)
+          (contains? (or (:style child) {}) :height))
+    child
+    (assoc child
+           :style
+           (merge (or (:style child) {})
+                  {:height height}))))
+
+(defun merge-item-state [child item-state]
+  (if (-> child :state :component)
+    (update child :state
+            (fn [state]
+              (update state :component
+                      (fn [component]
+                        (merge component item-state)))))
+    (assoc child
+           :state
+           (merge (or (:state child) {})
+                  item-state))))
+
+(defun make-item-child [{:keys [decorate-item
+                                disabled?
+                                selected-indices] :as state}
+                        index
+                        item]
+  (let [disabled? (or disabled?
+                      (option/disabled? item))
+        selected? (and (sequential? selected-indices)
+                       (contains? selected-indices index))
+        item-height (or (:computed-row-height state)
+                        (:row-height state))
+        child (if-let [item-child (:item-child state)]
+                (item-child index item)
+                {:mode (or (:item-mode state) 'ui/option-item)
+                 :class (if (:hover-highlight? state)
+                          :ui/list-item-hover
+                          [])
+                 :state {:component {:index index
+                                      :value (option/value item)
+                                      :label (option/label item)
+                                      :disabled? disabled?
+                                      :selected selected?
+                                      :selected-indices
+                                      (ui/bind-state :selected-indices)}}})]
+    (-> child
+        (merge-item-state {:disabled? disabled?
+                           :selected selected?})
+        (cond-> decorate-item (decorate-item state index item))
+        (apply-item-height item-height)
+        (cond-> (:stretch-items? state) stretch-item))))
+
+(defun item-children [state]
+  (for-indexed [index item (or (:options state) [])]
+    (make-item-child state index item)))
+
+(defun render-key [state]
+  (merge (select-keys state
+                      [:options
+                       :row-height
+                       :computed-row-height
+                       :content-width
+                       :computed-content-width
+                       :stretch-items?
+                       :disabled?
+                       :item-mode
+                       :item-child
+                       :decorate-item
+                       :hover-highlight?])
+         (select-keys state (:render-state-keys state))))
+
+(defun scroll-pane-for-state [state]
+  (scroll-pane-child state (item-children state)))
+
+(defun sync-rendered-options [state ctx]
+  (let [computed-row-height (if (:auto-row-height? state)
+                              (measured-row-height ctx)
+                              (:row-height state))
+        computed-content-width (if (:auto-content-width? state)
+                                 (measured-content-width state ctx)
+                                 (:content-width state))
+        computed-visible-rows (or (:visible-rows state)
+                                  (theme-visible-rows ctx))
+        state (assoc state :computed-row-height computed-row-height)
+        state (assoc state :computed-content-width computed-content-width)
+        state (assoc state :computed-visible-rows computed-visible-rows)
+        render-key (render-key state)]
+    (when (not= render-key (:rendered-render-key state))
+      (ui/replace-child! (:view ctx)
+                         "scroll-pane"
+                         (scroll-pane-for-state state)))
+    (when (and (:managed-height? state)
+               (can-sync-managed-height? ctx))
+      (ui/style! (:view ctx)
+                 (managed-style state ctx)))
+    (assoc state :rendered-render-key render-key)))
+
+(defun sync-ui [ui-state state ctx]
+  (sync-rendered-options
+   (assoc ui-state
+          :content-state (content-state ui-state state)
+          :scroll-y? :auto)
+   ctx))
+
+
+
+;; Component
+
+(def OPTION-LIST-UI-STATE-KEYS
+  [:options
+   :item-state-keys
+   :row-height
+   :explicit-row-height?
+   :computed-row-height
+   :auto-row-height?
+   :visible-rows
+   :computed-visible-rows
+   :max-height
+   :fixed-visible-rows?
+   :content-width
+   :computed-content-width
+   :auto-content-width?
+   :managed-height?
+   :stretch-items?
+   :disabled?
+   :item-mode
+   :item-child
+   :decorate-item
+   :render-state-keys
+   :hover-highlight?
+   :selected-indices
+   :active-index
+   :content-state
+   :offset
+   :scroll-y?
+   :rendered-render-key])
+
+(defcomponent ui/option-list
+  {:class :ui/option-list
+   :ui/state-keys OPTION-LIST-UI-STATE-KEYS
+   :content-size component-content-size
+   :init-ui sync-ui
+   :update-ui sync-ui
+   :after-layout-ui sync-ui})
+
+
+
+;; Make function
+
+(defun make
+  "Builds a neutral, scrollable ui/option-list component. Item interaction is
+  emitted by ui/option-item; selection policy belongs to the parent control."
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [supplied-component (merge (select-keys state OPTION-LIST-UI-STATE-KEYS)
+                                   (:component state)
+                                   (select-keys opts OPTION-LIST-UI-STATE-KEYS))
+        component (merge supplied-component
+                         {:options (or (:options supplied-component) [])
+                          :explicit-row-height? (some? (:row-height supplied-component))
+                          :computed-row-height (:row-height supplied-component)
+                          :auto-row-height? (nil? (:row-height supplied-component))
+                          :computed-visible-rows (:visible-rows supplied-component)
+                          :computed-content-width (or (:content-width supplied-component) 1)
+                          :auto-content-width? (nil? (:content-width supplied-component))
+                          :managed-height? (not (and style
+                                                     (contains? style :height)))
+                          :stretch-items? (stretches-items? style)
+                          :item-mode 'ui/option-item})]
+    (cond-> {:mode 'ui/option-list
+             :state (assoc state :component component)
+             :children [(scroll-pane-for-state component)]}
+            (contains? opts :style) (assoc :style style)
+            class (assoc :class class)
+            ui-state (assoc :ui-state ui-state)
+            state-policy (assoc :ui/state-policy state-policy))))

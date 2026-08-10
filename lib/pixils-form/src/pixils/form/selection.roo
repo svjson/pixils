@@ -3,8 +3,9 @@
             [pixils.form.actions :as form-actions]
             [pixils.form.layout :as form-layout]
             [pixils.ui :as ui]
-            [pixils.ui.list-box :as list-box]
-            [pixils.ui.menu :as menu]))
+            [pixils.ui.menu :as menu]
+            [pixils.ui.option-item :as option]
+            [pixils.ui.internal.interaction :as k]))
 
 (def default-toolbar-style
   {:width :fill
@@ -161,19 +162,19 @@
 (defun list-item-payload [state ctx]
   {:index (:index state)
    :value (:value state)
-   :shift? (list-box/held-shift? ctx)
-   :ctrl? (list-box/held-ctrl? ctx)})
+   :shift? (k/held-shift? ctx)
+   :ctrl? (k/held-ctrl? ctx)})
 
 (defun list-item-selected-state [state]
   (assoc state
          :selected
-         (list-box/selected-index? (:selected-indices state)
-                                   (:index state))))
+         (contains? (:selected-indices state)
+                    (:index state))))
 
 (defun open-context-menu! [state event ctx]
   (when (and (= (:button event) :right)
              (not (:disabled? state))
-             (not (empty? (or (:context-menu-actions state) []))))
+             (not-empty? (:context-menu-actions state)))
     (menu/open-context-menu!
      (context-menu (:context-menu-actions state))
      (:global-position event)
@@ -183,7 +184,6 @@
 (defcomponent pixils/form-selection-list-item
   {:class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
    :style {:width :fill
-           :height list-box/default-row-height
            :clip true
            :layout {:direction :row
                     :align-items :center}}
@@ -228,8 +228,8 @@
   (fn [index option]
     {:mode 'pixils/form-selection-list-item
      :state {:index index
-             :value (list-box/option-value option)
-             :label (list-box/option-label option)
+             :value (option/value option)
+             :label (option/label option)
              :selected-indices (ui/bind-state :selected-indices)
              :context-menu-actions context-menu-actions}}))
 

@@ -166,6 +166,7 @@
                  :selection-text {:r 0xff :g 0xff :b 0xff}
                  :desktop-icon-label-padding 1
                  :list-box-row-height 20
+                 :list-box-visible-rows 5
                  :list-box-item-padding {:t 3
                                          :r 5
                                          :b 3
@@ -293,18 +294,29 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
+    'ui/option-item {:height (var :list-box-row-height)}
+
     ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
     {:text {:color (var :selection-text)}}
 
-    'ui/list-box {:background (var :field-bg)
+    'ui/list-box {:width :shrink
+                  :height :shrink
+                  :background (var :field-bg)
                   :border (var :inset-border-style)}
+
+    'ui/option-list {:width :shrink
+                     :height :shrink
+                     :background (var :field-bg)
+                     :border (var :inset-border-style)}
 
     'ui/tree-view {:background (var :field-bg)
                    :border (var :inset-border-style)}
 
     'ui/tree-view-disclosure {:text {:color (var :text)}}
 
-    'ui/combo-box {:min-height 22
+    'ui/combo-box {:width :fill
+                   :height :shrink
+                   :min-height 22
                    :background (var :field-bg)
                    :border (var :inset-border-style)}
 
@@ -351,6 +363,9 @@
     {:background (var :disabled-bg)}
 
     'ui/option-box {:height 18
+                    :layout {:direction :row
+                             :align-items :center
+                             :gap 4}
                     :text {:color (var :text)}}
 
     'ui/option-box-indicator {:width 12
@@ -358,6 +373,10 @@
 
     'ui/option-box:disabled
     {:text {:color (var :disabled-text)}}
+
+    'ui/option-box-group-options
+    {:layout {:direction :column
+              :gap 2}}
 
     'ui/slider {:width :fill
                 :height 18
@@ -642,6 +661,16 @@
     'ui/combo-box:disabled
     {:background (var :disabled-bg)
      :border (var :disabled-inset-border-style)}
+
+    'ui/option-list:disabled
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
+
+    ['ui/option-list:disabled 'ui/scroll-pane]
+    {:background (var :disabled-bg)}
+
+    ['ui/option-list:disabled 'ui/scroll-pane-viewport]
+    {:background (var :disabled-bg)}
 
     'ui/tree-view:disabled
     {:background (var :disabled-bg)

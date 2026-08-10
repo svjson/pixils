@@ -14,6 +14,9 @@ list(SORT PIXILS_LISP_FILES)
 set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/theme-assets.roo
   ui/base-theme.roo
+  ui/internal/interaction.roo
+  ui/option-item.roo
+  ui/internal/option-navigation.roo
   ui/button.roo
   ui/toggle-button.roo
   ui/option-box.roo
@@ -23,6 +26,7 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/popover.roo
   ui/scrollbar.roo
   ui/scroll-pane.roo
+  ui/option-list.roo
   ui/tree-view.roo
   ui/file-tree.roo
   ui/list-box.roo

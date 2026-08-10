@@ -1,6 +1,7 @@
 (ns pixils.ui.option-box-group
   (:require pixils
             [pixils.ui :as ui]
+            [pixils.ui.option-item :as option]
             [pixils.ui.option-box :as option-box]))
 
 
@@ -9,67 +10,69 @@
 
 (defun selectable-option? [option]
   (and (some? option)
-       (not (option-box/option-disabled? option))))
+       (not (option/disabled? option))))
 
 (defun option-by-value [options value]
   (find-first options
               (fn [option]
-                (= (option-box/option-value option) value))))
+                (= (option/value option) value))))
 
 (defun state-selection-required? [state]
   (not (or (= (:selection-required? state) false)
            (= (:force-selection? state) false))))
 
 (defun selected-value [options selected required?]
-  (let [selected-option (option-by-value options selected)]
-    (if (selectable-option? selected-option)
-      selected
-      (when required?
-        (option-box/option-value (find-first options selectable-option?))))))
+  (if (selectable-option? (option-by-value options selected))
+    selected
+    (when required?
+      (option/value (find-first options selectable-option?)))))
 
 (defun options-child [options selected required? style]
-  {:mode 'ui/option-box-group-options
-   :id "options"
-   :style (or style {})
-   :children (for-indexed [index option options]
-               (assoc (option-box/make
-                       {:index index
-                        :value (option-box/option-value option)
-                        :label (option-box/option-label option)
-                        :disabled? (option-box/option-disabled? option)
-                        :selected? (= (option-box/option-value option)
-                                      selected)
-                        :selection-required? required?
-                        :class (:class option)
-                        :style (or (:style option) {})
-                        :state (:state option)
-                        :ui-state (:ui-state option)
-                        :state-policy (:state-policy option)})
-                      :id
-                      (str "option-box-" (or (:id option)
-                                             (option-box/option-value option)
-                                             index))))})
+  (cond-> {:mode 'ui/option-box-group-options
+           :id "options"
+           :children (for-indexed [index option options]
+                       (assoc (option-box/make
+                               (merge
+                                (select-keys option
+                                             [:class
+                                              :style
+                                              :state
+                                              :ui-state
+                                              :state-policy])
+                                {:index index
+                                 :value (option/value option)
+                                 :label (option/label option)
+                                 :disabled? (option/disabled? option)
+                                 :selected? (= (option/value option)
+                                               selected)
+                                 :selection-required? required?}))
+                              :id
+                              (str "option-box-" (or (:id option)
+                                                     (option/value option)
+                                                     index))))}
+    style (assoc :style style)))
 
 
 
 ;; Inner components
 
-(defcomponent ui/option-box-group-options
-  {:style {:layout {:direction :column
-                    :gap 2}}})
+(defcomponent ui/option-box-group-options {})
 
 
 
 ;; Main component
 
+(def OPTION-BOX-GROUP-UI-STATE-KEYS
+  [:options
+   :selected
+   :selection-required?
+   :force-selection?
+   :option-column-style
+   :rendered-selected
+   :rendered-options])
+
 (defcomponent ui/option-box-group
-  {:ui/state-keys [:options
-                   :selected
-                   :selection-required?
-                   :force-selection?
-                   :option-column-style
-                   :rendered-selected
-                   :rendered-options]
+  {:ui/state-keys OPTION-BOX-GROUP-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
               (let [options (or (:options ui-state) [])
                     required? (state-selection-required? ui-state)
@@ -116,7 +119,7 @@
                                                             required?)
                                    index (find-index options
                                                      (fn [option]
-                                                       (= (option-box/option-value option)
+                                                       (= (option/value option)
                                                           selected)))
                                    option (option-by-value options selected)]
                                (ui/stop-propagation! event)
@@ -156,39 +159,27 @@
   :selected value is synchronized back to the bound application state when the
   group changes selection. Ordinary :state entries remain available for caller
   application state."
-  [{:keys [options selected selection-required? force-selection? class style
-           option-column-style state ui-state state-policy] :as opts}]
-  (let [state (or state {})
-        component (cond-> (merge (select-keys state
-                                              [:options
-                                               :selected
-                                               :selection-required?
-                                               :force-selection?
-                                               :option-column-style])
-                                 (or (:component state) {}))
-                    (contains? opts :options) (assoc :options options)
-                    (contains? opts :selected) (assoc :selected selected)
-                    (contains? opts :selection-required?) (assoc :selection-required?
-                                                                 selection-required?)
-                    (contains? opts :force-selection?) (assoc :force-selection?
-                                                              force-selection?)
-                    (contains? opts :option-column-style) (assoc :option-column-style
-                                                                 option-column-style))
-        options (or (:options component) [])
-        required? (state-selection-required? component)
-        selected (selected-value options (:selected component) required?)
-        option-column-style (:option-column-style component)
-        component (assoc component
-                         :selected selected
-                         :selection-required? required?
-                         :option-column-style option-column-style)]
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [supplied-component
+        (merge (select-keys state OPTION-BOX-GROUP-UI-STATE-KEYS)
+               (:component state)
+               (select-keys opts OPTION-BOX-GROUP-UI-STATE-KEYS))
+        options (or (:options supplied-component) [])
+        required? (state-selection-required? supplied-component)
+        selected (selected-value options
+                                 (:selected supplied-component)
+                                 required?)
+        component (merge supplied-component
+                         {:options options
+                          :selected selected
+                          :selection-required? required?})]
     (cond-> {:mode 'ui/option-box-group
-             :style (or style {})
              :state (assoc state :component component)
              :children [(options-child options
                                        selected
                                        required?
-                                       option-column-style)]}
+                                       (:option-column-style component))]}
+      (contains? opts :style) (assoc :style style)
       class (assoc :class class)
       ui-state (assoc :ui-state ui-state)
       state-policy (assoc :ui/state-policy state-policy))))

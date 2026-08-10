@@ -2,39 +2,11 @@
   (:require pixils
             [pixils.image :as img]
             [pixils.rect :as rect]
-            pixils.ui.list-box
             [pixils.render :as r]
-            [pixils.ui :as ui]))
-
-
-
-;; Internal option management functions
-
-(defun option-label [option]
-  (or (:label option)
-      (:name option)
-      (str (:value option))))
-
-
-(defun enabled-option-index? [options index]
-  (and (number? index)
-       (>= index 0)
-       (< index (count options))
-       (not (:disabled? (nth options index)))))
-
-
-(defun next-enabled-index-from [options index direction]
-  (let [next-index (+ index direction)]
-    (cond
-      (or (< next-index 0)
-          (>= next-index (count options)))
-      nil
-
-      (enabled-option-index? options next-index)
-      next-index
-
-      :default
-      (next-enabled-index-from options next-index direction))))
+            [pixils.ui :as ui]
+            [pixils.ui.internal.option-navigation :as navigation]
+            [pixils.ui.option-item :as option]
+            [pixils.ui.option-list :as option-list]))
 
 
 
@@ -47,12 +19,12 @@
 
 (defun selected-label [options selected-index]
   (if-let [option (selected-option options selected-index)]
-    (option-label option)
+    (option/label option)
     ""))
 
 (defun selected-value [options selected-index]
   (when-let [option (selected-option options selected-index)]
-    (or (:value option) (:id option))))
+    (option/value option)))
 
 (defun state-with-selection [state index]
   (let [index (or index 0)]
@@ -86,9 +58,10 @@
   (let [ui-state (-> ctx :view :ui-state)]
     (if (:disabled? ui-state)
       state
-      (let [index (next-enabled-index-from (:options ui-state)
-                                           (get ui-state :selected-index 0)
-                                           direction)]
+      (let [index (navigation/next-enabled-index-from
+                   (:options ui-state)
+                   (get ui-state :selected-index 0)
+                   direction)]
         (select-index state index ctx)))))
 
 
@@ -133,7 +106,7 @@
           0
           (fn [out option]
             (max out
-                 (get (r/text-size (option-label option) text-opts) :w 0)))))
+                 (get (r/text-size (option/label option) text-opts) :w 0)))))
 
 (defun combo-box-content-size [state ctx]
   (let [state (or (-> ctx :view :ui-state) state)
@@ -210,15 +183,14 @@
 
                                     max-height
                                     (assoc :max-height max-height))
-                     :children [(pixils.ui.list-box/make
+                     :children [(option-list/make
                                  (cond-> {:options options
                                           :style {:width :fill
                                                   :height :fill
                                                   :border {:thickness 0}}
                                           :content-width content-width
                                           :selected-indices []
-                                          :hover-highlight? true
-                                          :toggle-selected? false}
+                                          :hover-highlight? true}
 
                                          max-height
                                          (assoc :max-height max-height)
@@ -235,10 +207,12 @@
                                   :anchor-click? true}
                                  {:type :dismiss}))
                     state)
-   :on {:list-box/change (fn [state event ctx]
-                           (ui/stop-propagation! event)
-                           (pop-mode! (:payload event))
-                           state)}
+   :on {:option-item/click (fn [state {:keys [payload] :as event} ctx]
+                             (ui/stop-propagation! event)
+                             (pop-mode! {:selected-indices [(:index payload)]
+                                         :selected-values [(:value payload)]
+                                         :value (:value payload)})
+                             state)}
    :compose {:render :pass}})
 
 (defcomponent ui/combo-box-popup-panel
@@ -288,19 +262,20 @@
 
 ;; Main component
 
+(def COMBO-BOX-UI-STATE-KEYS
+  [:options
+   :selected-index
+   :selected-value
+   :selected-label
+   :row-height
+   :max-height
+   :disabled?])
+
 (defcomponent ui/combo-box
   {:focusable true
    :class :ui/combo-box
-   :style {:width :fill
-           :height :shrink}
    :content-size combo-box-content-size
-   :ui/state-keys [:options
-                   :selected-index
-                   :selected-value
-                   :selected-label
-                   :row-height
-                   :max-height
-                   :disabled?]
+   :ui/state-keys COMBO-BOX-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
               (state-with-selection ui-state (:selected-index ui-state)))
    :update-ui (fn [ui-state state ctx]
@@ -365,26 +340,13 @@
   application state. During migration, component keys supplied directly in
   :state are also copied into :component, and the default shared state policy
   keeps declared component keys visible in ordinary state."
-  [{:keys [options class style selected-index row-height max-height disabled?
-           state ui-state state-policy] :as opts}]
-  (let [state (or state {})
-        component (cond-> (merge (select-keys state
-                                              [:options
-                                               :selected-index
-                                               :selected-value
-                                               :selected-label
-                                               :row-height
-                                               :max-height
-                                               :disabled?])
-                                 (or (:component state) {}))
-                          (contains? opts :options) (assoc :options options)
-                          (contains? opts :selected-index) (assoc :selected-index selected-index)
-                          (contains? opts :row-height) (assoc :row-height row-height)
-                          (contains? opts :max-height) (assoc :max-height max-height)
-                          (contains? opts :disabled?) (assoc :disabled? disabled?))]
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state COMBO-BOX-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts COMBO-BOX-UI-STATE-KEYS))]
     (cond-> {:mode 'ui/combo-box
-             :style (or style {})
              :state (assoc state :component component)}
+            (contains? opts :style) (assoc :style style)
             class (assoc :class class)
             ui-state (assoc :ui-state ui-state)
             state-policy (assoc :ui/state-policy state-policy))))

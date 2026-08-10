@@ -1,0 +1,11 @@
+(ns pixils.ui.internal.interaction)
+
+(defun held-shift? [ctx]
+  (or (contains? (:held-keys ctx) :key/shift)
+      (contains? (:held-keys ctx) :key/left-shift)
+      (contains? (:held-keys ctx) :key/right-shift)))
+
+(defun held-ctrl? [ctx]
+  (or (contains? (:held-keys ctx) :key/ctrl)
+      (contains? (:held-keys ctx) :key/left-ctrl)
+      (contains? (:held-keys ctx) :key/right-ctrl)))

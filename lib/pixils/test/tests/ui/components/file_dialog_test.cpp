@@ -105,7 +105,8 @@ namespace
                                                   const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->definition && view->definition->name == "ui/list-box-item")
+    if (view->definition && (view->definition->name == "ui/list-box-item" ||
+                             view->definition->name == "ui/option-item"))
     {
       auto label = get_key(view->state, "label");
       if (label && label->str() == label_text) return view;

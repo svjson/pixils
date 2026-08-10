@@ -1,0 +1,39 @@
+(ns pixils.ui.internal.option-navigation
+  (:require [pixils.ui.option-item :as option]))
+
+
+
+;; Option Index Resolution
+
+(defun valid-index? [options index]
+  (and (number? index)
+       (>= index 0)
+       (< index (count options))))
+
+(defun enabled-index? [options index]
+  (and (valid-index? options index)
+       (not (option/disabled? (nth options index)))))
+
+(defun first-enabled-index [options]
+  (when-let [match (find-first (for-indexed [index item options]
+                                 {:index index
+                                  :item item})
+                               (fn [entry]
+                                 (not (option/disabled? (:item entry)))))]
+    (:index match)))
+
+(defun next-enabled-index-from [options index direction]
+  (let [next-index (+ index direction)]
+    (cond
+      (or (< next-index 0)
+          (>= next-index (count options)))
+      nil
+
+      (enabled-index? options next-index)
+      next-index
+
+      :default
+      (next-enabled-index-from options next-index direction))))
+
+(defun last-enabled-index [options]
+  (next-enabled-index-from options (count options) -1))

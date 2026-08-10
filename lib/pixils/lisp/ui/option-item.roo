@@ -1,0 +1,76 @@
+(ns pixils.ui.option-item
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.internal.interaction :as k]))
+
+
+
+;; Option values
+
+(defun label [option]
+  (or (:label option)
+      (:title option)
+      (:name option)
+      (str (:value option))))
+
+(defun value [{:keys [value id]}]
+  (or value id))
+
+(defun disabled? [option]
+  (= (:disabled? option) true))
+
+
+
+;; Interaction support
+
+(defun event-payload [ui-state ctx]
+  {:index (:index ui-state)
+   :value (:value ui-state)
+   :shift? (k/held-shift? ctx)
+   :ctrl? (k/held-ctrl? ctx)})
+
+(defun sync-selected [ui-state state ctx]
+  (assoc ui-state
+         :selected
+         (if (nil? (:selected-indices ui-state))
+           (:selected ui-state)
+           (contains? (:selected-indices ui-state) (:index ui-state)))))
+
+
+
+;; Component
+
+(defcomponent ui/option-item
+  {:class [:ui/list-item :ui/option-item]
+   :ui/state-keys [:index
+                   :value
+                   :label
+                   :disabled?
+                   :selected
+                   :selected-indices]
+   :style {:width :fill
+           :clip true
+           :layout {:direction :row
+                    :align-items :center}}
+   :init-ui sync-selected
+   :update-ui sync-selected
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-click (fn [state event ctx]
+               (let [ui-state (-> ctx :view :ui-state)]
+                 (unless (:disabled? ui-state)
+                   (ui/emit! (:view ctx)
+                             :option-item/click
+                             (event-payload ui-state ctx))))
+               state)
+   :on-double-click (fn [state event ctx]
+                      (let [ui-state (-> ctx :view :ui-state)]
+                        (unless (:disabled? ui-state)
+                          (ui/emit! (:view ctx)
+                                    :option-item/activate
+                                    (event-payload ui-state ctx))))
+                      state)
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})

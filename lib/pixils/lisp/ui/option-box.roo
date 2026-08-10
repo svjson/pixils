@@ -1,7 +1,8 @@
 (ns pixils.ui.option-box
   (:require pixils
             [pixils.render :as r]
-            [pixils.ui :as ui]))
+            [pixils.ui :as ui]
+            [pixils.ui.option-item :as option]))
 
 
 
@@ -12,48 +13,22 @@
   [state]
   (= (:selected? state) true))
 
-(defun option-disabled?
-  "Returns true when an authored option map contains an explicit true
-  :disabled? value."
-  [option]
-  (= (:disabled? option) true))
-
-(defun option-label
-  "Returns the display label for an authored option map.
-
-  The label is resolved from :label, :title, :name, then the string form of
-  :value."
-  [option]
-  (or (:label option)
-      (:title option)
-      (:name option)
-      (str (:value option))))
-
-(defun option-value
-  "Returns the selection value for an authored option map.
-
-  :value wins when present; :id is used as a fallback."
-  [option]
-  (if-let [value (:value option)]
-    value
-    (:id option)))
-
 
 
 ;; Internal support functions
 
-(defun option-box-selection-required? [state]
+(defun selection-required? [state]
   (not (or (= (:selection-required? state) false)
            (= (:force-selection? state) false))))
 
-(defun option-box-indicator-theme [ctx]
+(defun indicator-theme [ctx]
   (merge {:color {:r 0 :g 0 :b 0}
           :radius 5
           :inner-radius 2
           :pressed-thickness 2}
          (ui/theme-var ctx :option-box-indicator {})))
 
-(defun option-box-indicator-image [state indicator]
+(defun indicator-image [state indicator]
   (cond
     (:pressed state)
     (or (:pressed-image indicator)
@@ -67,50 +42,39 @@
     :default
     (:image indicator)))
 
-
-;; Internal render functions
-
-(defun render-option-box-indicator-image! [image bounds]
-  (when image
-    (r/image! image
-              {:target {:x 0
-                        :y 0
-                        :w (:w bounds)
-                        :h (:h bounds)}})))
-
-(defun render-option-box-indicator-circle! [state bounds indicator]
-  (let [color (:color indicator)
-        radius (or (:radius indicator) 5)
-        inner-radius (or (:inner-radius indicator) 2)
-        pressed-thickness (or (:pressed-thickness indicator) 2)
-        active (or (:selected state) (:pressed state))
-        cx (int (/ (or (:w bounds) 0) 2))
-        cy (int (/ (or (:h bounds) 0) 2))]
-    (r/circle! {:x cx :y cy :r radius}
-               {:color color})
-    (when (and (:pressed state)
-               (> pressed-thickness 1))
-      (r/circle! {:x cx :y cy :r (max 0 (dec radius))}
-                 {:color color}))
-    (when active
-      (r/circle! {:x cx :y cy :r inner-radius}
-                 {:fill true
-                  :color color}))))
-
-(defun render-option-box-indicator! [state ctx]
-  (let [indicator (option-box-indicator-theme ctx)
-        bounds (-> ctx :view :bounds)
-        image (option-box-indicator-image state indicator)]
-    (if image
-      (render-option-box-indicator-image! image bounds)
-      (render-option-box-indicator-circle! state bounds indicator))))
 
 
 ;; Inner components
 
 (defcomponent ui/option-box-indicator
   {:ui/state-keys [:selected :pressed]
-   :render render-option-box-indicator!})
+   :render (fn [state ctx]
+             (let [indicator (indicator-theme ctx)
+                   bounds (-> ctx :view :bounds)
+                   image (indicator-image state indicator)]
+               (if image
+                 (r/image! image
+                           {:target {:x 0
+                                     :y 0
+                                     :w (:w bounds)
+                                     :h (:h bounds)}})
+                 (let [color (:color indicator)
+                       radius (or (:radius indicator) 5)
+                       inner-radius (or (:inner-radius indicator) 2)
+                       pressed-thickness (or (:pressed-thickness indicator) 2)
+                       active (or (:selected state) (:pressed state))
+                       cx (int (/ (or (:w bounds) 0) 2))
+                       cy (int (/ (or (:h bounds) 0) 2))]
+                   (r/circle! {:x cx :y cy :r radius}
+                              {:color color})
+                   (when (and (:pressed state)
+                              (> pressed-thickness 1))
+                     (r/circle! {:x cx :y cy :r (max 0 (dec radius))}
+                                {:color color}))
+                   (when active
+                     (r/circle! {:x cx :y cy :r inner-radius}
+                                {:fill true
+                                 :color color}))))))})
 
 (defcomponent ui/option-box-label
   {:children [{:mode 'ui/text
@@ -121,20 +85,20 @@
 
 ;; Main component
 
+(def OPTION-BOX-UI-STATE-KEYS
+  [:label
+   :value
+   :selected?
+   :selection-required?
+   :force-selection?
+   :disabled?
+   :index
+   :pressed])
+
 (defcomponent ui/option-box
   {:focusable true
    :class :ui/option-box
-   :ui/state-keys [:label
-                   :value
-                   :selected?
-                   :selection-required?
-                   :force-selection?
-                   :disabled?
-                   :index
-                   :pressed]
-   :style {:layout {:direction :row
-                    :align-items :center
-                    :gap 4}}
+   :ui/state-keys OPTION-BOX-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
                      :selected?
@@ -158,7 +122,7 @@
                (let [ui-state (-> ctx :view :ui-state)
                      disabled? (get ui-state :disabled? (:disabled? state))
                      next-selected? (if (and (selected? ui-state)
-                                             (option-box-selection-required? ui-state))
+                                             (selection-required? ui-state))
                                       true
                                       (not (selected? ui-state)))]
                  (if disabled?
@@ -207,31 +171,13 @@
   application state. During migration, component keys supplied directly in
   :state are also copied into :component, and the default shared state policy
   keeps declared component keys visible in ordinary state."
-  [{:keys [label value selected? selection-required? force-selection? disabled?
-           index class style state ui-state state-policy] :as opts}]
-  (let [state (or state {})
-        component (cond-> (merge (select-keys state
-                                              [:label
-                                               :value
-                                               :selected?
-                                               :selection-required?
-                                               :force-selection?
-                                               :disabled?
-                                               :index
-                                               :pressed])
-                                 (or (:component state) {}))
-                    (contains? opts :label) (assoc :label label)
-                    (contains? opts :value) (assoc :value value)
-                    (contains? opts :selected?) (assoc :selected? selected?)
-                    (contains? opts :selection-required?) (assoc :selection-required?
-                                                                 selection-required?)
-                    (contains? opts :force-selection?) (assoc :force-selection?
-                                                              force-selection?)
-                    (contains? opts :disabled?) (assoc :disabled? disabled?)
-                    (contains? opts :index) (assoc :index index))]
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state OPTION-BOX-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts OPTION-BOX-UI-STATE-KEYS))]
     (cond-> {:mode 'ui/option-box
-             :style (or style {})
              :state (assoc state :component component)}
+      (contains? opts :style) (assoc :style style)
       class (assoc :class class)
       ui-state (assoc :ui-state ui-state)
       state-policy (assoc :ui/state-policy state-policy))))
