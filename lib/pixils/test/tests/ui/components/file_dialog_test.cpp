@@ -147,6 +147,26 @@ namespace
     return viewport->children[0];
   }
 
+  std::shared_ptr<View> file_dialog_list_vertical_scrollbar(
+    const std::shared_ptr<View>& list_box)
+  {
+    if (!list_box || list_box->children.empty()) return nullptr;
+    auto scroll_pane = list_box->children[0];
+    if (!scroll_pane || scroll_pane->children.empty()) return nullptr;
+    auto row = scroll_pane->children[0];
+    if (!row || row->children.size() < 2) return nullptr;
+    return row->children[1];
+  }
+
+  int offset_y(const std::shared_ptr<View>& view)
+  {
+    if (!view) return 0;
+    auto offset = get_key(view->state, "offset");
+    if (!offset || offset->type == Roo::Value::Type::NIL) return 0;
+    auto y = get_key(offset, "y");
+    return y && y->type != Roo::Value::Type::NIL ? y->num().get_int() : 0;
+  }
+
   bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
   {
     if (!view || !view->definition) return false;
@@ -356,6 +376,55 @@ TEST_F(FileDialogTest, large_font_file_list_scroll_range_uses_measured_row_heigh
   const int measured_content_bottom =
     last_item->bounds.y + last_item->bounds.h - content->bounds.y;
   EXPECT_GE(content_height->num().get_int(), measured_content_bottom);
+}
+
+TEST_F(FileDialogTest, file_list_vertical_scrollbar_end_button_scrolls_entries)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+  for (int i = 0; i < 16; i++)
+  {
+    TempProject::write(project.root / ("entry-" + std::to_string(i) + ".edn"), "{}");
+  }
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" +
+               lisp_string(project.path()) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  frame_cycle();
+  frame_cycle();
+
+  auto list_box = find_mode(session.active_mode, "ui/list-box");
+  auto scroll_pane = find_mode(list_box, "ui/scroll-pane");
+  auto scrollbar = file_dialog_list_vertical_scrollbar(list_box);
+  ASSERT_NE(list_box, nullptr);
+  ASSERT_NE(scroll_pane, nullptr);
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto end_button = scrollbar->children[2];
+  ASSERT_NE(end_button, nullptr);
+
+  const InputSimulator::Coord button_center{
+    end_button->bounds.x + (end_button->bounds.w / 2),
+    end_button->bounds.y + (end_button->bounds.h / 2)};
+  input().mouse_down(button_center);
+  update_cycle();
+  input().mouse_up(button_center);
+  update_cycle();
+
+  EXPECT_GT(offset_y(scroll_pane), 0);
 }
 
 TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_path_is_safe)

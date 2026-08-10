@@ -55,6 +55,14 @@ namespace
     return row->children[0];
   }
 
+  std::shared_ptr<Pixils::Runtime::View> list_box_vertical_scrollbar(
+    const std::shared_ptr<Pixils::Runtime::View>& list_box)
+  {
+    auto row = list_box_row(list_box);
+    if (!row || row->children.size() < 2) return nullptr;
+    return row->children[1];
+  }
+
   bool layout_hidden(const std::shared_ptr<Pixils::Runtime::View>& view)
   {
     return view && view->effective_style.visibility &&
@@ -71,6 +79,14 @@ namespace
                                  const std::string& key)
   {
     return Roo::Dict::get_property(view->ui_state, Roo::keyword(key));
+  }
+
+  int offset_y(const Roo::sptr_val& state)
+  {
+    auto offset = Roo::Dict::get_property(state, Roo::keyword("offset"));
+    if (!offset || offset->type == Roo::Value::Type::NIL) return 0;
+    auto y = Roo::Dict::get_property(offset, Roo::keyword("y"));
+    return y && y->type != Roo::Value::Type::NIL ? y->num().get_int() : 0;
   }
 } // namespace
 
@@ -792,6 +808,120 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   auto first_value = Roo::Dict::get_property(first_item->state, Roo::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->to_string(), ":a");
+}
+
+TEST_F(ListBoxTest, vertical_scrollbar_end_button_scrolls_list_box)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}
+                              {:value :e :label "Epsilon"}
+                              {:value :f :label "Zeta"}
+                              {:value :g :label "Eta"}
+                              {:value :h :label "Theta"}
+                              {:value :i :label "Iota"}
+                              {:value :j :label "Kappa"}
+                              {:value :k :label "Lambda"}
+                              {:value :l :label "Mu"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 6
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto scroll_pane = list_box->children[0];
+  auto scrollbar = list_box_vertical_scrollbar(list_box);
+  ASSERT_NE(scroll_pane, nullptr);
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto end_button = scrollbar->children[2];
+  ASSERT_NE(end_button, nullptr);
+
+  const InputSimulator::Coord button_center{
+    end_button->bounds.x + (end_button->bounds.w / 2),
+    end_button->bounds.y + (end_button->bounds.h / 2)};
+  input().mouse_down(button_center);
+  update_cycle();
+  input().mouse_up(button_center);
+  update_cycle();
+
+  EXPECT_EQ(offset_y(scroll_pane->state), 10);
+  EXPECT_EQ(offset_y(list_box->ui_state), 10);
+}
+
+TEST_F(ListBoxTest, dragging_vertical_scrollbar_handle_scrolls_list_box_to_end)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}
+                              {:value :e :label "Epsilon"}
+                              {:value :f :label "Zeta"}
+                              {:value :g :label "Eta"}
+                              {:value :h :label "Theta"}
+                              {:value :i :label "Iota"}
+                              {:value :j :label "Kappa"}
+                              {:value :k :label "Lambda"}
+                              {:value :l :label "Mu"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 6
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto scroll_pane = list_box->children[0];
+  auto viewport = list_box_viewport(list_box);
+  auto scrollbar = list_box_vertical_scrollbar(list_box);
+  ASSERT_NE(scroll_pane, nullptr);
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  const InputSimulator::Coord handle_center{handle->bounds.x + (handle->bounds.w / 2),
+                                            handle->bounds.y + (handle->bounds.h / 2)};
+  const InputSimulator::Coord track_end{
+    handle_center.first,
+    track->bounds.y + track->bounds.h - (handle->bounds.h / 2)};
+  input().mouse_down(handle_center);
+  update_cycle();
+  input().mouse_move(track_end);
+  update_cycle();
+  input().mouse_up(track_end);
+  update_cycle();
+
+  auto content_size = get_state_key(scroll_pane, "content-size");
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  const int max_offset = content_height->num().get_int() - viewport->bounds.h;
+  EXPECT_EQ(offset_y(scroll_pane->state), max_offset);
+  EXPECT_EQ(offset_y(list_box->ui_state), max_offset);
 }
 
 TEST_F(ListBoxTest, list_box_component_state_survives_custom_update)

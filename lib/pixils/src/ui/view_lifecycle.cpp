@@ -510,7 +510,7 @@ namespace Pixils::UI
 
     for (auto& grandchild : ctx.children)
     {
-      ctx.set_state_if_changed(
+      ctx.set_state_from_child_bindings(
         init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state));
     }
 

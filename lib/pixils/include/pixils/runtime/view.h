@@ -101,6 +101,9 @@ namespace Pixils::Runtime
     void mark_style_changed();
     bool set_state_if_changed(const Roo::sptr_val& next_state);
     bool set_ui_state_if_changed(const Roo::sptr_val& next_state);
+    bool set_state_from_child_bindings(const Roo::sptr_val& next_state);
+    void sync_ui_state_from_child_bindings(const Roo::sptr_val& previous_state,
+                                           const Roo::sptr_val& next_state);
     bool has_component_ui_state() const;
     void seed_ui_state_from_shared_state_policy();
     void sync_state_from_shared_ui_state_policy();

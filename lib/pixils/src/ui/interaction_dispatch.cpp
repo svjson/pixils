@@ -221,7 +221,7 @@ namespace Pixils::UI
                                        const std::shared_ptr<Runtime::View>& parent)
     {
       if (!child || !parent) return;
-      parent->set_state_if_changed(Runtime::merge_component_ui_state(
+      parent->set_state_from_child_bindings(Runtime::merge_component_ui_state(
         Runtime::merge_state(parent->state, *child, child->state),
         *child,
         child->ui_state));

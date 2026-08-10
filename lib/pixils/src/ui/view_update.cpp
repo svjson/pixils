@@ -203,13 +203,13 @@ namespace Pixils::UI
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
       run_update_hook(view_ptr, hook_args, rt);
-      view.set_state_if_changed(
+      view.set_state_from_child_bindings(
         Runtime::apply_pending_child_mutations(rt,
                                                view_ptr,
                                                hook_args.update_args[1],
                                                view.state));
       run_update_ui_hook(view_ptr, hook_args, rt);
-      view.set_state_if_changed(
+      view.set_state_from_child_bindings(
         Runtime::apply_pending_child_mutations(rt,
                                                view_ptr,
                                                hook_args.update_args[1],
@@ -240,7 +240,7 @@ namespace Pixils::UI
         auto merged = merge_child_state(*parent_state, view);
         if (parent_view)
         {
-          parent_view->set_state_if_changed(merged);
+          parent_view->set_state_from_child_bindings(merged);
         }
         else
         {
@@ -334,7 +334,7 @@ namespace Pixils::UI
         auto merged = merge_child_state(*parent_state, view);
         if (parent_view)
         {
-          parent_view->set_state_if_changed(merged);
+          parent_view->set_state_from_child_bindings(merged);
         }
         else
         {

@@ -576,7 +576,7 @@ namespace Pixils::UI
       view->sync_state_from_shared_ui_state_policy();
       if (auto parent = view->parent)
       {
-        parent->set_state_if_changed(
+        parent->set_state_from_child_bindings(
           Runtime::merge_component_ui_state(parent->state, *view, view->ui_state));
       }
 

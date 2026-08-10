@@ -98,6 +98,46 @@ namespace Pixils::Runtime
     return true;
   }
 
+  bool View::set_state_from_child_bindings(const Roo::sptr_val& next_state)
+  {
+    auto previous_state = state;
+    auto state_changed = set_state_if_changed(next_state);
+    auto ui_generation = state_generation;
+    sync_ui_state_from_child_bindings(previous_state, next_state);
+    return state_changed || state_generation != ui_generation;
+  }
+
+  void View::sync_ui_state_from_child_bindings(const Roo::sptr_val& previous_state,
+                                               const Roo::sptr_val& next_state)
+  {
+    if (!shared_policy(*this) || !next_state || next_state->type != Roo::Value::Type::MAP)
+    {
+      return;
+    }
+
+    auto next_ui_state = ui_state && ui_state->type == Roo::Value::Type::MAP
+                           ? Roo::Dict::shallow_copy(ui_state)
+                           : Roo::map({});
+    bool changed = false;
+    for (const auto& key : component->ui_state_keys)
+    {
+      if (!map_contains_key(next_state, key)) continue;
+
+      auto key_value = Roo::keyword(key);
+      auto next_value = Roo::Dict::get_property(next_state, key_value);
+      auto had_previous_value = map_contains_key(previous_state, key);
+      auto previous_value = had_previous_value
+                              ? Roo::Dict::get_property(previous_state, key_value)
+                              : Roo::Constant::NIL;
+      if (!had_previous_value || !rtval_equal(previous_value, next_value))
+      {
+        Roo::Dict::set_property(next_ui_state, key_value, next_value);
+        changed = true;
+      }
+    }
+    if (changed) set_ui_state_if_changed(next_ui_state);
+  }
+
   bool View::has_component_ui_state() const
   {
     return component != nullptr;

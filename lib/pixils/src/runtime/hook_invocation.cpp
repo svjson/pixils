@@ -65,8 +65,9 @@ namespace Pixils::Runtime
       auto new_child =
         UI::build_view_tree(replacement.child_slot, modes, components, runtime);
       UI::attach_style_view_tree(new_child, view.get());
-      parent_state =
-        UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      auto previous_parent_state = parent_state;
+      parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state);
       *child_it = std::move(new_child);
       view->mark_children_changed();
     }
@@ -76,8 +77,9 @@ namespace Pixils::Runtime
       auto new_child =
         UI::build_view_tree(append.child_slot, modes, components, runtime);
       UI::attach_style_view_tree(new_child, view.get());
-      parent_state =
-        UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      auto previous_parent_state = parent_state;
+      parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
+      view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state);
       view->children.push_back(std::move(new_child));
       view->mark_children_changed();
     }

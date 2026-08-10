@@ -112,6 +112,35 @@ TEST_F(StateBindingTest, component_state_bindings_push_ui_state_changes_to_paren
   EXPECT_EQ(value->to_string(), "99");
 }
 
+TEST_F(StateBindingTest, writable_child_binding_updates_shared_component_ui_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:update (fn [state ctx]
+                 (assoc state :value 10))})
+    (pixils/defcomponent parent-component
+      {:ui/state-keys [:value]
+       :init-ui (fn [ui-state state ctx]
+                  (assoc ui-state :value 0))
+       :children [{:mode 'child-mode
+                   :state {:value (pixils.ui/bind-state :value)}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'parent-component}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+
+  auto parent = session.active_mode->children[0];
+  ASSERT_NE(parent, nullptr);
+  auto state_value = map_key(parent->state, "value");
+  auto ui_value = map_key(parent->ui_state, "value");
+  ASSERT_NE(state_value, nullptr);
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(state_value->to_string(), "10");
+  EXPECT_EQ(ui_value->to_string(), "10");
+}
+
 TEST_F(StateBindingTest, component_state_projection_does_not_push_ui_state_changes_to_parent)
 {
   runtime.eval(R"(
