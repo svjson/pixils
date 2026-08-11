@@ -85,11 +85,12 @@
     (let [selected [index]
           next-state (assoc state
                             :selected-indices selected
-                            :anchor-index index
-                            :offset (option-list/scroll-offset-for-index
-                                     next-state
-                                     ctx
-                                     index))]
+                            :anchor-index index)
+          next-state (assoc next-state
+                            :offset
+                            (option-list/scroll-offset-for-index next-state
+                                                                 ctx
+                                                                 index))]
       (when (not= selected-indices selected)
         (ui/emit! view :list-box/change {:selected-indices selected
                                          :selected-values (option-list/values-at-indices
@@ -147,7 +148,7 @@
       :default
       (let [drag (:reorder-drag state)]
         (when (and drag
-                   (pt/+ (:start-global-position drag)
+                   (pt/= (:start-global-position drag)
                          (:start-global-position event)))
           drag)))))
 
@@ -250,7 +251,10 @@
 ;; Internal UI state management
 
 (defun derive-selected-values
-  "Updates a list-box UI state with values derived from its current selection."
+  "Adds values derived from the current selection to `state`.
+
+  `state` is a list-box UI state containing options and selected indices.
+  Returns that state with `:selected-values` for valid selected indices."
   [state]
   (assoc state
          :selected-values

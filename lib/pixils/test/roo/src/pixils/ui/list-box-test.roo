@@ -65,13 +65,17 @@
            :anchor-index 0}
           :key/down))))
 
-(deftest list-box-change-payload-omits-out-of-range-selected-values
-  (is (= {:selected-indices [0 3]
-          :selected-values [:a]
-          :value :a}
-         (list-box/change-payload {:options [{:value :a}]}
-                                  [0 3]
-                                  0))))
+
+
+;; pixils.ui.list-box/derive-selected-values
+
+(deftest derive-selected-values/omits-out-of-range-selected-values
+  (is (= {:options [{:value :a}]
+          :selected-indices [0 3]
+          :selected-values [:a]}
+         (list-box/derive-selected-values
+          {:options [{:value :a}]
+           :selected-indices [0 3]}))))
 
 (deftest list-box-initializes-selected-values-from-selected-indices
   (let [app (runtime/make-app {:package-root "../.."
