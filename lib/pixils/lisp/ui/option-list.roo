@@ -7,6 +7,17 @@
 
 
 
+;; Public query functions
+
+(defun values-at-indices
+  "Returns the values of the options at indices, omitting missing options."
+  [options indices]
+  (keep indices
+        (fn [index]
+          (option/value (nth (or options []) index)))))
+
+
+
 ;; Geometry
 
 (defun content-height [options row-height]

@@ -25,7 +25,12 @@
 
    (pixils/defmode root-mode
      {:init (fn [state ctx]
-              {:selected [0]
+              {:options [{:value :a :label \"Alpha\"}
+                         {:value :b :label \"Beta\" :disabled? true}
+                         {:value :c :label \"Gamma\"}
+                         {:value :d :label \"Delta\"}
+                         {:value :e :label \"Epsilon\"}]
+               :selected [0]
                :last-change nil
                :focused? false})
       :update (fn [state ctx]
@@ -43,20 +48,16 @@
                        (assoc state :root-key-down true)
                        state))
       :children [(list-box/make
-                  {:options [{:value :a :label \"Alpha\"}
-                             {:value :b :label \"Beta\" :disabled? true}
-                             {:value :c :label \"Gamma\"}
-                             {:value :d :label \"Delta\"}
-                             {:value :e :label \"Epsilon\"}]
+                  {:options (ui/project-state :options)
                    :style {:width 100}
                    :row-height 10
                    :visible-rows 2
                    :content-width 100
-                   :selected-indices (ui/bind-state :selected)})]})")
+                   :selected-indices (ui/project-state :selected)})]})")
 
 (deftest list-box-keyboard-target-skips-disabled-options
   (is (= 2
-         (list-box/list-box-keyboard-target-index
+         (list-box/keyboard-target-index
           {:options [{:value :a}
                      {:value :b :disabled? true}
                      {:value :c}]
@@ -71,6 +72,44 @@
          (list-box/change-payload {:options [{:value :a}]}
                                   [0 3]
                                   0))))
+
+(deftest list-box-initializes-selected-values-from-selected-indices
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (is (= [:a]
+           (:selected-values
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
+
+(deftest list-box-updates-selected-values-with-bound-selection-and-options
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app) :selected [2]))
+    (runtime/update! app)
+    (is (= [:c]
+           (:selected-values
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :options [{:value :a :label "Alpha"}
+                      {:value :b :label "Beta" :disabled? true}
+                      {:value :updated :label "Updated"}]))
+    (runtime/update! app)
+    (is (= [:updated]
+           (:selected-values
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
 
 (deftest list-box-arrow-key-navigation-selects-next-enabled-item
   (let [app (runtime/make-app {:package-root "../.."
@@ -93,14 +132,14 @@
       (press-key! app :down)
       (let [state (runtime/view-state (runtime/find-view app "ui/list-box"))
             root-state (runtime/active-state app)]
-        (is (= nil (:root-key-down root-state)))
+        (is (nil? (:root-key-down root-state)))
         (is (= [2] (:selected-indices state)))
         (is (= 2 (:anchor-index state)))
         (is (= [2] (:selected root-state)))
         (is (= :c (-> root-state :last-change :value)))
         (is (= [:c] (-> root-state :last-change :selected-values)))))))
 
-(deftest list-box-arrow-key-navigation-scrolls_selected_row_into_view
+(deftest list-box-arrow-key-navigation-scrolls-selected-row-into-view
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120

@@ -47,10 +47,6 @@
       :default
       [index])))
 
-(defun selection-changed? [previous selected]
-  (not= (or previous []) (or selected [])))
-
-
 (defun navigation-base-index [state direction]
   (or (:anchor-index state)
       (head (or (:selected-indices state) []))
@@ -81,31 +77,27 @@
 
       :default nil)))
 
-(defun change-payload [state selected index]
-  {:selected-indices selected
-   :selected-values (keep selected (fn [selected-index]
-                                     (option/value
-                                      (nth (:options state) selected-index))))
-   :value (-> (:options state) (nth index) option/value)})
-
-(defun apply-keyboard-selection [state index ctx]
-  (if (navigation/enabled-index? (:options state) index)
+(defun apply-keyboard-selection [{:keys [options selected-indices] :as state}
+                                 index
+                                 {:keys [view] :as ctx}]
+  (cond
+    (navigation/enabled-index? options index)
     (let [selected [index]
-          changed? (selection-changed? (:selected-indices state) selected)
-          payload (change-payload state selected index)
-          next-state (assoc (assoc (assoc state
-                                          :selected-indices selected)
-                                   :selected-values (:selected-values payload))
-                            :anchor-index index)
-          next-state (assoc next-state
-                            :offset
-                            (option-list/scroll-offset-for-index
-                             next-state
-                             ctx
-                             index))]
-      (when changed?
-        (ui/emit! (:view ctx) :list-box/change payload))
+          next-state (assoc state
+                            :selected-indices selected
+                            :anchor-index index
+                            :offset (option-list/scroll-offset-for-index
+                                     next-state
+                                     ctx
+                                     index))]
+      (when (not= selected-indices selected)
+        (ui/emit! view :list-box/change {:selected-indices selected
+                                         :selected-values (option-list/values-at-indices
+                                                           (:options next-state) selected)
+                                         :value (option/value (nth options index))}))
       next-state)
+
+    true
     state))
 
 (defun reorder-drag-policy [threshold]
@@ -255,6 +247,18 @@
 
 
 
+;; Internal UI state management
+
+(defun derive-selected-values
+  "Updates a list-box UI state with values derived from its current selection."
+  [state]
+  (assoc state
+         :selected-values
+         (option-list/values-at-indices (:options state)
+                                        (:selected-indices state))))
+
+
+
 ;; Components
 
 (def LIST-BOX-UI-STATE-KEYS
@@ -340,25 +344,25 @@
                                      [index]
                                      [])
                                    []))]
-                (let [ui-state (assoc ui-state
-                                      :selected-indices selected
-                                      :anchor-index (or (:anchor-index ui-state)
-                                                        (head selected))
-                                      :content-state (option-list/content-state
-                                                      (assoc ui-state
-                                                             :selected-indices
-                                                             selected)
-                                                      state)
-                                      :scroll-y? :auto)]
+                (let [ui-state (derive-selected-values
+                                (assoc ui-state
+                                       :selected-indices selected
+                                       :anchor-index (or (:anchor-index ui-state)
+                                                         (head selected))
+                                       :scroll-y? :auto))
+                      ui-state (assoc ui-state
+                                      :content-state
+                                      (option-list/content-state ui-state state))]
                   (option-list/sync-rendered-options ui-state ctx))))
    :update-ui (fn [ui-state state ctx]
-                (apply-reorder-visuals!
-                 (option-list/sync-rendered-options
-                  (assoc ui-state
-                         :content-state
-                         (option-list/content-state ui-state state))
-                  ctx)
-                 ctx))
+                (let [ui-state (derive-selected-values ui-state)]
+                  (apply-reorder-visuals!
+                   (option-list/sync-rendered-options
+                    (assoc ui-state
+                           :content-state
+                           (option-list/content-state ui-state state))
+                    ctx)
+                   ctx)))
    :after-layout-ui (fn [ui-state state ctx]
                       (cond-> (apply-reorder-visuals!
                                (option-list/sync-rendered-options
@@ -367,9 +371,9 @@
                                        (option-list/content-state ui-state state))
                                 ctx)
                                ctx)
-                              (:reorder-drag-ended? ui-state) (assoc :reorder-drag nil
-                                                                                   :reorder-drag-ended?
-                                                                                   false)))
+                        (:reorder-drag-ended? ui-state) (assoc :reorder-drag nil
+                                                              :reorder-drag-ended?
+                                                              false)))
    :on-key-down (fn [state event ctx]
                   (let [ui-state (-> ctx :view :ui-state)]
                     (if (:disabled? ui-state)
@@ -381,7 +385,6 @@
                             (ui/set-ui-state! ctx next-ui-state)
                             (assoc state
                                    :selected-indices (:selected-indices next-ui-state)
-                                   :selected-values (:selected-values next-ui-state)
                                    :anchor-index (:anchor-index next-ui-state)
                                    :offset (:offset next-ui-state))))
                         state))))
@@ -439,23 +442,17 @@
                                          selected (if disabled?
                                                     (:selected-indices ui-state)
                                                     (click-selection ui-state payload))
-                                         changed? (selection-changed?
-                                                   (:selected-indices ui-state)
-                                                   selected)
-                                         next-ui-state (assoc (assoc ui-state
-                                                                     :selected-indices selected)
+                                         next-ui-state (assoc ui-state
+                                                              :selected-indices selected
                                                               :anchor-index (:index payload))
-                                         values (keep selected
-                                                      (fn [selected-index]
-                                                        (option/value
-                                                         (nth (:options next-ui-state)
-                                                              selected-index))))
-                                         next-ui-state (assoc next-ui-state
-                                                              :selected-values
-                                                              values)]
+                                         values (option-list/values-at-indices
+                                                 (:options ui-state)
+                                                 selected)]
                                      (ui/stop-propagation! event)
                                      (ui/set-ui-state! ctx next-ui-state)
-                                     (when (and (not disabled?) changed?)
+                                     (when (and (not disabled?)
+                                                (not= (:selected-indices ui-state)
+                                                      selected))
                                        (ui/emit! (:view ctx)
                                                  :list-box/change
                                                  {:selected-indices selected
@@ -463,7 +460,6 @@
                                                   :value (:value payload)}))
                                      (assoc state
                                             :selected-indices selected
-                                            :selected-values values
                                             :anchor-index (:index payload))))))
         :list-box/item-activate (fn [state event ctx]
                                   (let [ui-state (-> ctx :view :ui-state)
@@ -474,11 +470,9 @@
                                         selected (if disabled?
                                                    (:selected-indices ui-state)
                                                    (click-selection ui-state payload))
-                                        values (keep selected
-                                                     (fn [selected-index]
-                                                       (option/value
-                                                        (nth (:options ui-state)
-                                                             selected-index))))]
+                                        values (option-list/values-at-indices
+                                                (:options ui-state)
+                                                selected)]
                                     (ui/stop-propagation! event)
                                     (unless disabled?
                                     (ui/emit! (:view ctx)
