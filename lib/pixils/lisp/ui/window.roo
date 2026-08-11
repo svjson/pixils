@@ -90,9 +90,6 @@
       (and (number? bounds-value) (> bounds-value 0)) bounds-value
       :default nil)))
 
-(defun clamp [value low high]
-  (max low (min high value)))
-
 (defun known-window-size [ctx]
   (let [external-bounds (-> ctx :view :external-bounds)
         style (-> ctx :view :style)

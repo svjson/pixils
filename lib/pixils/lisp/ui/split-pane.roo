@@ -6,9 +6,6 @@
 (def default-resizer-size 6)
 (def default-min-pane-size 24)
 
-(defun clamp [value low high]
-  (max low (min high value)))
-
 (defun split-pane-axis [state]
   (cond
     (:axis state)
