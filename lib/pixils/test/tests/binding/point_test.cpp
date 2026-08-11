@@ -6,6 +6,16 @@ class PointTest : public BaseFixture
 {
 };
 
+TEST_F(PointTest, equality_compares_both_axes)
+{
+  EXPECT_EQ(runtime.eval("(pixils.point/= {:x 10 :y 20} {:x 10 :y 20})"),
+            Roo::Constant::BOOL_TRUE);
+  EXPECT_EQ(runtime.eval("(pixils.point/= {:x 10 :y 20} {:x 11 :y 20})"),
+            Roo::Constant::BOOL_FALSE);
+  EXPECT_EQ(runtime.eval("(pixils.point/= {:x 10 :y 20} {:x 10 :y 21})"),
+            Roo::Constant::BOOL_FALSE);
+}
+
 TEST_F(PointTest, translate_moves_point_by_dx_and_dy)
 {
   auto x = runtime.eval("(:x (pixils.point/translate {:x 10 :y 20} 3 -4))");

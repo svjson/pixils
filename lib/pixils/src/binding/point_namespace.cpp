@@ -45,7 +45,7 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /** IntPointFunction - int */
+    /** IntPointFunction - pixils.point/int */
     FUNC_IMPL(IntPointFunction,
               SIG((FN_ARGS((&HostType::POINT)), EXEC_DISPATCH(&IntPointFunction::exec_int))))
 
@@ -54,7 +54,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(Roo::obj<Point>(*args[0]).floor());
     }
 
-    /* Point make-function */
+    /** MakePoint - pixils.point/make-point */
     FUNC_IMPL(MakePoint,
               MULTI_SIG((FN_ARGS((&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MakePoint::exec_point_from_ints)),
@@ -79,7 +79,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(args.at(0)->f32(), args.at(1)->f32());
     }
 
-    /* Distance Between - distance-between */
+    /** DistanceBetween - pixils.point/distance */
     FUNC_IMPL(DistanceBetween,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
                    EXEC_DISPATCH(&DistanceBetween::exec_distance))))
@@ -92,7 +92,7 @@ namespace Pixils::Script
       return Roo::number(a.distance_to(b));
     }
 
-    /* Distance Squared - distance-squared */
+    /** DistanceSquared - pixils.point/distance-squared */
     FUNC_IMPL(DistanceSquared,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
                    EXEC_DISPATCH(&DistanceSquared::exec_distance_squared))))
@@ -105,7 +105,7 @@ namespace Pixils::Script
       return Roo::number(a.distance_squared_to(b));
     }
 
-    /* PointMinimum */
+    /** PointMinimum - pixils.point/min */
     FUNC_IMPL(PointMinimum,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::NUMBER_OR_POINT)),
                    EXEC_DISPATCH(&PointMinimum::exec_point_min))));
@@ -119,7 +119,7 @@ namespace Pixils::Script
                                        std::min(point.y, bound.y));
     }
 
-    /* PointMaximum */
+    /** PointMaximum - pixils.point/max */
     FUNC_IMPL(PointMaximum,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::NUMBER_OR_POINT)),
                    EXEC_DISPATCH(&PointMaximum::exec_point_max))));
@@ -133,7 +133,7 @@ namespace Pixils::Script
                                        std::max(point.y, bound.y));
     }
 
-    /* Clamp Point */
+    /** ClampPoint - pixils.point/clamp */
     FUNC_IMPL(ClampPoint,
               MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
                          EXEC_DISPATCH(&ClampPoint::exec_clamp_rect)),
@@ -163,7 +163,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(clamp_point_to_bounds(point, min, max));
     }
 
-    /* Translate Point */
+    /** TranslatePoint - pixils.point/translate */
     FUNC_IMPL(TranslatePoint,
               SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&TranslatePoint::exec_translate))));
@@ -174,7 +174,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(point.plus(args[1]->f32(), args[2]->f32()));
     }
 
-    /* Translate Point X */
+    /** TranslatePointX - pixils.point/translate-x */
     FUNC_IMPL(TranslatePointX,
               SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&TranslatePointX::exec_translate_x))));
@@ -185,7 +185,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(point.plus(args[1]->f32(), 0));
     }
 
-    /* Translate Point Y */
+    /** TranslatePointY - pixils.point/translate-y */
     FUNC_IMPL(TranslatePointY,
               SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&TranslatePointY::exec_translate_y))));
@@ -196,7 +196,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(point.plus(0, args[1]->f32()));
     }
 
-    /* Wrap Point */
+    /** WrapPoint - pixils.point/wrap */
     FUNC_IMPL(WrapPoint,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
                    EXEC_DISPATCH(&WrapPoint::exec_wrap))));
@@ -217,7 +217,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(x, y);
     }
 
-    /* Rotate Point - rotate-point */
+    /** RotatePoint - pixils.point/rotate */
     FUNC_IMPL(
       RotatePoint,
       MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Roo::Type::NUMBER)),
@@ -256,7 +256,7 @@ namespace Pixils::Script
       return this->exec_with_opts(ctx, fwd_args);
     }
 
-    /* PointMultiplication */
+    // PointMultiplication - pixils.point/*
     FUNC_IMPL(PointMultiplication,
               SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&PointMultiplication::exec_multiply_num))));
@@ -269,7 +269,7 @@ namespace Pixils::Script
       return PointAdapter::make_unique(coord.x * n, coord.y * n);
     }
 
-    /* PointDivision */
+    /** PointDivision - pixils.point/div */
     FUNC_IMPL(PointDivision,
               SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&PointDivision::exec_divide_num))));
@@ -282,7 +282,19 @@ namespace Pixils::Script
       return PointAdapter::make_unique(coord.x / n, coord.y / n);
     }
 
-    /* PointPlus */
+    /** PointEquality - pixils.point/= */
+    FUNC_IMPL(PointEquality,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                   EXEC_DISPATCH(&PointEquality::exec_equal))))
+
+    EXEC_BODY(PointEquality, exec_equal)
+    {
+      return Roo::obj<Point>(*args.front()) == Roo::obj<Point>(*args.back())
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    /** PointPlus - pixils.point/+ */
     FUNC_IMPL(PointPlus,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
                    EXEC_DISPATCH(&PointPlus::exec_plus))));
@@ -293,7 +305,7 @@ namespace Pixils::Script
                                        Roo::obj<Point>(*args.back()));
     }
 
-    /* PointMinus */
+    /** PointMinus - pixils.point/- */
     FUNC_IMPL(PointMinus,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
                    EXEC_DISPATCH(&PointMinus::exec_minus))));
@@ -319,6 +331,7 @@ namespace Pixils::Script
     values.emplace(FN__DISTANCE_SQUARED, Function::DistanceSquared::make());
     values.emplace(FN__CLAMP, Function::ClampPoint::make());
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
+    values.emplace(FN__EQUAL, Function::PointEquality::make());
     values.emplace(FN__INT_POINT, Function::IntPointFunction::make());
     values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
     values.emplace(FN__MAX, Function::PointMaximum::make());
