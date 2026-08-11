@@ -10,7 +10,7 @@
 
 (defun selectable-option? [option]
   (and (some? option)
-       (not (option/disabled? option))))
+       (not (:disabled? option))))
 
 (defun option-by-value [options value]
   (find-first options
@@ -42,7 +42,7 @@
                                 {:index index
                                  :value (option/value option)
                                  :label (option/label option)
-                                 :disabled? (option/disabled? option)
+                                 :disabled? (:disabled? option)
                                  :selected? (= (option/value option)
                                                selected)
                                  :selection-required? required?}))

@@ -72,14 +72,11 @@
     (apply accept-value? [value state])
     true))
 
-(defun text-input-read-only? [state]
-  (= (:read-only? state) true))
-
 (defun value-or [value fallback]
   (if (nil? value) fallback value))
 
 (defun text-input-change [state value cursor-index ctx]
-  (if (and (not (text-input-read-only? state))
+  (if (and (not (:read-only? state))
            (text-input-accepts-value? state value))
     (do
       (when (not= (:emit-change? state) false)
@@ -118,7 +115,7 @@
           (assoc :selection-end end)))))
 
 (defun text-input-move-cursor [state cursor-index extend?]
-  (let [cursor-index (max 0 (min (count (:value state)) cursor-index))]
+  (let [cursor-index (clamp cursor-index 0 (count (:value state)))]
     (if extend?
       (text-input-select-to state cursor-index)
       (-> state
@@ -128,7 +125,7 @@
           (assoc :selection-end nil)))))
 
 (defun text-input-place-cursor-for-drag [state cursor-index]
-  (let [cursor-index (max 0 (min (count (:value state)) cursor-index))]
+  (let [cursor-index (clamp cursor-index 0 (count (:value state)))]
     (-> state
         (assoc :cursor-index cursor-index)
         (assoc :selection-anchor cursor-index)
@@ -145,23 +142,23 @@
     (:selection-end state)
     (+ (:cursor-index state) 1)))
 
-(defun text-input-delete-selection [state ctx]
-  (let [value (:value state)
-        start (:selection-start state)
-        end (:selection-end state)]
-    (text-input-change state
-                       (remove-text-range value start end)
-                       start
-                       ctx)))
+(defun text-input-delete-selection
+  [{:keys [value selection-start selection-end] :as state} ctx]
+  (text-input-change state
+                     (remove-text-range value selection-start selection-end)
+                     selection-start
+                     ctx))
 
 (defun text-input-insert-text [state text ctx]
   (let [value (:value state)
         cursor-index (:cursor-index state)]
     (if (text-input-has-selection? state)
-      (let [start (:selection-start state)
-            end (:selection-end state)]
+      (let [start (:selection-start state)]
         (text-input-change state
-                           (replace-text-range value start end text)
+                           (replace-text-range value
+                                               start
+                                               (:selection-end state)
+                                               text)
                            (+ start (count text))
                            ctx))
       (text-input-change state
@@ -211,20 +208,19 @@
       state)
 
     (key-matches? event :key/X :key/x)
-    (if (or (text-input-read-only? state)
-            (not (text-input-has-selection? state)))
-      state
-      (if (clipboard/set-text! (text-input-selected-text state))
-        (text-input-delete-selection state ctx)
-        state))
+    (cond
+      (or (:read-only? state)
+          (not (text-input-has-selection? state))) state
+      (clipboard/set-text! (text-input-selected-text state))
+      (text-input-delete-selection state ctx)
+      :default state)
 
     (key-matches? event :key/V :key/v)
-    (if (text-input-read-only? state)
+    (if (:read-only? state)
       state
       (let [text (clipboard/get-text)]
-        (if (> (count text) 0)
-          (text-input-insert-text state text ctx)
-          state)))
+        (cond-> state
+          (not-empty? text) (text-input-insert-text text ctx))))
 
     :default nil))
 
@@ -235,7 +231,7 @@
   (let [style (-> ctx :view :effective-style)
         text-opts (text-args style)
         value (or (:value state) "")
-        text-dim (r/text-size (if (> (count value) 0) value "M") text-opts)
+        text-dim (r/text-size (if (not-empty? value) value "M") text-opts)
         line-dim (r/text-size "M" text-opts)]
     {:w (max 1 (or (:w text-dim) 0))
      :h (max 1 (or (:h line-dim) 0))}))
@@ -271,8 +267,9 @@
       (text-input-place-cursor-for-drag state cursor-index))))
 
 (defun clamp-scroll-x [scroll-x text-width content-width]
-  (max 0 (min (or scroll-x 0)
-              (max 0 (- (or text-width 0) (or content-width 0))))))
+  (clamp (or scroll-x 0)
+         0
+         (max 0 (- (or text-width 0) (or content-width 0)))))
 
 (defun scroll-x-for-cursor [scroll-x cursor-x text-width content-width]
   (let [content-width (or content-width 0)
@@ -310,21 +307,20 @@
 
 (defun position-text-input-children! [ctx scroll-x cursor-y cursor-x cursor-h show-caret?]
   (let [children (ui/children ctx)]
-    (do
-      (when (> (count children) 0)
-        (text-input-style-if-changed! (nth children 0)
-                                      {:position :absolute
-                                       :left (* -1 (or scroll-x 0))
-                                       :top (or cursor-y 0)}))
-      (when (> (count children) 1)
-        (text-input-style-if-changed! (nth children 1)
-                                      {:position :absolute
-                                       :left (- (or cursor-x 0) (or scroll-x 0))
-                                       :top (or cursor-y 0)
-                                       :height (or cursor-h 0)
-                                       :visibility (if show-caret?
-                                                     :visible
-                                                     :none)})))))
+    (when (not-empty? children)
+      (text-input-style-if-changed! (head children)
+                                    {:position :absolute
+                                     :left (* -1 (or scroll-x 0))
+                                     :top (or cursor-y 0)}))
+    (when (> (count children) 1)
+      (text-input-style-if-changed! (nth children 1)
+                                    {:position :absolute
+                                     :left (- (or cursor-x 0) (or scroll-x 0))
+                                     :top (or cursor-y 0)
+                                     :height (or cursor-h 0)
+                                     :visibility (if show-caret?
+                                                   :visible
+                                                   :none)}))))
 
 (defun text-input-caret-style [state]
   {:position :absolute
@@ -341,23 +337,19 @@
   (let [value (or (:value state) "")
         style (-> ctx :view :effective-style)
         text-opts (text-args style)
-        cursor-index (max 0 (min (count value)
-                                 (value-or (:cursor-index state)
-                                           (count value))))
-        selection-anchor (if (nil? (:selection-anchor state))
-                           nil
-                           (max 0 (min (count value)
-                                       (:selection-anchor state))))
-        selection-start (if (nil? selection-anchor)
-                          nil
+        cursor-index (clamp (value-or (:cursor-index state) (count value))
+                            0
+                            (count value))
+        selection-anchor (unless (nil? (:selection-anchor state))
+                           (clamp (:selection-anchor state) 0 (count value)))
+        selection-start (unless (nil? selection-anchor)
                           (let [start (min selection-anchor cursor-index)
                                 end (max selection-anchor cursor-index)]
-                            (if (< start end) start nil)))
-        selection-end (if (nil? selection-anchor)
-                        nil
+                            (when (< start end) start)))
+        selection-end (unless (nil? selection-anchor)
                         (let [start (min selection-anchor cursor-index)
                               end (max selection-anchor cursor-index)]
-                          (if (< start end) end nil)))
+                          (when (< start end) end)))
         prefix (substr value 0 cursor-index)
         text-width (measure-text-width value text-opts)
         cursor-x (measure-text-width prefix text-opts)
@@ -377,7 +369,6 @@
         show-caret? (and (not (:disabled? state))
                          (or (-> ctx :view :interaction :focused)
                              (-> ctx :view :interaction :focus-within)))
-        was-focused? (:focused? state)
         selection-prefix-width (measure-text-width
                                  (substr value
                                          0
@@ -393,35 +384,34 @@
         selection-x (max 0 selection-left)
         selection-w (max 0 (- (min content-width selection-right)
                               selection-x))]
-    (do
-      (when (and emit-blur?
-                 (:emit-blur? state)
-                 was-focused?
-                 (not show-caret?))
-        (ui/emit! (:view ctx) :text-input/blur {:value value}))
-      (position-text-input-children! ctx
-                                     scroll-x
-                                     cursor-y
-                                     cursor-x
-                                     cursor-h
-                                     show-caret?)
-      (-> state
-          (assoc :value value)
-          (assoc :cursor-index cursor-index)
-          (assoc :selection-anchor selection-anchor)
-          (assoc :selection-start selection-start)
-          (assoc :selection-end selection-end)
-          (assoc :scroll-x scroll-x)
-          (assoc :cursor-x cursor-x)
-          (assoc :caret-x (- cursor-x scroll-x))
-          (assoc :cursor-y cursor-y)
-          (assoc :cursor-h cursor-h)
-          (assoc :selection-x selection-x)
-          (assoc :selection-y cursor-y)
-          (assoc :selection-w selection-w)
-          (assoc :selection-h cursor-h)
-          (assoc :show-caret? show-caret?)
-          (assoc :focused? show-caret?)))))
+    (when (and emit-blur?
+               (:emit-blur? state)
+               (:focused? state)
+               (not show-caret?))
+      (ui/emit! (:view ctx) :text-input/blur {:value value}))
+    (position-text-input-children! ctx
+                                   scroll-x
+                                   cursor-y
+                                   cursor-x
+                                   cursor-h
+                                   show-caret?)
+    (-> state
+        (assoc :value value)
+        (assoc :cursor-index cursor-index)
+        (assoc :selection-anchor selection-anchor)
+        (assoc :selection-start selection-start)
+        (assoc :selection-end selection-end)
+        (assoc :scroll-x scroll-x)
+        (assoc :cursor-x cursor-x)
+        (assoc :caret-x (- cursor-x scroll-x))
+        (assoc :cursor-y cursor-y)
+        (assoc :cursor-h cursor-h)
+        (assoc :selection-x selection-x)
+        (assoc :selection-y cursor-y)
+        (assoc :selection-w selection-w)
+        (assoc :selection-h cursor-h)
+        (assoc :show-caret? show-caret?)
+        (assoc :focused? show-caret?))))
 
 (defun sync-text-input-state [state ctx]
   (sync-text-input-state* state ctx false))
@@ -429,13 +419,11 @@
 (defcomponent ui/text-input-caret
   {:style {:width 1}
    :init (fn [state ctx]
-           (do
-             (text-input-sync-caret-style! state ctx)
-             state))
+           (text-input-sync-caret-style! state ctx)
+           state)
    :update (fn [state ctx]
-             (do
-               (text-input-sync-caret-style! state ctx)
-               state))
+             (text-input-sync-caret-style! state ctx)
+             state)
    :render (fn [state ctx]
              (r/rect! {:x 0
                        :y 0
@@ -457,14 +445,13 @@
            :clip true}
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
-             (do
-               (when (and (:auto-focus? state)
-                          (not (:disabled? state)))
-                 (ui/focus! ctx))
-               (-> state
-                   (assoc :value value)
-                   (assoc :cursor-index (value-or (:cursor-index state)
-                                                  (count value)))))))
+             (when (and (:auto-focus? state)
+                        (not (:disabled? state)))
+               (ui/focus! ctx))
+             (-> state
+                 (assoc :value value)
+                 (assoc :cursor-index (value-or (:cursor-index state)
+                                                (count value))))))
    :update (fn [state ctx]
              (sync-text-input-state* state ctx true))
    :after-layout (fn [state ctx]
@@ -498,24 +485,26 @@
                         shortcut-state
                         (cond
                         (= :key/backspace (:key event))
-                        (if (text-input-has-selection? state)
+                        (cond
+                          (text-input-has-selection? state)
                           (text-input-delete-selection state ctx)
-                          (if (> cursor-index 0)
-                            (text-input-change state
-                                               (remove-char-before value cursor-index)
-                                               (dec cursor-index)
-                                               ctx)
-                            state))
+                          (> cursor-index 0)
+                          (text-input-change state
+                                             (remove-char-before value cursor-index)
+                                             (dec cursor-index)
+                                             ctx)
+                          :default state)
 
                         (= :key/delete (:key event))
-                        (if (text-input-has-selection? state)
+                        (cond
+                          (text-input-has-selection? state)
                           (text-input-delete-selection state ctx)
-                          (if (< cursor-index (count value))
-                            (text-input-change state
-                                               (remove-char-after value cursor-index)
-                                               cursor-index
-                                               ctx)
-                            state))
+                          (< cursor-index (count value))
+                          (text-input-change state
+                                             (remove-char-after value cursor-index)
+                                             cursor-index
+                                             ctx)
+                          :default state)
 
                         (= :key/left (:key event))
                         (text-input-move-cursor state

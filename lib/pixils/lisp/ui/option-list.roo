@@ -254,7 +254,7 @@
                         index
                         item]
   (let [disabled? (or disabled?
-                      (option/disabled? item))
+                      (:disabled? item))
         selected? (and (sequential? selected-indices)
                        (contains? selected-indices index))
         item-height (or (:computed-row-height state)

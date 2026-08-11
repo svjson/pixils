@@ -16,10 +16,6 @@
 (defun value [{:keys [value id]}]
   (or value id))
 
-(defun disabled? [option]
-  (= (:disabled? option) true))
-
-
 
 ;; Interaction support
 

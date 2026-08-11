@@ -21,9 +21,9 @@
       (:image state)))
 
 (defun desktop-icon-selected? [state]
-  (or (= (:selected? state) true)
-      (and (not (nil? (:selected-id state)))
-           (not (nil? (:id (icon/icon-item state))))
+  (or (:selected? state)
+      (and (some? (:selected-id state))
+           (some? (:id (icon/icon-item state)))
            (= (:id (icon/icon-item state))
               (:selected-id state)))))
 
@@ -80,7 +80,7 @@
                            :state {:value (ui/bind-state :value)}}]}]})
 
 (defun bound-state-keys [keys]
-  (reduce (or keys [])
+  (reduce keys
           {}
           (fn [out key]
             (assoc out key (ui/bind-state key)))))
@@ -106,18 +106,19 @@
    (desktop-icon-label-child opts)])
 
 (defun desktop-icon-state [opts]
-  (let [s0 (or (:state opts) {})
-        s1 (if (contains? opts :item) (assoc s0 :item (:item opts)) s0)
-        s2 (if (and (contains? opts :label)
-                    (not (= (type-of (:label opts)) "map")))
-             (assoc s1 :label (:label opts))
-             s1)
-        s3 (if (contains? opts :image) (assoc s2 :image (:image opts)) s2)
-        s4 (if (contains? opts :position) (assoc s3 :position (:position opts)) s3)
-        s5 (if (contains? opts :selected-id) (assoc s4 :selected-id (:selected-id opts)) s4)
-        s6 (if (contains? opts :selected?) (assoc s5 :selected? (:selected? opts)) s5)
-        s7 (if (contains? opts :dragging?) (assoc s6 :dragging? (:dragging? opts)) s6)]
-    s7))
+  (cond-> (or (:state opts) {})
+    (contains? opts :item) (assoc :item (:item opts))
+    (and (contains? opts :label)
+         (not (map? (:label opts)))) (assoc :label (:label opts))
+    (contains? opts :image) (assoc :image (:image opts))
+    (contains? opts :position) (assoc :position (:position opts))
+    (contains? opts :selected-id) (assoc :selected-id (:selected-id opts))
+    (contains? opts :selected?) (assoc :selected? (:selected? opts))
+    (contains? opts :dragging?) (assoc :dragging? (:dragging? opts))))
+
+
+
+;; Component definitions
 
 (defcomponent ui/desktop-icon
   {:extend 'ui/icon
@@ -145,27 +146,27 @@
 ;; Make functions
 
 (defun make-desktop-icon [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
-  (merge {:component 'ui/desktop-icon
-          :style (or style {})
-          :state (desktop-icon-state opts)
-          :children (desktop-icon-children opts)}
-         (if class {:class class} {})
-         (if init {:init init} {})
-         (if update {:update update} {})
-         (if on {:on on} {})
-         (if on-click {:on-click on-click} {})
-         (if on-double-click {:on-double-click on-double-click} {})
-         (if on-drop {:on-drop on-drop} {})))
+  (cond-> {:component 'ui/desktop-icon
+           :style (or style {})
+           :state (desktop-icon-state opts)
+           :children (desktop-icon-children opts)}
+    class (assoc :class class)
+    init (assoc :init init)
+    update (assoc :update update)
+    on (assoc :on on)
+    on-click (assoc :on-click on-click)
+    on-double-click (assoc :on-double-click on-double-click)
+    on-drop (assoc :on-drop on-drop)))
 
 (defun make-desktop-icon-preview [{:keys [class style init update on on-click on-double-click on-drop] :as opts}]
-  (merge {:component 'ui/desktop-icon-preview
-          :style (or style {})
-          :state (desktop-icon-state opts)
-          :children (desktop-icon-children opts)}
-         (if class {:class class} {})
-         (if init {:init init} {})
-         (if update {:update update} {})
-         (if on {:on on} {})
-         (if on-click {:on-click on-click} {})
-         (if on-double-click {:on-double-click on-double-click} {})
-         (if on-drop {:on-drop on-drop} {})))
+  (cond-> {:component 'ui/desktop-icon-preview
+           :style (or style {})
+           :state (desktop-icon-state opts)
+           :children (desktop-icon-children opts)}
+    class (assoc :class class)
+    init (assoc :init init)
+    update (assoc :update update)
+    on (assoc :on on)
+    on-click (assoc :on-click on-click)
+    on-double-click (assoc :on-double-click on-double-click)
+    on-drop (assoc :on-drop on-drop)))

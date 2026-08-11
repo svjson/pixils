@@ -10,15 +10,6 @@
 
 ;; Interaction support
 
-(defun forced-selection? [state]
-  (= (:force-selection? state) true))
-
-(defun toggle-selected? [state]
-  (= (:toggle-selected? state) true))
-
-(defun reorderable? [state]
-  (= (:reorderable? state) true))
-
 (defun reorder-visual-strategy [state]
   (or (:reorder-visual-strategy state)
       :placeholder))
@@ -29,7 +20,7 @@
         (= strategy :move-with-hole))))
 
 (defun preserve-forced-selection [state indices previous]
-  (if (and (forced-selection? state)
+  (if (and (:force-selection? state)
            (empty? indices))
     previous
     indices))
@@ -247,7 +238,7 @@
 (defun apply-reorder-visuals-indexed! [state items index]
   (unless (empty? items)
     (ui/style! (head items)
-               (if (and (reorderable? state)
+               (if (and (:reorderable? state)
                         (:reorder-drag state)
                         (reorder-placeholder-strategy? state))
                  (reorder-item-style state index)
@@ -343,7 +334,7 @@
               (let [selected (or (when-let [sel-ind (:selected-indices ui-state)]
                                    (when (not-empty? sel-ind)
                                      sel-ind))
-                                 (if (forced-selection? ui-state)
+                                 (if (:force-selection? ui-state)
                                    (if-let [index (navigation/first-enabled-index
                                                    (:options ui-state))]
                                      [index]
@@ -444,7 +435,7 @@
                                    (let [payload (:payload event)
                                          option (nth (:options ui-state) (:index payload))
                                          disabled? (or (:disabled? ui-state)
-                                                       (option/disabled? option))
+                                                       (:disabled? option))
                                          selected (if disabled?
                                                     (:selected-indices ui-state)
                                                     (click-selection ui-state payload))
@@ -479,7 +470,7 @@
                                         payload (:payload event)
                                         option (nth (:options ui-state) (:index payload))
                                         disabled? (or (:disabled? ui-state)
-                                                      (option/disabled? option))
+                                                      (:disabled? option))
                                         selected (if disabled?
                                                    (:selected-indices ui-state)
                                                    (click-selection ui-state payload))
@@ -500,11 +491,11 @@
               (let [ui-state (-> ctx :view :ui-state)
                     drag (reorder-drag-for-drop ui-state event)
                     from-index (:index drag)]
-                (if (and (reorderable? ui-state)
+                (if (and (:reorderable? ui-state)
                          drag
                          (navigation/valid-index? (:options ui-state) from-index)
-                         (not (option/disabled? (nth (:options ui-state)
-                                                     from-index))))
+                         (not (:disabled? (nth (:options ui-state)
+                                               from-index))))
                   (let [event-payload (reorder-event-payload ui-state event drag)]
                     (ui/stop-propagation! event)
                     (when (not= (:from-index event-payload)

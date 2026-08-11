@@ -7,15 +7,6 @@
 
 
 
-;; Public state functions
-
-(defun checked?
-  "Returns true when checkbox state contains an explicit true :checked? value."
-  [state]
-  (= (:checked? state) true))
-
-
-
 ;; Internal support functions
 
 (defun checkbox-mark-color
@@ -39,7 +30,7 @@
           (:checked-image theme)
           (:image theme))
 
-      (checked? state)
+      (:checked? state)
       (or (:checked-image theme)
           (:image theme))
 
@@ -98,7 +89,7 @@
                    image (checkbox-image state ctx)]
                (if image
                  (render-checkbox-image! image bounds)
-                 (when (checked? state)
+                 (when (:checked? state)
                    (let [color (checkbox-mark-color state ctx)
                          passes (checkbox-mark-passes bounds)
                          pass1 (head passes)
@@ -131,16 +122,12 @@
                    :pressed]
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
-                     :checked?
-                     (checked? ui-state)
                      :pressed
                      (if (contains? ui-state :pressed)
                        (:pressed ui-state)
                        (:pressed state))))
    :update-ui (fn [ui-state state ctx]
                 (assoc ui-state
-                       :checked?
-                       (checked? ui-state)
                        :pressed
                        (and (not (get ui-state :disabled? (:disabled? state)))
                                               (contains? (-> ctx :view :interaction :pressed) :left)
@@ -148,7 +135,7 @@
    :on-click (fn [state event ctx]
                (let [ui-state (-> ctx :view :ui-state)
                      disabled? (get ui-state :disabled? (:disabled? state))
-                     checked? (not (checked? ui-state))]
+                     checked? (not (:checked? ui-state))]
                  (if disabled?
                    state
                    (do

@@ -13,14 +13,10 @@
    {:label "All files (*)"
     :extensions []}])
 
-(defun filter-patterns [filter]
-  (let [patterns (:patterns filter)
-        extensions (or (:extensions filter) [])]
-    (if patterns
-      patterns
-      (map extensions
-           (fn [extension]
-             (str "*" extension))))))
+(defun filter-patterns [{:keys [patterns extensions]}]
+  (or patterns
+      (for [extension extensions]
+        (str "*" extension))))
 
 (defun file-list-options [filter]
   (let [patterns (filter-patterns filter)]
@@ -34,8 +30,8 @@
           (io/list-directory! path (file-list-options filter))))
 
 (defun accessible-directory? [path]
-  (and (not (nil? path))
-       (not (empty? path))
+  (and (some? path)
+       (not-empty? path)
        (io/directory? path)))
 
 (defun safe-list-directory [path filter]
@@ -91,16 +87,14 @@
             :label (entry-label entry)})))
 
 (defun entry-at [entries index]
-  (when (and (not (nil? index))
+  (when (and (some? index)
              (>= index 0)
              (< index (count entries)))
     (nth entries index)))
 
 (defun filter-at [filters index]
   (let [items (or filters default-filters)
-        selected-index (max 0
-                            (min (dec (count items))
-                                 (or index 0)))]
+        selected-index (clamp (or index 0) 0 (dec (count items)))]
     (nth items selected-index)))
 
 (defun filter-options [filters]
@@ -110,8 +104,8 @@
 
 (defun multi-select-dialog? [opts mode]
   (and (= mode :file-dialog/open)
-       (or (= (:multi-select? opts) true)
-           (= (:multi-file? opts) true))))
+       (or (:multi-select? opts)
+           (:multi-file? opts))))
 
 (defun initial-state [opts]
   (let [path (or (:path opts) default-path)
@@ -166,9 +160,8 @@
            :path-error "Folder not found")))
 
 (defun selected-file-entries [state]
-  (filter (map (or (:selected-indices state) [])
-               (fn [index]
-                 (entry-at (:entries state) index)))
+  (filter (for [index (or (:selected-indices state) [])]
+            (entry-at (:entries state) index))
           (fn [entry]
             (and entry
                  (file-entry? entry)))))
@@ -177,10 +170,10 @@
   (let [entries (selected-file-entries state)
         filename (or (:filename state) "")]
     (cond
-      (not (empty? entries))
-      (map entries (fn [entry] (:path entry)))
+      (not-empty? entries)
+      (for [entry entries] (:path entry))
 
-      (not (empty? filename))
+      (not-empty? filename)
       [(join-path (:path state) filename)]
 
       :default
@@ -190,10 +183,10 @@
   (let [entries (selected-file-entries state)
         filename (or (:filename state) "")]
     (cond
-      (not (empty? entries))
-      (map entries (fn [entry] (:name entry)))
+      (not-empty? entries)
+      (for [entry entries] (:name entry))
 
-      (not (empty? filename))
+      (not-empty? filename)
       [filename]
 
       :default
@@ -222,15 +215,14 @@
    :directory (:path state)
    :filename (:filename state)})
 
-(defun confirm-or-navigate [state ctx]
-  (let [entry (:selected-entry state)]
-    (if (and entry
-             (directory-entry? entry)
-             (empty? (selected-file-entries state)))
-      (navigate-to state (:path entry))
-      (do
-        (ui/emit! (:view ctx) :file-dialog/confirm (confirm-result state))
-        state))))
+(defun confirm-or-navigate [{:keys [selected-entry] :as state} {:keys [view]}]
+  (if (and selected-entry
+           (directory-entry? selected-entry)
+           (empty? (selected-file-entries state)))
+    (navigate-to state (:path selected-entry))
+    (do
+      (ui/emit! view :file-dialog/confirm (confirm-result state))
+      state)))
 
 (defun activate-entry [state index ctx]
   (let [entry (entry-at (:entries state) index)
@@ -261,11 +253,10 @@
                            (ui/emit! (:view ctx) :file-dialog/up)
                            state)}]
    :on {:text-input/change (fn [state event ctx]
-                             (do
-                               (ui/stop-propagation! event)
-                               (assoc state
-                                      :pending-path (-> event :payload :value)
-                                      :path-error nil)))}
+                             (ui/stop-propagation! event)
+                             (assoc state
+                                    :pending-path (-> event :payload :value)
+                                    :path-error nil))}
    :on-key-down (fn [state event ctx]
                   (when (= (:key event) :key/enter)
                     (ui/stop-propagation! event)
@@ -328,12 +319,11 @@
                        :filters (ui/bind-state :filters)
                        :filter-index (ui/bind-state :filter-index)}
                :on-mouse-up (fn [state event ctx]
-                               (do
-                                 (ui/stop-propagation! event)
-                                 (ui/emit! (:view ctx)
-                                           :file-dialog/cancel
-                                           (cancel-result state))
-                                 state))}
+                               (ui/stop-propagation! event)
+                               (ui/emit! (:view ctx)
+                                         :file-dialog/cancel
+                                         (cancel-result state))
+                               state)}
               {:mode 'ui/button
                :class [:ui/dialog-button
                        :ui/dialog-button-ok
@@ -349,9 +339,8 @@
                        :filters (ui/bind-state :filters)
                        :filter-index (ui/bind-state :filter-index)}
                :on-mouse-up (fn [state event ctx]
-                               (do
-                                 (ui/stop-propagation! event)
-                                 (confirm-or-navigate state ctx)))}]})
+                               (ui/stop-propagation! event)
+                               (confirm-or-navigate state ctx))}]})
 
 (defcomponent ui/file-dialog-body
   {:class [:ui/content
@@ -373,78 +362,68 @@
                  (let [entries (safe-list-directory path
                                                     (filter-at (:filters state)
                                                                (:filter-index state)))]
-                   (do
-                     (ui/replace-child! (:view ctx)
-                                        "entry-list"
-                                        (entry-list-child entries
-                                                          []
-                                                          (:multi-select?
-                                                           state)))
-                     (assoc state
-                            :path path
-                            :pending-path path
-                            :path-error nil
-                            :entry-path path
-                            :entries entries
-                            :selected-index nil
-                            :selected-indices []
-                            :selected-entry nil
-                            :filename ""))))))
-   :on {:list-box/change (fn [state event ctx]
-                           (let [payload (:payload event)
-                                 indices (or (:selected-indices payload) [])
+                   (ui/replace-child! (:view ctx)
+                                      "entry-list"
+                                      (entry-list-child entries
+                                                        []
+                                                        (:multi-select? state)))
+                   (assoc state
+                          :path path
+                          :pending-path path
+                          :path-error nil
+                          :entry-path path
+                          :entries entries
+                          :selected-index nil
+                          :selected-indices []
+                          :selected-entry nil
+                          :filename "")))))
+   :on {:list-box/change (fn [state {:keys [payload] :as event} ctx]
+                           (let [indices (or (:selected-indices payload) [])
                                  index (head indices)
                                  entry (entry-at (:entries state) index)
                                  file-entries (filter
-                                               (map indices
-                                                    (fn [selected-index]
-                                                      (entry-at (:entries state)
-                                                                selected-index)))
+                                               (for [selected-index indices]
+                                                 (entry-at (:entries state)
+                                                           selected-index))
                                                file-entry?)]
-                             (do
-                               (ui/stop-propagation! event)
-                               (assoc state
-                                      :selected-index index
-                                      :selected-indices indices
-                                      :selected-entry entry
-                                      :filename (if (= (count file-entries) 1)
-                                                  (:name (head file-entries))
-                                                  "")))))
+                             (ui/stop-propagation! event)
+                             (assoc state
+                                    :selected-index index
+                                    :selected-indices indices
+                                    :selected-entry entry
+                                    :filename (case (count file-entries)
+                                                1 (:name (head file-entries))
+                                                :default ""))))
         :file-dialog/up (fn [state event ctx]
-                          (do
-                            (ui/stop-propagation! event)
-                            (navigate-to state (parent-path (:path state)))))
+                          (ui/stop-propagation! event)
+                          (navigate-to state (parent-path (:path state))))
         :file-dialog/commit-path (fn [state event ctx]
-                                   (do
-                                     (ui/stop-propagation! event)
-                                     (navigate-to state
-                                                  (-> event :payload :path))))
+                                   (ui/stop-propagation! event)
+                                   (navigate-to state
+                                                (-> event :payload :path)))
         :combo-box/change (fn [state event ctx]
                             (let [filter-index (-> event :payload :selected-index)
                                   entries (safe-list-directory (:path state)
                                                                (filter-at (:filters state)
                                                                           filter-index))]
-                              (do
-                                (ui/stop-propagation! event)
-                                (ui/replace-child! (:view ctx)
-                                                   "entry-list"
-                                                   (entry-list-child entries
-                                                                     []
-                                                                     (:multi-select?
-                                                                      state)))
-                                (assoc state
-                                       :filter-index filter-index
-                                       :entries entries
-                                       :selected-index nil
-                                       :selected-indices []
-                                       :selected-entry nil
-                                       :filename ""))))
+                              (ui/stop-propagation! event)
+                              (ui/replace-child! (:view ctx)
+                                                 "entry-list"
+                                                 (entry-list-child entries
+                                                                   []
+                                                                   (:multi-select? state)))
+                              (assoc state
+                                     :filter-index filter-index
+                                     :entries entries
+                                     :selected-index nil
+                                     :selected-indices []
+                                     :selected-entry nil
+                                     :filename "")))
         :list-box/activate (fn [state event ctx]
-                             (do
-                               (ui/stop-propagation! event)
-                               (activate-entry state
-                                               (-> event :payload :index)
-                                               ctx)))}})
+                             (ui/stop-propagation! event)
+                             (activate-entry state
+                                             (-> event :payload :index)
+                                             ctx))}})
 
 (defun make-body [opts]
   (let [state (initial-state opts)]

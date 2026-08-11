@@ -1,17 +1,7 @@
 (ns pixils.ui.option-box
   (:require pixils
             [pixils.render :as r]
-            [pixils.ui :as ui]
-            [pixils.ui.option-item :as option]))
-
-
-
-;; Public state functions
-
-(defun selected?
-  "Returns true when option box state contains an explicit true :selected? value."
-  [state]
-  (= (:selected? state) true))
+            [pixils.ui :as ui]))
 
 
 
@@ -101,16 +91,12 @@
    :ui/state-keys OPTION-BOX-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
-                     :selected?
-                     (selected? ui-state)
                      :pressed
                      (if (contains? ui-state :pressed)
                        (:pressed ui-state)
                        (:pressed state))))
    :update-ui (fn [ui-state state ctx]
                 (assoc ui-state
-                       :selected?
-                       (selected? ui-state)
                        :pressed
                        (and (not (get ui-state :disabled? (:disabled? state)))
                             (contains? (-> ctx :view :interaction :pressed) :left)
@@ -121,10 +107,10 @@
    :on-click (fn [state event ctx]
                (let [ui-state (-> ctx :view :ui-state)
                      disabled? (get ui-state :disabled? (:disabled? state))
-                     next-selected? (if (and (selected? ui-state)
+                     next-selected? (if (and (:selected? ui-state)
                                              (selection-required? ui-state))
                                       true
-                                      (not (selected? ui-state)))]
+                                      (not (:selected? ui-state)))]
                  (if disabled?
                    state
                    (do
