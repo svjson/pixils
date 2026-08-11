@@ -27,7 +27,10 @@
                         :num-2 "../assets/num2.png"
                         :num-3 "../assets/num3.png"
                         :num-4 "../assets/num4.png"
-                        :num-5 "../assets/num5.png"}}})
+                        :num-5 "../assets/num5.png"
+                        :num-6 "../assets/num6.png"
+                        :num-7 "../assets/num7.png"
+                        :num-8 "../assets/num8.png"}}})
 
 (defun mine-layer-render! [state ctx]
   (let [grid-dim (select-keys (:settings state) [:w :h])]
@@ -63,20 +66,20 @@
    :style {:width board-cell-size
            :height board-cell-size
            :border {:thickness 0}}
-   :update (fn [state ctx]
-             (let [flagged (-> state :mask :flagged?)
+   :update (fn [{:keys [mask] :as state} ctx]
+             (let [flagged (:flagged? mask)
+                   visibility (if (:revealed? mask) :hidden :visible)
                    state (-> state
                              (assoc :image (when flagged
                                              :mine-layer-mode/flag))
-                             (assoc :force-pressed? (-> state :mask :chord-pressed?))
+                             (assoc :force-pressed? (:chord-pressed? mask))
                              (assoc :inhibit-pressed? flagged))]
-               (assoc-in! ctx
-                          [:view :style :visibility]
-                          (if (:revealed? (:mask state)) :hidden :visible))
+               (when (not= visibility (-> ctx :view :effective-style :visibility))
+                 (ui/style! (:view ctx) {:visibility visibility}))
                state))
-   :on-click (fn [state e ctx]
+   :on-click (fn [{:keys [mask] :as state} e ctx]
                (case (:button e)
-                 :left (when (not (:flagged? (:mask state)))
+                 :left (unless (:flagged? mask)
                          (ui/emit! (:view ctx) :cell/click state))
                  :right (ui/emit! (:view ctx) :cell/toggle-flag state))
                state)})
@@ -168,8 +171,7 @@
                            (pt/div board-cell-size)
                            pt/int)
             cells (concat cell-coord
-                          (map gl/directions
-                               (fn [d] (pt/+ cell-coord d))))]
+                          (for [d gl/directions] (pt/+ cell-coord d)))]
         (-> state
             (assoc :chord-press-active true)
             (assoc :board-mask (for-indexed [y row (:board-mask state)]
@@ -207,9 +209,9 @@
                     (-> (reduce (valid-chord-press-cells (:board-mask state))
                                 state
                                 (fn [state {:keys [x y]}]
-                                  (if (not (gl/revealed? state y x))
-                                    (gl/reveal-board-cell state y x)
-                                    state)))
+                                  (cond-> state
+                                          (not (gl/revealed? state y x))
+                                          (gl/reveal-board-cell state y x))))
                         clear-chord-press)
                     state))
    :children [{:mode 'mine-layer-mode

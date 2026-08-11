@@ -26,21 +26,21 @@
       (let [mine-x (rnd 0 w)
             mine-y (rnd 0 h)]
         (set! [grid]
-              (assoc grid mine-y
-                     (assoc (nth grid mine-y) mine-x :mine))))
+          (assoc grid mine-y
+                      (assoc (nth grid mine-y) mine-x :mine))))
       (set! [m-rem] (- m-rem 1)))
     (for-indexed [y row grid]
-                 (for-indexed [x cell row]
-                              (if (= cell :mine)
-                                :mine
-                                (reduce directions 0 (fn [num dir]
-                                                       (let [pos (pt/+ {:x x :y y} dir)
-                                                             adj (-> grid
-                                                                     (nth (:y pos))
-                                                                     (nth (:x pos)))]
-                                                         (if (= :mine adj)
-                                                           (+ 1 num)
-                                                           num)))))))))
+      (for-indexed [x cell row]
+        (case cell
+          :mine :mine
+          :default (reduce directions 0 (fn [num dir]
+                                          (let [pos (pt/+ {:x x :y y} dir)
+                                                adj (-> grid
+                                                        (nth (:y pos))
+                                                        (nth (:x pos)))]
+                                            (case adj
+                                              :mine (inc num)
+                                              :default num)))))))))
 
 (defun new-game-state [{:keys [w h mines] :as settings}]
   {:settings settings
@@ -104,23 +104,24 @@
                 state (reduce nbrs
                               (reveal-cell state y x)
                               (fn [s [ny nx]]
-                                (if (and (not= (cell-at board ny nx) :mine)
-                                         (not (flagged? state ny nx)))
-                                  (reveal-cell s ny nx)
-                                  s)))]
+                                (cond-> s
+
+                                        (and (not= (cell-at board ny nx) :mine)
+                                             (not (flagged? state ny nx)))
+                                        (reveal-cell ny nx))))]
             (reveal-board-region state
                                  (reduce nbrs rest-stack
                                          (fn [new-stack [ny nx]]
-                                           (if (and (= 0 (cell-at board ny nx))
-                                                    (not (flagged? state ny nx))
-                                                    (not (contains? visited [ny nx])))
-                                             (append! new-stack [ny nx])
-                                             new-stack)))
+                                           (cond-> new-stack
+
+                                                   (and (= 0 (cell-at board ny nx))
+                                                        (not (flagged? state ny nx))
+                                                        (not (contains? visited [ny nx])))
+                                                   (append! [ny nx]))))
                                  visited)))))))
 
-(defun reveal-board-cell [state start-y start-x]
-  (let [board (:board state)
-        start-value (cell-at board start-y start-x)]
+(defun reveal-board-cell [{:keys [board] :as state} start-y start-x]
+  (let [start-value (cell-at board start-y start-x)]
     (cond
       ;; A mine means game over
       (= :mine start-value)

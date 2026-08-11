@@ -109,9 +109,8 @@
                                 :color (var :panel-shadow)
                                 :bottom {:color (var :panel-highlight) :trim [0 1]}
                                 :right {:color (var :panel-highlight) :trim [1 0]}}}}]
-   :on {:cell/click (fn [state event ctx]
-                      (let [payload (:payload event)]
-                        (gl/reveal-board-cell state (:y payload) (:x payload))))
+   :on {:cell/click (fn [state {:keys [payload]} ctx]
+                      (gl/reveal-board-cell state (:y payload) (:x payload)))
         :cell/toggle-flag (fn [state event ctx]
                             (let [payload (:payload event)
                                   flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
@@ -128,24 +127,22 @@
 (defun make-game-mode [& settings]
   (merge {:mode 'game-mode
           :id "game"
-          :state (ui/bind-state :game)}
-         (if settings
-           {:children [{:mode 'status-panel
-                        :state {:counters (ui/bind-state :counters)
-                                :face (ui/bind-state :face)}}
-                       (board/make-board-child settings)]}
-           {})))
+          :state (ui/bind-state :game)
+          :children (when settings [{:mode 'status-panel
+                                     :state {:counters (ui/bind-state :counters)
+                                             :face (ui/bind-state :face)}}
+                                    (board/make-board-child settings)])}))
 
 
 
 (defmode window-mode
- {:focusable true
+  {:focusable true
    :init (fn [state ctx]
-           (merge state
-                  {:game (gl/new-game-state (merge {:mode :beginner}
-                                                   (get gl/difficulty-settings :beginner)))
-                   :preferences {:marks? true
-                                 :color? true}}))
+           (assoc state
+                  :game (gl/new-game-state (merge {:mode :beginner}
+                                                  (:beginner gl/difficulty-settings)))
+                  :preferences {:marks? true
+                                :color? true}))
    :action-map menu-keymap
    :children [(merge {:id "menu"}
                      (menu/make-menu {:game (ui/bind-state :game)
@@ -196,7 +193,7 @@
                        :init (fn [state ctx]
                                (merge state
                                       {:game (gl/new-game-state (merge {:mode :beginner}
-                                                                       (get gl/difficulty-settings :beginner)))
+                                                                       (:beginner gl/difficulty-settings)))
                                        :preferences {:marks? true
                                                      :color? true}}))
                        :body [{:mode 'window-mode
