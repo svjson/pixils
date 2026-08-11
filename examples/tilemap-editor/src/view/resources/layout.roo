@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.resources.layout
   (:require pixils
             [pixils.ui :as ui]
+            [tilemap-editor.view.resources.actions :as actions]
             tilemap-editor.view.resources.model
             tilemap-editor.view.resources.dialogs
             tilemap-editor.view.resources.panels))
@@ -49,7 +50,7 @@
           (open-selected-image-replace-file-dialog! state ctx))
         :resource/move-image-to-bundle
         (fn [state event ctx]
-          (move-image-resource! state (:payload event)))
+          (actions/move-image-resource state (:payload event)))
         :resource/image-drag-start
         (fn [state event ctx]
           (assoc state

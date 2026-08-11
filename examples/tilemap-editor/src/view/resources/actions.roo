@@ -1,0 +1,15 @@
+(ns tilemap-editor.view.resources.actions
+  (:require [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.resources.model :as model]))
+
+(defun move-image-resource
+  "Moves an image resource between project bundles.
+  `state` is the editor state. `payload` identifies the source bundle, resource,
+  and target bundle with `:source-bundle-id`, `:resource-id`, and
+  `:target-bundle-id`.
+  Returns updated editor state with one `Move image resource` workbook entry,
+  or returns `state` unchanged when the move is invalid."
+  [state payload]
+  (editor-workbook/change-to state
+                             "Move image resource"
+                             (model/move-image-resource! state payload)))

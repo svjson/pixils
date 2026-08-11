@@ -2,7 +2,6 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.ui.list-box :as lb]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.model :as model]))
@@ -85,7 +84,7 @@
                                    (:position event)
                                    (-> ctx :view :bounds))]
     (when (and (= (:button event) :left)
-               (lb/held-shift? ctx)
+               (contains? (:held-keys ctx) :key/left-shift)
                (some? tile-ref))
       (ui/stop-propagation! event)
       (ui/emit! (:view ctx)

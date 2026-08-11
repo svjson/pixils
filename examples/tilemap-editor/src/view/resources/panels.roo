@@ -145,7 +145,7 @@
                          ctx)
                         state)
                     state))
-   :on-click (fn [state event ctx]
+   :on-click (fn [state event {:keys [held-keys] :as ctx}]
                (if (= (:button event) :right)
                  (do
                    (ui/stop-propagation! event)
@@ -156,8 +156,8 @@
                                :list-box/item-click
                                {:index (:index state)
                                 :value (:value state)
-                                :shift? (lb/held-shift? ctx)
-                                :ctrl? (lb/held-ctrl? ctx)}))
+                                :shift? (contains? held-keys :key/left-shift)
+                                :ctrl? (contains? held-keys :key/left-ctrl)}))
                    state)))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]

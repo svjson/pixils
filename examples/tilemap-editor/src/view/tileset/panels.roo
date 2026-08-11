@@ -61,9 +61,9 @@
                                            (-> ctx :view :bounds)
                                            (count tiles)
                                            tile-size)
-        tile (when-let [index index] (nth tiles index))]
+        tile (when index (nth tiles index))]
     (if (or (nil? index)
-            (lb/held-shift? ctx))
+            (contains? (:held-keys ctx) :key/left-shift))
       {:kind :tileset/tile-selection}
 	      {:kind :tileset/tile
 	       :source-tileset-index (:selected-tileset-definition-index state)
@@ -74,27 +74,24 @@
 	       :height (:h tile-size)
 	       :offset (:start-position event)})))
 
-(defun emit-tile-drag-start! [state event ctx]
-  (let [payload (:payload event)]
-    (if (= (:kind payload) :tileset/tile)
-      (do
-        (ui/emit! (:view ctx)
-                  :tile/drag-start
-                  (assoc payload
-                         :position (tile-drag-position event payload)))
-        state)
-      (select-tile-grid-drag-range state event ctx))))
+(defun emit-tile-drag-start! [state {:keys [payload] :as event} ctx]
+  (case payload
+    :tileset/tile (do (ui/emit! (:view ctx)
+                              :tile/drag-start
+                              (assoc payload
+                                     :position (tile-drag-position event payload)))
+                      state)
+    :default (select-tile-grid-drag-range state event ctx)))
 
-(defun emit-tile-drag-move! [state event ctx]
-  (let [payload (:payload event)]
-    (if (= (:kind payload) :tileset/tile)
-      (do
-        (ui/emit! (:view ctx)
-                  :tile/drag-move
-                  (assoc payload
-                         :position (tile-drag-position event payload)))
-        state)
-      (select-tile-grid-drag-range state event ctx))))
+(defun emit-tile-drag-move! [state {:keys [payload] :as event} ctx]
+  (case payload
+    :tileset/tile (do (ui/emit! (:view ctx)
+                                :tile/drag-move
+                                (assoc payload
+                                       :position (tile-drag-position event payload)))
+                      state)
+    :default (select-tile-grid-drag-range state event ctx)))
+
 
 (defun emit-tile-drag-end! [state event ctx]
   (when (= (-> event :payload :kind) :tileset/tile)
@@ -334,7 +331,7 @@
                           (select-tileset-tile-index state index))
 
                         :default
-                        (if (lb/held-shift? ctx)
+                        (if (contains? (:held-keys ctx) :key/left-shift)
                           (assoc (select-tileset-tile-index state index)
                                  :tile-grid-selecting? true)
                           (assoc (select-tileset-tile-index state index)
@@ -899,8 +896,9 @@
                             (not= (:button event) :left)
                             (nil? index))
                       state
-                      (let [selection (if (and (lb/held-shift? ctx)
-                                               (not (nil? (:selection-anchor state))))
+                      (let [selection (if (and (contains? (:held-keys ctx)
+                                                         :key/left-shift)
+                                               (some? (:selection-anchor state)))
                                         (add-selection-range
                                          (:selected-indices state)
                                          (:selection-anchor state)

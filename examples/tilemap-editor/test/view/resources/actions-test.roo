@@ -1,0 +1,125 @@
+(ns tilemap-editor.view.resources.actions-test
+  (:require [pixils.resource :as res]
+            proof.core
+            [proof.syntax :as s]
+            [tilemap-editor.model.workbook :as editor-workbook]
+            [tilemap-editor.view.resources.actions :as actions]))
+
+
+
+;; tilemap-editor.view.resources.actions/move-image-resource
+
+(deftest move-image-resource/records-history-and-supports-undo-redo
+  (s/given
+    (res/create-bundle! :action-source)
+    (res/add-image! :action-source/tiles {:file-name "tiles.png"})
+    {:resources {:bundles {:action-source
+                           {:images {:tiles {:file-name "tiles.png"
+                                             :name "Tiles"}}}
+                           :action-target
+                           {:images {}}}}
+     :tilesets [{:id :terrain
+                 :tiles [{:id :grass
+                          :type :sprite
+                          :image :action-source/tiles}]}]})
+
+  (s/when [state]
+    (let [moved (actions/move-image-resource
+                 state
+                 {:source-bundle-id :action-source
+                  :resource-id :tiles
+                  :target-bundle-id :action-target})
+          undone (editor-workbook/undo moved)
+          redone (editor-workbook/redo undone)]
+      {:moved (dissoc moved :workbook-history)
+       :undo-label (editor-workbook/undo-label moved)
+       :undone (dissoc undone :workbook-history)
+       :redo-label (editor-workbook/redo-label undone)
+       :redone (dissoc redone :workbook-history)}))
+
+  (s/then [{:keys [moved undo-label]}]
+    (is (= {:resources
+            {:bundles
+             {:action-source {:images {}}
+              :action-target
+              {:images {:tiles {:file-name "tiles.png"
+                                :name "Tiles"}}}}}
+            :tilesets [{:id :terrain
+                        :tiles [{:id :grass
+                                 :type :sprite
+                                 :image :action-target/tiles}]}]
+            :selected-resource-bundle :action-target
+            :selected-image-resource :tiles
+            :selected-image-resources [:tiles]
+            :layers []}
+           moved))
+    (is (= "Move image resource" undo-label)))
+
+  (s/then [{:keys [undone redo-label]}]
+    (is (= {:resources
+            {:bundles
+             {:action-source
+              {:images {:tiles {:file-name "tiles.png"
+                                :name "Tiles"}}}
+              :action-target {:images {}}}}
+            :tilesets [{:id :terrain
+                        :tiles [{:id :grass
+                                 :type :sprite
+                                 :image :action-source/tiles}]}]
+            :selected-resource-bundle nil
+            :selected-image-resource nil
+            :selected-image-resources nil
+            :layers nil}
+           undone))
+    (is (= "Move image resource" redo-label)))
+
+  (s/then [{:keys [redone]}]
+    (is (= {:resources
+            {:bundles
+             {:action-source {:images {}}
+              :action-target
+              {:images {:tiles {:file-name "tiles.png"
+                                :name "Tiles"}}}}}
+            :tilesets [{:id :terrain
+                        :tiles [{:id :grass
+                                 :type :sprite
+                                 :image :action-target/tiles}]}]
+            :selected-resource-bundle :action-target
+            :selected-image-resource :tiles
+            :selected-image-resources [:tiles]
+            :layers []}
+           redone))))
+
+(deftest move-image-resource/does-not-record-history-for-a-no-op
+  (s/when []
+    (let [state (actions/move-image-resource
+                 {:resources
+                  {:bundles
+                   {:action-source
+                    {:images {:tiles {:file-name "tiles.png"
+                                      :name "Tiles"}}}
+                    :action-target {:images {}}}}
+                  :tilesets [{:id :terrain
+                              :tiles [{:id :grass
+                                       :type :sprite
+                                       :image :action-source/tiles}]}]}
+                 {:source-bundle-id :action-source
+                  :resource-id :tiles
+                  :target-bundle-id :action-source})]
+      {:state state
+       :can-undo? (editor-workbook/can-undo? state)}))
+
+  (s/then [result]
+    (is (= {:state
+            {:resources
+             {:bundles
+              {:action-source
+               {:images {:tiles {:file-name "tiles.png"
+                                 :name "Tiles"}}}
+               :action-target {:images {}}}}
+             :tilesets [{:id :terrain
+                         :tiles [{:id :grass
+                                  :type :sprite
+                                  :image :action-source/tiles}]}]}
+            :can-undo? false}
+           result))))
