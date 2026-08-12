@@ -88,7 +88,7 @@
                               (assoc state
                                      :combo-index (-> event :payload :selected-index)
                                      :message "Combo box changed."))
-        :list-box/change (fn [state event ctx]
+        :list-box/selection-change (fn [state event ctx]
 
                              (ui/stop-propagation! event)
                              (assoc state

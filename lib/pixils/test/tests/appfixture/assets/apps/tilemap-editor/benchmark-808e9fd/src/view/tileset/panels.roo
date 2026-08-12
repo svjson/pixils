@@ -46,10 +46,10 @@
                  (assoc state
                         :tilesets-list tilesets
                         :selected-indices (selected-tileset-definition-indices state)))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (assoc state
                                   :selected-tileset-definition-index
-                                  (-> event :payload :value)
+                                  (head (-> event :payload :selected-values))
                                   :selected-tileset-tile-index
                                   0))}
    :children [(merge {:id "list-box"}

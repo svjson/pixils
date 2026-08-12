@@ -63,7 +63,7 @@
 
 (defun apply-keyboard-selection [{:keys [options selected-indices] :as state}
                                  index
-                                 {:keys [view] :as ctx}]
+                                 ctx]
   (cond
     (navigation/enabled-index? options index)
     (let [selected (selection/select options selected-indices index state)
@@ -75,11 +75,6 @@
                             (option-list/scroll-offset-for-index next-state
                                                                  ctx
                                                                  index))]
-      (when (not= selected-indices selected)
-        (ui/emit! view :list-box/change {:selected-indices selected
-                                         :selected-values (option-list/values-at-indices
-                                                           (:options next-state) selected)
-                                         :value (option/value (nth options index))}))
       next-state)
 
     true
@@ -320,7 +315,7 @@
    :focusable true
    :class :ui/list-box
    :ui/state-keys LIST-BOX-UI-STATE-KEYS
-   :ui/models [(selection/model)]
+   :ui/models [(selection/model :list-box/selection-change)]
    :init-ui (fn [ui-state state ctx]
               (let [ui-state (assoc ui-state
                                     :anchor-index (or (:anchor-index ui-state)
@@ -419,20 +414,9 @@
                                                     (click-selection ui-state payload))
                                          next-ui-state (assoc ui-state
                                                               :selected-indices selected
-                                                              :anchor-index (:index payload))
-                                         values (option-list/values-at-indices
-                                                 (:options ui-state)
-                                                 selected)]
+                                                              :anchor-index (:index payload))]
                                      (ui/stop-propagation! event)
                                      (ui/set-ui-state! ctx next-ui-state)
-                                     (when (and (not disabled?)
-                                                (not= (:selected-indices ui-state)
-                                                      selected))
-                                       (ui/emit! (:view ctx)
-                                                 :list-box/change
-                                                 {:selected-indices selected
-                                                  :selected-values values
-                                                  :value (:value payload)}))
                                      (assoc state
                                             :selected-indices selected
                                             :anchor-index (:index payload))))))

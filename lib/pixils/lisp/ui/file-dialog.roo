@@ -377,7 +377,7 @@
                           :selected-indices []
                           :selected-entry nil
                           :filename "")))))
-   :on {:list-box/change (fn [state {:keys [payload] :as event} ctx]
+   :on {:list-box/selection-change (fn [state {:keys [payload] :as event} ctx]
                            (let [indices (or (:selected-indices payload) [])
                                  index (head indices)
                                  entry (entry-at (:entries state) index)

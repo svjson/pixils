@@ -106,15 +106,22 @@ namespace Pixils::Script
         auto owned = Roo::Dict::get_property(model_val, Roo::keyword("owns"));
         auto dependencies = Roo::Dict::get_property(model_val, Roo::keyword("depends-on"));
         auto transition = Roo::Dict::get_property(model_val, Roo::keyword("transition"));
+        auto change_event = Roo::Dict::get_property(model_val, Roo::keyword("change-event"));
         if (!transition || transition->type != Roo::Value::Type::FUNCTION)
         {
           throw Roo::TypeError("UI state model :transition must be a function");
+        }
+        if (change_event && change_event->type != Roo::Value::Type::NIL &&
+            change_event->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError("UI state model :change-event must be a keyword");
         }
 
         Runtime::UIStateModel model;
         model.owned_keys = parse_model_keys(owned, "owns");
         model.dependency_keys = parse_model_keys(dependencies, "depends-on");
         model.transition = transition;
+        model.change_event = change_event ? change_event : Roo::Constant::NIL;
         if (model.owned_keys.empty())
         {
           throw Roo::TypeError("UI state model :owns cannot be empty");

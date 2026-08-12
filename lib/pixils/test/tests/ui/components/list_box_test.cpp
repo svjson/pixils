@@ -1305,7 +1305,7 @@ TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
 
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:selected [0]})
-       :on {:list-box/change (fn [state event ctx]
+       :on {:list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected (:selected-indices (:payload event))))}
        :children [(pixils.ui.list-box/make
@@ -1432,7 +1432,7 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
                               :selected []})
        :on {:list-box/reorder (fn [state event ctx]
                                 (assoc state :reorder (:payload event)))
-            :list-box/change (fn [state event ctx]
+            :list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected
                                       (:selected-indices (:payload event))))}
@@ -1615,7 +1615,7 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_dro
                               :selected []})
        :on {:list-box/reorder (fn [state event ctx]
                                 (assoc state :reorder (:payload event)))
-            :list-box/change (fn [state event ctx]
+            :list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected
                                       (:selected-indices (:payload event))))}
@@ -1665,7 +1665,7 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:selected [0]
                               :changes 0})
-       :on {:list-box/change (fn [state event ctx]
+       :on {:list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected (:selected-indices (:payload event))
                                       :changes (inc (:changes state))))}
@@ -1719,7 +1719,7 @@ TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_wi
   runtime.eval(R"(
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:selected [0]})
-       :on {:list-box/change (fn [state event ctx]
+       :on {:list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected (:selected-indices (:payload event))))}
        :children [(pixils.ui.list-box/make
@@ -1787,7 +1787,7 @@ TEST_F(ListBoxTest, list_box_shift_click_skips_disabled_items_in_range)
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:selected [0]
                               :change nil})
-       :on {:list-box/change (fn [state event ctx]
+       :on {:list-box/selection-change (fn [state event ctx]
                                (assoc state
                                       :selected (:selected-indices (:payload event))
                                       :change (:payload event)))}

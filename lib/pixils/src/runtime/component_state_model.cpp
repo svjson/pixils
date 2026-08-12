@@ -1,6 +1,7 @@
 #include "pixils/runtime/component_state.h"
 #include <pixils/runtime/component.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/event.h>
 
 #include <algorithm>
 #include <roo/context.h>
@@ -45,6 +46,7 @@ namespace Pixils::Runtime
 
     Roo::sptr_val_v changed_key_values;
     std::vector<std::string> changed_keys;
+    std::vector<CustomEvent> change_events;
     auto collect_changed_keys = [&](const Roo::sptr_val& state)
     {
       for (const auto& key : Roo::Dict::map_sptr_keys(state))
@@ -101,9 +103,45 @@ namespace Pixils::Runtime
         }
         Roo::Dict::set_property(next, key, Roo::Dict::get_property(corrections, key));
       }
+
+      if (!initializing && model.change_event->type != Roo::Value::Type::NIL)
+      {
+        auto payload = Roo::map({});
+        bool owned_state_changed = false;
+        for (const auto& key : model.owned_keys)
+        {
+          auto key_value = Roo::keyword(key);
+          auto current_has = Roo::Dict::contains_key(*current, key);
+          auto next_has = Roo::Dict::contains_key(*next, key);
+          auto next_value = Roo::Dict::get_property(next, key_value);
+          if (current_has != next_has ||
+              !state_values_equal(Roo::Dict::get_property(current, key_value), next_value))
+          {
+            owned_state_changed = true;
+          }
+          if (next_has)
+          {
+            Roo::Dict::set_property(payload, key_value, next_value);
+          }
+        }
+        if (owned_state_changed)
+        {
+          auto source_mode =
+            view.definition ? Roo::symbol(view.definition->name) : Roo::Constant::NIL;
+          change_events.emplace_back(model.change_event, payload, source_mode);
+        }
+      }
     }
 
-    return view.set_ui_state_if_changed(next);
+    auto changed = view.set_ui_state_if_changed(next);
+    if (changed)
+    {
+      for (const auto& event : change_events)
+      {
+        view.emit_event(event);
+      }
+    }
+    return changed;
   }
 
   bool transition_component_ui_state(Pixils::Runtime::View& view,

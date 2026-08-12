@@ -14,6 +14,7 @@ namespace Pixils::Runtime
     std::vector<std::string> owned_keys;
     std::vector<std::string> dependency_keys;
     Roo::sptr_val transition = Roo::Constant::NIL;
+    Roo::sptr_val change_event = Roo::Constant::NIL;
   };
 
   struct Component : ViewDefinition

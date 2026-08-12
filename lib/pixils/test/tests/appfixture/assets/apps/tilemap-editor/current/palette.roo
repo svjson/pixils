@@ -96,7 +96,7 @@
                       (assoc state
                              :selected-indices
                              (selected-tile-indices state)))
-            :on {:list-box/change (fn [state event ctx]
+            :on {:list-box/selection-change (fn [state event ctx]
                                     (do
                                       (ui/stop-propagation! event)
                                       (ui/emit! (:view ctx)

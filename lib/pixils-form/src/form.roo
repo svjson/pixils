@@ -2125,7 +2125,7 @@
            (if (:selection-options state)
              (assoc state :options (:selection-options state))
              (selection-derived-state state (:item-label state))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (do
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)

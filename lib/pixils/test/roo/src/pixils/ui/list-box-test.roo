@@ -38,7 +38,7 @@
                   (when (not (:focused? state))
                     (ui/focus! (head (ui/children ctx))))
                   (assoc state :focused? true)))
-      :on {:list-box/change
+      :on {:list-box/selection-change
            (fn [state event ctx]
              (assoc (assoc state
                            :selected (:selected-indices (:payload event)))
@@ -119,7 +119,30 @@
     (runtime/update! app)
     (is (= [:updated]
            (:selected-values
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+    (is (= {:selected-indices [2]
+            :selected-values [:updated]}
+           (:last-change (runtime/active-state app))))))
+
+(deftest list-box-emits-selection-change-after-reconciling-options
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :options [{:value :a :label "Alpha" :disabled? true}
+                      {:value :b :label "Beta" :disabled? true}
+                      {:value :c :label "Gamma"}]))
+    (runtime/update! app)
+    (is (= [2] (:selected (runtime/active-state app))))
+    (is (= {:selected-indices [2]
+            :selected-values [:c]}
+           (:last-change (runtime/active-state app))))))
 
 (deftest list-box-rejects-invalid-projected-selections
   (let [app (runtime/make-app {:package-root "../.."
@@ -136,13 +159,15 @@
     (is (= [0]
            (:selected-indices
             (runtime/view-state (runtime/find-view app "ui/list-box")))))
+    (is (nil? (:last-change (runtime/active-state app))))
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app) :selected [0 2]))
     (runtime/update! app)
     (is (= [0]
            (:selected-indices
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+    (is (nil? (:last-change (runtime/active-state app))))))
 
 (deftest list-box-arrow-key-navigation-selects-next-enabled-item
   (let [app (runtime/make-app {:package-root "../.."
@@ -169,7 +194,6 @@
         (is (= [2] (:selected-indices state)))
         (is (= 2 (:anchor-index state)))
         (is (= [2] (:selected root-state)))
-        (is (= :c (-> root-state :last-change :value)))
         (is (= [:c] (-> root-state :last-change :selected-values)))))))
 
 (deftest list-box-arrow-key-navigation-scrolls-selected-row-into-view

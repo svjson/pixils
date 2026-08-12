@@ -341,7 +341,7 @@ be selected at the same time.
 
 `pixils.ui.list-box/make` accepts `:options`, where each option can provide
 `:value`, `:label`, `:name`, and `:disabled?`. Selection changes emit
-`:list-box/change` with `{:selected-indices [...] :selected-values [...] :value value}`.
+`:list-box/selection-change` with `{:selected-indices [...] :selected-values [...]}`.
 Pass `:multi-select? true`, `:force-selection? true`, and `:toggle-selected? true`
 to opt into the extended selection behavior.
 
