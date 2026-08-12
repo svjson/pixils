@@ -6,7 +6,8 @@
             [pixils.ui :as ui]
             [pixils.ui.internal.option-navigation :as navigation]
             [pixils.ui.option-item :as option]
-            [pixils.ui.option-list :as option-list]))
+            [pixils.ui.option-list :as option-list]
+            [pixils.ui.option-selection :as selection]))
 
 
 
@@ -37,13 +38,16 @@
   (if (nil? index)
     state
     (let [ui-state (-> ctx :view :ui-state)
-          option (selected-option (:options ui-state) index)
-          value (selected-value (:options ui-state) index)
-          next-ui-state (state-with-selection ui-state index)]
-      (if (or (nil? option)
-              (:disabled? option))
+          current [(:selected-index ui-state)]
+          selected (selection/select (:options ui-state)
+                                     current
+                                     index
+                                     {:force-selection? true})]
+      (if (= current selected)
         state
-        (do
+        (let [index (head selected)
+              value (selected-value (:options ui-state) index)
+              next-ui-state (state-with-selection ui-state index)]
           (ui/set-ui-state! ctx next-ui-state)
           (ui/emit! (:view ctx)
                     :combo-box/change
@@ -282,7 +286,7 @@
                 (state-with-selection ui-state (:selected-index ui-state)))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
-                    (when (not (-> ctx :view :ui-state :disabled?))
+                    (unless (-> ctx :view :ui-state :disabled?)
                       (open-popup! ctx))
                     state)
    :on-key-down (fn [state event ctx]

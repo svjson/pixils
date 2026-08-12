@@ -1,0 +1,96 @@
+(ns pixils.ui.option-selection
+  (:require [pixils.ui.internal.option-navigation :as navigation]))
+
+
+
+;; Selection constraints
+
+(defun valid?
+  "Returns whether `indices` is a valid selection for `options` and `policy`.
+
+  `policy` accepts `:multi-select?` and `:force-selection?`. A forced selection
+  may be empty when no enabled option exists. Disabled and missing option
+  indices are never valid selections."
+  [options indices policy]
+  (and (= (type-of indices) "vector")
+       (or (:multi-select? policy)
+           (<= (count indices) 1))
+       (or (not (:force-selection? policy))
+           (nil? (navigation/first-enabled-index options))
+           (not-empty? indices))
+       (= indices
+          (keep indices
+                (fn [index]
+                  (when (navigation/enabled-index? options index)
+                    index))))))
+
+(defun accept
+  "Returns `proposed` when it is valid, otherwise returns `current` unchanged.
+
+  This operation is for attempted selection changes. It does not repair an
+  invalid proposal or alter the current selection when rejecting it."
+  [options current proposed policy]
+  (if (valid? options proposed policy)
+    proposed
+    current))
+
+(defun reconcile
+  "Returns a valid selection after `options` or `policy` has changed.
+
+  Enabled selected indices are preserved. Single-selection policy keeps the
+  first of those indices. When selection is forced and none remain, the first
+  enabled option is selected."
+  [options indices policy]
+  (let [enabled (keep indices
+                      (fn [index]
+                        (when (navigation/enabled-index? options index)
+                          index)))
+        selected (if (:multi-select? policy)
+                   enabled
+                   (if-let [index (head enabled)]
+                     [index]
+                     []))]
+    (if (and (:force-selection? policy)
+             (empty? selected))
+      (if-let [index (navigation/first-enabled-index options)]
+        [index]
+        [])
+      selected)))
+
+
+
+;; Selection operations
+
+(defun select
+  "Returns a selection containing only `index`, or the current selection when
+  that proposed selection violates `policy`."
+  [options current index policy]
+  (accept options current [index] policy))
+
+(defun add
+  "Returns the selection with enabled `index` appended, or the current
+  selection when adding it violates `policy`. Existing indices are not added
+  twice."
+  [options current index policy]
+  (if (contains? current index)
+    current
+    (accept options current (append current index) policy)))
+
+(defun deselect
+  "Returns the selection without `index`, or the current selection when
+  removing it violates forced-selection policy."
+  [options current index policy]
+  (accept options
+          current
+          (remove current (fn [selected-index]
+                            (= selected-index index)))
+          policy))
+
+(defun span
+  "Returns the inclusive enabled-option selection between `anchor` and
+  `index`. Disabled options inside the span are omitted."
+  [options anchor index]
+  (keep (range (min anchor index) (max anchor index))
+        (fn [range-index]
+          (when (navigation/enabled-index? options range-index)
+            range-index))))

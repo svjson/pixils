@@ -17,6 +17,7 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/internal/interaction.roo
   ui/option-item.roo
   ui/internal/option-navigation.roo
+  ui/option-selection.roo
   ui/button.roo
   ui/toggle-button.roo
   ui/option-box.roo

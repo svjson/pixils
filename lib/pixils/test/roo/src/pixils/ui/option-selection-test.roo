@@ -1,0 +1,113 @@
+(ns pixils.ui.option-selection-test
+  (:require proof.core
+            [pixils.ui.option-selection :as selection]))
+
+
+
+;; Selection constraints
+
+(deftest valid?/rejects-empty-forced-selection-when-an-option-is-enabled
+  (is (= false
+         (selection/valid? [{:value :a}]
+                           []
+                           {:force-selection? true}))))
+
+(deftest valid?/allows-empty-forced-selection-when-no-option-is-enabled
+  (is (= true
+         (selection/valid? [{:value :a :disabled? true}]
+                           []
+                           {:force-selection? true}))))
+
+(deftest valid?/rejects-multiple-indices-for-single-selection
+  (is (= false
+         (selection/valid? [{:value :a} {:value :b}]
+                           [0 1]
+                           {:multi-select? false}))))
+
+(deftest valid?/rejects-non-vector-selections
+  (is (= false
+         (selection/valid? [{:value :a}]
+                           '(0)
+                           {}))))
+
+(deftest valid?/rejects-disabled-and-missing-indices
+  (is (= false
+         (selection/valid? [{:value :a :disabled? true}]
+                           [0]
+                           {})))
+  (is (= false
+         (selection/valid? [{:value :a}]
+                           [1]
+                           {}))))
+
+(deftest accept/retains-current-selection-when-proposal-is-invalid
+  (is (= [1]
+         (selection/accept [{:value :a} {:value :b}]
+                           [1]
+                           []
+                           {:force-selection? true})))
+  (is (= [1]
+         (selection/accept [{:value :a} {:value :b}]
+                           [1]
+                           [0 1]
+                           {:multi-select? false}))))
+
+(deftest reconcile/preserves-valid-indices-and-removes-invalid-ones
+  (is (= [0 2]
+         (selection/reconcile [{:value :a}
+                               {:value :b :disabled? true}
+                               {:value :c}]
+                              [0 1 2 4]
+                              {:multi-select? true}))))
+
+(deftest reconcile/selects-first-enabled-option-when-required
+  (is (= [1]
+         (selection/reconcile [{:value :a :disabled? true}
+                               {:value :b}]
+                              []
+                              {:force-selection? true}))))
+
+
+
+;; Selection operations
+
+(deftest select/accepts-enabled-index-and-rejects-disabled-index
+  (is (= [1]
+         (selection/select [{:value :a}
+                            {:value :b}]
+                           [0]
+                           1
+                           {})))
+  (is (= [0]
+         (selection/select [{:value :a}
+                            {:value :b :disabled? true}]
+                           [0]
+                           1
+                           {}))))
+
+(deftest add/requires-multiple-selection-policy
+  (is (= [0]
+         (selection/add [{:value :a} {:value :b}]
+                        [0]
+                        1
+                        {})))
+  (is (= [0 1]
+         (selection/add [{:value :a} {:value :b}]
+                        [0]
+                        1
+                        {:multi-select? true}))))
+
+(deftest deselect/retains-last-forced-selection
+  (is (= [0]
+         (selection/deselect [{:value :a}]
+                             [0]
+                             0
+                             {:force-selection? true}))))
+
+(deftest span/excludes-disabled-options
+  (is (= [0 2]
+         (selection/span [{:value :a}
+                          {:value :b :disabled? true}
+                          {:value :c}]
+                         0
+                         2))))

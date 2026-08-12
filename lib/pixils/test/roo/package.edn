@@ -10,5 +10,6 @@
                      pixils.ui.scroll-pane-test
                      pixils.ui.group-box-test
                      pixils.ui.number-input-test
+                     pixils.ui.option-selection-test
                      pixils.ui.list-box-test
                      pixils.ui.tree-view-test]}

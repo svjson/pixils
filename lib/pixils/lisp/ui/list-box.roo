@@ -4,17 +4,12 @@
             [pixils.ui :as ui]
             [pixils.ui.internal.option-navigation :as navigation]
             [pixils.ui.option-item :as option]
-            [pixils.ui.option-list :as option-list]))
+            [pixils.ui.option-list :as option-list]
+            [pixils.ui.option-selection :as selection]))
 
 
 
 ;; Selection support
-
-(defun preserve-forced-selection [state indices previous]
-  (if (and (:force-selection? state)
-           (empty? indices))
-    previous
-    indices))
 
 (defun click-selection [{:keys [multi-select?
                                 selected-indices
@@ -24,22 +19,17 @@
     (cond
       (and multi-select? shift?)
       (let [anchor (or (:anchor-index state) index)]
-        (keep (range (min anchor index) (max anchor index))
-              (fn [range-index]
-                (when (navigation/enabled-index? (:options state) range-index)
-                  range-index))))
+        (selection/span (:options state) anchor index))
 
       (and ctrl? multi-select? (not selected?))
-      (append selected-indices index)
+      (selection/add (:options state) selected-indices index state)
 
       (and selected?
            (or toggle-selected? multi-select?))
-      (preserve-forced-selection state
-                                 (remove selected-indices (fn [n] (= n index)))
-                                 selected-indices)
+      (selection/deselect (:options state) selected-indices index state)
 
       :default
-      [index])))
+      (selection/select (:options state) selected-indices index state))))
 
 (defun navigation-base-index [state direction]
   (or (:anchor-index state)
@@ -76,7 +66,7 @@
                                  {:keys [view] :as ctx}]
   (cond
     (navigation/enabled-index? options index)
-    (let [selected [index]
+    (let [selected (selection/select options selected-indices index state)
           next-state (assoc state
                             :selected-indices selected
                             :anchor-index index)
@@ -346,15 +336,9 @@
    :class :ui/list-box
    :ui/state-keys LIST-BOX-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
-              (let [selected (or (when-let [sel-ind (:selected-indices ui-state)]
-                                   (when (not-empty? sel-ind)
-                                     sel-ind))
-                                 (if (:force-selection? ui-state)
-                                   (if-let [index (navigation/first-enabled-index
-                                                   (:options ui-state))]
-                                     [index]
-                                     [])
-                                   []))]
+              (let [selected (selection/reconcile (:options ui-state)
+                                                  (:selected-indices ui-state)
+                                                  ui-state)]
                 (let [ui-state (derive-selected-values
                                 (assoc ui-state
                                        :selected-indices selected
