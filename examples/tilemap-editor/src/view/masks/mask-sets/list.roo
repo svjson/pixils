@@ -43,7 +43,7 @@
                (assoc state
                       :rendered-mask-sets mask-sets
                       :rendered-selected-mask-set-index selected-index)))
-   :on {:list-box/change
+   :on {:list-box/selection-change
         (fn [state event ctx]
           (ui/stop-propagation! event)
           (ui/emit! (:view ctx)

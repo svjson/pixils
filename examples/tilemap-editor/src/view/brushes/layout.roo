@@ -124,7 +124,7 @@
                (assoc state
                       :rendered-brushes brushes
                       :rendered-selected-index selected-index)))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (ui/stop-propagation! event)
                            (ui/emit! (:view ctx)
                                      :brush/select
@@ -287,7 +287,7 @@
                       (model/selected-pattern-layer-name
                        brush
                        (:selected-brush-layer-index state)))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (ui/stop-propagation! event)
                            state)}
    :children [{:mode 'ui/text

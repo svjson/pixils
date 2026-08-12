@@ -207,7 +207,7 @@
                  (assoc state
                         :render-key render-key
                         :selected-indices (selected-layer-indices state))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
 
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)

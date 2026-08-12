@@ -286,8 +286,10 @@
                  (assoc state
                         :bundles bundles
                         :selected-indices selected-indices)))
-   :on {:list-box/change (fn [state event ctx]
-                           (let [bundle-id (-> event :payload :value)]
+   :on {:list-box/selection-change (fn [state event ctx]
+                           (let [bundle-id (head (-> event
+                                                    :payload
+                                                    :selected-values))]
                              (assoc state
                                     :selected-resource-bundle bundle-id
                                     :selected-image-resource
@@ -351,7 +353,7 @@
                  (assoc state
                         :image-resources resources
                         :selected-indices selected-indices)))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (let [selected (-> event
                                               :payload
                                               :selected-values)]

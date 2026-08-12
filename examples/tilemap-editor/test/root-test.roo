@@ -1,5 +1,6 @@
 (ns tilemap-editor.root-test
   (:require proof.core
+            [proof.syntax :as s]
             [pixils.tilemap.project.model :as data]
             [pixils.test.runtime :as runtime]
             [tilemap-editor.model.workbook :as editor-workbook]
@@ -194,26 +195,41 @@
     (is (= 1 (:map-height undone)))
     (is (= data/tile-size (:tile-size undone)))))
 
-(deftest terrain-rule-form-change-records-workbook-change
-  (let [state (tilemap-editor.root/apply-form-change
-               {:terrain-sets [{:id :overworld
-                                :terrains [{:id :grass}]}]
-                :selected-terrain-set-index 0
-                :selected-terrain-index 0
-                :rulesets [{:id :overworld-rules
-                            :terrain-set :overworld
-                            :rules [{:id :rule
-                                     :label "Rule"
-                                     :terrain :grass
-                                     :exclusive? false}]}]
-                :selected-terrain-ruleset-id :overworld-rules
-                :selected-terrain-rule-id :rule}
-               {:field-id :terrain-rule-exclusive
-                :value true})
-        undone (editor-workbook/undo state)]
-    (is (= true (get-in state [:rulesets 0 :rules 0 :exclusive?])))
-    (is (= "Change terrain rule options" (editor-workbook/undo-label state)))
-    (is (= false (get-in undone [:rulesets 0 :rules 0 :exclusive?])))))
+(deftest apply-mutation/records-terrain-rule-changes-in-workbook-history
+  (s/when []
+    (let [changed
+          (tilemap-editor.root/apply-mutation
+           {:terrain-sets [{:id :overworld
+                            :terrains [{:id :grass}]}]
+            :selected-terrain-set-index 0
+            :selected-terrain-index 0
+            :rulesets [{:id :overworld-rules
+                        :terrain-set :overworld
+                        :rules [{:id :rule
+                                 :label "Rule"
+                                 :terrain :grass
+                                 :exclusive? false}]}]
+            :selected-terrain-ruleset-id :overworld-rules
+            :selected-terrain-rule-id :rule}
+           {:label "Change terrain rule options"
+            :op :value/set
+            :target {:kind :terrain-rule
+                     :ruleset-id :overworld-rules
+                     :rule-id :rule
+                     :path [:exclusive?]}
+            :args {:value true}})]
+      {:changed changed
+       :undone (editor-workbook/undo changed)}))
+
+  (s/then [{:keys [changed undone]}]
+    (is (= {:exclusive? true
+            :undo-label "Change terrain rule options"
+            :undone-exclusive? false}
+           {:exclusive? (get-in changed
+                                [:rulesets 0 :rules 0 :exclusive?])
+            :undo-label (editor-workbook/undo-label changed)
+            :undone-exclusive? (get-in undone
+                                       [:rulesets 0 :rules 0 :exclusive?])}))))
 
 (deftest theme-selection-updates-state-and-queues-runtime-theme-switch
   (let [message-index (count pixils/mode-stack-messages)

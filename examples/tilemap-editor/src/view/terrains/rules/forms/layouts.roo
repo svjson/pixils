@@ -1,0 +1,28 @@
+(ns tilemap-editor.view.terrains.rules.forms.layouts)
+
+(def options-text
+  "Maps terrain-rule option field ids to their displayed labels."
+  {:terrain-rule-exclusive "Exclusive"})
+
+(def options
+  "Orders the field ids rendered by the terrain-rule options form."
+  [:terrain-rule-exclusive])
+
+(def options-form-style
+  "Defines the outer layout and size of the terrain-rule options form."
+  {:width 112
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def options-field-style
+  "Defines the row layout applied to each terrain-rule option field."
+  {:width :fill
+   :height 24
+   :layout {:direction :row
+            :align-items :center
+            :gap 8}})
+
+(def options-label-style
+  "Defines the label width used by terrain-rule option fields."
+  {:width 72})

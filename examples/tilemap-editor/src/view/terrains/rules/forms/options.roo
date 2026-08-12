@@ -1,0 +1,17 @@
+(ns tilemap-editor.view.terrains.rules.forms.options
+  (:require [pixils.form :as form]
+            [pixils.ui :as ui]
+            [tilemap-editor.view.terrains.rules.forms.layouts :as layouts]
+            [tilemap-editor.view.terrains.rules.forms.schemas :as schemas]))
+
+(defun make
+  "Constructs the live terrain-rule options form. Takes no arguments and returns a pixils-form child bound to the selected terrain rule."
+  []
+  (form/make {:schema schemas/options
+              :text layouts/options-text
+              :layout layouts/options
+              :mode :live
+              :value (ui/bind-state :selected-terrain-rule)
+              :style layouts/options-form-style
+              :field-style layouts/options-field-style
+              :field-label-style layouts/options-label-style}))

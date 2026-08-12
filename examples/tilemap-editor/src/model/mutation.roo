@@ -1,0 +1,88 @@
+(ns tilemap-editor.model.mutation)
+
+(defun apply
+  "Applies a structural mutation to `state`. `mutation` contains `:op`, a
+  `:target` map with a concrete `:path`, and operation-specific `:args`.
+  Returns the updated state, or the original state when the operation or its
+  arguments are invalid."
+  [state mutation]
+  (let [path (-> mutation :target :path)
+        args (:args mutation)]
+    (if path
+      (case (:op mutation)
+        :value/set
+        (cond-> state
+          (contains? args :value)
+          (assoc-in path (:value args)))
+
+        :element/add
+        (let [items (get-in state path [])
+              index (:index args)
+              valid? (and (contains? args :value)
+                          (or (nil? index)
+                              (and (>= index 0)
+                                   (<= index (count items)))))
+              next-items (when valid?
+                           (if (nil? index)
+                             (append items (:value args))
+                             (let [result []
+                                   item-index 0]
+                               (while (< item-index index)
+                                 (append! result (nth items item-index))
+                                 (set! [item-index] (inc item-index)))
+                               (append! result (:value args))
+                               (while (< item-index (count items))
+                                 (append! result (nth items item-index))
+                                 (set! [item-index] (inc item-index)))
+                               result)))]
+          (cond-> state
+            valid? (assoc-in path next-items)))
+
+        :element/remove
+        (let [items (get-in state path [])
+              index (:index args)
+              valid? (and (some? index)
+                          (>= index 0)
+                          (< index (count items)))]
+          (cond-> state
+            valid?
+            (assoc-in path
+                      (keep (for-indexed [item-index item items]
+                              {:index item-index
+                               :item item})
+                            (fn [entry]
+                              (when (not= (:index entry) index)
+                                (:item entry)))))))
+
+        :element/move
+        (let [items (get-in state path [])
+              from (:from args)
+              to (:to args)]
+          (if (and (some? from)
+                   (some? to)
+                   (>= from 0)
+                   (< from (count items))
+                   (>= to 0)
+                   (< to (count items)))
+            (let [item (nth items from)
+                  remaining (keep
+                             (for-indexed [item-index item items]
+                               {:index item-index
+                                :item item})
+                             (fn [entry]
+                               (when (not= (:index entry) from)
+                                 (:item entry))))
+                  result []
+                  item-index 0]
+              (while (< item-index to)
+                (append! result (nth remaining item-index))
+                (set! [item-index] (inc item-index)))
+              (append! result item)
+              (while (< item-index (count remaining))
+                (append! result (nth remaining item-index))
+                (set! [item-index] (inc item-index)))
+              (assoc-in state path result))
+            state))
+
+        :default state)
+      state)))

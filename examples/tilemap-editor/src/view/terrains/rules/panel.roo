@@ -1,0 +1,171 @@
+(ns tilemap-editor.view.terrains.rules.panel
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.button :as button]
+            [pixils.ui.tab-panel :as tabs]
+            tilemap-editor.view.terrains.rules.list))
+
+(defcomponent terrain-rule-empty-editor
+  {:style {:width :fill
+           :height :shrink
+           :padding [12 0]
+           :layout {:direction :column
+                    :align-items :start
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "No terrain rule selected"}}
+              (button/make
+               {:label "Add rule"
+                :on-click (fn [state event ctx]
+                            (ui/emit! (:view ctx)
+                                      :action/mutate!
+                                      {:label "Add terrain rule"
+                                       :op :terrain-rule/add
+                                       :target {:kind
+                                                :terrain-rule-collection}
+                                       :args {}})
+                            state)})]})
+
+(defcomponent terrain-rule-manual-editor
+  {:style {:width :fill
+           :height :fill
+           :padding [10 12]
+           :layout {:direction :row
+                    :gap 12}}
+   :on {:form/change
+        (fn [state {:keys [payload] :as event} ctx]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :action/mutate!
+                      {:label "Change terrain rule options"
+                       :op :value/set
+                       :target {:kind :terrain-rule
+                                :ruleset-id
+                                (:selected-terrain-ruleset-id state)
+                                :rule-id (:selected-terrain-rule-id state)
+                                :path [:exclusive?]}
+                       :args {:value (-> payload :form-value :exclusive?)}})
+            state)}
+   :children [{:style {:width 196
+                       :height :fill
+                       :layout {:direction :column
+                                :gap 6}}
+               :state (ui/bind-state)
+               :children [{:style {:width :fill
+                                   :height 24
+                                   :layout {:direction :row
+                                            :align-items :center
+                                            :gap 6}}
+                           :children [{:mode 'ui/text
+                                       :style {:width :fill}
+                                       :state {:value "Terrain rules"}}
+                                      (button/make
+                                       {:label "+"
+                                        :class :ui/toolbar-button
+                                        :on-click
+                                        (fn [state event ctx]
+                                          (ui/emit! (:view ctx)
+                                                    :action/mutate!
+                                                    {:label "Add terrain rule"
+                                                     :op :terrain-rule/add
+                                                     :target
+                                                     {:kind
+                                                      :terrain-rule-collection}
+                                                     :args {}})
+                                          state)})]}
+                          {:mode 'terrain-rule-list
+                           :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                   :selected-terrain-set-index
+                                   (ui/bind-state :selected-terrain-set-index)
+                                   :selected-terrain-index
+                                   (ui/bind-state :selected-terrain-index)
+                                   :rulesets (ui/bind-state :rulesets)
+                                   :selected-terrain-ruleset-id
+                                   (ui/bind-state :selected-terrain-ruleset-id)
+                                   :selected-terrain-rule-id
+                                   (ui/bind-state :selected-terrain-rule-id)
+                                   :terrain-rule-list-offset
+                                   (ui/bind-state :terrain-rule-list-offset)}}]}
+              {:style {:width :fill
+                       :height :fill
+                       :layout {:direction :column
+                                :gap 6}}
+               :state (ui/bind-state)
+               :children [{:mode 'terrain-rule-visual-editor
+                           :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                   :selected-terrain-set-index (ui/bind-state
+                                                                :selected-terrain-set-index)
+                                   :selected-terrain-index (ui/bind-state
+                                                            :selected-terrain-index)
+                                   :rulesets (ui/bind-state :rulesets)
+                                   :selected-terrain-ruleset-id (ui/bind-state
+                                                                 :selected-terrain-ruleset-id)
+                                   :selected-terrain-rule-id (ui/bind-state
+                                                              :selected-terrain-rule-id)
+                                   :selected-terrain-rule-exclusive? (ui/bind-state
+                                                                      :selected-terrain-rule-exclusive?)
+                                   :selected-terrain-rule-match-direction (ui/bind-state
+                                                                           :selected-terrain-rule-match-direction)
+                                   :selected-terrain-rule-output-position (ui/bind-state
+                                                                           :selected-terrain-rule-output-position)
+                                   :terrain-rule-selected-tile (ui/bind-state
+                                                                :terrain-rule-selected-tile)
+                                   :rule-add-disabled? (ui/bind-state :rule-add-disabled?)
+                                   :tilesets (ui/bind-state :tilesets)}}]}]})
+
+(defun make-tabs
+  "Constructs the manual and semantic-role terrain-rule tabs. Takes no arguments and returns a tab-panel child bound to terrain workspace state."
+  []
+  (tabs/make
+   {:selected-tab (ui/bind-state :terrain-rule-editor-tab)
+    :style {:width :fill
+            :height :fill}
+    :state {:terrain-sets (ui/bind-state :terrain-sets)
+            :tilesets (ui/bind-state :tilesets)
+            :mask-sets (ui/bind-state :mask-sets)
+            :property-sets (ui/bind-state :property-sets)
+            :rulesets (ui/bind-state :rulesets)
+            :layers (ui/bind-state :layers)
+            :layer-profiles (ui/bind-state :layer-profiles)
+            :selected-layer-profile-id (ui/bind-state :selected-layer-profile-id)
+            :selected-terrain-set-index (ui/bind-state :selected-terrain-set-index)
+            :selected-terrain-index (ui/bind-state :selected-terrain-index)
+            :selected-terrain-ruleset-id (ui/bind-state :selected-terrain-ruleset-id)
+            :selected-terrain-rule-id (ui/bind-state :selected-terrain-rule-id)
+            :selected-terrain-rule-exclusive? (ui/bind-state
+                                               :selected-terrain-rule-exclusive?)
+            :selected-terrain-rule-match-direction (ui/bind-state
+                                                    :selected-terrain-rule-match-direction)
+            :selected-terrain-rule-output-position (ui/bind-state
+                                                    :selected-terrain-rule-output-position)
+            :terrain-rule-selected-tile (ui/bind-state :terrain-rule-selected-tile)
+            :terrain-rule-selected-tile-output-tab (ui/bind-state
+                                                    :terrain-rule-selected-tile-output-tab)
+            :terrain-rule-selected-mask (ui/bind-state :terrain-rule-selected-mask)
+            :terrain-rule-mask-polarity (ui/bind-state :terrain-rule-mask-polarity)
+            :terrain-rule-list-offset (ui/bind-state :terrain-rule-list-offset)
+            :terrain-rule-editor-tab (ui/bind-state :terrain-rule-editor-tab)
+            :terrain-standard-opposing (ui/bind-state :terrain-standard-opposing)
+            :terrain-standard-output-picker-tab (ui/bind-state :terrain-standard-output-picker-tab)
+            :terrain-standard-role-cache-opposing (ui/bind-state :terrain-standard-role-cache-opposing)
+            :terrain-standard-role-slots (ui/bind-state :terrain-standard-role-slots)
+            :rule-add-disabled? (ui/bind-state :rule-add-disabled?)}
+    :tabs [{:id :rules
+            :label "Rule Editor"
+            :child {:mode 'terrain-rule-manual-editor
+                    :state (ui/bind-state)}}
+           {:id :setups
+            :label "Semantic Roles"
+            :child {:mode 'terrain-standard-setup-editor
+                    :state (ui/bind-state)}}]}))
+
+(defcomponent terrain-rule-editor-tabs
+  {:style {:width :fill
+           :height :fill}
+   :on {:tab-panel/change (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (assoc state
+                                   :terrain-rule-editor-tab
+                                   (-> event :payload :tab)))}
+   :children [(make-tabs)]})

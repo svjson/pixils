@@ -99,28 +99,6 @@
   (is (> (layout/terrain-stamp-tile-picker-content-height 22 3)
          layout/terrain-stamp-tile-picker-height)))
 
-(deftest terrain-rule-context-menu-includes-duplicate-command
-  (let [duplicate (nth (:items layout/terrain-rule-context-menu) 1)]
-    (is (= "Duplicate" (:label duplicate)))
-    (is (= :duplicate (-> duplicate :payload :command)))))
-
-
-
-;; tilemap-editor.view.terrains.layout/terrain-rule-list-child
-
-(deftest terrain-rule-list-child/enables-reordering
-  (is (= {:options []
-          :disabled? true
-          :reorderable? true
-          :force-selection? true}
-         (select-keys (-> (layout/terrain-rule-list-child {})
-                          :state
-                          :component)
-                      [:options
-                       :disabled?
-                       :reorderable?
-                       :force-selection?]))))
-
 (deftest terrain-rule-transform-menu-includes-flip-and-rotate-commands
   (let [items (:items layout/terrain-rule-transform-menu)]
     (is (= :flip-horizontal (-> items head :payload :command)))
@@ -133,16 +111,6 @@
          layout/terrain-stamp-tile-picker-height))
   (is (>= layout/terrain-stamp-tile-picker-width
           layout/terrain-stamp-tile-picker-cell-size)))
-
-(deftest terrain-rule-editor-tabs-keep-manual-editor-first
-  (let [panel (layout/terrain-rule-editor-tabs-panel)
-        tabs (-> panel :state :tabs)]
-    (is (= :rules (-> tabs head :id)))
-    (is (= "Rule Editor" (-> tabs head :label)))
-    (is (= 'terrain-rule-manual-editor (-> tabs head :child :mode)))
-    (is (= :setups (-> tabs (nth 1) :id)))
-    (is (= "Semantic Roles" (-> tabs (nth 1) :label)))
-    (is (= 'terrain-standard-setup-editor (-> tabs (nth 1) :child :mode)))))
 
 (deftest terrain-standard-output-picker-tabs-include-tiles-overlays-and-masks
   (let [panel (layout/terrain-standard-output-picker-tabs-panel)

@@ -97,22 +97,21 @@
 
 (defun add-selected-mask-tile-at
   "Adds a tile item to the selected mask at a requested offset and records the document edit in workbook history."
-  [state payload]
-  (let [original-state state
-        tile-ref (:tile payload)
+  [original-state payload]
+  (let [tile-ref (:tile payload)
         tile-source (:tileset payload)
-        current-source (model/selected-mask-source-tileset state)
-        items (model/selected-mask-tile-items state)
+        current-source (model/selected-mask-source-tileset original-state)
+        items (model/selected-mask-tile-items original-state)
         offset (or (:offset payload) {:x 0 :y 0})]
     (if (and tile-ref
              (or (nil? tile-source)
                  (= tile-source current-source)
                  (empty? items)))
-      (let [state (if (and tile-source
-                           (not= tile-source current-source)
-                           (empty? items))
-                    (model/set-selected-mask-source-tileset state tile-source)
-                    state)
+      (let [state (cond-> original-state
+                    (and tile-source
+                         (not= tile-source current-source)
+                         (empty? items))
+                    (model/set-selected-mask-source-tileset tile-source))
             index (count (model/selected-mask-tile-items state))
             state (model/add-selected-mask-tile state tile-ref)
             state (model/set-selected-mask-tile-item-offset
@@ -128,7 +127,7 @@
           index
           :y
           (or (:y offset) 0))))
-      state)))
+      original-state)))
 
 (defun change-selected-mask-tile-item-offset
   "Updates a selected mask tile item offset from an event payload and records the document edit in workbook history."

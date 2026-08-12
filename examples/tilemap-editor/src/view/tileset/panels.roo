@@ -202,10 +202,10 @@
                (assoc state
                       :tileset-list-options options
                       :selected-indices (selected-tileset-definition-indices state))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (assoc state
                                   :selected-tileset-definition-index
-                                  (-> event :payload :value)
+                                  (head (-> event :payload :selected-values))
                                   :selected-tileset-tile-index
                                   0
                                   :selected-tileset-tile-indices

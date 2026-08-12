@@ -1,0 +1,6 @@
+(ns tilemap-editor.view.terrains.rules.forms.schemas)
+
+(def options
+  "Defines the editable terrain-rule option fields consumed by the live rule form. The value is a pixils-form schema keyed by field id."
+  {:terrain-rule-exclusive {:type :boolean
+                            :path [:exclusive?]}})

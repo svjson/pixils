@@ -1,7 +1,6 @@
 (ns tilemap-editor.view.terrains.layout
   (:require pixils
             [pixils.render :as r]
-            [pixils.form :as form]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
@@ -13,7 +12,6 @@
             [pixils.ui.split-pane :as split]
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
-            [pixils.ui.window :as w]
             [pixils.tilemap.materialize :as materialize]
             [pixils.tilemap.project.model :as data]
             [pixils.tilemap.renderer :as tilemap-renderer]
@@ -24,6 +22,10 @@
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.actions :as actions]
             [tilemap-editor.view.terrains.model :as model]
+            [tilemap-editor.view.terrains.rules.dialogs :as rule-dialogs]
+            [tilemap-editor.view.terrains.rules.forms.options :as rule-options]
+            tilemap-editor.view.terrains.rules.list
+            tilemap-editor.view.terrains.rules.panel
             [tilemap-editor.view.theme :as theme]))
 
 (def terrain-list-row-height 24)
@@ -283,7 +285,7 @@
                (assoc state
                       :rendered-terrain-sets terrain-sets
                       :rendered-selected-index selected-index)))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (ui/stop-propagation! event)
                            (ui/emit! (:view ctx)
                                      :terrain/set-select
@@ -335,7 +337,7 @@
                       :rendered-terrain-set terrain-set
                       :rendered-selected-index selected-index
                       :rendered-disabled? disabled?)))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
                            (ui/stop-propagation! event)
                            (ui/emit! (:view ctx)
                                      :terrain/select
@@ -692,28 +694,6 @@
                       :property-default-values (:properties terrain-set))))
    :children (terrain-set-detail-editor-children)})
 
-(def terrain-rule-list-row-height 24)
-
-(def terrain-rule-context-menu
-  {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Rename Rule"
-            :action :terrain/rule-context-dummy
-            :payload {:command :rename}}
-           {:label "Duplicate"
-            :action :terrain/rule-context-dummy
-            :payload {:command :duplicate}}
-           :separator
-           {:label "Move Up"
-            :action :terrain/rule-context-dummy
-            :payload {:command :move-up}}
-           {:label "Move Down"
-            :action :terrain/rule-context-dummy
-            :payload {:command :move-down}}
-           :separator
-           {:label "Delete Rule"
-            :action :terrain/rule-context-dummy
-            :payload {:command :delete}}]})
-
 (def terrain-rule-transform-menu
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Flip Horizontally"
@@ -729,32 +709,6 @@
            {:label "Rotate Right"
             :action :terrain/rule-transform-menu
             :payload {:command :rotate-right}}]})
-
-(def terrain-rule-options-schema
-  {:terrain-rule-exclusive {:type :boolean
-                            :path [:exclusive?]}})
-
-(def terrain-rule-options-text
-  {:terrain-rule-exclusive "Exclusive"})
-
-(def terrain-rule-options-layout
-  [:terrain-rule-exclusive])
-
-(def terrain-rule-options-form-style
-  {:width 112
-   :height :shrink
-   :layout {:direction :column
-            :gap 4}})
-
-(def terrain-rule-options-field-style
-  {:width :fill
-   :height 24
-   :layout {:direction :row
-            :align-items :center
-            :gap 8}})
-
-(def terrain-rule-options-label-style
-  {:width 72})
 
 (def terrain-rule-grid-cell-size 32)
 (def terrain-rule-grid-gap 2)
@@ -932,19 +886,38 @@
                     (when (and (not (:center? state))
                                (:direction state))
                       (ui/emit! (:view ctx)
-                                :terrain/rule-match-cycle
-                                {:direction (:direction state)
-                                 :step (if (= (:button event) :right)
-                                         1
-                                         -1)}))
+                                :action/mutate!
+                                {:label "Change terrain rule match"
+                                 :op :terrain-rule/cycle-match
+                                 :target {:kind :terrain-rule-match
+                                          :ruleset-id
+                                          (:selected-terrain-ruleset-id state)
+                                          :rule-id
+                                          (:selected-terrain-rule-id state)
+                                          :direction (:direction state)}
+                                 :args {:step
+                                        (case (:button event)
+                                          :right 1
+                                          :default -1)}}))
                     state)
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (ui/stop-propagation! event)
                          (when (= (:type payload) :action)
                            (ui/emit! (:view ctx)
-                                     :terrain/rule-transform
-                                     (-> payload :payload :command))))
+                                     :action/mutate!
+                                     {:label "Transform terrain rule"
+                                      :op :terrain-rule/transform
+                                      :target {:kind :terrain-rule
+                                               :ruleset-id
+                                               (:selected-terrain-ruleset-id
+                                                state)
+                                               :rule-id
+                                               (:selected-terrain-rule-id state)}
+                                      :args {:command
+                                             (-> payload
+                                                 :payload
+                                                 :command)}})))
                        state)}
    :render draw-match-cell!})
 
@@ -1038,11 +1011,16 @@
     (when (:visible? state)
       (ui/stop-propagation! event)
       (ui/emit! (:view ctx)
-                :terrain/rule-stamp-paint
-                {:x (:stamp-x state)
-                 :y (:stamp-y state)
-                 :tile tile-ref
-                 :mask mask-ref})))
+                :action/mutate!
+                {:label "Paint terrain rule output"
+                 :op :value/set
+                 :target {:kind :terrain-rule-stamp-cell
+                          :ruleset-id (:selected-terrain-ruleset-id state)
+                          :rule-id (:selected-terrain-rule-id state)
+                          :x (:stamp-x state)
+                          :y (:stamp-y state)
+                          :path (if mask-ref [:mask] [:tile])}
+                 :args {:value (or mask-ref tile-ref)}})))
   state)
 
 (defun emit-stamp-grid-cell-drop! [state event ctx]
@@ -1053,10 +1031,16 @@
       (do
         (ui/stop-propagation! event)
         (ui/emit! (:view ctx)
-                  :terrain/rule-stamp-paint
-                  {:x (:stamp-x state)
-                   :y (:stamp-y state)
-                   :tile (:tile payload)})
+                  :action/mutate!
+                  {:label "Paint terrain rule output"
+                   :op :value/set
+                   :target {:kind :terrain-rule-stamp-cell
+                            :ruleset-id (:selected-terrain-ruleset-id state)
+                            :rule-id (:selected-terrain-rule-id state)
+                            :x (:stamp-x state)
+                            :y (:stamp-y state)
+                            :path [:tile]}
+                   :args {:value (:tile payload)}})
         state)
 
       (and (:visible? state)
@@ -1064,10 +1048,16 @@
       (do
         (ui/stop-propagation! event)
         (ui/emit! (:view ctx)
-                  :terrain/rule-stamp-paint
-                  {:x (:stamp-x state)
-                   :y (:stamp-y state)
-                   :mask (:mask payload)})
+                  :action/mutate!
+                  {:label "Paint terrain rule output"
+                   :op :value/set
+                   :target {:kind :terrain-rule-stamp-cell
+                            :ruleset-id (:selected-terrain-ruleset-id state)
+                            :rule-id (:selected-terrain-rule-id state)
+                            :x (:stamp-x state)
+                            :y (:stamp-y state)
+                            :path [:mask]}
+                   :args {:value (:mask payload)}})
         state)
 
       :default state)))
@@ -1254,13 +1244,21 @@
                       :signature-tile (terrain-signature-tile state value))))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
-                    (when (:direction state)
+                    (when-let [direction (:direction state)]
                       (ui/emit! (:view ctx)
-                                :terrain/rule-output-signature-cycle
-                                {:direction (:direction state)
-                                 :step (if (= (:button event) :right)
-                                         -1
-                                         1)}))
+                                :action/mutate!
+                                {:label "Change terrain rule output signature"
+                                 :op :terrain-rule/cycle-output-signature
+                                 :target {:kind :terrain-rule-output-signature
+                                          :ruleset-id
+                                          (:selected-terrain-ruleset-id state)
+                                          :rule-id
+                                          (:selected-terrain-rule-id state)
+                                          :direction direction}
+                                 :args {:step
+                                        (case (:button event)
+                                          :right -1
+                                          :default 1)}}))
                     state)
    :render draw-terrain-signature-cell!})
 
@@ -1773,36 +1771,6 @@
                (r/line! {:x 23 :y (- y 7)} {:x 30 :y y} color)
                (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color)))})
 
-(defun terrain-rule-application-options-child []
-  (form/make {:schema terrain-rule-options-schema
-              :text terrain-rule-options-text
-              :layout terrain-rule-options-layout
-              :mode :live
-              :value (ui/bind-state :selected-terrain-rule)
-              :style terrain-rule-options-form-style
-              :field-style terrain-rule-options-field-style
-              :field-label-style terrain-rule-options-label-style}))
-
-(defun terrain-rule-add-button-child [label class]
-  (merge {:mode 'ui/button
-          :state {:label label}
-          :on-click (fn [state event ctx]
-                      (ui/emit! (:view ctx) :terrain/rule-add)
-                      state)}
-         (if class {:class class} {})))
-
-(defcomponent terrain-rule-empty-editor
-  {:style {:width :fill
-           :height :shrink
-           :padding [12 0]
-           :layout {:direction :column
-                    :align-items :start
-                    :gap 8}}
-   :children [{:mode 'ui/text
-               :class :ui/muted
-               :state {:value "No terrain rule selected"}}
-              (terrain-rule-add-button-child "Add rule" nil)]})
-
 (defun terrain-rule-output-tileset-options [tilesets]
   (map (or tilesets [])
        (fn [tileset]
@@ -1823,8 +1791,15 @@
         (fn [state event ctx]
           (ui/stop-propagation! event)
           (ui/emit! (:view ctx)
-                    :terrain/rule-output-tileset-change
-                    (-> event :payload :value))
+                    :action/mutate!
+                    {:label "Change terrain rule output tileset"
+                     :op :value/set
+                     :target {:kind :terrain-rule-output
+                              :ruleset-id
+                              (:selected-terrain-ruleset-id state)
+                              :rule-id (:selected-terrain-rule-id state)
+                              :path [:tileset]}
+                     :args {:value (-> event :payload :value)}})
           state)}
    :children [(cb/make {:options (ui/bind-state :tileset-options)
                         :selected-index
@@ -1845,8 +1820,15 @@
         (fn [state event ctx]
           (ui/stop-propagation! event)
           (ui/emit! (:view ctx)
-                    :terrain/rule-output-target-layer-change
-                    (-> event :payload :value))
+                    :action/mutate!
+                    {:label "Change terrain rule output target layer"
+                     :op :value/set
+                     :target {:kind :terrain-rule-output
+                              :ruleset-id
+                              (:selected-terrain-ruleset-id state)
+                              :rule-id (:selected-terrain-rule-id state)
+                              :path [:target-layer]}
+                     :args {:value (-> event :payload :value)}})
           state)}
    :children [(cb/make {:options (ui/bind-state :target-layer-options)
                         :selected-index
@@ -2026,7 +2008,7 @@
                                    (ui/bind-state
                                     :selected-layer-profile-id)
                                    :layers (ui/bind-state :layers)}}
-                          (terrain-rule-application-options-child)]}
+                          (rule-options/make)]}
               {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
@@ -2049,16 +2031,14 @@
                        (ui/bind-state :selected-terrain-index)
                        :tilesets (ui/bind-state :tilesets)}}]})
 
-(defun terrain-rule-empty-editor-child []
-  {:mode 'terrain-rule-empty-editor
-   :state {:rule-add-disabled? (ui/bind-state :rule-add-disabled?)}})
-
 (defun terrain-rule-visual-editor-child [state]
   (merge {:id "terrain-rule-visual-editor-content"
           :state (ui/bind-state)}
          (if (model/selected-terrain-rule state)
            (terrain-rule-active-editor-child)
-           (terrain-rule-empty-editor-child))))
+           {:mode 'terrain-rule-empty-editor
+            :state {:rule-add-disabled?
+                    (ui/bind-state :rule-add-disabled?)}})))
 
 (defcomponent terrain-rule-visual-editor
   {:style {:width :fill
@@ -2326,6 +2306,25 @@
                        {:r 0x5a :g 0x9d :b 0xff}
                        terrain-standard-slot-border-color)})))
 
+(defun emit-standard-role-mutation!
+  "Emits a standard-role output mutation. `state` identifies the setup, role,
+  and opposing selection, `ctx` supplies the emitting view, `path` selects the
+  output field, and `value` is its replacement. Returns nil."
+  [state ctx path value]
+  (ui/emit! (:view ctx)
+            :action/mutate!
+            {:label (case path
+                      [:mask] "Change standard terrain mask"
+                      [:overlay] "Change standard terrain overlay"
+                      :default "Change standard terrain tile")
+             :op :value/set
+             :target {:kind :terrain-standard-role
+                      :setup-id (:setup-id state)
+                      :role-id (:role-id state)
+                      :opposing (:terrain-standard-role-cache-opposing state)
+                      :path path}
+             :args {:value value}}))
+
 (defcomponent terrain-standard-role-slot
   {:focusable true
    :style {:width terrain-standard-slot-size
@@ -2352,28 +2351,13 @@
      (if (secondary-mouse-button? event)
        (case (terrain-standard-output-tab state)
          :masks
-         (ui/emit! (:view ctx)
-                   :terrain/standard-role-mask-change
-                   {:setup-id (:setup-id state)
-                    :role-id (:role-id state)
-                    :opposing (:terrain-standard-role-cache-opposing state)
-                    :mask nil})
+         (emit-standard-role-mutation! state ctx [:mask] nil)
 
          :overlays
-         (ui/emit! (:view ctx)
-                   :terrain/standard-role-overlay-change
-                   {:setup-id (:setup-id state)
-                    :role-id (:role-id state)
-                    :opposing (:terrain-standard-role-cache-opposing state)
-                    :overlay nil})
+         (emit-standard-role-mutation! state ctx [:overlay] nil)
 
          :tiles
-         (ui/emit! (:view ctx)
-                   :terrain/standard-role-tile-change
-                   {:setup-id (:setup-id state)
-                    :role-id (:role-id state)
-                    :opposing (:terrain-standard-role-cache-opposing state)
-                    :tile nil})
+         (emit-standard-role-mutation! state ctx [:tile] nil)
 
          :default
          nil)
@@ -2382,14 +2366,13 @@
                (terrain-standard-output-tab state))
          :masks
          (if-let [mask-ref (:terrain-rule-selected-mask state)]
-           (ui/emit! (:view ctx)
-                     :terrain/standard-role-mask-change
-                     {:setup-id (:setup-id state)
-                      :role-id (:role-id state)
-                      :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask (model/mask-ref-with-polarity
-                             mask-ref
-                             (:terrain-rule-mask-polarity state))})
+           (emit-standard-role-mutation!
+            state
+            ctx
+            [:mask]
+            (model/mask-ref-with-polarity
+             mask-ref
+             (:terrain-rule-mask-polarity state)))
            (when (:rule-id state)
              (ui/emit! (:view ctx)
                        :terrain/rule-select
@@ -2397,12 +2380,7 @@
 
          :overlays
          (if-let [tile-ref (:terrain-rule-selected-tile state)]
-           (ui/emit! (:view ctx)
-                     :terrain/standard-role-overlay-change
-                     {:setup-id (:setup-id state)
-                      :role-id (:role-id state)
-                      :opposing (:terrain-standard-role-cache-opposing state)
-                      :overlay tile-ref})
+           (emit-standard-role-mutation! state ctx [:overlay] tile-ref)
            (when (:rule-id state)
              (ui/emit! (:view ctx)
                        :terrain/rule-select
@@ -2410,12 +2388,7 @@
 
          :tiles
          (if-let [tile-ref (:terrain-rule-selected-tile state)]
-           (ui/emit! (:view ctx)
-                     :terrain/standard-role-tile-change
-                     {:setup-id (:setup-id state)
-                      :role-id (:role-id state)
-                      :opposing (:terrain-standard-role-cache-opposing state)
-                      :tile tile-ref})
+           (emit-standard-role-mutation! state ctx [:tile] tile-ref)
            (when (:rule-id state)
              (ui/emit! (:view ctx)
                        :terrain/rule-select
@@ -2425,43 +2398,36 @@
          nil))
      state)
    :on-drop
-   (fn [state event ctx]
-     (let [payload (:payload event)]
-       (case (:kind payload)
-         :terrain-rule/mask-output
-         (do
-           (ui/stop-propagation! event)
-           (ui/emit! (:view ctx)
-                     :terrain/standard-role-mask-change
-                     {:setup-id (:setup-id state)
-                      :role-id (:role-id state)
-                      :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask (:mask payload)}))
+   (fn [state {:keys [payload] :as event} ctx]
+     (case (:kind payload)
+       :terrain-rule/mask-output
+       (do
+         (ui/stop-propagation! event)
+         (emit-standard-role-mutation! state
+                                       ctx
+                                       [:mask]
+                                       (:mask payload)))
 
-         :default
-         (when (terrain-stamp-tile-drag-payload? payload)
-           (ui/stop-propagation! event)
-           (case (or (:output-tab payload)
-                     (terrain-standard-output-tab state))
-             :overlays
-             (ui/emit! (:view ctx)
-                       :terrain/standard-role-overlay-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :overlay (:tile payload)})
+       :default
+       (when (terrain-stamp-tile-drag-payload? payload)
+         (ui/stop-propagation! event)
+         (case (or (:output-tab payload)
+                   (terrain-standard-output-tab state))
+           :overlays
+           (emit-standard-role-mutation! state
+                                         ctx
+                                         [:overlay]
+                                         (:tile payload))
 
-             :tiles
-             (ui/emit! (:view ctx)
-                       :terrain/standard-role-tile-change
-                       {:setup-id (:setup-id state)
-                        :role-id (:role-id state)
-                        :opposing (:terrain-standard-role-cache-opposing state)
-                        :tile (:tile payload)})
+           :tiles
+           (emit-standard-role-mutation! state
+                                         ctx
+                                         [:tile]
+                                         (:tile payload))
 
-             :default
-             nil)))
-     state))
+           :default
+           nil)))
+     state)
    :render draw-terrain-standard-role-slot!})
 
 (defun terrain-standard-role-slot-child [setup-id role-id label]
@@ -2563,11 +2529,17 @@
             (ui/stop-propagation! event)
             (when (= (:type payload) :action)
               (ui/emit! (:view ctx)
-                        :terrain/standard-setup-visibility-change
-                        {:setup-id setup-id
-                         :visible? (not (model/terrain-standard-setup-visible?
-                                         state
-                                         setup-id))}))
+                        :action/mutate!
+                        {:label "Change standard terrain setups"
+                         :op :value/set
+                         :target {:kind :terrain-standard-setup
+                                  :setup-id setup-id
+                                  :path [:visible?]}
+                         :args
+                         {:value
+                          (not (model/terrain-standard-setup-visible?
+                                state
+                                setup-id))}}))
             state))}})
 
 (defcomponent terrain-standard-setup-panel
@@ -3095,119 +3067,6 @@
                :children [{:mode 'terrain-standard-output-picker-tabs
                            :state (terrain-standard-output-picker-state)}]}]})
 
-(defcomponent terrain-rule-row
-  {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
-   :style {:width :fill
-           :height terrain-rule-list-row-height
-           :padding [3 6]
-           :layout {:direction :row
-                    :align-items :center}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
-   :on-mouse-down (fn [state event ctx]
-                    (ui/stop-propagation! event)
-                    state)
-   :on-mouse-up (fn [state event ctx]
-                  (ui/stop-propagation! event)
-                  (ui/emit! (:view ctx)
-                            :list-box/item-click
-                            {:index (:index state)
-                             :value (:value state)
-                             :shift? false
-                             :ctrl? false})
-                  (when (= (:button event) :right)
-                    (menu/open-context-menu! terrain-rule-context-menu
-                                             (:global-position event)
-                                             state
-                                             ctx))
-                  state)
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-                         (ui/stop-propagation! event)
-                         (when (= (:type payload) :action)
-                           (ui/emit! (:view ctx)
-                                     :terrain/rule-context-command
-                                     {:rule-id (:value state)
-                                      :command (-> payload :payload :command)})))
-                       state)}
-   :children [{:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :label)}}]})
-
-(defun terrain-rule-row-child [index option]
-  {:mode 'terrain-rule-row
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :selected-indices (ui/bind-state :selected-indices)}})
-
-(defun terrain-rule-list-child [state]
-  (let [options (model/terrain-rule-options state)]
-    (lb/make {:options options
-              :style {:width :fill
-                      :height :fill}
-              :row-height terrain-rule-list-row-height
-              :visible-rows 5
-              :content-width 180
-              :disabled? (empty? options)
-              :state {:offset (ui/bind-state :terrain-rule-list-offset)}
-              :selected-indices (ui/bind-state :selected-indices)
-              :reorderable? true
-              :force-selection? true
-              :item-child terrain-rule-row-child})))
-
-(defcomponent terrain-rule-list
-  {:style {:width :fill
-           :height :fill}
-   :init (fn [state ctx]
-           (assoc state
-                  :rendered-rulesets nil
-                  :rendered-terrain-set-index nil
-                  :rendered-terrain-index nil
-                  :rendered-ruleset-id nil
-                  :selected-indices []))
-   :update (fn [state ctx]
-             (let [rulesets (or (:rulesets state) [])
-                   terrain-set-index (:selected-terrain-set-index state)
-                   terrain-index (:selected-terrain-index state)
-                   ruleset-id (model/selected-terrain-ruleset-id state)
-                   selected-indices (if-let [index (model/selected-terrain-rule-index
-                                                    state)]
-                                      [index]
-                                      [])]
-               (when (or (not= rulesets (:rendered-rulesets state))
-                         (not= terrain-set-index
-                               (:rendered-terrain-set-index state))
-                         (not= terrain-index (:rendered-terrain-index state))
-                         (not= ruleset-id (:rendered-ruleset-id state)))
-                 (ui/replace-child! (:view ctx)
-                                    "terrain-rule-list-box"
-                                    (merge {:id "terrain-rule-list-box"}
-                                           (terrain-rule-list-child
-                                            state))))
-               (assoc state
-                      :rendered-rulesets rulesets
-                      :rendered-terrain-set-index terrain-set-index
-                      :rendered-terrain-index terrain-index
-                      :rendered-ruleset-id ruleset-id
-                      :selected-indices selected-indices)))
-   :on {:list-box/change (fn [state event ctx]
-                           (ui/stop-propagation! event)
-                           (ui/emit! (:view ctx)
-                                     :terrain/rule-select
-                                     (-> event :payload :value))
-                           state)
-        :list-box/reorder (fn [state event ctx]
-                            (ui/stop-propagation! event)
-                            (ui/emit! (:view ctx)
-                                      :terrain/rule-reorder
-                                      (:payload event))
-                            state)}
-   :children [(merge {:id "terrain-rule-list-box"}
-                     (terrain-rule-list-child {}))]})
-
 (defun terrain-id-by-index [state terrain-index]
   (let [terrain-set (model/selected-terrain-set
                      (:terrain-sets state)
@@ -3374,248 +3233,6 @@
       :result-event :terrain/delete-confirm-result
       :payload {:terrain-index terrain-index}})
     state)
-
-(defun open-terrain-rule-name-dialog! [state ctx rule-id name]
-
-    (push-mode! 'terrain-rule-name-dialog-modal
-                {:rule-id rule-id
-                 :name name}
-                {:origin {:view (:view ctx)
-                          :event :terrain/rule-name-dialog-result}})
-    state)
-
-(defun open-terrain-rule-delete-confirm-dialog! [state ctx rule-id name]
-
-    (dialog/open-confirm!
-     ctx
-     {:title "Delete Terrain Rule"
-      :body {:mode 'ui/text
-             :style {:width :fill}
-             :state {:value (str "Delete terrain rule \"" name "\"?")}}
-      :buttons [:dialog/cancel
-                {:type :dialog/ok
-                 :label "Delete"}]
-      :result-event :terrain/rule-delete-confirm-result
-      :payload {:rule-id rule-id}})
-    state)
-
-(defcomponent terrain-rule-name-dialog-body
-  {:class :ui/content
-   :style {:width 260
-           :height :shrink
-           :padding 10
-           :layout {:direction :column
-                    :gap 8}}
-   :children [{:mode 'ui/text
-               :state {:value "Rule name:"}}
-              {:mode 'ui/text-input
-               :style {:width :fill
-                       :height 24}
-               :state {:value (ui/bind-state :name)
-                       :auto-focus? true}}
-              {:mode 'terrain-rule-name-dialog-buttons
-               :state {:name (ui/bind-state :name)}}]})
-
-(defcomponent terrain-rule-name-dialog-buttons
-  {:style {:width :fill
-           :height 24
-           :layout {:direction :row
-                    :gap :space-between}}
-   :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-
-                             (ui/emit! (:view ctx)
-                                       :terrain-rule-name-dialog/cancel)
-                             state)}
-              {:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "OK"
-                       :name (ui/bind-state :name)}
-               :on-click (fn [state event ctx]
-
-                             (ui/emit! (:view ctx)
-                                       :terrain-rule-name-dialog/confirm
-                                       {:name (:name state)})
-                             state)}]})
-
-(defmode terrain-rule-name-dialog-modal
-  {:on {:terrain-rule-name-dialog/cancel
-        (fn [state event ctx]
-
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel
-                        :rule-id (:rule-id state)})
-            state)
-        :terrain-rule-name-dialog/confirm
-        (fn [state event ctx]
-
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :confirm
-                        :rule-id (:rule-id state)
-                        :name (-> event :payload :name)})
-            state)}
-   :compose {:render :pass}
-   :children [(w/make {:title-bar {:title "Rename Terrain Rule"}
-                       :state {:rule-id (ui/bind-state :rule-id)
-                               :name (ui/bind-state :name)}
-                       :body [{:mode 'terrain-rule-name-dialog-body
-                               :state {:name (ui/bind-state :name)}}]})]})
-
-(defcomponent terrain-rule-manual-editor
-  {:style {:width :fill
-           :height :fill
-           :padding [10 12]
-           :layout {:direction :row
-                    :gap 12}}
-   :children [{:style {:width 196
-                       :height :fill
-                       :layout {:direction :column
-                                :gap 6}}
-               :state (ui/bind-state)
-               :children [{:style {:width :fill
-                                   :height 24
-                                   :layout {:direction :row
-                                            :align-items :center
-                                            :gap 6}}
-                           :children [{:mode 'ui/text
-                                       :style {:width :fill}
-                                       :state {:value "Terrain rules"}}
-                                      (terrain-rule-add-button-child
-                                       "+"
-                                       :ui/toolbar-button)]}
-                          {:mode 'terrain-rule-list
-                           :state {:terrain-sets
-                                   (ui/bind-state :terrain-sets)
-                                   :selected-terrain-set-index
-                                   (ui/bind-state
-                                    :selected-terrain-set-index)
-                                   :selected-terrain-index
-                                   (ui/bind-state
-                                    :selected-terrain-index)
-                                   :rulesets
-                                   (ui/bind-state :rulesets)
-                                   :selected-terrain-ruleset-id
-                                   (ui/bind-state
-                                    :selected-terrain-ruleset-id)
-                                   :selected-terrain-rule-id
-                                   (ui/bind-state
-                                    :selected-terrain-rule-id)
-                                   :terrain-rule-list-offset
-                                   (ui/bind-state
-                                    :terrain-rule-list-offset)}}]}
-              {:style {:width :fill
-                       :height :fill
-                       :layout {:direction :column
-                                :gap 6}}
-               :state (ui/bind-state)
-               :children [{:mode 'terrain-rule-visual-editor
-                           :state {:terrain-sets
-                                   (ui/bind-state :terrain-sets)
-                                   :selected-terrain-set-index
-                                   (ui/bind-state
-                                    :selected-terrain-set-index)
-                                   :selected-terrain-index
-                                   (ui/bind-state
-                                    :selected-terrain-index)
-                                   :rulesets
-                                   (ui/bind-state :rulesets)
-                                   :selected-terrain-ruleset-id
-                                   (ui/bind-state
-                                    :selected-terrain-ruleset-id)
-                                   :selected-terrain-rule-id
-                                   (ui/bind-state
-                                    :selected-terrain-rule-id)
-                                   :selected-terrain-rule-exclusive?
-                                   (ui/bind-state
-                                    :selected-terrain-rule-exclusive?)
-                                   :selected-terrain-rule-match-direction
-                                   (ui/bind-state
-                                    :selected-terrain-rule-match-direction)
-                                   :selected-terrain-rule-output-position
-                                   (ui/bind-state
-                                    :selected-terrain-rule-output-position)
-                                   :terrain-rule-selected-tile
-                                   (ui/bind-state
-                                    :terrain-rule-selected-tile)
-                                   :rule-add-disabled?
-                                   (ui/bind-state
-                                    :rule-add-disabled?)
-                                   :tilesets
-                                   (ui/bind-state :tilesets)}}]}]})
-
-(defun terrain-rule-editor-tabs-panel []
-  (tabs/make
-   {:selected-tab (ui/bind-state :terrain-rule-editor-tab)
-    :style {:width :fill
-            :height :fill}
-    :state {:terrain-sets (ui/bind-state :terrain-sets)
-            :tilesets (ui/bind-state :tilesets)
-            :mask-sets (ui/bind-state :mask-sets)
-            :property-sets (ui/bind-state :property-sets)
-            :rulesets (ui/bind-state :rulesets)
-            :layers (ui/bind-state :layers)
-            :layer-profiles (ui/bind-state :layer-profiles)
-            :selected-layer-profile-id
-            (ui/bind-state :selected-layer-profile-id)
-            :selected-terrain-set-index
-            (ui/bind-state :selected-terrain-set-index)
-            :selected-terrain-index
-            (ui/bind-state :selected-terrain-index)
-            :selected-terrain-ruleset-id
-            (ui/bind-state :selected-terrain-ruleset-id)
-            :selected-terrain-rule-id
-            (ui/bind-state :selected-terrain-rule-id)
-            :selected-terrain-rule-exclusive?
-            (ui/bind-state :selected-terrain-rule-exclusive?)
-            :selected-terrain-rule-match-direction
-            (ui/bind-state :selected-terrain-rule-match-direction)
-            :selected-terrain-rule-output-position
-            (ui/bind-state :selected-terrain-rule-output-position)
-            :terrain-rule-selected-tile
-            (ui/bind-state :terrain-rule-selected-tile)
-            :terrain-rule-selected-tile-output-tab
-            (ui/bind-state :terrain-rule-selected-tile-output-tab)
-            :terrain-rule-selected-mask
-            (ui/bind-state :terrain-rule-selected-mask)
-            :terrain-rule-mask-polarity
-            (ui/bind-state :terrain-rule-mask-polarity)
-            :terrain-rule-list-offset
-            (ui/bind-state :terrain-rule-list-offset)
-            :terrain-rule-editor-tab
-            (ui/bind-state :terrain-rule-editor-tab)
-            :terrain-standard-opposing
-            (ui/bind-state :terrain-standard-opposing)
-            :terrain-standard-output-picker-tab
-            (ui/bind-state :terrain-standard-output-picker-tab)
-            :terrain-standard-role-cache-opposing
-            (ui/bind-state :terrain-standard-role-cache-opposing)
-            :terrain-standard-role-slots
-            (ui/bind-state :terrain-standard-role-slots)
-            :rule-add-disabled?
-            (ui/bind-state :rule-add-disabled?)}
-    :tabs [{:id :rules
-            :label "Rule Editor"
-            :child {:mode 'terrain-rule-manual-editor
-                    :state (ui/bind-state)}}
-           {:id :setups
-            :label "Semantic Roles"
-            :child {:mode 'terrain-standard-setup-editor
-                    :state (ui/bind-state)}}]}))
-
-(defcomponent terrain-rule-editor-tabs
-  {:style {:width :fill
-           :height :fill}
-   :on {:tab-panel/change (fn [state event ctx]
-
-                              (ui/stop-propagation! event)
-                              (assoc state
-                                     :terrain-rule-editor-tab
-                                     (-> event :payload :tab)))}
-   :children [(terrain-rule-editor-tabs-panel)]})
 
 (defcomponent terrain-value-detail-editor
   {:style {:width :fill
@@ -4005,7 +3622,7 @@
                  (assoc state
                         :rendered-mask-sets mask-sets
                         :rendered-selected-mask-set-index selected-index)))
-   :on {:list-box/change
+   :on {:list-box/selection-change
         (fn [state event ctx]
 
             (ui/stop-propagation! event)
@@ -4055,7 +3672,7 @@
                  (assoc state
                         :rendered-mask-set mask-set
                         :rendered-selected-mask-index selected-index)))
-   :on {:list-box/change
+   :on {:list-box/selection-change
         (fn [state event ctx]
 
             (ui/stop-propagation! event)
@@ -4628,17 +4245,6 @@
             (ui/bind-state :terrain-stamp-tile-drag-preview)
             :tilesets (ui/bind-state :tilesets)}}])
 
-(defun refresh-selected-ruleset-preview-after [previous-state state]
-  (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
-   previous-state
-   state
-   (or (model/selected-terrain-ruleset-id previous-state)
-       (model/selected-terrain-ruleset-id state))))
-
-(defun update-selected-ruleset-preview [state update-fn]
-  (model/clear-terrain-standard-role-slot-cache
-   (refresh-selected-ruleset-preview-after state (update-fn state))))
-
 (defun terrain-stamp-tile-drag-preview-payload [payload ctx]
   (let [position (:position payload)
         bounds (-> ctx :view :bounds)]
@@ -5034,142 +4640,103 @@
             (if (= (:type payload) :confirm)
               (model/set-selected-terrain-tile state (:tile payload))
               state)))
-        :terrain/ruleset-add (fn [state event ctx]
-                               (tilemap/rebuild-terrain-stamp-preview
-                                (model/add-terrain-ruleset state)))
         :terrain/ruleset-select
         (fn [state event ctx]
           (assoc state
                  :selected-terrain-ruleset-id (:payload event)
                  :selected-terrain-rule-id nil))
-        :terrain/rule-add (fn [state event ctx]
-                            (update-selected-ruleset-preview
-                             state
-                             model/add-terrain-rule))
         :terrain/rule-select
         (fn [state event ctx]
           (assoc state :selected-terrain-rule-id (:payload event)))
-        :terrain/rule-reorder
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (model/reorder-selected-terrain-rules state
-                                                     (:from-index payload)
-                                                     (:to-index payload)
-                                                     (:value payload))))))
         :terrain/rule-context-command
-        (fn [state event ctx]
-          (let [payload (:payload event)
-                rule-id (:rule-id payload)
-                command (:command payload)
+        (fn [state {:keys [payload]} ctx]
+          (let [rule-id (:rule-id payload)
                 state (assoc state :selected-terrain-rule-id rule-id)
                 name (model/terrain-rule-label-by-id state rule-id)]
-            (case command
+            (case (:command payload)
               :rename
-              (open-terrain-rule-name-dialog! state ctx rule-id name)
+              (rule-dialogs/open-name! state ctx rule-id name)
 
               :duplicate
-              (update-selected-ruleset-preview
-               state
-               model/duplicate-selected-terrain-rule)
+              (do
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Duplicate terrain rule"
+                           :op :terrain-rule/duplicate
+                           :target {:kind :terrain-rule
+                                    :ruleset-id
+                                    (model/selected-terrain-ruleset-id state)
+                                    :rule-id rule-id}
+                           :args {}})
+                state)
 
               :move-up
-              (update-selected-ruleset-preview
-               state
-               (fn [state]
-                 (model/move-selected-terrain-rule state :up)))
+              (do
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Move terrain rule"
+                           :op :terrain-rule/move
+                           :target {:kind :terrain-rule
+                                    :ruleset-id
+                                    (model/selected-terrain-ruleset-id state)
+                                    :rule-id rule-id}
+                           :args {:direction :up}})
+                state)
 
               :move-down
-              (update-selected-ruleset-preview
-               state
-               (fn [state]
-                 (model/move-selected-terrain-rule state :down)))
+              (do
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Move terrain rule"
+                           :op :terrain-rule/move
+                           :target {:kind :terrain-rule
+                                    :ruleset-id
+                                    (model/selected-terrain-ruleset-id state)
+                                    :rule-id rule-id}
+                           :args {:direction :down}})
+                state)
 
               :delete
-              (open-terrain-rule-delete-confirm-dialog! state ctx rule-id name)
+              (rule-dialogs/open-delete-confirmation! state ctx rule-id name)
 
               :default
               state)))
         :terrain/rule-name-dialog-result
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (model/set-selected-terrain-rule-label
-               (assoc state :selected-terrain-rule-id (:rule-id payload))
-               (:name payload))
-              state)))
+        (fn [state {:keys [payload]} ctx]
+          (case (:type payload)
+            :confirm
+              (do
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Rename terrain rule"
+                           :op :value/set
+                           :target {:kind :terrain-rule
+                                    :ruleset-id
+                                    (model/selected-terrain-ruleset-id state)
+                                    :rule-id (:rule-id payload)
+                                    :path [:label]}
+                           :args {:value (:name payload)}})
+                state)
+
+            :default
+            state))
         :terrain/rule-delete-confirm-result
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (if (and (= (:choice payload) :dialog/ok)
-                     (-> payload :payload :rule-id))
-              (update-selected-ruleset-preview
-               (assoc state
-                      :selected-terrain-rule-id
-                      (-> payload :payload :rule-id))
-               model/delete-selected-terrain-rule)
-              state)))
-        :terrain/rule-terrain-change
-        (fn [state event ctx]
-          (update-selected-ruleset-preview
-           state
-           (fn [state]
-             (model/set-selected-rule-terrain state (:payload event)))))
-        :terrain/rule-match-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (assoc (model/set-selected-rule-match-condition
-                       state
-                       (:direction payload)
-                       (:value payload))
-                      :selected-terrain-rule-match-direction
-                      (:direction payload))))))
-        :terrain/rule-match-cycle
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (assoc (model/cycle-selected-rule-match-condition
-                       state
-                       (:direction payload)
-                       (:step payload))
-                      :selected-terrain-rule-match-direction
-                      (:direction payload))))))
-        :terrain/rule-output-signature-cycle
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (model/cycle-selected-rule-output-terrain-signature
-                state
-                (:direction payload)
-                (:step payload))))))
-        :terrain/rule-output-tileset-change
-        (fn [state event ctx]
-          (update-selected-ruleset-preview
-           state
-           (fn [state]
-             (model/set-selected-rule-output-tileset state (:payload event)))))
-        :terrain/rule-output-target-layer-change
-        (fn [state event ctx]
-          (update-selected-ruleset-preview
-           state
-           (fn [state]
-             (model/set-selected-rule-output-target-layer state
-                                                          (:payload event)))))
-        :terrain/rule-transform
-        (fn [state event ctx]
-          (update-selected-ruleset-preview
-           state
-           (fn [state]
-             (model/transform-selected-rule state (:payload event)))))
+        (fn [state {:keys [payload]} ctx]
+          (if (and (= (:choice payload) :dialog/ok)
+                   (-> payload :payload :rule-id))
+              (do
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Delete terrain rule"
+                           :op :terrain-rule/remove
+                           :target {:kind :terrain-rule
+                                    :ruleset-id
+                                    (model/selected-terrain-ruleset-id state)
+                                    :rule-id
+                                    (-> payload :payload :rule-id)}
+                           :args {}})
+                state)
+            state))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
           (let [payload (:payload event)
@@ -5211,71 +4778,5 @@
           (assoc state :terrain-stamp-tile-drag-preview nil))
         :terrain/standard-opposing-change
         (fn [state event ctx]
-          (model/set-terrain-standard-opposing state (:payload event)))
-        :terrain/standard-setup-visibility-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (model/set-selected-terrain-standard-setup-visible
-             state
-             (:setup-id payload)
-             (:visible? payload))))
-        :terrain/rule-stamp-paint
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (if (:mask payload)
-                 (model/set-selected-rule-stamp-mask
-                  (assoc state
-                         :selected-terrain-rule-output-position
-                         {:x (:x payload)
-                          :y (:y payload)})
-                  (:x payload)
-                  (:y payload)
-                  (:mask payload))
-                 (model/set-selected-rule-stamp-tile
-                  (assoc state
-                         :selected-terrain-rule-output-position
-                         {:x (:x payload)
-                          :y (:y payload)})
-                  (:x payload)
-                  (:y payload)
-                  (:tile payload)))))))
-        :terrain/standard-role-tile-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (model/set-terrain-standard-role-tile
-                state
-                (:setup-id payload)
-                (:role-id payload)
-                (:opposing payload)
-                (:tile payload))))))
-        :terrain/standard-role-mask-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (model/set-terrain-standard-role-mask
-                state
-                (:setup-id payload)
-                (:role-id payload)
-                (:opposing payload)
-                (:mask payload))))))
-        :terrain/standard-role-overlay-change
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (update-selected-ruleset-preview
-             state
-             (fn [state]
-               (model/set-terrain-standard-role-overlay
-                state
-                (:setup-id payload)
-                (:role-id payload)
-                (:opposing payload)
-                (:overlay payload))))))}
+          (model/set-terrain-standard-opposing state (:payload event)))}
    :children (terrain-definition-workspace-children)})

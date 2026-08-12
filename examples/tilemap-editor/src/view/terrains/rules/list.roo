@@ -1,0 +1,161 @@
+(ns tilemap-editor.view.terrains.rules.list
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(def row-height
+  "Defines the rendered height, in pixels, of one terrain-rule list row."
+  24)
+
+(def context-menu
+  "Defines the commands available from a terrain-rule row context menu."
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Rule"
+            :action :terrain/rule-context-dummy
+            :payload {:command :rename}}
+           {:label "Duplicate"
+            :action :terrain/rule-context-dummy
+            :payload {:command :duplicate}}
+           :separator
+           {:label "Move Up"
+            :action :terrain/rule-context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :terrain/rule-context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Rule"
+            :action :terrain/rule-context-dummy
+            :payload {:command :delete}}]})
+
+(defcomponent terrain-rule-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (ui/emit! (:view ctx)
+                            :list-box/item-click
+                            {:index (:index state)
+                             :value (:value state)
+                             :shift? false
+                             :ctrl? false})
+                  (when (= (:button event) :right)
+                    (menu/open-context-menu! context-menu
+                                             (:global-position event)
+                                             state
+                                             ctx))
+                  state)
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (ui/stop-propagation! event)
+                         (when (= (:type payload) :action)
+                           (ui/emit! (:view ctx)
+                                     :terrain/rule-context-command
+                                     {:rule-id (:value state)
+                                      :command (-> payload :payload :command)})))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun make-row
+  "Constructs a terrain-rule row child. `index` is the list position and `option` contains `:value` and `:label`; returns a child map bound to the list selection."
+  [index option]
+  {:mode 'terrain-rule-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun make-list-box
+  "Constructs the terrain-rule list box for editor `state`. Returns a reorderable, force-selected list-box child map."
+  [state]
+  (let [options (model/terrain-rule-options state)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height row-height
+              :visible-rows 5
+              :content-width 180
+              :disabled? (empty? options)
+              :state {:offset (ui/bind-state :terrain-rule-list-offset)}
+              :selected-indices (ui/bind-state :selected-indices)
+              :reorderable? true
+              :force-selection? true
+              :item-child make-row})))
+
+(defcomponent terrain-rule-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-rulesets nil
+                  :rendered-terrain-set-index nil
+                  :rendered-terrain-index nil
+                  :rendered-ruleset-id nil
+                  :selected-indices []))
+   :update (fn [state ctx]
+             (let [rulesets (or (:rulesets state) [])
+                   terrain-set-index (:selected-terrain-set-index state)
+                   terrain-index (:selected-terrain-index state)
+                   ruleset-id (model/selected-terrain-ruleset-id state)
+                   selected-indices (if-let [index (model/selected-terrain-rule-index
+                                                    state)]
+                                      [index]
+                                      [])]
+               (when (or (not= rulesets (:rendered-rulesets state))
+                         (not= terrain-set-index
+                               (:rendered-terrain-set-index state))
+                         (not= terrain-index (:rendered-terrain-index state))
+                         (not= ruleset-id (:rendered-ruleset-id state)))
+                 (ui/replace-child! (:view ctx)
+                                    "terrain-rule-list-box"
+                                    (merge {:id "terrain-rule-list-box"}
+                                           (make-list-box state))))
+               (assoc state
+                      :rendered-rulesets rulesets
+                      :rendered-terrain-set-index terrain-set-index
+                      :rendered-terrain-index terrain-index
+                      :rendered-ruleset-id ruleset-id
+                      :selected-indices selected-indices)))
+   :on {:list-box/selection-change (fn [state event ctx]
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :terrain/rule-select
+                                     (-> event :payload :value))
+                           state)
+        :list-box/reorder (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (ui/emit! (:view ctx)
+                                      :action/mutate!
+                                      {:label "Move terrain rule"
+                                       :op :terrain-rule/reorder
+                                       :target
+                                       {:kind :terrain-rule-collection
+                                        :ruleset-id
+                                        (:selected-terrain-ruleset-id state)}
+                                       :args {:from (-> event
+                                                        :payload
+                                                        :from-index)
+                                              :to (-> event
+                                                      :payload
+                                                      :to-index)
+                                              :value (-> event
+                                                         :payload
+                                                         :value)}})
+                            state)}
+   :children [(merge {:id "terrain-rule-list-box"}
+                     (make-list-box {}))]})

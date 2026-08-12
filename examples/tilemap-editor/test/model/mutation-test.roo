@@ -1,0 +1,46 @@
+(ns tilemap-editor.model.mutation-test
+  (:require proof.core
+            [tilemap-editor.model.mutation :as mutation]))
+
+
+
+;; tilemap-editor.model.mutation/apply
+
+(deftest apply/sets-the-target-value
+  (is (= {:document {:name "Overworld"}}
+         (mutation/apply
+          {:document {:name "Untitled"}}
+          {:op :value/set
+           :target {:path [:document :name]}
+           :args {:value "Overworld"}}))))
+
+(deftest apply/adds-and-removes-collection-elements
+  (is (= {:items [:grass :water]}
+         (mutation/apply
+          {:items [:grass]}
+          {:op :element/add
+           :target {:path [:items]}
+           :args {:value :water}})))
+  (is (= {:items [:grass]}
+         (mutation/apply
+          {:items [:grass :water]}
+          {:op :element/remove
+           :target {:path [:items]}
+           :args {:index 1}}))))
+
+(deftest apply/moves-a-collection-element
+  (is (= {:items [:water :grass :sand]}
+         (mutation/apply
+          {:items [:grass :sand :water]}
+          {:op :element/move
+           :target {:path [:items]}
+           :args {:from 2
+                  :to 0}}))))
+
+(deftest apply/ignores-invalid-mutations
+  (is (= {:items [:grass]}
+         (mutation/apply
+          {:items [:grass]}
+          {:op :element/remove
+           :target {:path [:items]}
+           :args {:index 4}}))))

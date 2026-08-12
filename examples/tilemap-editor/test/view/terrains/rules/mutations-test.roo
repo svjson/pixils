@@ -1,0 +1,112 @@
+(ns tilemap-editor.view.terrains.rules.mutations-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [tilemap-editor.view.terrains.rules.mutations :as mutations]))
+
+(def terrain-rule-state
+  {:terrain-sets [{:id :overworld
+                   :tileset :terrain
+                   :terrains [{:id :grass
+                               :tile :grass-fill}]}]
+   :tilesets [{:id :terrain
+               :tiles [{:id :grass-fill}
+                       {:id :water-edge}]}]
+   :layer-profiles [{:id :default
+                     :layers [{:id :scene/source
+                               :data-kind :terrain
+                               :terrain-set :overworld}
+                              {:id :scene/visuals
+                               :data-kind :tile-ref
+                               :tileset :terrain}]}]
+   :selected-layer-profile-id :default
+   :selected-terrain-set-index 0
+   :selected-terrain-index 0})
+
+
+
+;; tilemap-editor.view.terrains.rules.mutations/terrain-rule-target-path
+
+(deftest terrain-rule-target-path/resolves-rule-identity-and-relative-path
+  (is (= [:rulesets 0 :rules 0 :exclusive?]
+         (mutations/terrain-rule-target-path
+          (assoc terrain-rule-state
+                 :rulesets [{:id :overworld-rules
+                             :terrain-set :overworld
+                             :rules [{:id :grass-rule}]}])
+          {:ruleset-id :overworld-rules
+           :rule-id :grass-rule
+           :path [:exclusive?]}))))
+
+
+
+;; tilemap-editor.view.terrains.rules.mutations/apply
+
+(deftest apply/sets-a-terrain-rule-value-through-semantic-identity
+  (s/when []
+    (mutations/apply
+     (assoc terrain-rule-state
+            :rulesets [{:id :overworld-rules
+                        :terrain-set :overworld
+                        :rules [{:id :grass-rule
+                                 :terrain :grass
+                                 :exclusive? false}]}])
+     {:label "Change terrain rule options"
+      :op :value/set
+      :target {:kind :terrain-rule
+               :ruleset-id :overworld-rules
+               :rule-id :grass-rule
+               :path [:exclusive?]}
+      :args {:value true}}))
+
+  (s/then [state]
+    (is (= {:exclusive? true
+            :selected-ruleset-id :overworld-rules
+            :selected-rule-id :grass-rule}
+           {:exclusive? (get-in state
+                                [:rulesets 0 :rules 0 :exclusive?])
+            :selected-ruleset-id (:selected-terrain-ruleset-id state)
+            :selected-rule-id (:selected-terrain-rule-id state)}))))
+
+(deftest apply/changes-a-standard-role-tile
+  (s/when []
+    (mutations/apply
+     terrain-rule-state
+     {:label "Change standard terrain tile"
+      :op :value/set
+      :target {:kind :terrain-standard-role
+               :setup-id :island-3x3
+               :role-id :n
+               :opposing :none
+               :path [:tile]}
+      :args {:value :water-edge}}))
+
+  (s/then [state]
+    (is (= {:rule {:id :rule
+                   :label "Island N - None"
+                   :terrain :grass
+                   :exclusive? true}
+            :tile :water-edge}
+           {:rule (select-keys (get-in state [:rulesets 0 :rules 0])
+                               [:id :label :terrain :exclusive?])
+            :tile (get-in state
+                          [:rulesets 0 :rules 0
+                           :output :layers 0 :tiles 0 0])}))))
+
+(deftest apply/changes-standard-setup-visibility
+  (is (= [:island-3x3
+          :inner-corners
+          :isolated
+          :forks-cardinal
+          :forks-diagonal
+          :stumps]
+         (get-in
+          (mutations/apply
+           terrain-rule-state
+           {:label "Change standard terrain setups"
+            :op :value/set
+            :target {:kind :terrain-standard-setup
+                     :setup-id :ring
+                     :path [:visible?]}
+            :args {:value false}})
+          [:terrain-sets 0 :terrains 0
+           :visible-terrain-standard-setups]))))

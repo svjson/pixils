@@ -11,7 +11,6 @@
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
-            [tilemap-editor.view.terrains.model :as terrain-model]
             tilemap-editor.view.brushes.layout
             tilemap-editor.view.masks.panel
             [tilemap-editor.view.menu :as app-menu]
@@ -19,6 +18,7 @@
             [tilemap-editor.view.project.dialogs :as project-dialogs]
             tilemap-editor.view.resources.layout
             tilemap-editor.view.terrains.layout
+            [tilemap-editor.view.terrains.rules.mutations :as rule-mutations]
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.dialogs
             tilemap-editor.view.tileset.layout))
@@ -127,33 +127,14 @@
                                  (:tile-size payload)))
     state))
 
-(defun refresh-selected-terrain-ruleset-preview-after [previous-state state]
-  (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
-   previous-state
-   state
-   (or (terrain-model/selected-terrain-ruleset-id previous-state)
-       (terrain-model/selected-terrain-ruleset-id state))))
-
-(defun update-selected-terrain-ruleset-preview [state update-fn]
-  (terrain-model/clear-terrain-standard-role-slot-cache
-   (refresh-selected-terrain-ruleset-preview-after state
-                                                   (update-fn state))))
-
-(defun apply-form-change [state payload]
-  (if (or (= (:field-id payload) :terrain-rule-exclusive)
-          (contains? (or (:form-value payload) {}) :exclusive?))
-    (editor-workbook/change-to
-     state
-     "Change terrain rule options"
-     (update-selected-terrain-ruleset-preview
-      state
-      (fn [state]
-        (terrain-model/set-selected-terrain-rule-exclusive
-         state
-         (if (contains? payload :field-id)
-           (:value payload)
-           (-> payload :form-value :exclusive?))))))
-    state))
+(defun apply-mutation
+  "Applies user `action` to editor `state` and records its `:label` in
+  workbook history. The action contains `:op`, `:target`, and `:args` mutation
+  data. Returns the updated workbook-backed editor state."
+  [state action]
+  (editor-workbook/change-to state
+                             (:label action)
+                             (rule-mutations/apply state action)))
 
 (defun apply-theme-selection! [state payload]
   (if (contains? payload :variant)
@@ -734,9 +715,10 @@
                       state
                       "Paste map selection"
                       (tilemap/paste-map-clipboard state)))
-       :form/change (fn [state event ctx]
-                      (ui/stop-propagation! event)
-                      (apply-form-change state (:payload event)))
+       :action/mutate!
+       (fn [state {:keys [payload] :as event} ctx]
+           (ui/stop-propagation! event)
+           (apply-mutation state payload))
        :tab-panel/change (fn [state event ctx]
                            (select-workspace-tab state
                                                  (-> event :payload :tab)))

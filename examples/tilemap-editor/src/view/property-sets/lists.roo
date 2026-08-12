@@ -98,7 +98,7 @@
                         :rendered-property-sets property-sets
                         :selected-indices
                         (model/selected-property-set-indices state))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
 
                              (ui/emit! (:view ctx)
                                        :property-set/select
@@ -171,7 +171,7 @@
                         :rendered-property-set property-set
                         :selected-indices
                         (model/selected-property-indices state))))
-   :on {:list-box/change (fn [state event ctx]
+   :on {:list-box/selection-change (fn [state event ctx]
 
                              (ui/emit! (:view ctx)
                                        :property-definition/select
