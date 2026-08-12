@@ -14,6 +14,11 @@
 #include <optional>
 #include <roo/runtime/value.h>
 
+namespace Roo
+{
+  class Runtime;
+}
+
 namespace Pixils::Runtime
 {
   struct QueuedChildReplacement
@@ -101,11 +106,13 @@ namespace Pixils::Runtime
     void mark_style_changed();
     bool set_state_if_changed(const Roo::sptr_val& next_state);
     bool set_ui_state_if_changed(const Roo::sptr_val& next_state);
-    bool set_state_from_child_bindings(const Roo::sptr_val& next_state);
+    bool set_state_from_child_bindings(const Roo::sptr_val& next_state,
+                                       Roo::Runtime& runtime);
     void sync_ui_state_from_child_bindings(const Roo::sptr_val& previous_state,
-                                           const Roo::sptr_val& next_state);
+                                           const Roo::sptr_val& next_state,
+                                           Roo::Runtime& runtime);
     bool has_component_ui_state() const;
-    void seed_ui_state_from_shared_state_policy();
+    void seed_ui_state_from_shared_state_policy(Roo::Runtime& runtime);
     void sync_state_from_shared_ui_state_policy();
     void emit_event(const CustomEvent& event);
     void drain_events(std::vector<CustomEvent>& collected);

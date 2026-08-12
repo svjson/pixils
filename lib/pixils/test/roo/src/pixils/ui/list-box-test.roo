@@ -53,6 +53,7 @@
                    :row-height 10
                    :visible-rows 2
                    :content-width 100
+                   :force-selection? true
                    :selected-indices (ui/project-state :selected)})]})")
 
 (deftest list-box-keyboard-target-skips-disabled-options
@@ -81,17 +82,6 @@
            :shift? true
            :ctrl? false}))))
 
-
-
-;; pixils.ui.list-box/derive-selected-values
-
-(deftest derive-selected-values/omits-out-of-range-selected-values
-  (is (= {:options [{:value :a}]
-          :selected-indices [0 3]
-          :selected-values [:a]}
-         (list-box/derive-selected-values
-          {:options [{:value :a}]
-           :selected-indices [0 3]}))))
 
 (deftest list-box-initializes-selected-values-from-selected-indices
   (let [app (runtime/make-app {:package-root "../.."
@@ -129,6 +119,29 @@
     (runtime/update! app)
     (is (= [:updated]
            (:selected-values
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
+
+(deftest list-box-rejects-invalid-projected-selections
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app) :selected []))
+    (runtime/update! app)
+    (is (= [0]
+           (:selected-indices
+            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app) :selected [0 2]))
+    (runtime/update! app)
+    (is (= [0]
+           (:selected-indices
             (runtime/view-state (runtime/find-view app "ui/list-box")))))))
 
 (deftest list-box-arrow-key-navigation-selects-next-enabled-item

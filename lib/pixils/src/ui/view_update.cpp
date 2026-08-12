@@ -62,13 +62,16 @@ namespace Pixils::UI
                             Roo::Runtime& rt)
     {
       if (!view->has_component_ui_state()) return;
+      Roo::Context exec_ctx(rt);
 
       if (auto parent = view->parent)
       {
-        view->set_ui_state_if_changed(
-          Runtime::extract_component_ui_state(parent->state, *view));
+        Runtime::transition_component_ui_state(
+          *view,
+          Runtime::extract_component_ui_state(parent->state, *view),
+          exec_ctx);
       }
-      view->seed_ui_state_from_shared_state_policy();
+      view->seed_ui_state_from_shared_state_policy(rt);
       view->sync_state_from_shared_ui_state_policy();
 
       if (has_hook(view->component->update_ui))
@@ -78,7 +81,6 @@ namespace Pixils::UI
 
         Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
         Roo::sptr_val_v args = {view->ui_state, view->state, hook_args.update_args[1]};
-        Roo::Context exec_ctx(rt);
         auto result = view->component->update_ui->exec().execute(exec_ctx, args);
         auto next_ui_state =
           (result && result->type != Roo::Value::Type::NIL) ? result : view->ui_state;
@@ -86,7 +88,7 @@ namespace Pixils::UI
         {
           throw Roo::TypeError("Component :update-ui must return a map or nil");
         }
-        view->set_ui_state_if_changed(next_ui_state);
+        Runtime::transition_component_ui_state(*view, next_ui_state, exec_ctx);
       }
 
       view->sync_state_from_shared_ui_state_policy();
@@ -207,13 +209,15 @@ namespace Pixils::UI
         Runtime::apply_pending_child_mutations(rt,
                                                view_ptr,
                                                hook_args.update_args[1],
-                                               view.state));
+                                               view.state),
+        rt);
       run_update_ui_hook(view_ptr, hook_args, rt);
       view.set_state_from_child_bindings(
         Runtime::apply_pending_child_mutations(rt,
                                                view_ptr,
                                                hook_args.update_args[1],
-                                               view.state));
+                                               view.state),
+        rt);
 
       for (auto& child : view.children)
       {
@@ -240,7 +244,7 @@ namespace Pixils::UI
         auto merged = merge_child_state(*parent_state, view);
         if (parent_view)
         {
-          parent_view->set_state_from_child_bindings(merged);
+          parent_view->set_state_from_child_bindings(merged, rt);
         }
         else
         {
@@ -299,7 +303,8 @@ namespace Pixils::UI
       const FocusState& focus_state,
       Roo::sptr_val* parent_state,
       Runtime::View* parent_view,
-      const Point& mouse_pos)
+      const Point& mouse_pos,
+      Roo::Runtime& runtime)
     {
       auto& view = *view_ptr;
 
@@ -311,7 +316,9 @@ namespace Pixils::UI
       update_interaction(view, mouse_pos, mouse_state, focus_state);
       if (view.has_component_ui_state())
       {
-        view.set_ui_state_if_changed(clear_transient_pressed_state(view.ui_state));
+        Runtime::transition_component_ui_state(view,
+                                               clear_transient_pressed_state(view.ui_state),
+                                               runtime);
         view.sync_state_from_shared_ui_state_policy();
       }
       else
@@ -326,7 +333,8 @@ namespace Pixils::UI
                                                  focus_state,
                                                  &view.state,
                                                  &view,
-                                                 mouse_pos);
+                                                 mouse_pos,
+                                                 runtime);
       }
 
       if (parent_state && has_any_state_binding(view))
@@ -334,7 +342,7 @@ namespace Pixils::UI
         auto merged = merge_child_state(*parent_state, view);
         if (parent_view)
         {
-          parent_view->set_state_from_child_bindings(merged);
+          parent_view->set_state_from_child_bindings(merged, runtime);
         }
         else
         {
@@ -374,14 +382,16 @@ namespace Pixils::UI
   void refresh_view_interaction_visual_state_tree(const std::shared_ptr<Runtime::View>& root,
                                                   const MouseState& mouse_state,
                                                   const FocusState& focus_state,
-                                                  const Point& mouse_pos)
+                                                  const Point& mouse_pos,
+                                                  Roo::Runtime& runtime)
   {
     refresh_interaction_visual_state_subtree(root,
                                              mouse_state,
                                              focus_state,
                                              nullptr,
                                              nullptr,
-                                             mouse_pos);
+                                             mouse_pos,
+                                             runtime);
   }
 
 } // namespace Pixils::UI

@@ -245,21 +245,6 @@
 
 
 
-;; Internal UI state management
-
-(defun derive-selected-values
-  "Adds values derived from the current selection to `state`.
-
-  `state` is a list-box UI state containing options and selected indices.
-  Returns that state with `:selected-values` for valid selected indices."
-  [state]
-  (assoc state
-         :selected-values
-         (option-list/values-at-indices (:options state)
-                                        (:selected-indices state))))
-
-
-
 ;; Components
 
 (def LIST-BOX-UI-STATE-KEYS
@@ -335,29 +320,24 @@
    :focusable true
    :class :ui/list-box
    :ui/state-keys LIST-BOX-UI-STATE-KEYS
+   :ui/models [(selection/model)]
    :init-ui (fn [ui-state state ctx]
-              (let [selected (selection/reconcile (:options ui-state)
-                                                  (:selected-indices ui-state)
-                                                  ui-state)]
-                (let [ui-state (derive-selected-values
-                                (assoc ui-state
-                                       :selected-indices selected
-                                       :anchor-index (or (:anchor-index ui-state)
-                                                         (head selected))
-                                       :scroll-y? :auto))
-                      ui-state (assoc ui-state
-                                      :content-state
-                                      (option-list/content-state ui-state state))]
-                  (option-list/sync-rendered-options ui-state ctx))))
+              (let [ui-state (assoc ui-state
+                                    :anchor-index (or (:anchor-index ui-state)
+                                                      (head (:selected-indices ui-state)))
+                                    :scroll-y? :auto)
+                    ui-state (assoc ui-state
+                                    :content-state
+                                    (option-list/content-state ui-state state))]
+                (option-list/sync-rendered-options ui-state ctx)))
    :update-ui (fn [ui-state state ctx]
-                (let [ui-state (derive-selected-values ui-state)]
-                  (apply-reorder-visuals!
-                   (option-list/sync-rendered-options
-                    (assoc ui-state
-                           :content-state
-                           (option-list/content-state ui-state state))
-                    ctx)
-                   ctx)))
+                (apply-reorder-visuals!
+                 (option-list/sync-rendered-options
+                  (assoc ui-state
+                         :content-state
+                         (option-list/content-state ui-state state))
+                  ctx)
+                 ctx))
    :after-layout-ui (fn [ui-state state ctx]
                       (cond-> (apply-reorder-visuals!
                                (option-list/sync-rendered-options

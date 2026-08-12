@@ -4,6 +4,7 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/runtime/mode.h>
 
+#include <algorithm>
 #include <roo/context.h>
 #include <roo/exception.h>
 #include <roo/host/object.h>
@@ -19,7 +20,7 @@ namespace Pixils::Script
     bool is_component_definition_key(const std::string& key)
     {
       return key == "init-ui" || key == "update-ui" || key == "after-layout-ui" ||
-             key == "ui/state-keys";
+             key == "ui/state-keys" || key == "ui/models";
     }
 
     Roo::sptr_val mode_definition_map(const Roo::sptr_val& definition_map)
@@ -63,6 +64,72 @@ namespace Pixils::Script
         keys.push_back(key->str());
       }
       return keys;
+    }
+
+    std::vector<std::string> parse_model_keys(const Roo::sptr_val& keys_val,
+                                              const std::string& field)
+    {
+      if (!keys_val || keys_val->type != Roo::Value::Type::VECTOR)
+      {
+        throw Roo::TypeError("UI state model :" + field + " must be a vector");
+      }
+
+      std::vector<std::string> keys;
+      for (const auto& key : Roo::get_children(*keys_val))
+      {
+        if (!key || key->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError("UI state model :" + field + " entries must be keywords");
+        }
+        keys.push_back(key->str());
+      }
+      return keys;
+    }
+
+    std::vector<Runtime::UIStateModel> parse_ui_state_models(
+      const Roo::sptr_val& models_val,
+      std::vector<std::string> owned_keys)
+    {
+      if (!models_val || models_val->type != Roo::Value::Type::VECTOR)
+      {
+        throw Roo::TypeError("Component :ui/models must be a vector");
+      }
+
+      std::vector<Runtime::UIStateModel> models;
+      for (const auto& model_val : Roo::get_children(*models_val))
+      {
+        if (!model_val || model_val->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError("Component :ui/models entries must be maps");
+        }
+
+        auto owned = Roo::Dict::get_property(model_val, Roo::keyword("owns"));
+        auto dependencies = Roo::Dict::get_property(model_val, Roo::keyword("depends-on"));
+        auto transition = Roo::Dict::get_property(model_val, Roo::keyword("transition"));
+        if (!transition || transition->type != Roo::Value::Type::FUNCTION)
+        {
+          throw Roo::TypeError("UI state model :transition must be a function");
+        }
+
+        Runtime::UIStateModel model;
+        model.owned_keys = parse_model_keys(owned, "owns");
+        model.dependency_keys = parse_model_keys(dependencies, "depends-on");
+        model.transition = transition;
+        if (model.owned_keys.empty())
+        {
+          throw Roo::TypeError("UI state model :owns cannot be empty");
+        }
+        for (const auto& key : model.owned_keys)
+        {
+          if (std::find(owned_keys.begin(), owned_keys.end(), key) != owned_keys.end())
+          {
+            throw Roo::TypeError("Component UI state models cannot both own :" + key);
+          }
+          owned_keys.push_back(key);
+        }
+        models.push_back(std::move(model));
+      }
+      return models;
     }
 
   } // namespace
@@ -117,11 +184,12 @@ namespace Pixils::Script
                                                      const Roo::sptr_val& definition_map)
   {
     static Roo::MapSchema component_schema({},
-                                            {{"extend", &Roo::Type::SYMBOL_VALUE},
+                                           {{"extend", &Roo::Type::SYMBOL_VALUE},
                                             {"init-ui", &Roo::Type::ANY},
                                             {"update-ui", &Roo::Type::ANY},
                                             {"after-layout-ui", &Roo::Type::ANY},
-                                            {"ui/state-keys", &Roo::Type::VECTOR}});
+                                            {"ui/state-keys", &Roo::Type::VECTOR},
+                                            {"ui/models", &Roo::Type::VECTOR}});
 
     auto opts = component_schema.bind(ctx, *definition_map);
     if (Roo::Dict::contains_key(*definition_map, "compose"))
@@ -171,6 +239,20 @@ namespace Pixils::Script
     if (opts.contains("ui/state-keys"))
     {
       component.ui_state_keys = parse_ui_state_keys(opts.val("ui/state-keys"));
+    }
+    if (opts.contains("ui/models"))
+    {
+      std::vector<std::string> inherited_owned_keys;
+      for (const auto& model : component.ui_state_models)
+      {
+        inherited_owned_keys.insert(inherited_owned_keys.end(),
+                                    model.owned_keys.begin(),
+                                    model.owned_keys.end());
+      }
+      auto models = parse_ui_state_models(opts.val("ui/models"), inherited_owned_keys);
+      component.ui_state_models.insert(component.ui_state_models.end(),
+                                       models.begin(),
+                                       models.end());
     }
 
     return component;

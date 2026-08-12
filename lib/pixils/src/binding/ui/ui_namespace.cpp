@@ -414,7 +414,10 @@ namespace Pixils::Script
       {
         throw Roo::TypeError("ui/set-ui-state! target must be a component view");
       }
-      view.set_ui_state_if_changed(require_ui_state_map(args[1], "ui/set-ui-state!"));
+      Runtime::transition_component_ui_state(
+        view,
+        require_ui_state_map(args[1], "ui/set-ui-state!"),
+        ctx);
       return target;
     }
 
@@ -459,7 +462,10 @@ namespace Pixils::Script
       }
 
       auto next_state = update_fn->exec().execute(ctx, update_args);
-      view.set_ui_state_if_changed(require_ui_state_map(next_state, "ui/update-ui-state!"));
+      Runtime::transition_component_ui_state(
+        view,
+        require_ui_state_map(next_state, "ui/update-ui-state!"),
+        ctx);
       return target;
     }
 

@@ -80,7 +80,7 @@ namespace Pixils::UI
         auto merged = merge_view_state(*parent_state, receiver);
         if (parent_view)
         {
-          parent_view->set_state_from_child_bindings(merged);
+          parent_view->set_state_from_child_bindings(merged, runtime);
         }
         else
         {

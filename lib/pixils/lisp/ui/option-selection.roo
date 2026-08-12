@@ -1,5 +1,6 @@
 (ns pixils.ui.option-selection
-  (:require [pixils.ui.internal.option-navigation :as navigation]))
+  (:require [pixils.ui.internal.option-navigation :as navigation]
+            [pixils.ui.option-list :as option-list]))
 
 
 
@@ -56,6 +57,45 @@
         [index]
         [])
       selected)))
+
+
+
+;; UI state model
+
+(defun state-transition
+  "Returns canonical selection fields for a proposed UI-state transition.
+
+  `current` and `candidate` are complete UI-state maps. `changed-keys` names
+  the fields changed by the proposed transition. Explicit selection proposals
+  are accepted or rejected as a whole; option and policy changes reconcile the
+  retained selection against the new constraints."
+  [current candidate changed-keys]
+  (let [options (or (:options candidate) [])
+        current-selected (or (:selected-indices current) [])
+        selected (if (contains? changed-keys :selected-indices)
+                   (accept options
+                           current-selected
+                           (or (:selected-indices candidate) [])
+                           candidate)
+                   current-selected)
+        constraints-changed? (or (contains? changed-keys :options)
+                                 (contains? changed-keys :multi-select?)
+                                 (contains? changed-keys :force-selection?))
+        selected (if constraints-changed?
+                   (reconcile options selected candidate)
+                   selected)]
+    {:selected-indices selected
+     :selected-values (option-list/values-at-indices options selected)}))
+
+(defun model
+  "Returns the stock UI-state model for index-based option selection.
+
+  The model owns `:selected-indices` and its `:selected-values` derivative. It
+  depends on `:options`, `:multi-select?`, and `:force-selection?`."
+  []
+  {:owns [:selected-indices :selected-values]
+   :depends-on [:options :multi-select? :force-selection?]
+   :transition state-transition})
 
 
 

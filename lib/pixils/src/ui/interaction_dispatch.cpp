@@ -218,20 +218,24 @@ namespace Pixils::UI
     }
 
     void merge_child_state_into_parent(const std::shared_ptr<Runtime::View>& child,
-                                       const std::shared_ptr<Runtime::View>& parent)
+                                       const std::shared_ptr<Runtime::View>& parent,
+                                       Roo::Runtime& rt)
     {
       if (!child || !parent) return;
-      parent->set_state_from_child_bindings(Runtime::merge_component_ui_state(
-        Runtime::merge_state(parent->state, *child, child->state),
-        *child,
-        child->ui_state));
+      parent->set_state_from_child_bindings(
+        Runtime::merge_component_ui_state(
+          Runtime::merge_state(parent->state, *child, child->state),
+          *child,
+          child->ui_state),
+        rt);
     }
 
-    void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain)
+    void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                                  Roo::Runtime& rt)
     {
       for (size_t i = 0; i + 1 < chain.size(); i++)
       {
-        merge_child_state_into_parent(chain[i], chain[i + 1]);
+        merge_child_state_into_parent(chain[i], chain[i + 1], rt);
       }
     }
 
@@ -253,7 +257,7 @@ namespace Pixils::UI
         }
         if (i + 1 < chain.size())
         {
-          merge_child_state_into_parent(view, chain[i + 1]);
+          merge_child_state_into_parent(view, chain[i + 1], rt);
         }
       }
     }
@@ -301,7 +305,7 @@ namespace Pixils::UI
             std::vector<std::shared_ptr<Runtime::View>> propagation_chain(
               chain.begin() + static_cast<std::ptrdiff_t>(receiver_index),
               chain.end());
-            propagate_state_up_chain(propagation_chain);
+            propagate_state_up_chain(propagation_chain, rt);
           }
         }
 
@@ -640,7 +644,7 @@ namespace Pixils::UI
 
         for (size_t j = i; j + 1 < chain.size(); j++)
         {
-          merge_child_state_into_parent(chain[j], chain[j + 1]);
+          merge_child_state_into_parent(chain[j], chain[j + 1], rt);
 
           if (!bubbled_events.empty())
           {
@@ -778,7 +782,7 @@ namespace Pixils::UI
 
         if (i + 1 < chain.size())
         {
-          merge_child_state_into_parent(view, chain[i + 1]);
+          merge_child_state_into_parent(view, chain[i + 1], rt);
         }
       }
       bubble_emitted_events_from_chain(chain, hook_args, rt);
@@ -856,7 +860,7 @@ namespace Pixils::UI
           {
             if (i + 1 < chain.size())
             {
-              merge_child_state_into_parent(view, chain[i + 1]);
+              merge_child_state_into_parent(view, chain[i + 1], rt);
             }
             return;
           }
@@ -864,7 +868,7 @@ namespace Pixils::UI
 
         if (i + 1 < chain.size())
         {
-          merge_child_state_into_parent(view, chain[i + 1]);
+          merge_child_state_into_parent(view, chain[i + 1], rt);
         }
       }
     }
@@ -1423,7 +1427,7 @@ namespace Pixils::UI
                             hook_args,
                             rt);
 
-          propagate_state_up_chain(old_chain);
+          propagate_state_up_chain(old_chain, rt);
         }
 
         mouse_state.hovered = new_hovered ? std::weak_ptr<Runtime::View>(new_hovered)
@@ -1441,7 +1445,7 @@ namespace Pixils::UI
                             hook_args,
                             rt);
 
-          propagate_state_up_chain(hit_chain);
+          propagate_state_up_chain(hit_chain, rt);
         }
       }
 

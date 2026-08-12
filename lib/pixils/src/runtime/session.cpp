@@ -848,7 +848,8 @@ namespace Pixils::Runtime
         Pixils::UI::refresh_view_interaction_visual_state_tree(ctx_stack[ctx_idx],
                                                                empty_mouse_state,
                                                                empty_focus_state,
-                                                               current_mouse_pos(hook_args));
+                                                               current_mouse_pos(hook_args),
+                                                               roo_runtime);
         mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
       }
       if (Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],

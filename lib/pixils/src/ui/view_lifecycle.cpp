@@ -497,21 +497,27 @@ namespace Pixils::UI
     if (new_state->type != Roo::Value::Type::NIL) ctx.set_state_if_changed(new_state);
     if (ctx.has_component_ui_state())
     {
-      ctx.set_ui_state_if_changed(Runtime::extract_component_ui_state(parent_state, ctx));
-      ctx.seed_ui_state_from_shared_state_policy();
+      Roo::Context model_ctx(runtime);
+      Runtime::transition_component_ui_state(
+        ctx,
+        Runtime::extract_component_ui_state(parent_state, ctx),
+        model_ctx,
+        true);
+      ctx.seed_ui_state_from_shared_state_policy(runtime);
       auto next_ui_state = invoke_ui_state_hook(runtime,
                                                 view,
                                                 ctx.component->init_ui,
                                                 init_hook_ctx,
                                                 "init-ui");
-      ctx.set_ui_state_if_changed(next_ui_state);
+      Runtime::transition_component_ui_state(ctx, next_ui_state, model_ctx);
       ctx.sync_state_from_shared_ui_state_policy();
     }
 
     for (auto& grandchild : ctx.children)
     {
       ctx.set_state_from_child_bindings(
-        init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state));
+        init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state),
+        runtime);
     }
 
     return Runtime::merge_component_ui_state(
@@ -536,14 +542,19 @@ namespace Pixils::UI
     ctx.set_state_if_changed(new_state);
     if (ctx.has_component_ui_state())
     {
-      ctx.set_ui_state_if_changed(Runtime::extract_component_ui_state(ctx.state, ctx));
-      ctx.seed_ui_state_from_shared_state_policy();
+      Roo::Context model_ctx(runtime);
+      Runtime::transition_component_ui_state(
+        ctx,
+        Runtime::extract_component_ui_state(ctx.state, ctx),
+        model_ctx,
+        true);
+      ctx.seed_ui_state_from_shared_state_policy(runtime);
       auto next_ui_state = invoke_ui_state_hook(runtime,
                                                 view,
                                                 ctx.component->init_ui,
                                                 init_hook_ctx,
                                                 "init-ui");
-      ctx.set_ui_state_if_changed(next_ui_state);
+      Runtime::transition_component_ui_state(ctx, next_ui_state, model_ctx);
       ctx.sync_state_from_shared_ui_state_policy();
     }
   }

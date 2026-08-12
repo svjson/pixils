@@ -4,6 +4,12 @@
 
 #include <roo/runtime/value.h>
 
+namespace Roo
+{
+  class Context;
+  class Runtime;
+} // namespace Roo
+
 namespace Pixils::Runtime
 {
   struct View;
@@ -67,6 +73,22 @@ namespace Pixils::Runtime
   Roo::sptr_val merge_component_ui_state(const Roo::sptr_val& parent,
                                          const Pixils::Runtime::View& view,
                                          const Roo::sptr_val& ui_state);
+
+  /**
+   * Resolve component UI-state models against `candidate` and commit the
+   * resulting state. Models run only when their owned or dependency keys
+   * differ from the current UI state. During initialization every model runs
+   * against an empty current state.
+   */
+  bool transition_component_ui_state(Pixils::Runtime::View& view,
+                                     const Roo::sptr_val& candidate,
+                                     Roo::Context& ctx,
+                                     bool initializing = false);
+
+  bool transition_component_ui_state(Pixils::Runtime::View& view,
+                                     const Roo::sptr_val& candidate,
+                                     Roo::Runtime& runtime,
+                                     bool initializing = false);
 
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
   bool bind_state_writable(const Roo::sptr_val& val);

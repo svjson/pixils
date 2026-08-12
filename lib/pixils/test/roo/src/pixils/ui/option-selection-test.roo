@@ -69,6 +69,33 @@
 
 
 
+;; UI state model
+
+(deftest state-transition/rejects-an-invalid-explicit-selection
+  (is (= {:selected-indices [0]
+          :selected-values [:a]}
+         (selection/state-transition
+          {:options [{:value :a} {:value :b}]
+           :selected-indices [0]}
+          {:options [{:value :a} {:value :b}]
+           :selected-indices [0 1]
+           :multi-select? false}
+          [:selected-indices]))))
+
+(deftest state-transition/reconciles-selection-after-options-change
+  (is (= {:selected-indices [1]
+          :selected-values [:b]}
+         (selection/state-transition
+          {:options [{:value :a} {:value :b}]
+           :selected-indices [0]}
+          {:options [{:value :a :disabled? true}
+                     {:value :b}]
+           :selected-indices [0]
+           :force-selection? true}
+          [:options]))))
+
+
+
 ;; Selection operations
 
 (deftest select/accepts-enabled-index-and-rejects-disabled-index

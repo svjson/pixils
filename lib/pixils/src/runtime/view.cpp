@@ -98,17 +98,19 @@ namespace Pixils::Runtime
     return true;
   }
 
-  bool View::set_state_from_child_bindings(const Roo::sptr_val& next_state)
+  bool View::set_state_from_child_bindings(const Roo::sptr_val& next_state,
+                                           Roo::Runtime& runtime)
   {
     auto previous_state = state;
     auto state_changed = set_state_if_changed(next_state);
     auto ui_generation = state_generation;
-    sync_ui_state_from_child_bindings(previous_state, next_state);
+    sync_ui_state_from_child_bindings(previous_state, next_state, runtime);
     return state_changed || state_generation != ui_generation;
   }
 
   void View::sync_ui_state_from_child_bindings(const Roo::sptr_val& previous_state,
-                                               const Roo::sptr_val& next_state)
+                                               const Roo::sptr_val& next_state,
+                                               Roo::Runtime& runtime)
   {
     if (!shared_policy(*this) || !next_state || next_state->type != Roo::Value::Type::MAP)
     {
@@ -135,7 +137,7 @@ namespace Pixils::Runtime
         changed = true;
       }
     }
-    if (changed) set_ui_state_if_changed(next_ui_state);
+    if (changed) transition_component_ui_state(*this, next_ui_state, runtime);
   }
 
   bool View::has_component_ui_state() const
@@ -143,7 +145,7 @@ namespace Pixils::Runtime
     return component != nullptr;
   }
 
-  void View::seed_ui_state_from_shared_state_policy()
+  void View::seed_ui_state_from_shared_state_policy(Roo::Runtime& runtime)
   {
     if (!shared_policy(*this)) return;
 
@@ -162,7 +164,7 @@ namespace Pixils::Runtime
         changed = true;
       }
     }
-    if (changed) set_ui_state_if_changed(next_ui_state);
+    if (changed) transition_component_ui_state(*this, next_ui_state, runtime);
   }
 
   void View::sync_state_from_shared_ui_state_policy()

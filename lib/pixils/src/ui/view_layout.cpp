@@ -194,9 +194,8 @@ namespace Pixils::UI
       }
     }
 
-    void rebase_cached_layout_subtree(
-      const std::shared_ptr<Pixils::Runtime::View>& view,
-      const Rect& requested_bounds)
+    void rebase_cached_layout_subtree(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                      const Rect& requested_bounds)
     {
       if (!view) return;
       const int dx = requested_bounds.x - view->bounds.x;
@@ -514,8 +513,11 @@ namespace Pixils::UI
       native_hook_ctx.available_height = parent_content.h;
 
       Roo::sptr_val_v args = {view->state, hook_ctx};
-      auto result =
-        Pixils::Runtime::invoke_hook(runtime, view, view->definition->after_layout, args, view->state);
+      auto result = Pixils::Runtime::invoke_hook(runtime,
+                                                 view,
+                                                 view->definition->after_layout,
+                                                 args,
+                                                 view->state);
       if (result && result->type != Roo::Value::Type::NIL)
       {
         view->set_state_if_changed(result);
@@ -553,17 +555,19 @@ namespace Pixils::UI
       native_hook_ctx.current_view = view;
       native_hook_ctx.available_width = parent_content.w;
       native_hook_ctx.available_height = parent_content.h;
+      Roo::Context exec_ctx(runtime);
 
       if (auto parent = view->parent)
       {
-        view->set_ui_state_if_changed(
-          Runtime::extract_component_ui_state(parent->state, *view));
+        Runtime::transition_component_ui_state(
+          *view,
+          Runtime::extract_component_ui_state(parent->state, *view),
+          exec_ctx);
       }
-      view->seed_ui_state_from_shared_state_policy();
+      view->seed_ui_state_from_shared_state_policy(runtime);
       view->sync_state_from_shared_ui_state_policy();
 
       Roo::sptr_val_v args = {view->ui_state, view->state, hook_ctx};
-      Roo::Context exec_ctx(runtime);
       auto result = view->component->after_layout_ui->exec().execute(exec_ctx, args);
       auto next_ui_state =
         (result && result->type != Roo::Value::Type::NIL) ? result : view->ui_state;
@@ -572,12 +576,13 @@ namespace Pixils::UI
         throw Roo::TypeError("Component :after-layout-ui must return a map or nil");
       }
 
-      view->set_ui_state_if_changed(next_ui_state);
+      Runtime::transition_component_ui_state(*view, next_ui_state, exec_ctx);
       view->sync_state_from_shared_ui_state_policy();
       if (auto parent = view->parent)
       {
         parent->set_state_from_child_bindings(
-          Runtime::merge_component_ui_state(parent->state, *view, view->ui_state));
+          Runtime::merge_component_ui_state(parent->state, *view, view->ui_state),
+          runtime);
       }
 
       native_hook_ctx.current_view = previous_view;
@@ -600,8 +605,8 @@ namespace Pixils::UI
       if (!view) return false;
 
       bool changed = invoke_after_layout_hook(view, runtime, hook_ctx, parent_content);
-      changed = invoke_after_layout_ui_hook(view, runtime, hook_ctx, parent_content) ||
-                changed;
+      changed =
+        invoke_after_layout_ui_hook(view, runtime, hook_ctx, parent_content) || changed;
       Rect content = view->effective_style.content_rect(view->bounds);
       for (auto& child : view->children)
       {
@@ -963,11 +968,10 @@ namespace Pixils::UI
     {
       if (!view || !view->definition) return std::nullopt;
 
-      auto cache_key =
-        natural_size_cache_key(view,
-                               parent_available_width,
-                               parent_available_height,
-                               pass.font_generation);
+      auto cache_key = natural_size_cache_key(view,
+                                              parent_available_width,
+                                              parent_available_height,
+                                              pass.font_generation);
       auto cached = pass.natural_size_cache.find(cache_key);
       if (cached != pass.natural_size_cache.end())
       {
