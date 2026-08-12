@@ -7,6 +7,7 @@
 #include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/binding/ui/ui_host_type.h>
+#include <pixils/runtime/component_state.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/event.h>

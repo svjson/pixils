@@ -1,6 +1,7 @@
 #include "pixils/ui/view_update.h"
 
 #include "pixils/benchmark/counters.h"
+#include "pixils/runtime/component_state.h"
 #include "pixils/runtime/hook_arguments.h"
 #include "pixils/runtime/hook_invocation.h"
 #include "pixils/runtime/state.h"

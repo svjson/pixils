@@ -11,6 +11,7 @@
 #include <pixils/frame_events.h>
 #include <pixils/geom.h>
 #include <pixils/hook_context.h>
+#include <pixils/runtime/component_state.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>

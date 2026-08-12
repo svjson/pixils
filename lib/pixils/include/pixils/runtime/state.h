@@ -4,12 +4,6 @@
 
 #include <roo/runtime/value.h>
 
-namespace Roo
-{
-  class Context;
-  class Runtime;
-} // namespace Roo
-
 namespace Pixils::Runtime
 {
   struct View;
@@ -57,49 +51,8 @@ namespace Pixils::Runtime
                             const Pixils::Runtime::View& view,
                             const Roo::sptr_val& child_state);
 
-  /**
-   * Apply a component view's `:state {:component ...}` binding channel to its
-   * UI state. Component-state bindings are resolved from the parent state just
-   * like ordinary child state bindings, but they target declared component UI
-   * state keys instead of the view's application state.
-   */
-  Roo::sptr_val extract_component_ui_state(const Roo::sptr_val& parent,
-                                           const Pixils::Runtime::View& view);
-
-  /**
-   * Write writable `:state {:component ...}` bindings from a component view's
-   * UI state back into the parent application state.
-   */
-  Roo::sptr_val merge_component_ui_state(const Roo::sptr_val& parent,
-                                         const Pixils::Runtime::View& view,
-                                         const Roo::sptr_val& ui_state);
-
-  /**
-   * Resolve component UI-state models against `candidate` and commit the
-   * resulting state. Models run only when their owned or dependency keys
-   * differ from the current UI state. During initialization every model runs
-   * against an empty current state.
-   */
-  bool transition_component_ui_state(Pixils::Runtime::View& view,
-                                     const Roo::sptr_val& candidate,
-                                     Roo::Context& ctx,
-                                     bool initializing = false);
-
-  bool transition_component_ui_state(Pixils::Runtime::View& view,
-                                     const Roo::sptr_val& candidate,
-                                     Roo::Runtime& runtime,
-                                     bool initializing = false);
-
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
   bool bind_state_writable(const Roo::sptr_val& val);
-
-  /**
-   * Returns true when a view's ordinary state binding controls a top-level key.
-   * This is used by component shared-state migration policy so legacy
-   * `:state {:key (ui/bind-state ...)}` component inputs can continue to feed
-   * declared UI state keys while the component owns their continuity.
-   */
-  bool state_binding_controls_key(const Pixils::Runtime::View& view, const std::string& key);
 
   /**
    * Parse a raw :state value from a child slot entry into its binding and

@@ -3,6 +3,7 @@
 #include <pixils/benchmark/counters.h>
 #include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/hook_context.h>
+#include <pixils/runtime/component_state.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
