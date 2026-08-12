@@ -65,6 +65,22 @@
            :anchor-index 0}
           :key/down))))
 
+
+;;; pixils.ui.list-box/click-selection
+
+(deftest click-selection/excludes-disabled-options-from-shift-range
+  (is (= [0 2]
+         (list-box/click-selection
+          {:options [{:value :a}
+                     {:value :b :disabled? true}
+                     {:value :c}]
+           :multi-select? true
+           :selected-indices [0]
+           :anchor-index 0}
+          {:index 2
+           :shift? true
+           :ctrl? false}))))
+
 
 
 ;; pixils.ui.list-box/derive-selected-values

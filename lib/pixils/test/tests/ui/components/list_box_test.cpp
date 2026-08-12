@@ -1781,6 +1781,52 @@ TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_wi
   EXPECT_EQ(selected->to_string(), "[2]");
 }
 
+TEST_F(ListBoxTest, list_box_shift_click_skips_disabled_items_in_range)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected [0]
+                              :change nil})
+       :on {:list-box/change (fn [state event ctx]
+                               (assoc state
+                                      :selected (:selected-indices (:payload event))
+                                      :change (:payload event)))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta" :disabled? true}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100
+                    :selected-indices (pixils.ui/bind-state :selected)
+                    :multi-select? true})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().key_down(SDLK_LSHIFT);
+  input().mouse_down({5, 25});
+  update_cycle();
+  input().mouse_up({5, 25});
+  update_cycle();
+  input().key_up(SDLK_LSHIFT);
+  update_cycle();
+
+  auto selected =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
+  auto change = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("change"));
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(change, nullptr);
+  EXPECT_EQ(selected->to_string(), "[0 2]");
+  EXPECT_EQ(Roo::Dict::get_property(change, Roo::keyword("selected-values"))->to_string(),
+            "[:a :c]");
+}
+
 TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
 {
   runtime.eval(R"(

@@ -8,16 +8,7 @@
 
 
 
-;; Interaction support
-
-(defun reorder-visual-strategy [state]
-  (or (:reorder-visual-strategy state)
-      :placeholder))
-
-(defun reorder-placeholder-strategy? [state]
-  (let [strategy (reorder-visual-strategy state)]
-    (or (= strategy :placeholder)
-        (= strategy :move-with-hole))))
+;; Selection support
 
 (defun preserve-forced-selection [state indices previous]
   (if (and (:force-selection? state)
@@ -33,7 +24,10 @@
     (cond
       (and multi-select? shift?)
       (let [anchor (or (:anchor-index state) index)]
-        (range (min anchor index) (max anchor index)))
+        (keep (range (min anchor index) (max anchor index))
+              (fn [range-index]
+                (when (navigation/enabled-index? (:options state) range-index)
+                  range-index))))
 
       (and ctrl? multi-select? (not selected?))
       (append selected-indices index)
@@ -100,6 +94,19 @@
 
     true
     state))
+
+
+
+;; Reorder support
+
+(defun reorder-visual-strategy [state]
+  (or (:reorder-visual-strategy state)
+      :placeholder))
+
+(defun reorder-placeholder-strategy? [state]
+  (let [strategy (reorder-visual-strategy state)]
+    (or (= strategy :placeholder)
+        (= strategy :move-with-hole))))
 
 (defun reorder-drag-policy [threshold]
   {:start {:mode :threshold
