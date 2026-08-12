@@ -132,8 +132,7 @@ namespace Pixils
       if (split) ctx.unindent();
       ctx.out("}", rtvalue_colors.at(value.type));
     }
-    else if (value.type == Roo::Value::Type::LIST ||
-             value.type == Roo::Value::Type::VECTOR)
+    else if (value.type == Roo::Value::Type::LIST || value.type == Roo::Value::Type::VECTOR)
     {
       bool split = value.to_string().size() > ctx.threshold;
       const std::string lpar = value.type == Roo::Value::Type::LIST ? "(" : "[";
@@ -167,7 +166,7 @@ namespace Pixils
 
   void ObjectPrinter::pretty_print(Roo::AST::ASTNode& form, PrinterContext& ctx)
   {
-    if (form.get_type() == Roo::Form::MAP || form.get_type() == Roo::Form::HOST_OBJECT)
+    if (form.get_type() == Roo::Form::MAP)
     {
       std::string strlen = form.to_string();
       bool split = strlen.size() > ctx.threshold;
@@ -193,8 +192,7 @@ namespace Pixils
       if (split) ctx.unindent();
       ctx.out("}", form_colors.at(form.get_type()));
     }
-    else if (form.get_type() == Roo::Form::LIST ||
-             form.get_type() == Roo::Form::VECTOR)
+    else if (form.get_type() == Roo::Form::LIST || form.get_type() == Roo::Form::VECTOR)
     {
       std::string strlen = form.to_string();
       bool split = strlen.size() > ctx.threshold;
