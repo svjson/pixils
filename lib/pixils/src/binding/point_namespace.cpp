@@ -251,7 +251,7 @@ namespace Pixils::Script
     {
       Roo::sptr_val_v fwd_args = {
         args[0],
-        Roo::map({Roo::keyword("origin"), args[1], Roo::keyword("amount"), args[2]})};
+        Roo::map({Roo::keyword("origin"), args[1], Roo::keyword("radians"), args[2]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }

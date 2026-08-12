@@ -16,6 +16,21 @@ TEST_F(PointTest, equality_compares_both_axes)
             Roo::Constant::BOOL_FALSE);
 }
 
+TEST_F(PointTest, rotate_around_explicit_origin_uses_supplied_angle)
+{
+  auto x = runtime.eval("(:x (pixils.point/rotate {:x 2 :y 1}"
+                        "                                {:x 1 :y 1}"
+                        "                                1.5707963267948966))");
+  auto y = runtime.eval("(:y (pixils.point/rotate {:x 2 :y 1}"
+                        "                                {:x 1 :y 1}"
+                        "                                1.5707963267948966))");
+
+  ASSERT_NE(x, nullptr);
+  ASSERT_NE(y, nullptr);
+  EXPECT_NEAR(x->f32(), 1.0f, 0.0001f);
+  EXPECT_NEAR(y->f32(), 2.0f, 0.0001f);
+}
+
 TEST_F(PointTest, translate_moves_point_by_dx_and_dy)
 {
   auto x = runtime.eval("(:x (pixils.point/translate {:x 10 :y 20} 3 -4))");
