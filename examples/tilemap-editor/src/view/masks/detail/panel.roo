@@ -4,56 +4,58 @@
             [tilemap-editor.view.masks.detail.mask-set :as mask-set-detail]
             [tilemap-editor.view.masks.detail.mask.panel :as mask-detail]))
 
-(defun make-tabs []
-  (tabs/make
-   {:selected-tab (ui/bind-state :mask-detail-tab)
-    :style {:width :fill
-            :height :fill}
-    :state {:mask-sets (ui/bind-state :mask-sets)
-            :selected-mask-set-index
-            (ui/bind-state :selected-mask-set-index)
-            :selected-mask-index
-            (ui/bind-state :selected-mask-index)
-            :tilesets (ui/bind-state :tilesets)
-            :selected-mask-set-label
-            (ui/bind-state :selected-mask-set-label)
-            :selected-mask-set-id
-            (ui/bind-state :selected-mask-set-id)
-            :selected-mask-set-size
-            (ui/bind-state :selected-mask-set-size)
-            :selected-mask-count
-            (ui/bind-state :selected-mask-count)
-            :mask-set-editor-disabled?
-            (ui/bind-state :mask-set-editor-disabled?)
-            :selected-mask-label
-            (ui/bind-state :selected-mask-label)
-            :selected-mask-id
-            (ui/bind-state :selected-mask-id)
-            :selected-mask-tile-items
-            (ui/bind-state :selected-mask-tile-items)
-            :selected-mask-tile-item-index
-            (ui/bind-state :selected-mask-tile-item-index)
-            :mask-editor-disabled?
-            (ui/bind-state :mask-editor-disabled?)}
-    :tabs [{:id :mask-set
-            :label "Mask Set"
-            :child {:style {:padding 8
-                            :layout {:direction :column
-                                     :gap 8}}
-                    :children (mask-set-detail/make)}}
-           {:id :mask
-            :label "Mask"
-            :disabled? (ui/bind-state :mask-editor-disabled?)
-            :child {:style {:padding 8
-                            :layout {:direction :column
-                                     :gap 8}}
-                    :state (ui/bind-state)
-                    :children (mask-detail/make)}}]}))
+(defun make
+  "Builds the mask-detail panel.
 
-(defun make []
+  Takes no arguments. Returns the panel child containing the Mask Set and Mask
+  tabs; their controls derive availability from the bound selection state."
+  []
   {:class :ui/panel
    :style {:width :fill
            :height :fill
            :layout {:direction :column}}
    :state (ui/bind-state)
-   :children [(make-tabs)]})
+   :children
+   [(tabs/make
+     {:selected-tab (ui/bind-state :mask-detail-tab)
+      :style {:width :fill
+              :height :fill}
+      :state {:mask-sets (ui/bind-state :mask-sets)
+              :selected-mask-set-index
+              (ui/bind-state :selected-mask-set-index)
+              :selected-mask-index
+              (ui/bind-state :selected-mask-index)
+              :tilesets (ui/bind-state :tilesets)
+              :selected-mask-set-label
+              (ui/bind-state :selected-mask-set-label)
+              :selected-mask-set-id
+              (ui/bind-state :selected-mask-set-id)
+              :selected-mask-set-size
+              (ui/bind-state :selected-mask-set-size)
+              :selected-mask-count
+              (ui/bind-state :selected-mask-count)
+              :mask-set-editor-disabled?
+              (ui/bind-state :mask-set-editor-disabled?)
+              :selected-mask-label
+              (ui/bind-state :selected-mask-label)
+              :selected-mask-id
+              (ui/bind-state :selected-mask-id)
+              :selected-mask-tile-items
+              (ui/bind-state :selected-mask-tile-items)
+              :selected-mask-tile-item-index
+              (ui/bind-state :selected-mask-tile-item-index)
+              :mask-editor-disabled?
+              (ui/bind-state :mask-editor-disabled?)}
+      :tabs [{:id :mask-set
+              :label "Mask Set"
+              :child {:style {:padding 8
+                              :layout {:direction :column
+                                       :gap 8}}
+                      :children (mask-set-detail/make)}}
+             {:id :mask
+              :label "Mask"
+              :child {:style {:padding 8
+                              :layout {:direction :column
+                                       :gap 8}}
+                      :state (ui/bind-state)
+                      :children (mask-detail/make)}}]})]})

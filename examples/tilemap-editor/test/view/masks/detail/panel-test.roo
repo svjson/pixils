@@ -1,0 +1,29 @@
+(ns tilemap-editor.view.masks.detail.panel-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.tilemap.project.schemas :as project-schemas]
+            [tilemap-editor.view.masks.detail.panel :as panel]
+            [tilemap-editor.view.masks.forms :as mask-forms]))
+
+
+
+;; tilemap-editor.view.masks.detail.panel/make
+
+(deftest make/renders-mask-set-size-form
+  (s/when []
+    (let [tabs (head (:children (panel/make)))
+          mask-set-tab (head (-> tabs :state :tabs))
+          size-form (nth (-> mask-set-tab :child :children) 3)]
+      {:mode (:mode size-form)
+       :schema (-> size-form :state :schema)
+       :text (get-in size-form [:state :form/render-opts :text])
+       :layout (-> size-form :state :form/layout)
+       :form-mode (-> size-form :state :form/mode)}))
+
+  (s/then [form]
+    (is (= {:mode 'pixils/form
+            :schema project-schemas/mask-size-schema
+            :text mask-forms/mask-set-size-text
+            :layout mask-forms/mask-set-size-layout
+            :form-mode :live}
+           form))))

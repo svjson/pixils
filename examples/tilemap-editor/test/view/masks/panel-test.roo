@@ -4,9 +4,6 @@
             [tilemap-editor.view.masks.detail.mask.composition.selected-tile
              :as selected-tile]
             [tilemap-editor.view.masks.detail.mask.palette :as palette]
-            [tilemap-editor.view.masks.detail.panel :as details]
-            [pixils.tilemap.project.schemas :as project-schemas]
-            [tilemap-editor.view.masks.forms :as mask-forms]
             [tilemap-editor.view.masks.masks.row :as mask-row]))
 
 (def test-tilesets
@@ -46,23 +43,9 @@
     (is (= 2 (-> item :payload :index)))))
 
 (deftest mask-context-menu-includes-duplicate-command
-  (let [items (:items mask-row/context-menu)
-        duplicate (nth items 1)]
+  (let [duplicate (nth (:items mask-row/context-menu) 1)]
     (is (= "Duplicate Mask" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
-
-(deftest mask-set-detail-editor-uses-pixils-form-for-size
-  (let [panel (details/make)
-        tabs (head (:children panel))
-        mask-set-tab (head (-> tabs :state :tabs))
-        size-form (nth (-> mask-set-tab :child :children) 3)
-        state (:state size-form)]
-    (is (= 'pixils/form (:mode size-form)))
-    (is (= project-schemas/mask-size-schema (:schema state)))
-    (is (= mask-forms/mask-set-size-text
-           (get-in state [:form/render-opts :text])))
-    (is (= mask-forms/mask-set-size-layout (:form/layout state)))
-    (is (= :live (:form/mode state)))))
 
 (deftest mask-palette-tile-at-position-finds-swatch-tile
   (is (= :edge-e

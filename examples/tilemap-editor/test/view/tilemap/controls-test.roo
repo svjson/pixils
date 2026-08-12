@@ -9,14 +9,35 @@
   (is (= 78 (controls/layer-list-height [1 2])))
   (is (= 104 (controls/layer-list-height [1 2 3 4]))))
 
-(deftest tileset-selector-is-disabled-when-empty
-  (is (= true (:disabled? (:state (controls/tileset-combo-child [] false)))))
-  (is (= true (:disabled? (:state (controls/tileset-combo-child nil false)))))
-  (is (= false (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
-                                                                    :label "Terrain"}]
-                                                                  false))))))
 
-(deftest map-chooser-menu-adds_action_and_checked_map_options
+
+;; tilemap-editor.view.tilemap.controls/tileset-combo-child
+
+(deftest tileset-combo-child/disables-empty-options
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (controls/tileset-combo-child [] false)
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (controls/tileset-combo-child nil false)
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options [{:value 0
+                     :label "Terrain"}]
+          :disabled? false}
+         (select-keys (-> (controls/tileset-combo-child
+                           [{:id :terrain
+                             :label "Terrain"}]
+                           false)
+                          :state
+                          :component)
+                      [:options :disabled?]))))
+
+(deftest map-chooser-menu-adds-action-and-checked-map-options
   (let [menu (controls/map-chooser-menu
               [{:id :map/main
                 :label "Main"}
@@ -30,7 +51,7 @@
     (is (= [:option-state :selected-map-id]
            (get-in items [2 :selected-path])))))
 
-(deftest map-context-menu-includes_flip_commands
+(deftest map-context-menu-includes-flip-commands
   (let [items (:items (controls/map-context-menu [{:id :map/main}
                                                   {:id :map/cave}]))]
     (is (= "Flip Horizontal" (get-in items [3 :label])))
@@ -38,7 +59,7 @@
     (is (= "Flip Vertical" (get-in items [4 :label])))
     (is (= :flip-vertical (get-in items [4 :payload :command])))))
 
-(deftest map-workspace-panel-wraps_body_with_title_and_chooser
+(deftest map-workspace-panel-wraps-body-with-title-and-chooser
   (let [panel (controls/make-map-workspace-panel
                {:state {:maps []
                         :selected-map-id :map/main
@@ -50,7 +71,7 @@
     (is (= 'map-chooser-button
            (get-in panel [:children 0 :children 1 :mode])))))
 
-(deftest zoom-slider-state-exposes_pixel_steps_and_percent_label
+(deftest zoom-slider-state-exposes-pixel-steps-and-percent-label
   (let [state (controls/zoom-slider-state {:tile-size 16
                                            :zoom 1})]
     (is (= 16 (:zoom-pixels state)))
@@ -64,19 +85,50 @@
     (is (= 4 (:zoom-pixels state)))
     (is (= "Zoom 25%" (:zoom-label state)))))
 
-(deftest tileset-selector-is-disabled_without_layers
-  (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
-                                                                   :label "Terrain"}]
-                                                                  true))))))
+(deftest tileset-combo-child/honors-parent-disabled-state
+  (is (= true
+         (-> (controls/tileset-combo-child [{:id :terrain
+                                             :label "Terrain"}]
+                                           true)
+             :state
+             :component
+             :disabled?))))
 
-(deftest layer-list-is-disabled-when-empty
-  (is (= true (:disabled? (:state (controls/layer-list-box-child [])))))
-  (is (= true (:disabled? (:state (controls/layer-list-box-child nil)))))
-  (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
 
-(deftest layer-list-is-reorderable
-  (is (= true (:reorderable?
-               (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
+
+;; tilemap-editor.view.tilemap.controls/layer-list-box-child
+
+(deftest layer-list-box-child/disables-empty-options
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (controls/layer-list-box-child [])
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (controls/layer-list-box-child nil)
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options [{:value 0
+                     :label "Ground"}]
+          :disabled? false}
+         (select-keys (-> (controls/layer-list-box-child
+                           [{:label "Ground"}])
+                          :state
+                          :component)
+                      [:options :disabled?]))))
+
+(deftest layer-list-box-child/enables-reordering
+  (is (= {:reorderable? true
+          :reorder-visual-strategy :placeholder
+          :force-selection? true}
+         (select-keys
+          (-> (controls/layer-list-box-child [{:label "Ground"}])
+              :state
+              :component)
+          [:reorderable? :reorder-visual-strategy :force-selection?]))))
 
 (deftest shared-layer-list-render-key-changes-with-layer-identity
   (let [first-key (layer-controls/layer-list-render-key
@@ -89,7 +141,7 @@
                      :selected-layer-index 0})]
     (is (not= first-key second-key))))
 
-(deftest shared-layer-source-menu-item-matches_layer_kind
+(deftest shared-layer-source-menu-item-matches-layer-kind
   (let [terrain-item (layer-controls/layer-source-menu-item
                       {:layer {:data-kind :terrain}
                        :terrain-sets [{:id :caves}]})
@@ -101,7 +153,7 @@
     (is (= "Change Tileset" (:label tile-item)))
     (is (= :tileset (-> tile-item :payload :command)))))
 
-(deftest layer-reorder-moves_layers_and_remaps_selected_and_hidden_indices
+(deftest layer-reorder-moves-layers-and-remaps-selected-and-hidden-indices
   (let [state (controls/apply-layer-reorder
                {:layers [{:label "A"}
                          {:label "B"}
@@ -116,17 +168,17 @@
     (is (= "C" (:selected-layer-label state)))
     (is (= [2 3] (:hidden-layer-indices state)))))
 
-(deftest layer-controls-has_add_button
+(deftest layer-controls-has-add-button
   (let [panel (controls/make-layer-controls)]
     (is (= "+" (get-in panel [:children 0 :children 1 :state :label])))))
 
-(deftest layer-type-options-show_disabled_terrain_without_sets
+(deftest layer-type-options-show-disabled-terrain-without-sets
   (let [options (controls/layer-data-kind-options-for [])]
     (is (= "Tile layer" (get-in options [0 :label])))
     (is (= "Terrain layer" (get-in options [1 :label])))
     (is (= true (get-in options [1 :disabled?])))))
 
-(deftest append-layer-adds_blank_tile_layer_and_selects_it
+(deftest append-layer-adds-blank-tile-layer-and-selects-it
   (let [state (controls/append-layer
                {:layers []
                 :tilesets [{:id :terrain
@@ -141,7 +193,7 @@
     (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
     (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
 
-(deftest append-layer-adds_blank_terrain_layer_when_requested
+(deftest append-layer-adds-blank-terrain-layer-when-requested
   (let [state (controls/append-layer
                {:layers []
                 :terrain-sets [{:id :overworld
@@ -159,7 +211,7 @@
     (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
     (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
 
-(deftest layer-add-dialog-result-appends_unique_layer
+(deftest layer-add-dialog-result-appends-unique-layer
   (let [state (controls/apply-layer-name-dialog-result
                {:layers [{:id :scene/layer
                           :label "Layer"}]}
@@ -180,7 +232,7 @@
     (is (= "Gameplay Collision" (get-in state [:layers 0 :label])))
     (is (= :logic/collision (get-in state [:layers 0 :id])))))
 
-(deftest layer-add-dialog-result-appends_terrain_layer
+(deftest layer-add-dialog-result-appends-terrain-layer
   (let [state (controls/apply-layer-name-dialog-result
                {:layers []
                 :terrain-sets [{:id :overworld
@@ -193,7 +245,7 @@
     (is (= :terrain (get-in state [:layers 0 :data-kind])))
     (is (= :overworld (get-in state [:layers 0 :terrain-set])))))
 
-(deftest layer-terrain-set-dialog-result-updates_existing_terrain_layer
+(deftest layer-terrain-set-dialog-result-updates-existing-terrain-layer
   (let [state (controls/apply-layer-name-dialog-result
                {:layers [{:id :scene/terrain
                           :label "Terrain"
@@ -211,7 +263,7 @@
     (is (= :caves (get-in state [:layers 0 :terrain-set])))
     (is (= [[nil]] (get-in state [:layers 0 :tiles])))))
 
-(deftest layer-terrain-set-dialog-result-ignores_tile_layers
+(deftest layer-terrain-set-dialog-result-ignores-tile-layers
   (let [state (controls/apply-layer-name-dialog-result
                {:layers [{:id :scene/ground
                           :label "Ground"
@@ -351,7 +403,7 @@
            :layers [{:id :scene/ground
                      :label "Ground"}]}))))
 
-(deftest layer-row-source-label-uses_terrain_set_for_terrain_layers
+(deftest layer-row-source-label-uses-terrain-set-for-terrain-layers
   (is (= "Caves"
          (controls/layer-source-label
           {:terrain-sets [{:id :caves
@@ -359,7 +411,7 @@
           {:data-kind :terrain
            :terrain-set :caves}))))
 
-(deftest layer-context-menu-uses_source_action_for_layer_kind
+(deftest layer-context-menu-uses-source-action-for-layer-kind
   (let [terrain-item (nth (:items (controls/layer-context-menu
                                    {:layer {:data-kind :terrain}
                                     :terrain-sets [{:id :caves}]}))
@@ -375,7 +427,7 @@
     (is (= :tileset (-> tile-item :payload :command)))
     (is (not= true (:disabled? tile-item)))))
 
-(deftest append-layer-deduplicates_layer_ids
+(deftest append-layer-deduplicates-layer-ids
   (let [state (controls/append-layer
                {:layers [{:id :scene/terrain
                           :label "Terrain"}]}

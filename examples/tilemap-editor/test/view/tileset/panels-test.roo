@@ -99,15 +99,34 @@
                           (ui/bind-state :selected-tileset-definition-index)
                           :tilesets (ui/bind-state :tilesets)}}]})")
 
-(deftest tileset-definition-list-is-disabled-when-empty
-  (is (= true (:disabled? (:state (panels/tileset-list-box-child [])))))
-  (is (= true (:disabled? (:state (panels/tileset-list-box-child nil)))))
-  (is (not= true
-            (:disabled? (:state (panels/tileset-list-box-child
-                                 [{:id :terrain
-                                   :label "Terrain"}]))))))
 
-(deftest tileset-definition-list-box-uses_minimum_then_content_height
+
+;; tilemap-editor.view.tileset.panels/tileset-list-box-child
+
+(deftest tileset-list-box-child/disables-empty-options
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (panels/tileset-list-box-child [])
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options []
+          :disabled? true}
+         (select-keys (-> (panels/tileset-list-box-child nil)
+                          :state
+                          :component)
+                      [:options :disabled?])))
+  (is (= {:options [{:value 0
+                     :label "Terrain"}]
+          :disabled? false}
+         (select-keys (-> (panels/tileset-list-box-child
+                           [{:id :terrain
+                             :label "Terrain"}])
+                          :state
+                          :component)
+                      [:options :disabled?]))))
+
+(deftest tileset-list-box-child/uses-minimum-then-content-height
   (let [empty-list (panels/tileset-list-box-child [])
         one-list (panels/tileset-list-box-child [{:id :terrain
                                                   :label "Terrain"}])
@@ -127,10 +146,10 @@
     (is (= (* panels/tileset-list-row-height 6)
            (-> many-list :style :height)))
     (is (= panels/tileset-list-min-visible-rows
-           (-> empty-list :state :visible-rows)))
-    (is (= 6 (-> many-list :state :visible-rows)))))
+           (-> empty-list :state :component :visible-rows)))
+    (is (= 6 (-> many-list :state :component :visible-rows)))))
 
-(deftest tileset-definition-list-keeps_list_box_when_nested_tiles_change
+(deftest tileset-definition-list-keeps-list-box-when-nested-tiles-change
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 320
                                :buffer-height 160
@@ -148,7 +167,7 @@
       (is (= list-box
              (runtime/find-view app "ui/list-box"))))))
 
-(deftest tileset-context-menu-includes_edit_properties_and_duplicate_commands
+(deftest tileset-context-menu-includes-edit-properties-and-duplicate-commands
   (let [edit-item (head (:items panels/tileset-context-menu))
         properties-item (nth (:items panels/tileset-context-menu) 1)
         duplicate-item (nth (:items panels/tileset-context-menu) 2)]
@@ -173,16 +192,16 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest tile-cell-rect-uses_tileset_tile_size
+(deftest tile-cell-rect-uses-tileset-tile-size
   (is (= {:x 32 :y 32 :w 32 :h 32}
          (panels/tile-cell-rect 3 2 32))))
 
-(deftest tile-grid-content-height-fits_all_tile_rows
+(deftest tile-grid-content-height-fits-all-tile-rows
   (is (= 0 (panels/tile-grid-content-height 0 4 32)))
   (is (= 32 (panels/tile-grid-content-height 4 4 32)))
   (is (= 64 (panels/tile-grid-content-height 5 4 32))))
 
-(deftest tile-grid-drag-payload-identifies_source_tile
+(deftest tile-grid-drag-payload-identifies-source-tile
   (is (= {:kind :tileset/tile
 	          :source-tileset-index 0
 	          :tile-index 1
@@ -200,7 +219,7 @@
           {:view {:bounds {:w 96
                            :h 64}}}))))
 
-(deftest tileset-row-accepts_tile_drop_payloads
+(deftest tileset-row-accepts-tile-drop-payloads
   (is (= {:source-tileset-index 0
           :target-tileset-index 1
           :tile-index 2}
@@ -209,12 +228,11 @@
           {:kind :tileset/tile
            :source-tileset-index 0
            :tile-index 2})))
-  (is (= nil
-         (panels/tile-drop-payload
-          0
-          {:kind :tileset/tile
-           :source-tileset-index 0
-           :tile-index 2}))))
+  (is (nil? (panels/tile-drop-payload
+             0
+             {:kind :tileset/tile
+              :source-tileset-index 0
+              :tile-index 2}))))
 
 (deftest sprite-map-preview-source-rect-scales-from-full-asset
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
@@ -228,7 +246,7 @@
     (is (= {:x 20 :y 24 :w 4 :h 4}
            source-rect))))
 
-(deftest sprite-map-preview-position-selects_tile_coordinates
+(deftest sprite-map-preview-position-selects-tile-coordinates
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 32 :y 96 :w 16 :h 16}
@@ -240,7 +258,7 @@
             true
             16)))))
 
-(deftest sprite-map-preview-position-can_select_unsnapped_coordinates
+(deftest sprite-map-preview-position-can-select-unsnapped-coordinates
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 34 :y 108 :w 16 :h 16}
@@ -252,7 +270,7 @@
             false
             16)))))
 
-(deftest sprite-map-preview-position_uses_custom_snap_interval
+(deftest sprite-map-preview-position-uses-custom-snap-interval
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 32 :y 104 :w 16 :h 16}
@@ -264,7 +282,7 @@
             true
             8)))))
 
-(deftest sprite-source-snap-settings_default_to_tile_size_and_enabled
+(deftest sprite-source-snap-settings-default-to-tile-size-and-enabled
   (is (= true (sse/source-position-snap-enabled? {})))
   (is (= 32
          (sse/source-position-snap-interval {:tile-size 32})))
@@ -274,26 +292,30 @@
            :source-snap-interval 8
            :source-snap-interval-custom? true}))))
 
-(deftest tile-sprite-editor-binds_zoom_and_offset_to_preview
+(deftest tile-sprite-editor-binds-zoom-and-offset-to-preview
   (let [child (head (panels/tile-sprite-editor-children))]
     (is (= 'sprite-source-editor (:mode child)))
-    (is (not (nil? (-> child :state :resources))))
-    (is (not (nil? (-> child :state :tile))))))
+    (is (some? (-> child :state :resources)))
+    (is (some? (-> child :state :tile)))))
 
-(deftest sprite-source-editor-binds_zoom_and_offset_to_preview
+
+
+;; tilemap-editor.view.tileset.sprite-source-editor/sprite-source-editor-children
+
+(deftest sprite-source-editor-children/binds-controls-to-preview-state
   (let [children (sse/sprite-source-editor-children)
         snap-row (nth children 4)
         zoom-control (nth children 5)
         preview (nth children 6)]
     (is (= :source-snap-to-grid?
-           (-> snap-row :children head :state :value)))
+           (-> snap-row :children head :state :component :value)))
     (is (= 'image-panel-zoom-control (:mode zoom-control)))
     (is (= 'sprite-source-preview (:mode preview)))
-    (is (not (nil? (-> preview :state :sprite-source-preview-zoom))))
-    (is (not (nil? (-> preview :state :sprite-source-preview-offset))))
-    (is (not (nil? (-> zoom-control :state :zoom))))))
+    (is (some? (-> preview :state :sprite-source-preview-zoom)))
+    (is (some? (-> preview :state :sprite-source-preview-offset)))
+    (is (some? (-> zoom-control :state :zoom)))))
 
-(deftest tile-definition-detail-tabs-separate_tile_and_property_editors
+(deftest tile-definition-detail-tabs-separate-tile-and-property-editors
   (let [tabs (panels/tile-definition-detail-tabs-child)
         tab-defs (-> tabs :state :tabs)
         tile-tab (-> tab-defs head :child)
@@ -310,13 +332,13 @@
     (is (= "Variants" (-> tab-defs (nth 2) :label)))
     (is (= 'tile-definition-variants-tab (:mode variants-tab)))))
 
-(deftest tile-definition-tile-tab-contains_type_sprite_and_color_editors
+(deftest tile-definition-tile-tab-contains-type-sprite-and-color-editors
   (let [children (panels/tile-definition-tile-tab-children)]
     (is (= 'tile-definition-row (-> children head :mode)))
     (is (= 'tile-sprite-editor (-> children (nth 1) :mode)))
     (is (= 'tile-color-editor (-> children (nth 2) :mode)))))
 
-(deftest tile-definition-properties-tab-contains_only_per_tile_property_editor
+(deftest tile-definition-properties-tab-contains-only-per-tile-property-editor
   (let [children (panels/tile-definition-properties-tab-children)]
     (is (= 1 (count children)))
     (is (= 'property-value-list (-> children head :mode)))
@@ -390,12 +412,12 @@
     (runtime/eval! app (variants-tab-probe-source))
     (runtime/push-mode! app 'root-mode)
     (settle-layout! app)
-    (is (not (nil? (runtime/find-view app
-                                       "tile-substitution-choice-grid"))))
-    (is (not (nil? (runtime/find-view app
-                                       "tile-substitution-choices-editor"))))
-    (is (not (nil? (runtime/find-view app
-                                       "tile-substitution-choice-row"))))))
+    (is (some? (runtime/find-view app
+                                  "tile-substitution-choice-grid")))
+    (is (some? (runtime/find-view app
+                                  "tile-substitution-choices-editor")))
+    (is (some? (runtime/find-view app
+                                  "tile-substitution-choice-row")))))
 
 (deftest tile-substitution-choice-grid-click-adds-weight-row
   (let [app (runtime/make-app {:package-root "."
@@ -417,17 +439,17 @@
              (count (runtime/find-views app
                                         "tile-substitution-choice-row")))))))
 
-(deftest tile-definition-panel-scroll-content-wraps_detail_panel
+(deftest tile-definition-panel-scroll-content-wraps-detail-panel
   (let [content (panels/tile-definition-panel-content-child)
         style (panels/tile-definition-panel-scroll-content-style
                {:offset 48})]
     (is (= 'tile-definition-panel (:mode content)))
-    (is (not (nil? (-> content :state :resources))))
+    (is (some? (-> content :state :resources)))
     (is (= :fill (:width style)))
     (is (= -48 (:top style)))
     (is (= panels/tile-definition-panel-content-height (:height style)))))
 
-(deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
+(deftest sprite-map-preview-source-navigation-clamps-to-asset-bounds
   (is (= {:x 784 :y 1264 :w 16 :h 16}
          (sse/move-source-position {:x 784 :y 1264 :w 16 :h 16}
                                    16

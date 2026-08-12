@@ -2,7 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.resources.panels :as panels]))
 
-(deftest image-resource-row-drag-payload-identifies_source_resource
+(deftest image-resource-row-drag-payload-identifies-source-resource
   (is (= {:kind :resource/image
           :bundle-id :terrain-assets
           :resource-id :tiles
@@ -20,7 +20,7 @@
           {:view {:bounds {:w 284
                            :h 24}}}))))
 
-(deftest resource-bundle-row-accepts_drop_payloads
+(deftest resource-bundle-row-accepts-drop-payloads
   (is (= {:source-bundle-id :terrain-assets
           :resource-id :tiles
           :target-bundle-id :ui-assets}
@@ -29,20 +29,43 @@
           {:kind :resource/image
            :bundle-id :terrain-assets
            :resource-id :tiles})))
-  (is (= nil
-         (panels/image-resource-drop-payload
-          :ui-assets
-          {:kind :other/item}))))
+  (is (nil? (panels/image-resource-drop-payload
+             :ui-assets
+             {:kind :other/item}))))
 
-(deftest image-resource-list-is_multi_selectable
-  (let [child (panels/image-resource-list-child
+
+
+;; tilemap-editor.view.resources.panels/image-resource-list-child
+
+(deftest image-resource-list-child/enables-multiple-selection
+  (is (= {:options [{:value :tiles
+                     :bundle-id :terrain-assets
+                     :key-label ":terrain-assets/tiles"
+                     :name "Tiles"
+                     :label ":terrain-assets/tiles"}]
+          :row-height panels/resource-list-row-height
+          :visible-rows 1
+          :content-width 360
+          :disabled? false
+          :multi-select? true
+          :force-selection? true}
+         (select-keys
+          (-> (panels/image-resource-list-child
                [{:id :tiles
                  :bundle-id :terrain-assets
                  :key :terrain-assets/tiles
-                 :name "Tiles"}])]
-    (is (= true (-> child :state :multi-select?)))))
+                 :name "Tiles"}])
+              :state
+              :component)
+          [:options
+           :row-height
+           :visible-rows
+           :content-width
+           :disabled?
+           :multi-select?
+           :force-selection?]))))
 
-(deftest image-resource-context-menu-disables_edit_for_multi_selection
+(deftest image-resource-context-menu-disables-edit-for-multi-selection
   (let [menu (panels/image-resource-context-menu [:tiles :decor])
         edit-item (head (:items menu))
         replace-item (nth (:items menu) 1)
@@ -53,7 +76,7 @@
     (is (= [:tiles :decor] (-> replace-item :payload :resource-ids)))
     (is (= [:tiles :decor] (-> delete-item :payload :resource-ids)))))
 
-(deftest image-resource-context-menu-targets_selected_resources_when_row_is_selected
+(deftest image-resource-context-menu-targets-selected-resources-when-row-is-selected
   (is (= [:tiles :decor]
          (panels/image-resource-context-resource-ids
           {:index 0

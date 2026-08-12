@@ -131,9 +131,9 @@
                 state (actions/add-selected-mask-tile-at
                        state
                        (:payload event))]
-            (if (> (count (model/selected-mask-tile-items state)) index)
-              (assoc state :selected-mask-tile-item-index index)
-              state)))
+            (cond-> state
+              (> (count (model/selected-mask-tile-items state)) index)
+              (assoc :selected-mask-tile-item-index index))))
         :mask/tile-item-select
         (fn [state event ctx]
           (assoc state :selected-mask-tile-item-index (:payload event)))
@@ -170,12 +170,11 @@
         :mask/set-context-command
         (fn [state event ctx]
           (let [payload (:payload event)
-                mask-set-index (:mask-set-index payload)
-                command (:command payload)
                 state (assoc state
-                             :selected-mask-set-index mask-set-index
+                             :selected-mask-set-index
+                             (:mask-set-index payload)
                              :selected-mask-index nil)]
-            (case command
+            (case (:command payload)
               :rename
               (mask-dialogs/open-mask-set-edit-dialog! state ctx)
 
@@ -187,10 +186,10 @@
         :mask/context-command
         (fn [state event ctx]
           (let [payload (:payload event)
-                mask-index (:mask-index payload)
-                command (:command payload)
-                state (assoc state :selected-mask-index mask-index)]
-            (case command
+                state (assoc state
+                             :selected-mask-index
+                             (:mask-index payload))]
+            (case (:command payload)
               :rename
               (mask-dialogs/open-mask-edit-dialog! state ctx)
 

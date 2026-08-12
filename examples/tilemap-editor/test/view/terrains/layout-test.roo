@@ -34,11 +34,11 @@
         add-button (nth (:children header) 1)]
     (is (= "Terrains" (-> panel :state :title)))
     (is (= "+" (-> add-button :state :label)))
-    (is (not (nil? (-> add-button :state :disabled?))))))
+    (is (some? (-> add-button :state :disabled?)))))
 
 (deftest terrain-set-detail-editor-shows-identity-as-labels
   (let [children (layout/terrain-set-detail-editor-children)
-        id-field (nth children 0)
+        id-field (head children)
         name-field (nth children 1)
         edit-button (nth children 2)]
     (is (= 'terrain-readonly-field (:mode id-field)))
@@ -100,17 +100,30 @@
          layout/terrain-stamp-tile-picker-height)))
 
 (deftest terrain-rule-context-menu-includes-duplicate-command
-  (let [items (:items layout/terrain-rule-context-menu)
-        duplicate (nth items 1)]
+  (let [duplicate (nth (:items layout/terrain-rule-context-menu) 1)]
     (is (= "Duplicate" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
-(deftest terrain-rule-list-is-reorderable
-  (is (= true (:reorderable? (:state (layout/terrain-rule-list-child {}))))))
+
+
+;; tilemap-editor.view.terrains.layout/terrain-rule-list-child
+
+(deftest terrain-rule-list-child/enables-reordering
+  (is (= {:options []
+          :disabled? true
+          :reorderable? true
+          :force-selection? true}
+         (select-keys (-> (layout/terrain-rule-list-child {})
+                          :state
+                          :component)
+                      [:options
+                       :disabled?
+                       :reorderable?
+                       :force-selection?]))))
 
 (deftest terrain-rule-transform-menu-includes-flip-and-rotate-commands
   (let [items (:items layout/terrain-rule-transform-menu)]
-    (is (= :flip-horizontal (-> (nth items 0) :payload :command)))
+    (is (= :flip-horizontal (-> items head :payload :command)))
     (is (= :flip-vertical (-> (nth items 1) :payload :command)))
     (is (= :rotate-left (-> (nth items 3) :payload :command)))
     (is (= :rotate-right (-> (nth items 4) :payload :command)))))
@@ -158,9 +171,9 @@
     (is (= "Terrain Set" (-> tabs head :label)))
     (is (= :terrain (-> tabs (nth 1) :id)))
     (is (= "Terrain" (-> tabs (nth 1) :label)))
-    (is (not (nil? (-> tabs (nth 1) :child :state :mask-sets))))
-    (is (not (nil? (-> tabs (nth 1) :child :state
-                       :terrain-rule-selected-mask))))
+    (is (some? (-> tabs (nth 1) :child :state :mask-sets)))
+    (is (some? (-> tabs (nth 1) :child :state
+                   :terrain-rule-selected-mask)))
     (is (= :transitions (-> tabs (nth 2) :id)))
     (is (= "Transitions" (-> tabs (nth 2) :label)))
     (is (= 'terrain-transition-editor
@@ -172,10 +185,10 @@
         child (:child transition-tab)
         field (layout/terrain-transition-summary-field "Recipes" 2)]
     (is (= 'terrain-transition-editor (:mode child)))
-    (is (not (nil? (-> child :state :mask-sets))))
+    (is (some? (-> child :state :mask-sets)))
     (is (nil? (-> child :state :selected-mask-set-index)))
     (is (nil? (-> child :state :selected-mask-index)))
-    (is (not (nil? (-> child :state :terrain-transitions))))
+    (is (some? (-> child :state :terrain-transitions)))
     (is (= "Recipes" (-> field :children head :state :value)))
     (is (= 2 (-> field :children (nth 1) :state :value)))))
 
@@ -190,14 +203,23 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest mask-set-list-child-renders-current-mask-sets
-  (let [list-box (layout/mask-set-list-child [{:id :soft-edge
-                                               :label "Soft Edge"}]
-                                             0)]
-    (is (= [{:value :soft-edge
-             :label "Soft Edge"}]
-           (-> list-box :state :options)))
-    (is (= [0] (-> list-box :state :selected-indices)))))
+
+
+;; tilemap-editor.view.terrains.layout/mask-set-list-child
+
+(deftest mask-set-list-child/renders-current-mask-sets
+  (is (= {:options [{:value :soft-edge
+                     :label "Soft Edge"}]
+          :selected-indices [0]
+          :force-selection? true
+          :disabled? false}
+         (select-keys
+          (-> (layout/mask-set-list-child [{:id :soft-edge
+                                            :label "Soft Edge"}]
+                                          0)
+              :state
+              :component)
+          [:options :selected-indices :force-selection? :disabled?]))))
 
 (deftest mask-list-rows-have-context-menu
   (let [row (layout/mask-row-child 0 {:value 0
@@ -210,14 +232,23 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest mask-list-child-renders-current-masks
-  (let [list-box (layout/mask-list-child {:masks [{:id :n
-                                                   :label "North"}]}
-                                         0)]
-    (is (= [{:value 0
-             :label "North"}]
-           (-> list-box :state :options)))
-    (is (= [0] (-> list-box :state :selected-indices)))))
+
+
+;; tilemap-editor.view.terrains.layout/mask-list-child
+
+(deftest mask-list-child/renders-current-masks
+  (is (= {:options [{:value 0
+                     :label "North"}]
+          :selected-indices [0]
+          :force-selection? true
+          :disabled? false}
+         (select-keys
+          (-> (layout/mask-list-child {:masks [{:id :n
+                                                :label "North"}]}
+                                      0)
+              :state
+              :component)
+          [:options :selected-indices :force-selection? :disabled?]))))
 
 (deftest terrain-standard-mask-row-drag-payload-identifies-mask
   (let [payload (layout/terrain-standard-mask-drag-payload

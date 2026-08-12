@@ -11,7 +11,7 @@
                                  :tileset :colors}]
                        :selected-layer-index 0})))))
 
-(deftest tile-palette-is-disabled_without_layers
+(deftest tile-palette-is-disabled-without-layers
   (let [tilesets [{:id :colors
                    :label "Colors"
                    :tiles [{:id :grass
@@ -29,7 +29,7 @@
                                       :tileset :colors}]
                             :selected-layer-index 0}))))))
 
-(deftest tile-palette-state-ignores_stale_parent_disabled_flag_when_options_exist
+(deftest tile-palette-state-ignores-stale-parent-disabled-flag-when-options-exist
   (let [tilesets [{:id :colors
                    :label "Colors"
                    :tiles [{:id :grass
@@ -43,7 +43,7 @@
                             :selected-layer-index 0
                             :disabled? true}))))))
 
-(deftest terrain-palette-grid-lists_terrain_values
+(deftest terrain-palette-grid-lists-terrain-values
   (let [grid-state (palette/tile-select-grid-state
                     {:terrain-sets [{:id :overworld
                                      :terrains [{:id :grass
@@ -68,17 +68,17 @@
              :selected-layer-index 0
              :selected-tile :grass})))))
 
-(deftest tile-palette-content-height-grows_by_grid_rows
+(deftest tile-palette-content-height-grows-by-grid-rows
   (is (= 0 (palette/tile-select-grid-content-height 0 4)))
   (is (= 16 (palette/tile-select-grid-content-height 4 4)))
   (is (= 32 (palette/tile-select-grid-content-height 5 4))))
 
-(deftest tile-palette-list-wraps_grid_in_scroll-pane
+(deftest tile-palette-list-wraps-grid-in-scroll-pane
   (let [child (palette/tile-palette-list-child)]
     (is (= 'tile-select-grid-scroll-pane (:mode child)))
-    (is (not (nil? (-> child :state :selected-tile))))))
+    (is (some? (-> child :state :selected-tile)))))
 
-(deftest tile-palette-scroll-content-style-offsets_content
+(deftest tile-palette-scroll-content-style-offsets-content
   (let [style (palette/tile-select-grid-scroll-content-style
                {:offset 32
                 :content-height 96})]
@@ -86,19 +86,34 @@
     (is (= -32 (:top style)))
     (is (= 96 (:height style)))))
 
-(deftest brush-palette-is-disabled-when-empty
-  (is (= true
-         (:disabled? (:state (palette/brush-palette-list-box-child
-                              []
-                              false
-                              nil))))))
 
-(deftest brush-palette-selects_first_available_brush
-  (let [brushes [{:id :stamp
-                  :label "Stamp"
-                  :kind :pattern}]]
-    (is (= [0]
-           (:selected-indices
-            (:state (palette/brush-palette-list-box-child brushes
-                                                          false
-                                                          nil)))))))
+
+;; tilemap-editor.view.tilemap.palette/brush-palette-list-box-child
+
+(deftest brush-palette-list-box-child/disables-empty-options
+  (is (= {:options []
+          :selected-indices []
+          :disabled? true
+          :force-selection? true}
+         (select-keys
+          (-> (palette/brush-palette-list-box-child [] false nil)
+              :state
+              :component)
+          [:options :selected-indices :disabled? :force-selection?]))))
+
+(deftest brush-palette-list-box-child/selects-first-available-brush
+  (is (= {:options [{:value 0
+                     :label "Stamp"}]
+          :selected-indices [0]
+          :disabled? false
+          :force-selection? true}
+         (select-keys
+          (-> (palette/brush-palette-list-box-child
+               [{:id :stamp
+                 :label "Stamp"
+                 :kind :pattern}]
+               false
+               nil)
+              :state
+              :component)
+          [:options :selected-indices :disabled? :force-selection?]))))
