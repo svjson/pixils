@@ -21,20 +21,20 @@ namespace Roo
 
 namespace Pixils::Runtime
 {
-  struct QueuedChildReplacement
+  enum class ChildMutationType
   {
-    std::string child_id;
-    ChildSlot child_slot;
+    APPEND,
+    REMOVE,
+    REPLACE,
+    RECONCILE
   };
 
-  struct QueuedChildAppend
+  struct QueuedChildMutation
   {
-    ChildSlot child_slot;
-  };
-
-  struct QueuedChildRemoval
-  {
+    ChildMutationType type;
     std::string child_id;
+    ChildSlot child_slot;
+    std::vector<ChildSlot> child_slots;
   };
 
   /**
@@ -46,6 +46,8 @@ namespace Pixils::Runtime
   struct View
   {
     std::string id;
+    std::string source_mode_name;
+    std::string source_component_name;
     View* parent = nullptr;
     Roo::sptr_val state_binding = Roo::Constant::NIL;
     ViewDefinition* definition = nullptr;
@@ -101,9 +103,7 @@ namespace Pixils::Runtime
     LayoutCache layout_cache;
     std::vector<std::shared_ptr<View>> children;
     std::vector<CustomEvent> emitted_events;
-    std::vector<QueuedChildReplacement> pending_child_replacements;
-    std::vector<QueuedChildAppend> pending_child_appends;
-    std::vector<QueuedChildRemoval> pending_child_removals;
+    std::vector<QueuedChildMutation> pending_child_mutations;
 
     void set_parent(View* parent);
     void touch_subtree_generation();
@@ -127,6 +127,7 @@ namespace Pixils::Runtime
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);
     void queue_append_child(ChildSlot child_slot);
     void queue_remove_child(const std::string& child_id);
+    void queue_reconcile_children(std::vector<ChildSlot> child_slots);
   };
 
 } // namespace Pixils::Runtime

@@ -104,17 +104,34 @@ namespace Pixils::Runtime
 
   void View::queue_replace_child(const std::string& child_id, ChildSlot child_slot)
   {
-    pending_child_replacements.push_back(
-      QueuedChildReplacement{child_id, std::move(child_slot)});
+    QueuedChildMutation mutation;
+    mutation.type = ChildMutationType::REPLACE;
+    mutation.child_id = child_id;
+    mutation.child_slot = std::move(child_slot);
+    pending_child_mutations.push_back(std::move(mutation));
   }
 
   void View::queue_append_child(ChildSlot child_slot)
   {
-    pending_child_appends.push_back(QueuedChildAppend{std::move(child_slot)});
+    QueuedChildMutation mutation;
+    mutation.type = ChildMutationType::APPEND;
+    mutation.child_slot = std::move(child_slot);
+    pending_child_mutations.push_back(std::move(mutation));
   }
 
   void View::queue_remove_child(const std::string& child_id)
   {
-    pending_child_removals.push_back(QueuedChildRemoval{child_id});
+    QueuedChildMutation mutation;
+    mutation.type = ChildMutationType::REMOVE;
+    mutation.child_id = child_id;
+    pending_child_mutations.push_back(std::move(mutation));
+  }
+
+  void View::queue_reconcile_children(std::vector<ChildSlot> child_slots)
+  {
+    QueuedChildMutation mutation;
+    mutation.type = ChildMutationType::RECONCILE;
+    mutation.child_slots = std::move(child_slots);
+    pending_child_mutations.push_back(std::move(mutation));
   }
 } // namespace Pixils::Runtime

@@ -4,6 +4,8 @@
 
 (pixils/defcomponent removable-child {})
 (pixils/defcomponent retained-child {})
+(pixils/defcomponent reconciled-child
+  {:ui/state-keys [:value]})
 
 (pixils/defmode child-removal-root
   {:init (fn [state ctx]
@@ -21,3 +23,34 @@
                :id "removable"}
               {:mode 'retained-child
                :id "retained"}]})
+
+(pixils/defmode child-reconciliation-root
+  {:init (fn [state ctx]
+           {:reconcile? false
+            :reconciled? false})
+   :update (fn [state ctx]
+             (if (and (:reconcile? state)
+                      (not (:reconciled? state)))
+               (do
+                 (ui/reconcile-children!
+                  (:view ctx)
+                  [{:mode 'reconciled-child
+                    :id "second"
+                    :ui-state {:value 20}}
+                   {:mode 'reconciled-child
+                    :id "first"
+                    :ui-state {:value -1}}
+                   {:mode 'reconciled-child
+                    :id "third"
+                    :ui-state {:value 3}}])
+                 (assoc state :reconciled? true))
+               state))
+   :children [{:mode 'reconciled-child
+               :id "first"
+               :ui-state {:value 1}}
+              {:mode 'reconciled-child
+               :id "removed"
+               :ui-state {:value 2}}
+              {:mode 'reconciled-child
+               :id "second"
+               :ui-state {:value 20}}]})

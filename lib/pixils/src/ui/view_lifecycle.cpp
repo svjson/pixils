@@ -392,6 +392,8 @@ namespace Pixils::UI
   {
     Runtime::View view;
     view.id = slot.id;
+    view.source_mode_name = slot.mode_name;
+    view.source_component_name = slot.component_name;
     view.state_binding = slot.state_binding;
     view.component_state_binding = slot.component_state_binding;
     view.ui_state_binding = slot.ui_state_binding;

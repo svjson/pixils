@@ -8,10 +8,12 @@
 
 #include <algorithm>
 #include <roo/context.h>
+#include <roo/exception.h>
 #include <roo/exec.h>
 #include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/value.h>
+#include <unordered_map>
 
 namespace Pixils::Runtime
 {
@@ -19,8 +21,97 @@ namespace Pixils::Runtime
   {
     bool has_pending_child_mutations(const std::shared_ptr<View>& view)
     {
-      return !view->pending_child_replacements.empty() ||
-             !view->pending_child_appends.empty() || !view->pending_child_removals.empty();
+      return !view->pending_child_mutations.empty();
+    }
+
+    auto find_child(View& view, const std::string& child_id)
+    {
+      return std::find_if(view.children.begin(),
+                          view.children.end(),
+                          [&](const std::shared_ptr<View>& child)
+                          { return child && child->id == child_id; });
+    }
+
+    std::shared_ptr<View> initialize_child(Roo::Runtime& runtime,
+                                           View& parent,
+                                           Asset::Registry& assets,
+                                           const Roo::sptr_val& hook_ctx,
+                                           const Roo::sptr_val& modes,
+                                           const Roo::sptr_val& components,
+                                           const ChildSlot& slot,
+                                           Roo::sptr_val& parent_state)
+    {
+      auto child = UI::build_view_tree(slot, modes, components, runtime);
+      UI::attach_style_view_tree(child, &parent);
+      auto previous_parent_state = parent_state;
+      parent_state = UI::init_view_tree(assets, runtime, hook_ctx, child, parent_state);
+      parent.sync_ui_state_from_child_bindings(previous_parent_state, parent_state, runtime);
+      parent.set_ui_state_from_child_bindings(*child, runtime);
+      return child;
+    }
+
+    bool definition_matches(const View& child, const ChildSlot& slot)
+    {
+      return child.source_mode_name == slot.mode_name &&
+             child.source_component_name == slot.component_name;
+    }
+
+    bool same_children(const std::vector<std::shared_ptr<View>>& current,
+                       const std::vector<std::shared_ptr<View>>& desired)
+    {
+      return current.size() == desired.size() &&
+             std::equal(current.begin(), current.end(), desired.begin());
+    }
+
+    void reconcile_children(Roo::Runtime& runtime,
+                            View& parent,
+                            Asset::Registry& assets,
+                            const Roo::sptr_val& hook_ctx,
+                            const Roo::sptr_val& modes,
+                            const Roo::sptr_val& components,
+                            const std::vector<ChildSlot>& slots,
+                            Roo::sptr_val& parent_state)
+    {
+      std::unordered_map<std::string, std::shared_ptr<View>> current;
+      for (const auto& child : parent.children)
+      {
+        if (child) current.emplace(child->id, child);
+      }
+
+      std::vector<std::shared_ptr<View>> desired;
+      desired.reserve(slots.size());
+      for (const auto& slot : slots)
+      {
+        auto existing = current.find(slot.id);
+        if (existing == current.end())
+        {
+          desired.push_back(initialize_child(runtime,
+                                             parent,
+                                             assets,
+                                             hook_ctx,
+                                             modes,
+                                             components,
+                                             slot,
+                                             parent_state));
+          continue;
+        }
+
+        if (!definition_matches(*existing->second, slot))
+        {
+          throw Roo::InvocationException(
+            "ui/reconcile-children! cannot change the mode or component of child '" +
+            slot.id + "'; use ui/replace-child! explicitly");
+        }
+
+        desired.push_back(existing->second);
+        current.erase(existing);
+      }
+
+      if (!same_children(parent.children, desired))
+      {
+        parent.children = std::move(desired);
+        parent.mark_children_changed();
+      }
     }
 
   } // namespace
@@ -46,60 +137,63 @@ namespace Pixils::Runtime
     }
 
     auto parent_state = base_state;
-    auto replacements = std::move(view->pending_child_replacements);
-    auto appends = std::move(view->pending_child_appends);
-    auto removals = std::move(view->pending_child_removals);
-    view->pending_child_replacements.clear();
-    view->pending_child_appends.clear();
-    view->pending_child_removals.clear();
+    auto mutations = std::move(view->pending_child_mutations);
+    view->pending_child_mutations.clear();
 
-    for (const auto& removal : removals)
+    for (auto& mutation : mutations)
     {
-      auto child_it = std::find_if(view->children.begin(),
-                                   view->children.end(),
-                                   [&](const std::shared_ptr<View>& child)
-                                   { return child && child->id == removal.child_id; });
-      if (child_it == view->children.end())
+      switch (mutation.type)
       {
-        continue;
+      case ChildMutationType::REMOVE:
+      {
+        auto child_it = find_child(*view, mutation.child_id);
+        if (child_it == view->children.end()) break;
+
+        view->children.erase(child_it);
+        view->mark_children_changed();
+        break;
       }
 
-      view->children.erase(child_it);
-      view->mark_children_changed();
-    }
-
-    for (auto& replacement : replacements)
-    {
-      auto child_it = std::find_if(view->children.begin(),
-                                   view->children.end(),
-                                   [&](const std::shared_ptr<View>& child)
-                                   { return child && child->id == replacement.child_id; });
-      if (child_it == view->children.end())
+      case ChildMutationType::REPLACE:
       {
-        continue;
+        auto child_it = find_child(*view, mutation.child_id);
+        if (child_it == view->children.end()) break;
+
+        *child_it = initialize_child(runtime,
+                                     *view,
+                                     *assets,
+                                     hook_ctx,
+                                     modes,
+                                     components,
+                                     mutation.child_slot,
+                                     parent_state);
+        view->mark_children_changed();
+        break;
       }
 
-      auto new_child =
-        UI::build_view_tree(replacement.child_slot, modes, components, runtime);
-      UI::attach_style_view_tree(new_child, view.get());
-      auto previous_parent_state = parent_state;
-      parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
-      view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state, runtime);
-      view->set_ui_state_from_child_bindings(*new_child, runtime);
-      *child_it = std::move(new_child);
-      view->mark_children_changed();
-    }
+      case ChildMutationType::APPEND:
+        view->children.push_back(initialize_child(runtime,
+                                                  *view,
+                                                  *assets,
+                                                  hook_ctx,
+                                                  modes,
+                                                  components,
+                                                  mutation.child_slot,
+                                                  parent_state));
+        view->mark_children_changed();
+        break;
 
-    for (auto& append : appends)
-    {
-      auto new_child = UI::build_view_tree(append.child_slot, modes, components, runtime);
-      UI::attach_style_view_tree(new_child, view.get());
-      auto previous_parent_state = parent_state;
-      parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
-      view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state, runtime);
-      view->set_ui_state_from_child_bindings(*new_child, runtime);
-      view->children.push_back(std::move(new_child));
-      view->mark_children_changed();
+      case ChildMutationType::RECONCILE:
+        reconcile_children(runtime,
+                           *view,
+                           *assets,
+                           hook_ctx,
+                           modes,
+                           components,
+                           mutation.child_slots,
+                           parent_state);
+        break;
+      }
     }
 
     for (auto& child : view->children)

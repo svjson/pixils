@@ -1,5 +1,6 @@
 (ns pixils.ui.child-mutation-test
   (:require proof.core
+            [pixils.ui :as ui]
             [pixils.test.runtime :as runtime]))
 
 (deftest remove-child-removes-only-the-addressed-child
@@ -21,3 +22,27 @@
     (is (some? (runtime/find-view app "retained-child")))
     (is (= :retained
            (:application-value (runtime/active-state app))))))
+
+(deftest reconcile-children-preserves-reorders-removes-and-creates
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/child-mutation-probe.roo")
+    (runtime/push-mode! app 'child-reconciliation-root)
+    (ui/set-ui-state! (head (ui/children (runtime/active-mode app)))
+                      {:value 42})
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app) :reconcile? true))
+    (runtime/update! app)
+    (let [children (ui/children (runtime/active-mode app))]
+      (is (= ["second" "first" "third"]
+             [(:id (head children))
+              (:id (nth children 1))
+              (:id (nth children 2))]))
+      (is (= 20 (-> (head children) :ui-state :value)))
+      (is (= 42 (-> (nth children 1) :ui-state :value)))
+      (is (= 3 (-> (nth children 2) :ui-state :value))))))

@@ -21,6 +21,7 @@
 #include <roo/runtime/dict.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
+#include <unordered_set>
 
 namespace Pixils::Script
 {
@@ -222,7 +223,7 @@ namespace Pixils::Script
       }
     } // namespace
 
-    /** BindStateFn - bind-state */
+    /** BindStateFn - pixils.ui/bind-state */
     FUNC_IMPL(BindStateFn,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&BindStateFn::exec_bind_state))));
@@ -232,7 +233,7 @@ namespace Pixils::Script
       return BindStateAdapter::make_unique(args);
     }
 
-    /** ProjectStateFn - project-state */
+    /** ProjectStateFn - pixils.ui/project-state */
     FUNC_IMPL(ProjectStateFn,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&ProjectStateFn::exec_project_state))));
@@ -242,7 +243,7 @@ namespace Pixils::Script
       return BindStateAdapter::make_unique(Runtime::BindState(args, false));
     }
 
-    /** BlurBangFunction - blur! */
+    /** BlurBangFunction - pixils.ui/blur! */
     FUNC_IMPL(BlurBangFunction,
               MULTI_SIG((NO_ARGS, EXEC_DISPATCH(&BlurBangFunction::exec_blur)),
                         (FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
@@ -267,7 +268,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** ChildrenFunction - children */
+    /** ChildrenFunction - pixils.ui/children */
     FUNC_IMPL(ChildrenFunction,
               MULTI_SIG((FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
                          EXEC_DISPATCH(&ChildrenFunction::exec_children)),
@@ -293,7 +294,7 @@ namespace Pixils::Script
       return Roo::vector(children);
     }
 
-    /** EmitFunction - emit */
+    /** EmitBangFunction - pixils.ui/emit! */
     FUNC_IMPL(
       EmitBangFunction,
       MULTI_SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::KEYWORD), (&Roo::Type::ANY)),
@@ -318,7 +319,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** FocusBangFunction - focus! */
+    /** FocusBangFunction - pixils.ui/focus! */
     FUNC_IMPL(FocusBangFunction,
               MULTI_SIG((FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
                          EXEC_DISPATCH(&FocusBangFunction::exec_focus)),
@@ -341,7 +342,7 @@ namespace Pixils::Script
       return target;
     }
 
-    /** FocusFirstBangFunction - focus-first! */
+    /** FocusFirstBangFunction - pixils.ui/focus-first! */
     FUNC_IMPL(FocusFirstBangFunction,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&FocusFirstBangFunction::exec_focus_first))));
@@ -390,14 +391,7 @@ namespace Pixils::Script
       return target_ref;
     }
 
-    /**
-     * SetUIStateBangFunction - set-ui-state!
-     *
-     * Replaces the public UI state of a view. The first argument is a view or
-     * hook context; the second argument is the complete UI state map. This
-     * state is runtime-owned component state, distinct from ordinary view
-     * application state.
-     */
+    /** SetUIStateBangFunction - pixils.ui/set-ui-state! */
     FUNC_IMPL(SetUIStateBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&SetUIStateBangFunction::exec_set_ui_state))));
@@ -422,13 +416,7 @@ namespace Pixils::Script
       return target;
     }
 
-    /**
-     * UpdateUIStateBangFunction - update-ui-state!
-     *
-     * Replaces the public UI state of a view with the result of a function call.
-     * The update function receives the current UI state followed by any extra
-     * arguments passed to ui/update-ui-state!.
-     */
+    /** UpdateUIStateBangFunction - pixils.ui/update-ui-state! */
     FUNC_IMPL(UpdateUIStateBangFunction,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&UpdateUIStateBangFunction::exec_update_ui_state))));
@@ -470,7 +458,7 @@ namespace Pixils::Script
       return target;
     }
 
-    /** ReplaceChildBangFunction - replace-child! */
+    /** ReplaceChildBangFunction - pixils.ui/replace-child! */
     FUNC_IMPL(ReplaceChildBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY), (&Type::MAP_OR_STRING)),
                    EXEC_DISPATCH(&ReplaceChildBangFunction::exec_replace_child))));
@@ -515,7 +503,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** AppendChildBangFunction - append-child! */
+    /** AppendChildBangFunction - pixils.ui/append-child! */
     FUNC_IMPL(AppendChildBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Type::MAP_OR_STRING)),
                    EXEC_DISPATCH(&AppendChildBangFunction::exec_append_child))));
@@ -542,7 +530,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** RemoveChildBangFunction - remove-child! */
+    /** RemoveChildBangFunction - pixils.ui/remove-child! */
     FUNC_IMPL(RemoveChildBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&RemoveChildBangFunction::exec_remove_child))));
@@ -578,7 +566,62 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** StyleBangFunction - style! */
+    /** ReconcileChildrenBangFunction - pixils.ui/reconcile-children! */
+    FUNC_IMPL(ReconcileChildrenBangFunction,
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::VECTOR)),
+                   EXEC_DISPATCH(&ReconcileChildrenBangFunction::exec_reconcile_children))));
+
+    EXEC_BODY(ReconcileChildrenBangFunction, exec_reconcile_children)
+    {
+      auto target = resolve_view_target(args[0], "ui/reconcile-children!");
+      if (!target || target->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      std::unordered_set<std::string> child_ids;
+      auto child_count = Roo::count(*args[1]);
+      for (size_t index = 0; index < child_count; index++)
+      {
+        auto entry = Roo::get_child(*args[1], index);
+        if (!entry || entry->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError("ui/reconcile-children! child descriptions must be maps");
+        }
+        if (!Roo::Dict::contains_key(*entry, "id"))
+        {
+          throw Roo::TypeError(
+            "ui/reconcile-children! child descriptions require explicit :id values");
+        }
+        if (!Roo::Dict::contains_key(*entry, "mode") &&
+            !Roo::Dict::contains_key(*entry, "component"))
+        {
+          throw Roo::TypeError(
+            "ui/reconcile-children! child descriptions require a named :mode or :component");
+        }
+
+        auto id = Roo::Dict::get_property(entry, Roo::keyword("id"));
+        if (!id ||
+            (id->type != Roo::Value::Type::STRING && id->type != Roo::Value::Type::SYMBOL &&
+             id->type != Roo::Value::Type::KEYWORD))
+        {
+          throw Roo::TypeError(
+            "ui/reconcile-children! child :id values must be string-like");
+        }
+        if (!child_ids.insert(id->str()).second)
+        {
+          throw Roo::InvocationException(
+            "ui/reconcile-children! received duplicate child id '" + id->str() + "'");
+        }
+      }
+
+      auto slots = parse_child_slots(ctx, args[1]);
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      view.queue_reconcile_children(std::move(slots));
+      return Roo::Constant::NIL;
+    }
+
+    /** StyleBangFunction - pixils.ui/style! */
     FUNC_IMPL(StyleBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&StyleBangFunction::exec_style))));
@@ -600,7 +643,7 @@ namespace Pixils::Script
       return target;
     }
 
-    /** StopPropagationFn - stop-propagation! */
+    /** StopPropagation - pixils.ui/stop-propagation! */
     FUNC_IMPL(StopPropagation,
               SIG((FN_ARGS((&HostType::EVENT)),
                    EXEC_DISPATCH(&StopPropagation::exec_stop))));
@@ -611,7 +654,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** PreserveFocusBangFunction - preserve-focus! */
+    /** PreserveFocusBangFunction - pixils.ui/preserve-focus! */
     FUNC_IMPL(PreserveFocusBangFunction,
               SIG((FN_ARGS((&HostType::EVENT)),
                    EXEC_DISPATCH(&PreserveFocusBangFunction::exec_preserve_focus))));
@@ -622,7 +665,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /** ActiveThemeVarFunction - theme-var */
+    /** ActiveThemeVarFunction - pixils.ui/theme-var */
     FUNC_IMPL(ActiveThemeVarFunction,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&ActiveThemeVarFunction::exec_theme_var))));
@@ -820,6 +863,7 @@ namespace Pixils::Script
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_FIRST_BANG,
                    Function::FocusFirstBangFunction::make());
+    values.emplace("reconcile-children!", Function::ReconcileChildrenBangFunction::make());
     values.emplace("remove-child!", Function::RemoveChildBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__SET_UI_STATE_BANG,
