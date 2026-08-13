@@ -3,6 +3,7 @@ FILTER ?=
 GTEST_FILTER_ARG := $(if $(FILTER),--gtest_filter=$(FILTER),)
 PREFIX ?= $(HOME)/.local
 CTEST_PARALLEL_LEVEL ?= $(shell nproc)
+LOOM ?= loom
 
 CORE_TEST_BINARY := build/lib/pixils/test/testpixils
 ifeq ($(OS),Windows_NT)
@@ -24,6 +25,12 @@ build:
 
 install:
 	cmake --build build --target install
+	$(LOOM) install lib/pixils
+	$(LOOM) install lib/pixils-form
+	$(LOOM) install lib/pixils-tilemap
+	$(LOOM) install lib/pixils-tilemap-project
+	$(LOOM) install lib/pixils-runner
+	$(LOOM) install lib/pixils-test
 
 test: test-core test-libraries test-examples
 
