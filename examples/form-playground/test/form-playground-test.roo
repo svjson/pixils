@@ -3,30 +3,16 @@
             form-playground.core
             [pixils.test.runtime :as runtime]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
-(defun press-key! [app key]
-  (runtime/key-down! app key)
-  (runtime/update! app)
-  (runtime/key-up! app key)
-  (runtime/update! app)
-  app)
-
 (defun type-keys! [app keys]
   (reduce keys app
           (fn [app key]
-            (press-key! app key))))
+            (runtime/press-key! app key))))
 
 (defun switch-tab! [app tab-id]
   (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
     (is (not (nil? tab)))
     (runtime/click! app tab)
-    (settle-layout! app)))
+    (runtime/settle-layout! app)))
 
 (defun input-with-value [app value]
   (head (filter (runtime/find-views app "ui/text-input")
@@ -99,7 +85,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)))
+    (runtime/settle-layout! app)))
 
 (def nested-transient-form-source
   "(pixils/defmode nested-transient-root-mode
@@ -201,20 +187,20 @@
                                :render-backend false})]
     (runtime/eval! app nested-transient-form-source)
     (runtime/push-mode! app 'nested-transient-root-mode)
-    (settle-layout! app)))
+    (runtime/settle-layout! app)))
 
 (defun click-button! [app label]
   (let [button (runtime/find-view-containing app "ui/button" label)]
     (is (not (nil? button)))
     (runtime/click! app button)
-    (settle-layout! app)))
+    (runtime/settle-layout! app)))
 
 (defun type-number-input! [app current-value keys]
   (let [input (number-input-with-text app current-value)]
     (is (not (nil? input)))
     (runtime/click! app input)
     (type-keys! app keys)
-    (settle-layout! app)))
+    (runtime/settle-layout! app)))
 
 (deftest nested-array-dialog-preserves-blur-number-drafts
   (let [app (make-nested-transient-form-app)]
@@ -248,7 +234,7 @@
                      "ui/list-box-item"
                      "Grace Hopper")]
       (runtime/click! app grace-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 1 (:selected-person-index (runtime/active-state app))))
     (is (= "Grace"
            (:field/first-name (active-person app))))
@@ -257,7 +243,7 @@
       (is (not (nil? first-name-input)))
       (is (not (nil? first-name-inner)))
       (runtime/click! app first-name-input)
-      (press-key! app :end)
+      (runtime/press-key! app :end)
       (type-keys! app [:backspace
                        :backspace
                        :backspace
@@ -267,7 +253,7 @@
                        :a
                        :r
                        :y])
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= "Grace"
            (:field/first-name (active-person app))))
     (let [new-person-button (runtime/find-view-containing
@@ -276,9 +262,9 @@
                              "New Person")]
       (is (not (nil? new-person-button)))
       (runtime/mouse-down-in! app new-person-button 2 2)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (runtime/mouse-up-at! app 2 2))
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (is (= "mary"
            (:field/first-name (active-person app))))
     (is (= "mary"
@@ -297,7 +283,7 @@
                                                   "Grace Hopper")]
       (is (not (nil? grace-row)))
       (runtime/click! app grace-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 1 (:selected-person-index (runtime/active-state app))))
     (is (= 85 (:field/age (active-person app))))
     (is (not (nil? (visible-number-input-with-text app "85"))))
@@ -306,7 +292,7 @@
                                                       "Katherine Johnson")]
       (is (not (nil? katherine-row)))
       (runtime/click! app katherine-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 2 (:selected-person-index (runtime/active-state app))))
     (is (= 101 (:field/age (active-person app))))
     (is (not (nil? (visible-number-input-with-text app "101"))))))
@@ -337,7 +323,7 @@
                                                   "Grace Hopper")]
       (is (not (nil? grace-row)))
       (runtime/click! app grace-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (not (nil? (visible-view-containing app "ui/text" "New York"))))
     (is (not (nil? (visible-view-containing app "ui/text" "false"))))))
 
@@ -359,14 +345,14 @@
                                                    "Autumn Workshop")]
       (is (not (nil? autumn-row)))
       (runtime/click! app autumn-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 1 (count (:program/entries (active-conference app)))))
     (let [arrival-row (runtime/find-view-containing app
                                                     "ui/list-box-item"
                                                     "Untitled entry")]
       (is (not (nil? arrival-row)))
       (runtime/click! app arrival-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (click-button! app "Edit")
     (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
     (click-button! app "OK")
@@ -388,19 +374,19 @@
                       "ui/list-box-item"
                       "Autumn Workshop")]
       (runtime/click! app autumn-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 1 (:selected-conference-index (runtime/active-state app))))
     (is (= "Autumn Workshop"
            (:program/name (active-conference app))))
     (let [name-input (input-with-value app "Autumn Workshop")]
       (is (not (nil? name-input)))
       (runtime/click! app name-input)
-      (press-key! app :end)
+      (runtime/press-key! app :end)
       (type-keys! app [:space
                        :d
                        :a
                        :y])
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= "Autumn Workshop"
            (:program/name (active-conference app))))
     (let [new-conference-button (runtime/find-view-containing
@@ -409,9 +395,9 @@
                                  "New Conference")]
       (is (not (nil? new-conference-button)))
       (runtime/mouse-down-in! app new-conference-button 2 2)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (runtime/mouse-up-at! app 2 2))
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (is (= "Autumn Workshop day"
            (:program/name (active-conference app))))
     (is (= "Autumn Workshop day"
@@ -423,35 +409,35 @@
                       "ui/list-box-item"
                       "Summer Conference")]
       (runtime/click! app summer-row)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 0 (:selected-conference-index (runtime/active-state app))))
     (is (= []
            (:program/entries (active-conference app))))
     (let [add-button (runtime/find-view-containing app "ui/button" "Add")]
       (runtime/click! app add-button)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
     (is (not (nil? (head (runtime/find-views app "ui/color-picker")))))
     (let [title-input (input-with-value app "")]
       (is (not (nil? title-input)))
       (runtime/click! app title-input)
       (type-keys! app [:k :e :y :n :o :t :e])
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (let [speaker-combo (combo-with-selected-label app "Lovelace")]
       (is (not (nil? speaker-combo)))
       (runtime/click! app speaker-combo)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [hopper-option (runtime/find-view-containing
                            app
                            "ui/list-box-item"
                            "Hopper")]
         (is (not (nil? hopper-option)))
         (runtime/click! app hopper-option)
-        (settle-layout! app)))
+        (runtime/settle-layout! app)))
     (let [ok-button (runtime/find-view-containing app "ui/button" "OK")]
       (is (not (nil? ok-button)))
       (runtime/click! app ok-button)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= "main-mode" (runtime/active-mode-name app)))
     (is (= {:kind :talk
             :color {:r 0x4f :g 0x83 :b 0xcc :a 255}
@@ -474,21 +460,21 @@
                           "New Conference")]
       (is (not (nil? new-conference)))
       (runtime/click! app new-conference)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (let [name-input (input-with-value app "New Conference")]
       (is (not (nil? name-input)))
       (runtime/click! app name-input)
-      (press-key! app :end)
+      (runtime/press-key! app :end)
       (type-keys! app [:space
                        "2"
                        "0"
                        "2"
                        "7"])
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (let [save-button (runtime/find-view-containing app "ui/button" "Save")]
       (is (not (nil? save-button)))
       (runtime/click! app save-button)
-      (settle-layout! app))
+      (runtime/settle-layout! app))
     (is (= 3 (count (:conferences (runtime/active-state app)))))
     (is (= 2 (:selected-conference-index (runtime/active-state app))))
     (is (= "New Conference 2027"
