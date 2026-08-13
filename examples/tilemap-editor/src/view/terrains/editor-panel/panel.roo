@@ -1,0 +1,169 @@
+(ns tilemap-editor.view.terrains.editor-panel.panel
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.tab-panel :as tabs]
+            [tilemap-editor.view.terrains.editor-panel.terrain.editor :as terrain]
+            tilemap-editor.view.terrains.editor-panel.terrain-set.editor
+            tilemap-editor.view.terrains.editor-panel.transitions.editor
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun terrain-detail-tabs-child [terrain-tab-disabled?]
+  "Builds the terrain detail tabs. `terrain-tab-disabled?` controls whether the
+  terrain tab can be selected. Returns a tab-panel child definition."
+  (tabs/make
+   {:selected-tab (ui/bind-state :workspace
+                                 :tabs
+                                 :detail)
+    :style {:width :fill
+            :height :fill}
+    :state {:subject (ui/project-state :subject)
+            :reference-data (ui/project-state :reference-data)
+            :editor-context (ui/project-state :editor-context)
+            :workspace (ui/bind-state :workspace)
+            :interaction (ui/project-state :interaction)
+            :derived (ui/project-state :derived)
+            :detail (ui/project-state :detail)}
+    :tabs [{:id :terrain-set
+            :label "Terrain Set"
+            :child {:mode 'terrain-set-detail-editor
+                    :style {:padding 8}
+                    :state {:terrain-sets (ui/project-state :subject :terrain-sets)
+                            :tilesets (ui/project-state :reference-data :tilesets)
+                            :mask-sets (ui/project-state :reference-data :mask-sets)
+                            :property-sets (ui/project-state :reference-data
+                                                             :property-sets)
+                            :selected-terrain-set-index (ui/project-state :workspace
+                                                                          :selection
+                                                                          :terrain-set-index)
+                            :set-id (ui/project-state :detail :set-id)
+                            :set-label (ui/project-state :detail :set-label)
+                            :set-disabled? (ui/project-state :detail :set-disabled?)}}}
+           {:id :terrain
+            :label "Terrain"
+            :disabled? terrain-tab-disabled?
+            :child {:mode 'terrain-value-detail-editor
+                    :style {:padding 8}
+                    :state {:subject (ui/project-state :subject)
+                            :reference-data (ui/project-state :reference-data)
+                            :editor-context (ui/project-state :editor-context)
+                            :workspace (ui/bind-state :workspace)
+                            :interaction (ui/project-state :interaction)
+                            :derived (ui/project-state :derived)
+                            :detail (ui/project-state :detail)}}}
+           {:id :transitions
+            :label "Transitions"
+            :child {:mode 'terrain-transition-editor
+                    :style {:padding 8}
+                    :state
+                    {:terrain-sets (ui/project-state :subject :terrain-sets)
+                     :mask-sets (ui/project-state :reference-data :mask-sets)
+                     :terrain-transitions (ui/project-state :subject :transitions)
+                     :selected-terrain-set-index (ui/project-state :workspace
+                                                                   :selection
+                                                                   :terrain-set-index)
+                     :selected-terrain-transition-id (ui/project-state :workspace
+                                                                       :selection
+                                                                       :transition-id)}}}]}))
+
+(defun terrain-detail-content-child [visible? terrain-tab-disabled?]
+  "Builds the detail content. `visible?` controls whether tabs are present and
+  `terrain-tab-disabled?` is passed to the tab constructor. Returns a child
+  definition for the detail content slot."
+  (merge {:id "terrain-detail-content"}
+         (if visible?
+           (terrain-detail-tabs-child terrain-tab-disabled?)
+           {:style {:width :fill
+                    :height :fill}})))
+
+(defcomponent terrain-detail-editor
+  {:style {:width :fill
+           :height :fill}
+   :update (fn [state ctx]
+             (let [terrain-sets (-> state :subject :terrain-sets)
+                   terrain-set-index
+                   (-> state :workspace :selection :terrain-set-index)
+                   terrain-index
+                   (-> state :workspace :selection :terrain-index)
+                   terrain-set (model/selected-terrain-set terrain-sets
+                                                           terrain-set-index)
+                   terrain (model/selected-terrain terrain-set
+                                                   terrain-index)
+                   visible? (some? terrain-set)
+                   terrain-tab-disabled? (nil? terrain)
+                   transition-state-key
+                   {:mask-sets (-> state :reference-data :mask-sets)
+                    :transitions (-> state :subject :transitions)
+                    :transition-id
+                    (-> state :workspace :selection :transition-id)}]
+
+                 (when (or (not= visible? (:rendered-visible? state))
+                           (not= terrain-tab-disabled?
+                                  (:rendered-terrain-tab-disabled? state))
+                           (not= transition-state-key
+                                  (:rendered-transition-state-key state)))
+                   (ui/replace-child! (:view ctx)
+                                      "terrain-detail-content"
+                                      (terrain-detail-content-child
+                                       visible?
+                                       terrain-tab-disabled?)))
+                 (assoc state
+                        :rendered-visible? visible?
+                        :rendered-terrain-tab-disabled?
+                        terrain-tab-disabled?
+                        :rendered-transition-state-key transition-state-key
+                        :detail
+                        {:terrain-set terrain-set
+                         :terrain terrain
+                         :set-disabled? (nil? terrain-set)
+                         :terrain-disabled? (nil? terrain)
+                         :set-id (if terrain-set
+                                   (model/keyword-label (:id terrain-set))
+                                   "")
+                         :set-label (or (:label terrain-set) "")
+                         :terrain-id (if terrain
+                                       (model/keyword-label (:id terrain))
+                                       "")
+                         :terrain-label
+                         (or (:label terrain) (:name terrain) "")
+                         :preview-tile
+                         (terrain/terrain-preview-tile
+                          (-> state :reference-data :tilesets)
+                          terrain-set
+                          terrain)})))
+   :on {:tab-panel/change (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (assoc-in state
+                                      [:workspace :tabs :detail]
+                                      (-> event :payload :tab)))}
+   :children [(terrain-detail-content-child true true)]})
+
+(defun make
+  "Builds the terrain editor panel. Takes no arguments and returns a header-panel
+  definition that projects the grouped terrain view inputs."
+  []
+  (hp/make {:title "Terrain Definition"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:subject (ui/project-state :subject)
+                    :reference-data (ui/project-state :reference-data)
+                    :editor-context (ui/project-state :editor-context)
+                    :workspace (ui/bind-state :workspace)
+                    :interaction (ui/project-state :interaction)
+                    :derived (ui/project-state :derived)
+                    :disabled? (ui/project-state :derived :detail-panel-disabled?)}
+            :body-state {:subject (ui/project-state :subject)
+                         :reference-data (ui/project-state :reference-data)
+                         :editor-context (ui/project-state :editor-context)
+                         :workspace (ui/bind-state :workspace)
+                         :interaction (ui/project-state :interaction)
+                         :derived (ui/project-state :derived)}
+            :children [{:mode 'terrain-detail-editor
+                        :state {:subject (ui/project-state :subject)
+                                :reference-data (ui/project-state :reference-data)
+                                :editor-context (ui/project-state :editor-context)
+                                :workspace (ui/bind-state :workspace)
+                                :interaction (ui/project-state :interaction)
+                                :derived (ui/project-state :derived)}}]}))

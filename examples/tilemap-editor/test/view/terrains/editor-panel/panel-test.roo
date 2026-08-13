@@ -1,0 +1,57 @@
+(ns tilemap-editor.view.terrains.editor-panel.panel-test
+  (:require proof.core
+            [pixils.ui :as ui]
+            [tilemap-editor.view.terrains.editor-panel.panel :as panel]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.panel/terrain-detail-content-child
+
+(deftest terrain-detail-content-child/inlines-the-empty-content
+  (is (= {:id "terrain-detail-content"
+          :style {:width :fill
+                  :height :fill}}
+         (panel/terrain-detail-content-child false true))))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.panel/terrain-detail-tabs-child
+
+(deftest terrain-detail-tabs-child/groups-terrain-editor-state
+  (let [panel (panel/terrain-detail-tabs-child false)
+        tabs (-> panel :state :tabs)
+        terrain-tab (nth tabs 1)]
+    (is (= {:id :terrain
+            :label "Terrain"
+            :disabled? false
+            :child
+            {:mode 'terrain-value-detail-editor
+             :style {:padding 8}
+             :state {:subject (ui/project-state :subject)
+                     :reference-data (ui/project-state :reference-data)
+                     :editor-context (ui/project-state :editor-context)
+                     :workspace (ui/bind-state :workspace)
+                     :interaction (ui/project-state :interaction)
+                     :derived (ui/project-state :derived)
+                     :detail (ui/project-state :detail)}}}
+           terrain-tab))))
+
+(deftest terrain-detail-tabs-child/populates-transition-editor-state
+  (let [child (-> (panel/terrain-detail-tabs-child false)
+                  :state
+                  :tabs
+                  (nth 2)
+                  :child)]
+    (is (= {:mode 'terrain-transition-editor
+            :style {:padding 8}
+            :state
+            {:terrain-sets (ui/project-state :subject :terrain-sets)
+             :mask-sets (ui/project-state :reference-data :mask-sets)
+             :terrain-transitions (ui/project-state :subject :transitions)
+             :selected-terrain-set-index (ui/project-state :workspace
+                                                           :selection
+                                                           :terrain-set-index)
+             :selected-terrain-transition-id (ui/project-state :workspace
+                                                               :selection
+                                                               :transition-id)}}
+           child))))

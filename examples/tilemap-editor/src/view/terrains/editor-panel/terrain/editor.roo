@@ -1,0 +1,202 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.editor
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.tilemap.project.model :as data]
+            tilemap-editor.view.property-sets.layout
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun terrain-preview-tile [tilesets terrain-set terrain]
+  (data/tile-in tilesets
+                (:tileset terrain-set)
+                (data/terrain-preview-tile terrain)))
+
+(defcomponent terrain-preview
+  {:class :ui/content
+   :style {:width 48
+           :height 48
+           :cursor :pointer}
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (unless (:disabled? state)
+                    (ui/emit! (:view ctx)
+                              :terrain/base-tile-open
+                              {:position (:global-position event)}))
+                  state)
+   :render (fn [state ctx]
+             (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                      {:fill true
+                       :color {:r 0x12 :g 0x15 :b 0x18}})
+             (when-let [tile (:tile state)]
+               (tr/draw-tile! tile {:x 8 :y 8 :w 32 :h 32}))
+             (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                      {:color {:r 0x00 :g 0x00 :b 0x00}}))})
+
+(defcomponent terrain-transition-mask-set-selector
+  {:style {:width 220
+           :height 22}
+   :update (fn [state ctx]
+             (let [options (model/terrain-transition-mask-set-options
+                            (:mask-sets state))]
+               (assoc state
+                      :mask-set-options options
+                      :selected-mask-set-option-index
+                      (model/selected-terrain-transition-mask-set-option-index
+                       state)
+                      :disabled? (or (:terrain-disabled? state)
+                                     (empty? (:mask-sets state))))))
+   :on {:combo-box/change (fn [state {:keys [payload]} ctx]
+                            (ui/emit! (:view ctx)
+                                      :terrain/transition-mask-set-change
+                                      (:value payload))
+                            (assoc state
+                                   :selected-mask-set-option-index
+                                   (:selected-index payload)))}
+   :children [(cb/make {:options (ui/bind-state :mask-set-options)
+                        :selected-index (ui/bind-state :selected-mask-set-option-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defun terrain-identity-summary-field [label value]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 44}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value value}}]})
+
+(defun terrain-value-detail-header-child []
+  {:style {:width :fill
+           :height 48
+           :layout {:direction :row
+                    :align-items :start
+                    :gap 12}}
+   :state {:detail (ui/project-state :detail)}
+   :children [{:mode 'terrain-preview
+               :state {:tile (ui/project-state :detail :preview-tile)
+                       :disabled? (ui/project-state :detail :terrain-disabled?)}}
+              {:style {:width :fill
+                       :height 48
+                       :layout {:direction :column
+                                :gap 0}}
+               :children [{:style {:width :fill
+                                    :height 24
+                                    :layout {:direction :row
+                                             :align-items :center
+                                             :gap 8}}
+                           :children [{:mode 'ui/text
+                                       :class :ui/muted
+                                       :style {:width 44}
+                                       :state {:value "Id"}}
+                                      {:mode 'ui/text
+                                       :style {:width :fill}
+                                       :state {:value (ui/project-state :detail
+                                                                        :terrain-id)}}
+                                      {:mode 'ui/button
+                                       :style {:width 78
+                                               :height 24}
+                                       :state {:label "Edit"
+                                               :disabled? (ui/project-state :detail
+                                                                            :terrain-disabled?)}
+                                       :on-click (fn [state event ctx]
+                                                   (ui/emit! (:view ctx)
+                                                             :terrain/edit)
+                                                   state)}]}
+                          (terrain-identity-summary-field
+                           "Name"
+                           (ui/project-state :detail :terrain-label))]}]})
+
+(defcomponent terrain-value-detail-editor
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (-> state :subject :terrain-sets)
+                                (-> state
+                                    :workspace
+                                    :selection
+                                    :terrain-set-index))
+                   terrain (model/selected-terrain terrain-set
+                                                   (-> state
+                                                       :workspace
+                                                       :selection
+                                                       :terrain-index))]
+               (assoc-in
+                state
+                [:derived :terrain]
+                {:property-set-ids (:property-sets terrain-set)
+                 :property-default-values (:properties terrain-set)
+                 :property-override-values (:properties terrain)
+                 :rule-add-disabled? (-> state
+                                         :detail
+                                         :terrain-disabled?
+                                         (= true))
+                 :selected-rule?
+                 (some?
+                  (model/selected-terrain-rule
+                   {:rulesets (-> state :subject :rulesets)
+                    :selected-terrain-ruleset-id
+                    (-> state :workspace :selection :ruleset-id)
+                    :selected-terrain-rule-id
+                    (-> state :workspace :selection :rule-id)}))})))
+   :children [(terrain-value-detail-header-child)
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:subject (ui/project-state :subject)
+                       :reference-data (ui/project-state :reference-data)
+                       :workspace (ui/project-state :workspace)
+                       :detail (ui/project-state :detail)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 92}
+                           :state {:value "Mask set"}}
+                          {:mode 'terrain-transition-mask-set-selector
+                           :state {:terrain-sets (ui/project-state :subject
+                                                                   :terrain-sets)
+                                   :selected-terrain-set-index (ui/project-state :workspace
+                                                                                 :selection
+                                                                                 :terrain-set-index)
+                                   :selected-terrain-index (ui/project-state :workspace
+                                                                             :selection
+                                                                             :terrain-index)
+                                   :mask-sets (ui/project-state :reference-data
+                                                                :mask-sets)
+                                   :terrain-disabled? (ui/project-state :detail
+                                                                        :terrain-disabled?)}}]}
+              {:mode 'property-value-list
+               :state {:title "Terrain Properties"
+                       :kind :terrain
+                       :property-sets (ui/project-state :reference-data :property-sets)
+                       :property-set-ids (ui/project-state :derived
+                                                           :terrain
+                                                           :property-set-ids)
+                       :default-values (ui/project-state :derived
+                                                         :terrain
+                                                         :property-default-values)
+                       :override-values (ui/project-state :derived
+                                                          :terrain
+                                                          :property-override-values)
+                       :disabled? (ui/project-state :detail :terrain-disabled?)}}
+              {:mode 'terrain-rule-editor-tabs
+               :state {:subject (ui/project-state :subject)
+                       :reference-data (ui/project-state :reference-data)
+                       :editor-context (ui/project-state :editor-context)
+                       :workspace (ui/bind-state :workspace)
+                       :interaction (ui/project-state :interaction)
+                       :derived (ui/project-state :derived)}}]})

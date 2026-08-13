@@ -1,0 +1,115 @@
+(ns tilemap-editor.view.terrains.selection-column.column
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            tilemap-editor.view.terrains.selection-column.list))
+
+(defun make-terrain-set-list-panel []
+  "Builds the terrain-set selection panel. Takes no arguments and returns a
+  header-panel definition that projects terrain workspace selections."
+  (hp/make {:title "Terrain Sets"
+            :style {:width :fill
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (ui/emit! (:view ctx)
+                                                     :terrain/add-set)
+                                           state)}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:terrain-sets (ui/project-state :subject :terrain-sets)
+                    :selected-terrain-set-index
+                    (ui/project-state :workspace :selection :terrain-set-index)}
+            :body-state {:terrain-sets
+                         (ui/project-state :subject :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/project-state
+                          :workspace
+                          :selection
+                          :terrain-set-index)}
+            :children [{:mode 'terrain-set-list
+                        :state {:terrain-sets
+                                (ui/project-state :subject :terrain-sets)
+                                :selected-terrain-set-index
+                                (ui/project-state
+                                 :workspace
+                                 :selection
+                                 :terrain-set-index)}}]}))
+
+(defun make-terrain-list-panel []
+  "Builds the terrain selection panel. Takes no arguments and returns a
+  header-panel definition that projects terrain workspace selections."
+  (hp/make {:title "Terrains"
+            :style {:width :fill
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"
+                                       :disabled?
+                                       (ui/project-state
+                                        :derived
+                                        :list-panel-disabled?)}
+                               :on-click (fn [state event ctx]
+                                           (unless (:disabled? state)
+                                             (ui/emit! (:view ctx)
+                                                       :terrain/add))
+                                           state)}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:terrain-sets (ui/project-state :subject :terrain-sets)
+                    :selected-terrain-set-index
+                    (ui/project-state
+                     :workspace
+                     :selection
+                     :terrain-set-index)
+                    :selected-terrain-index
+                    (ui/project-state :workspace :selection :terrain-index)
+                    :terrain-list-panel-disabled?
+                    (ui/project-state :derived :list-panel-disabled?)}
+            :body-state {:terrain-sets
+                         (ui/project-state :subject :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/project-state
+                          :workspace
+                          :selection
+                          :terrain-set-index)
+                         :selected-terrain-index
+                         (ui/project-state
+                          :workspace
+                          :selection
+                          :terrain-index)
+                         :terrain-list-panel-disabled?
+                         (ui/project-state :derived :list-panel-disabled?)}
+            :children [{:mode 'terrain-list
+                        :state {:terrain-sets
+                                (ui/project-state :subject :terrain-sets)
+                                :selected-terrain-set-index
+                                (ui/project-state
+                                 :workspace
+                                 :selection
+                                 :terrain-set-index)
+                                :selected-terrain-index
+                                (ui/project-state
+                                 :workspace
+                                 :selection
+                                 :terrain-index)
+                                :terrain-list-panel-disabled?
+                                (ui/project-state
+                                 :derived
+                                 :list-panel-disabled?)}}]}))
+
+(defcomponent terrain-definition-selector-column
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(make-terrain-set-list-panel)
+              (make-terrain-list-panel)]})

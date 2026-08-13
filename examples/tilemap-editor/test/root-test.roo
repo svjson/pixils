@@ -213,11 +213,11 @@
             :selected-terrain-rule-id :rule}
            {:label "Change terrain rule options"
             :op :value/set
-            :target {:kind :terrain-rule
-                     :ruleset-id :overworld-rules
-                     :rule-id :rule
-                     :path [:exclusive?]}
-            :args {:value true}})]
+            :target {:path [:rulesets 0 :rules 0]}
+            :args {:value {:id :rule
+                           :label "Rule"
+                           :terrain :grass
+                           :exclusive? true}}})]
       {:changed changed
        :undone (editor-workbook/undo changed)}))
 

@@ -1,0 +1,73 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.tab-panel :as tabs]
+            tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
+            tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor))
+
+(defun make-tabs
+  "Constructs the manual and semantic-role terrain-rule tabs. Takes no arguments
+  and returns a tab-panel child that projects terrain editor inputs."
+  []
+  (tabs/make
+   {:selected-tab (ui/bind-state :workspace
+                                 :tabs
+                                 :rule-editor)
+    :style {:width :fill
+            :height :fill}
+    :state {:subject (ui/project-state :subject)
+            :reference-data (ui/project-state :reference-data)
+            :editor-context (ui/project-state :editor-context)
+            :workspace (ui/bind-state :workspace)
+            :interaction (ui/project-state :interaction)
+            :derived (ui/project-state :derived)}
+    :tabs [{:id :rules
+            :label "Rule Editor"
+            :child
+            {:style {:width :fill
+                     :height :fill
+                     :layout {:direction :column}}
+             :state {:subject (ui/project-state :subject)
+                     :reference-data (ui/project-state :reference-data)
+                     :editor-context (ui/project-state :editor-context)
+                     :workspace (ui/bind-state :workspace)
+                     :interaction (ui/project-state :interaction)
+                     :derived (ui/project-state :derived)}
+             :on {:action/mutate!
+                  (fn [state {:keys [payload] :as event} ctx]
+                    (ui/stop-propagation! event)
+                    (ui/emit!
+                     (:view ctx)
+                     :action/mutate!
+                     (assoc-in
+                      payload
+                      [:target :path]
+                      (concat [:rulesets] (-> payload :target :path))))
+                    state)}
+             :children
+             [{:mode 'terrain-rule-manual-editor
+               :state {:subject (ui/project-state :subject)
+                       :reference-data (ui/project-state :reference-data)
+                       :editor-context (ui/project-state :editor-context)
+                       :workspace (ui/bind-state :workspace)
+                       :interaction (ui/project-state :interaction)
+                       :derived (ui/project-state :derived)}}]}}
+           {:id :setups
+            :label "Semantic Roles"
+            :child {:mode 'terrain-standard-setup-editor
+                    :state {:subject (ui/project-state :subject)
+                            :reference-data (ui/project-state :reference-data)
+                            :editor-context (ui/project-state :editor-context)
+                            :workspace (ui/bind-state :workspace)
+                            :interaction (ui/project-state :interaction)
+                            :derived (ui/project-state :derived)}}}]}))
+
+(defcomponent terrain-rule-editor-tabs
+  {:style {:width :fill
+           :height :fill}
+   :on {:tab-panel/change (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (assoc-in state
+                                      [:workspace :tabs :rule-editor]
+                                      (-> event :payload :tab)))}
+   :children [(make-tabs)]})

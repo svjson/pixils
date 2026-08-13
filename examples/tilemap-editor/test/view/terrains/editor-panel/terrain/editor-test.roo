@@ -1,0 +1,23 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.editor-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.editor-panel.terrain.editor :as terrain]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.editor/terrain-value-detail-header-child
+
+(deftest terrain-value-detail-header-child/is-compact
+  (let [header (terrain/terrain-value-detail-header-child)
+        children (:children header)
+        preview (head children)
+        summary (nth children 1)
+        id-row (head (:children summary))
+        name-row (nth (:children summary) 1)
+        edit-button (nth (:children id-row) 2)]
+    (is (= 48 (-> header :style :height)))
+    (is (= 'terrain-preview (:mode preview)))
+    (is (= "Id" (-> id-row :children head :state :value)))
+    (is (= "Name" (-> name-row :children head :state :value)))
+    (is (= 'ui/button (:mode edit-button)))
+    (is (= "Edit" (-> edit-button :state :label)))))
+

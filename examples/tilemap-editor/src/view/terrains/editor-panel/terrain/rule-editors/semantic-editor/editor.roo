@@ -1,0 +1,1060 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.menu :as menu]
+            [pixils.ui.scroll-pane :as sp]
+            [pixils.ui.tab-panel :as tabs]
+            [pixils.tilemap.materialize :as materialize]
+            [pixils.tilemap.project.model :as data]
+            [pixils.tilemap.renderer :as tilemap-renderer]
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
+             :as manual]
+            [tilemap-editor.view.terrains.model :as model]
+            [tilemap-editor.view.theme :as theme]))
+
+(def terrain-standard-slot-tile-size 40)
+(def terrain-standard-slot-marker-size (int (/ terrain-standard-slot-tile-size
+                                               3)))
+(def terrain-standard-slot-size terrain-standard-slot-tile-size)
+(def terrain-standard-slot-surround-size (+ terrain-standard-slot-tile-size
+                                            (* terrain-standard-slot-marker-size
+                                               2)))
+(def terrain-standard-slot-gap 4)
+(def terrain-standard-slot-border-color theme/panel-border)
+(def terrain-standard-slot-marker-color terrain-standard-slot-border-color)
+(def terrain-standard-slot-surround-tile-origin terrain-standard-slot-marker-size)
+(def terrain-standard-setup-panel-column-gap 20)
+(def terrain-standard-setup-panel-row-gap 16)
+(def terrain-standard-setup-panel-content-height 560)
+
+(defun terrain-standard-role-slot-size [setup-id]
+  (case setup-id
+    :isolated terrain-standard-slot-surround-size
+    :default terrain-standard-slot-size))
+
+(defun terrain-standard-role-tile-origin [setup-id]
+  (case setup-id
+    :isolated terrain-standard-slot-surround-tile-origin
+    :default 0))
+
+(defun terrain-standard-role-tile-rect [state]
+  (let [origin (terrain-standard-role-tile-origin (:setup-id state))]
+    {:x origin
+     :y origin
+     :w terrain-standard-slot-tile-size
+     :h terrain-standard-slot-tile-size}))
+
+(defun terrain-standard-role-slot-cache-entry [state]
+  (let [slots (or (:terrain-standard-role-slots state) {})]
+    (get slots (:role-id state))))
+
+(defun terrain-standard-role-slot-tile [state]
+  (when-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:tile entry)))
+
+(defun terrain-standard-role-slot-mask-ref [state]
+  (when-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:mask-ref entry)))
+
+(defun terrain-standard-role-slot-overlay-ref [state]
+  (when-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:overlay-ref entry)))
+
+(defun terrain-standard-role-slot-overlay-tile [state]
+  (when-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:overlay-tile entry)))
+
+(defun terrain-standard-role-slot-rule-id [state]
+  (when-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:rule-id entry)))
+
+(defun terrain-standard-output-tab [state]
+  (or (:terrain-standard-output-picker-tab state) :tiles))
+
+(defun terrain-standard-selected-tile-output-tab [state]
+  (or (:terrain-rule-selected-tile-output-tab state)
+      (terrain-standard-output-tab state)))
+
+(defun terrain-standard-marker-condition? [condition]
+  (and (not= condition :ignore)
+       (not= condition :same)))
+
+(defun terrain-standard-role-marker-directions [role-id]
+  (let [match (model/terrain-standard-role-match role-id :none)]
+    (filter model/neighbor-directions
+            (fn [direction]
+              (terrain-standard-marker-condition? (get match direction))))))
+
+(defun terrain-standard-role-marker-rect [direction]
+  (let [third terrain-standard-slot-marker-size
+        tile terrain-standard-slot-tile-size
+        tile-origin terrain-standard-slot-surround-tile-origin
+        end (+ tile-origin tile)]
+    (case direction
+      :nw {:x 0 :y 0 :w third :h third}
+      :n {:x tile-origin :y 0 :w tile :h third}
+      :ne {:x end :y 0 :w third :h third}
+      :w {:x 0 :y tile-origin :w third :h tile}
+      :e {:x end :y tile-origin :w third :h tile}
+      :sw {:x 0 :y end :w third :h third}
+      :s {:x tile-origin :y end :w tile :h third}
+      :se {:x end :y end :w third :h third}
+      :default nil)))
+
+(defun draw-terrain-standard-role-markers! [state]
+  (reduce (case (:setup-id state)
+            :isolated
+            (terrain-standard-role-marker-directions (:role-id state))
+
+            :default [])
+          nil
+          (fn [result direction]
+            (when-let [rect (terrain-standard-role-marker-rect direction)]
+              (r/rect! rect {:color terrain-standard-slot-marker-color}))
+            result)))
+
+(defun terrain-standard-preview-opposing-terrain [state]
+  (let [opposing (or (:terrain-standard-role-cache-opposing state)
+                     (model/selected-terrain-standard-opposing state))
+        selected (model/terrain-standard-opposing-terrain-list state opposing)]
+    (or (head selected)
+        (head (model/terrain-standard-opposing-terrain-values state)))))
+
+(defun terrain-standard-preview-mask-ref [state mask-ref]
+  (when mask-ref
+    (if (contains? mask-ref :polarity)
+      mask-ref
+      (model/mask-ref-with-polarity mask-ref
+                                    (:terrain-rule-mask-polarity state)))))
+
+(defun terrain-standard-transition-preview-tile [state mask-ref]
+  (let [center-terrain (model/selected-terrain-id state)
+        opposing-terrain (terrain-standard-preview-opposing-terrain state)
+        terrain-set-id (model/selected-terrain-set-id state)
+        mask-ref (terrain-standard-preview-mask-ref state mask-ref)]
+    (when (and center-terrain opposing-terrain terrain-set-id mask-ref)
+      (materialize/transition-tile-definition
+       {:tile-size data/tile-size
+        :tilesets (:tilesets state)
+        :terrain-sets (:terrain-sets state)
+        :mask-sets (:mask-sets state)}
+       nil
+       {:terrain-set terrain-set-id}
+       {:terrain center-terrain
+        :match {:n {:terrain opposing-terrain}}}
+       mask-ref
+       0
+       0))))
+
+(defun draw-terrain-standard-mask-fallback! [rect]
+  (r/rect! {:x (+ (:x rect) 7)
+            :y (+ (:y rect) 7)
+            :w (- (:w rect) 14)
+            :h (- (:h rect) 14)}
+           {:color {:r 0x5d :g 0xc9 :b 0x9a}})
+  (r/text! "M"
+           {:x (+ (:x rect) 15)
+            :y (+ (:y rect) 13)}
+           {:color {:r 0x5d :g 0xc9 :b 0x9a}}))
+
+(defun terrain-standard-transition-preview-size [tile]
+  (or (-> tile :mask-source :size)
+      (:size tile)))
+
+(defun terrain-standard-transition-preview-image-id [tile size]
+  (keyword (str "pixils-transition-cache/preview-"
+                (model/keyword-label (or (:id tile)
+                                         :transition))
+                "-"
+                (:w size)
+                "x"
+                (:h size))))
+
+(defun terrain-standard-transition-preview-draw-tile [tile]
+  (let [size (terrain-standard-transition-preview-size tile)]
+    (if (and (= (:type tile) :transition-mask) size)
+      (assoc (assoc tile :size size)
+             :image (terrain-standard-transition-preview-image-id tile size))
+      tile)))
+
+(defun draw-terrain-standard-transition-preview-tile! [tile rect]
+  (let [preview-tile (terrain-standard-transition-preview-draw-tile tile)
+        size (:size preview-tile)
+        base (-> preview-tile :base :tile-definition)
+        image (when (and (= (:type preview-tile) :transition-mask) size)
+                (tilemap-renderer/ensure-transition-overlay-image!
+                 preview-tile
+                 size))]
+    (when base
+      (tilemap-renderer/draw-tile! base rect nil 1))
+    (if (and image
+             (tilemap-renderer/transition-image-exists? image))
+      (r/image! image {:target rect})
+      (tilemap-renderer/draw-tile! preview-tile rect nil 1))))
+
+(defun draw-terrain-standard-transition-preview! [state mask-ref rect]
+  (if-let [tile (terrain-standard-transition-preview-tile state mask-ref)]
+    (draw-terrain-standard-transition-preview-tile! tile rect)
+    (draw-terrain-standard-mask-fallback! rect)))
+
+(defun draw-terrain-standard-role-slot! [state ctx]
+  (let [tile (:tile state)
+        mask-ref (:mask-ref state)
+        overlay-tile (:overlay-tile state)
+        tile-rect (terrain-standard-role-tile-rect state)]
+    (r/rect! tile-rect
+             {:fill true
+              :color {:r 0x0b :g 0x0d :b 0x10}})
+    (when tile
+      (tr/draw-tile! tile
+                     {:x (+ (:x tile-rect) 4)
+                      :y (+ (:y tile-rect) 4)
+                      :w (- (:w tile-rect) 8)
+                      :h (- (:h tile-rect) 8)}))
+    (when (and (not tile)
+               (not mask-ref)
+               (not (:overlay-ref state))
+               (not= (:setup-id state) :isolated))
+      (r/text! (:label state)
+               {:x (+ (:x tile-rect) 8)
+                :y (+ (:y tile-rect) 13)}
+               {:color {:r 0x86 :g 0x91 :b 0x9b}}))
+    (when (and (not tile) overlay-tile)
+      (tr/draw-tile! overlay-tile
+                     {:x (+ (:x tile-rect) 4)
+                      :y (+ (:y tile-rect) 4)
+                      :w (- (:w tile-rect) 8)
+                      :h (- (:h tile-rect) 8)}))
+    (when (and (not tile) mask-ref)
+      (draw-terrain-standard-transition-preview!
+       state
+       mask-ref
+       {:x (+ (:x tile-rect) 4)
+        :y (+ (:y tile-rect) 4)
+        :w (- (:w tile-rect) 8)
+        :h (- (:h tile-rect) 8)}))
+    (draw-terrain-standard-role-markers! state)
+    (r/rect! tile-rect
+             {:color (if (:selected? state)
+                       {:r 0x5a :g 0x9d :b 0xff}
+                       terrain-standard-slot-border-color)})))
+
+(defun emit-standard-role-mutation!
+  "Transforms and emits a standard-role output mutation. `state` identifies
+  the setup, role, and opposing selection, `ctx` supplies the emitting view,
+  `path` selects the output field, and `value` is its replacement. Returns
+  nil."
+  [state ctx path value]
+  (let [next-state
+        (case path
+          [:mask]
+          (model/set-terrain-standard-role-mask
+           state
+           (:setup-id state)
+           (:role-id state)
+           (:terrain-standard-role-cache-opposing state)
+           value)
+
+          [:overlay]
+          (model/set-terrain-standard-role-overlay
+           state
+           (:setup-id state)
+           (:role-id state)
+           (:terrain-standard-role-cache-opposing state)
+           value)
+
+          :default
+          (model/set-terrain-standard-role-tile
+           state
+           (:setup-id state)
+           (:role-id state)
+           (:terrain-standard-role-cache-opposing state)
+           value))]
+    (ui/emit!
+     (:view ctx)
+     :action/mutate!
+     {:label (case path
+               [:mask] "Change standard terrain mask"
+               [:overlay] "Change standard terrain overlay"
+               :default "Change standard terrain tile")
+      :op :value/merge
+      :target {:path []}
+      :args
+      {:value
+       (select-keys next-state
+                    [:rulesets
+                     :selected-terrain-ruleset-id
+                     :selected-terrain-rule-id])}})))
+
+(defcomponent terrain-standard-role-slot
+  {:focusable true
+   :style {:width terrain-standard-slot-size
+           :height terrain-standard-slot-size
+           :cursor :pointer}
+   :update (fn [state ctx]
+             (let [rule-id (terrain-standard-role-slot-rule-id state)
+                   slot-size (terrain-standard-role-slot-size (:setup-id state))]
+               (assoc-in! ctx [:view :style :width] slot-size)
+               (assoc-in! ctx [:view :style :height] slot-size)
+               (assoc state
+                      :rule-id rule-id
+                      :tile (terrain-standard-role-slot-tile state)
+                      :mask-ref (terrain-standard-role-slot-mask-ref state)
+                      :overlay-ref (terrain-standard-role-slot-overlay-ref state)
+                      :overlay-tile (terrain-standard-role-slot-overlay-tile state)
+                      :selected? (and rule-id
+                                      (= rule-id
+                                         (:selected-terrain-rule-id
+                                          state))))))
+   :on-mouse-down
+   (fn [state event ctx]
+     (ui/stop-propagation! event)
+     (if (manual/secondary-mouse-button? event)
+       (case (terrain-standard-output-tab state)
+         :masks
+         (emit-standard-role-mutation! state ctx [:mask] nil)
+
+         :overlays
+         (emit-standard-role-mutation! state ctx [:overlay] nil)
+
+         :tiles
+         (emit-standard-role-mutation! state ctx [:tile] nil)
+
+         :default
+         nil)
+       (case (if (:terrain-rule-selected-tile state)
+               (terrain-standard-selected-tile-output-tab state)
+               (terrain-standard-output-tab state))
+         :masks
+         (if-let [mask-ref (:terrain-rule-selected-mask state)]
+           (emit-standard-role-mutation!
+            state
+            ctx
+            [:mask]
+            (model/mask-ref-with-polarity
+             mask-ref
+             (:terrain-rule-mask-polarity state)))
+           (when-let [rule-id (:rule-id state)]
+             (ui/emit! (:view ctx)
+                       :terrain/rule-select
+                       rule-id)))
+
+         :overlays
+         (if-let [tile-ref (:terrain-rule-selected-tile state)]
+           (emit-standard-role-mutation! state ctx [:overlay] tile-ref)
+           (when-let [rule-id (:rule-id state)]
+             (ui/emit! (:view ctx)
+                       :terrain/rule-select
+                       rule-id)))
+
+         :tiles
+         (if-let [tile-ref (:terrain-rule-selected-tile state)]
+           (emit-standard-role-mutation! state ctx [:tile] tile-ref)
+           (when-let [rule-id (:rule-id state)]
+             (ui/emit! (:view ctx)
+                       :terrain/rule-select
+                       rule-id)))
+
+         :default
+         nil))
+     state)
+   :on-drop
+   (fn [state {:keys [payload] :as event} ctx]
+     (case (:kind payload)
+       :terrain-rule/mask-output
+       (do
+         (ui/stop-propagation! event)
+         (emit-standard-role-mutation! state
+                                       ctx
+                                       [:mask]
+                                       (:mask payload)))
+
+       :default
+       (when (manual/terrain-stamp-tile-drag-payload? payload)
+         (ui/stop-propagation! event)
+         (case (or (:output-tab payload)
+                   (terrain-standard-output-tab state))
+           :overlays
+           (emit-standard-role-mutation! state
+                                         ctx
+                                         [:overlay]
+                                         (:tile payload))
+
+           :tiles
+           (emit-standard-role-mutation! state
+                                         ctx
+                                         [:tile]
+                                         (:tile payload))
+
+           :default
+           nil)))
+     state)
+   :render draw-terrain-standard-role-slot!})
+
+(defun terrain-standard-role-slot-child [setup-id role-id label]
+  {:mode 'terrain-standard-role-slot
+   :state {:setup-id setup-id
+           :role-id role-id
+           :label label
+           :selected-terrain-rule-id (ui/project-state :workspace
+                                                       :selection
+                                                       :rule-id)
+           :terrain-rule-selected-tile (ui/project-state :interaction
+                                                         :rule-editor
+                                                         :selected-tile)
+           :terrain-rule-selected-mask (ui/project-state :interaction
+                                                         :rule-editor
+                                                         :selected-mask)
+           :terrain-rule-mask-polarity (ui/project-state :interaction
+                                                         :rule-editor
+                                                         :mask-polarity)
+           :terrain-standard-output-picker-tab (ui/project-state :workspace
+                                                                 :tabs
+                                                                 :standard-output-picker)
+           :tilesets (ui/project-state :reference-data :tilesets)
+           :mask-sets (ui/project-state :reference-data :mask-sets)
+           :terrain-sets (ui/project-state :subject :terrain-sets)
+           :selected-terrain-set-index (ui/project-state :workspace
+                                                         :selection
+                                                         :terrain-set-index)
+           :selected-terrain-index (ui/project-state :workspace
+                                                     :selection
+                                                     :terrain-index)
+           :terrain-standard-role-cache-opposing (ui/project-state :derived
+                                                                   :standard-role-cache-opposing)
+           :terrain-standard-role-slots (ui/project-state :derived :standard-role-slots)}})
+
+(defun terrain-standard-role-placeholder-child [setup-id]
+  (let [slot-size (terrain-standard-role-slot-size setup-id)]
+    {:style {:width slot-size
+             :height slot-size}}))
+
+(defun terrain-standard-role-cell-child [setup role-id]
+  (if role-id
+    (terrain-standard-role-slot-child (:id setup)
+                                      role-id
+                                      (model/terrain-standard-role-label
+                                       (:id setup)
+                                       role-id))
+    (terrain-standard-role-placeholder-child (:id setup))))
+
+(defun terrain-standard-setup-row-child [setup row]
+  (let [slot-size (terrain-standard-role-slot-size (:id setup))]
+    {:style {:width :shrink
+             :height slot-size
+             :layout {:direction :row
+                      :gap terrain-standard-slot-gap}}
+     :state {:subject (ui/project-state :subject)
+             :reference-data (ui/project-state :reference-data)
+             :workspace (ui/project-state :workspace)
+             :interaction (ui/project-state :interaction)
+             :derived (ui/project-state :derived)}
+     :children (for [role-id row]
+                 (terrain-standard-role-cell-child setup role-id))}))
+
+(defun terrain-standard-setup-menu-items []
+  (for [setup model/terrain-standard-setup-definitions]
+    {:label (:label setup)
+     :type :toggle
+     :action :terrain/standard-setup-visibility-toggle
+     :payload (:id setup)
+     :selected-path [:option-state (:id setup)]}))
+
+(def terrain-standard-setup-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items (terrain-standard-setup-menu-items)})
+
+(defun terrain-standard-setup-menu-option-state [state]
+  (reduce model/terrain-standard-setup-definitions
+          {}
+          (fn [options setup]
+            (assoc options
+                   (:id setup)
+                   (model/terrain-standard-setup-visible?
+                    state
+                    (:id setup))))))
+
+(defcomponent terrain-standard-setup-menu-button
+  {:extend 'ui/button
+   :style {:width 86
+           :height 22}
+   :on-mouse-up
+   (fn [state event ctx]
+     (ui/stop-propagation! event)
+     (when (and (= (:button event) :left)
+                (not (:disabled? state)))
+       (menu/open-context-menu!
+        terrain-standard-setup-menu
+        (:global-position event)
+        (assoc state
+               :option-state
+               (terrain-standard-setup-menu-option-state state))
+        ctx))
+     state)
+   :on {:menu/select
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                setup-id (-> payload :payload)]
+            (ui/stop-propagation! event)
+            (when (= (:type payload) :action)
+              (let [next-state
+                    (model/set-selected-terrain-standard-setup-visible
+                     state
+                     setup-id
+                     (not (model/terrain-standard-setup-visible?
+                           state
+                           setup-id)))]
+                (ui/emit! (:view ctx)
+                          :action/mutate!
+                          {:label "Change standard terrain setups"
+                           :op :value/set
+                           :target {:path [:terrain-sets]}
+                           :args {:value (:terrain-sets next-state)}})))
+            state))}})
+
+(defcomponent terrain-standard-setup-panel
+  {:style {:width :shrink
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [visible?
+                   (model/terrain-standard-setup-visible?
+                    {:terrain-sets (-> state :subject :terrain-sets)
+                     :selected-terrain-set-index
+                     (-> state :workspace :selection :terrain-set-index)
+                     :selected-terrain-index
+                     (-> state :workspace :selection :terrain-index)}
+                    (:setup-id state))]
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if visible? :visible :none))
+               (assoc-in! ctx
+                          [:view :style :width]
+                          (if visible? :shrink 0))
+               (assoc-in! ctx
+                          [:view :style :height]
+                          (if visible? :shrink 0))
+               state))})
+
+(defun terrain-standard-setup-panel-state [setup]
+  "Projects state for a semantic setup panel. `setup` is its setup definition.
+  Returns grouped terrain editor inputs plus the setup id."
+  {:setup-id (:id setup)
+   :subject (ui/project-state :subject)
+   :reference-data (ui/project-state :reference-data)
+   :workspace (ui/project-state :workspace)
+   :interaction (ui/project-state :interaction)
+   :derived (ui/project-state :derived)})
+
+(defun terrain-standard-setup-panel-child [setup]
+  {:mode 'terrain-standard-setup-panel
+   :state (terrain-standard-setup-panel-state setup)
+   :children (concat [{:mode 'ui/text
+                       :class :ui/title
+                       :state {:value (:label setup)}}]
+                     (for [row (:matrix setup)]
+                       (terrain-standard-setup-row-child setup row)))})
+
+(defun terrain-standard-setup-panel-groups-content-child []
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :row
+                    :wrap :line
+                    :align-items :start
+                    :gap terrain-standard-setup-panel-column-gap
+                    :line-gap terrain-standard-setup-panel-row-gap}}
+   :state {:subject (ui/project-state :subject)
+           :reference-data (ui/project-state :reference-data)
+           :workspace (ui/project-state :workspace)
+           :interaction (ui/project-state :interaction)
+           :derived (ui/project-state :derived)}
+   :children (map model/terrain-standard-setup-definitions
+                  terrain-standard-setup-panel-child)})
+
+(defun terrain-standard-setup-panel-scroll-content-style [state]
+  {:position :absolute
+   :left 0
+   :top (* -1 (or (:offset state) 0))
+   :width :fill
+   :height terrain-standard-setup-panel-content-height})
+
+(defcomponent terrain-standard-setup-panel-scroll-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (when (not-empty? children)
+                 (ui/style! (head children)
+                            (terrain-standard-setup-panel-scroll-content-style
+                             state)))
+               state))
+   :children [(terrain-standard-setup-panel-groups-content-child)]})
+
+(defcomponent terrain-standard-setup-panel-scroll-row
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height terrain-standard-setup-panel-content-height))
+   :children [{:mode 'terrain-standard-setup-panel-scroll-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :subject (ui/project-state :subject)
+                       :reference-data (ui/project-state :reference-data)
+                       :workspace (ui/project-state :workspace)
+                       :interaction (ui/project-state :interaction)
+                       :derived (ui/project-state :derived)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step 48
+                       :content-size (ui/bind-state :content-height)}}]})
+
+(defun terrain-standard-setup-panel-groups-child []
+  {:mode 'terrain-standard-setup-panel-scroll-row
+   :state {:subject (ui/project-state :subject)
+           :reference-data (ui/project-state :reference-data)
+           :workspace (ui/project-state :workspace)
+           :interaction (ui/project-state :interaction)
+           :derived (ui/project-state :derived)}})
+
+(defun terrain-standard-opposing-terrain-menu-item [terrain]
+  {:label (model/terrain-standard-opposing-terrain-label terrain)
+   :type :toggle
+   :action :terrain/standard-opposing-menu
+   :payload {:action :toggle-terrain
+             :terrain-id (:id terrain)}
+   :selected-path [:option-state (:id terrain)]})
+
+(defun terrain-standard-opposing-menu-items [state]
+  (let [terrain-set (model/selected-terrain-set (:terrain-sets state)
+                                                (:selected-terrain-set-index
+                                                 state))
+        center-terrain-id (model/selected-terrain-id state)]
+    (concat [{:label "None"
+              :type :action
+              :action :terrain/standard-opposing-menu
+              :payload {:action :set-opposing
+                        :opposing :none}}
+             {:label "Any other"
+              :type :action
+              :action :terrain/standard-opposing-menu
+              :payload {:action :set-opposing
+                        :opposing :any-other}}
+             {:label "Not same or empty"
+              :type :action
+              :action :terrain/standard-opposing-menu
+              :payload {:action :set-opposing
+                        :opposing :not-same-or-none}}]
+            (keep (:terrains terrain-set)
+                  (fn [terrain]
+                    (when (not= (:id terrain) center-terrain-id)
+                      (terrain-standard-opposing-terrain-menu-item terrain)))))))
+
+(defun terrain-standard-opposing-menu [state]
+  {:settings {:mnemonics {:enabled false}}
+   :items (terrain-standard-opposing-menu-items state)})
+
+(defun terrain-standard-opposing-menu-option-state [state]
+  (reduce (model/terrain-standard-opposing-terrain-values state)
+          {}
+          (fn [options terrain-id]
+            (assoc options
+                   terrain-id
+                   (model/terrain-standard-opposing-selected?
+                    state
+                    terrain-id)))))
+
+(defcomponent terrain-standard-opposing-selector
+  {:extend 'ui/button
+   :style {:width 180
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :label (model/terrain-standard-opposing-label
+                            state
+                            (model/selected-terrain-standard-opposing state))
+                    :disabled? (nil? (model/selected-terrain-id state))))
+   :on-mouse-up
+   (fn [state event ctx]
+     (ui/stop-propagation! event)
+     (when (and (= (:button event) :left)
+                (not (:disabled? state)))
+       (menu/open-context-menu!
+        (terrain-standard-opposing-menu state)
+        (:global-position event)
+        (assoc state
+               :option-state
+               (terrain-standard-opposing-menu-option-state state))
+        ctx))
+     state)
+   :on {:menu/select
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                action-payload (-> payload :payload)]
+            (ui/stop-propagation! event)
+            (when (= (:type payload) :action)
+              (ui/emit! (:view ctx)
+                        :terrain/standard-opposing-change
+                        (case (:action action-payload)
+                          :set-opposing (:opposing action-payload)
+                          :toggle-terrain
+                          (model/toggle-terrain-standard-opposing
+                           state
+                           (:terrain-id action-payload))
+                          :default
+                          (model/selected-terrain-standard-opposing
+                           state))))
+            state))}})
+
+(defun terrain-standard-mask-drag-payload? [payload]
+  (= (:kind payload) :terrain-rule/mask-output))
+
+(defun terrain-standard-mask-options [state]
+  (model/terrain-mask-options-for-selected-terrain state))
+
+(defun terrain-standard-mask-picker-content-height [state]
+  (let [options (terrain-standard-mask-options state)
+        columns (manual/terrain-stamp-tile-picker-columns
+                 {:w manual/terrain-stamp-tile-picker-width})]
+    (manual/terrain-stamp-tile-picker-content-height (count options) columns)))
+
+(defun terrain-standard-mask-picker-content-size [state]
+  {:w manual/terrain-stamp-tile-picker-width
+   :h (terrain-standard-mask-picker-content-height state)})
+
+(defun terrain-standard-mask-picker-content-state [state]
+  (select-keys state
+               [:terrain-sets
+                :selected-terrain-set-index
+                :selected-terrain-index
+                :terrain-standard-opposing
+                :terrain-rule-selected-mask
+                :terrain-rule-mask-polarity
+                :tilesets
+                :mask-sets]))
+
+(defun terrain-standard-mask-at-picker-index [state index]
+  (when index
+    (nth (terrain-standard-mask-options state) index)))
+
+(defun terrain-standard-mask-option-from-drag [state event ctx]
+  (if (contains? state :value)
+    {:value (:value state)
+     :label (:label state)}
+    (let [index (manual/terrain-stamp-tile-picker-index-at-position
+                 (:start-position event)
+                 (-> ctx :view :bounds)
+                 (count (terrain-standard-mask-options state)))]
+      (terrain-standard-mask-at-picker-index state index))))
+
+(defun terrain-standard-mask-drag-payload [state event ctx]
+  (when-let [option (terrain-standard-mask-option-from-drag state event ctx)]
+    {:kind :terrain-rule/mask-output
+     :mask (model/mask-ref-with-polarity
+            (:value option)
+            (:terrain-rule-mask-polarity state))
+     :label (:label option)}))
+
+(defun select-terrain-standard-mask-at-event! [state event ctx]
+  (let [index (manual/terrain-stamp-tile-picker-index-at-position
+               (:position event)
+               (-> ctx :view :bounds)
+               (count (terrain-standard-mask-options state)))
+        option (terrain-standard-mask-at-picker-index state index)]
+    (ui/stop-propagation! event)
+    (ui/focus! ctx)
+    (when option
+      (ui/emit! (:view ctx)
+                :terrain/rule-stamp-mask-select
+                (:value option)))
+    state))
+
+(defun draw-terrain-standard-mask-picker-cell! [state option index columns]
+  (let [rect (manual/terrain-stamp-tile-picker-cell-rect index columns)
+        mask-ref (model/mask-ref-with-polarity
+                  (:value option)
+                  (:terrain-rule-mask-polarity state))]
+    (r/rect! rect {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+    (draw-terrain-standard-transition-preview!
+     state
+     mask-ref
+     {:x (+ (:x rect) 4)
+      :y (+ (:y rect) 4)
+      :w (- (:w rect) 8)
+      :h (- (:h rect) 8)})
+    (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+    (when (contains? (:selected-indices state) index)
+      (r/rect! (manual/terrain-stamp-tile-picker-selected-rect rect)
+               {:color {:r 0xff :g 0xcc :b 0x66}}))))
+
+(defcomponent terrain-standard-mask-picker-grid
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true
+           :cursor :pointer}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload terrain-standard-mask-drag-payload}
+   :on-drag-start manual/emit-terrain-stamp-tile-drag-start!
+   :on-drag manual/emit-terrain-stamp-tile-drag-move!
+   :on-drag-end manual/emit-terrain-stamp-tile-drag-end!
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-indices
+                    (model/terrain-rule-selected-mask-indices state)))
+   :on-mouse-down select-terrain-standard-mask-at-event!
+   :render (fn [state ctx]
+             (let [options (terrain-standard-mask-options state)
+                   columns (manual/terrain-stamp-tile-picker-columns
+                            (-> ctx :view :bounds))]
+               (for-indexed [index option options]
+                 (draw-terrain-standard-mask-picker-cell!
+                  state
+                  option
+                  index
+                  columns))))})
+
+(defcomponent terrain-standard-mask-picker-scroll-pane
+  {:style {:width manual/terrain-stamp-tile-picker-width
+           :height :fill}
+   :update (fn [state ctx]
+             (assoc state
+                    :content-size
+                    (terrain-standard-mask-picker-content-size state)
+                    :picker-state
+                    (terrain-standard-mask-picker-content-state state)))
+   :children [(sp/make {:style {:width :fill
+                                :height :fill}
+                        :content-size {:w manual/terrain-stamp-tile-picker-width
+                                       :h manual/terrain-stamp-tile-picker-height}
+                        :state {:content-size (ui/bind-state :content-size)
+                                :content-state (ui/bind-state :picker-state)}
+                        :scroll-x? false
+                        :scroll-y? :auto
+                        :step (manual/terrain-stamp-tile-picker-stride)
+                        :children [{:mode 'terrain-standard-mask-picker-grid
+                                    :style {:width :fill
+                                            :height :fill}
+                                    :state (ui/bind-state)}]})]})
+
+(defcomponent terrain-standard-mask-polarity-selector
+  {:style {:width :fill
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :mask-polarity-options
+                    model/terrain-rule-mask-polarity-options
+                    :selected-mask-polarity-index
+                    (model/terrain-rule-mask-polarity-index state)))
+   :on {:combo-box/change
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :terrain/rule-stamp-mask-polarity-change
+                    (:value payload))
+          (assoc state
+                 :terrain-rule-mask-polarity (:value payload)
+                 :selected-mask-polarity-index
+                 (:selected-index payload)))}
+   :children [(cb/make {:options (ui/bind-state :mask-polarity-options)
+                        :selected-index (ui/bind-state :selected-mask-polarity-index)})]})
+
+(defcomponent terrain-standard-mask-picker
+  {:style {:width manual/terrain-stamp-tile-picker-width
+           :height manual/terrain-stamp-tile-picker-height
+           :layout {:direction :column
+                    :gap 6}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Masks"}}
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 6}}
+               :state (ui/bind-state)
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 56}
+                           :state {:value "Polarity"}}
+                          {:mode 'terrain-standard-mask-polarity-selector
+                          :state {:terrain-rule-mask-polarity (ui/project-state :terrain-rule-mask-polarity)}}]}
+              {:mode 'terrain-standard-mask-picker-scroll-pane
+               :state (ui/bind-state)}]})
+
+(defun terrain-standard-output-picker-state []
+  "Projects grouped state for the semantic output picker. Takes no arguments
+  and returns the shared editor input map."
+  {:subject (ui/project-state :subject)
+   :reference-data (ui/project-state :reference-data)
+   :editor-context (ui/project-state :editor-context)
+   :workspace (ui/bind-state :workspace)
+   :interaction (ui/project-state :interaction)})
+
+(defun terrain-standard-tile-picker-state [tab-id]
+  "Projects state for one semantic tile picker. `tab-id` identifies the output
+  kind. Returns the flat input map consumed by the picker control."
+  {:rulesets (ui/project-state :subject :rulesets)
+   :selected-terrain-ruleset-id (ui/project-state :workspace
+                                                  :selection
+                                                  :ruleset-id)
+   :selected-terrain-rule-id (ui/project-state :workspace
+                                               :selection
+                                               :rule-id)
+   :selected-terrain-rule-match-direction (ui/project-state :workspace
+                                                            :rule-editor
+                                                            :match-direction)
+   :terrain-rule-selected-tile (ui/project-state :interaction
+                                                 :rule-editor
+                                                 :selected-tile)
+   :terrain-rule-selected-mask (ui/project-state :interaction
+                                                 :rule-editor
+                                                 :selected-mask)
+   :terrain-rule-mask-polarity (ui/project-state :interaction
+                                                 :rule-editor
+                                                 :mask-polarity)
+   :terrain-standard-opposing (ui/project-state :workspace
+                                                :rule-editor
+                                                :opposing)
+   :terrain-standard-output-picker-tab tab-id
+   :terrain-sets (ui/project-state :subject :terrain-sets)
+   :selected-terrain-set-index (ui/project-state :workspace
+                                                 :selection
+                                                 :terrain-set-index)
+   :selected-terrain-index (ui/project-state :workspace
+                                             :selection
+                                             :terrain-index)
+   :tilesets (ui/project-state :reference-data :tilesets)
+   :mask-sets (ui/project-state :reference-data :mask-sets)
+   :layers (ui/project-state :editor-context :layers)
+   :layer-profiles (ui/project-state :reference-data :layer-profiles)
+   :selected-layer-profile-id (ui/project-state :editor-context :layer-profile-id)})
+
+(defun terrain-standard-mask-picker-state []
+  "Projects state for the semantic mask picker. Takes no arguments and returns
+  the flat input map consumed by the picker control."
+  {:terrain-sets (ui/project-state :subject :terrain-sets)
+   :selected-terrain-set-index (ui/project-state :workspace
+                                                 :selection
+                                                 :terrain-set-index)
+   :selected-terrain-index (ui/project-state :workspace
+                                             :selection
+                                             :terrain-index)
+   :terrain-standard-opposing (ui/project-state :workspace
+                                                :rule-editor
+                                                :opposing)
+   :terrain-rule-selected-mask (ui/project-state :interaction
+                                                 :rule-editor
+                                                 :selected-mask)
+   :terrain-rule-mask-polarity (ui/project-state :interaction
+                                                 :rule-editor
+                                                 :mask-polarity)
+   :tilesets (ui/project-state :reference-data :tilesets)
+   :mask-sets (ui/project-state :reference-data :mask-sets)})
+
+(defun terrain-standard-output-picker-tabs-panel []
+  (tabs/make
+   {:selected-tab (ui/bind-state :workspace
+                                 :tabs
+                                 :standard-output-picker)
+    :style {:width manual/terrain-stamp-tile-picker-width
+            :height :fill}
+    :state (terrain-standard-output-picker-state)
+    :tabs [{:id :tiles
+            :label "Tiles"
+            :child {:mode 'terrain-stamp-tile-picker-scroll-pane
+                    :state (terrain-standard-tile-picker-state :tiles)}}
+           {:id :overlays
+            :label "Overlays"
+            :child {:mode 'terrain-stamp-tile-picker-scroll-pane
+                    :state (terrain-standard-tile-picker-state :overlays)}}
+           {:id :masks
+            :label "Masks"
+            :child {:mode 'terrain-standard-mask-picker
+                    :state (terrain-standard-mask-picker-state)}}]}))
+
+(defcomponent terrain-standard-output-picker-tabs
+  {:style {:width manual/terrain-stamp-tile-picker-width
+           :height :fill}
+   :children [(terrain-standard-output-picker-tabs-panel)]})
+
+(defcomponent terrain-standard-setup-editor
+  {:style {:width :fill
+           :height :fill
+           :padding [10 12]
+           :layout {:direction :row
+                    :gap 12}}
+   :on {:tab-panel/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (assoc-in state
+                    [:workspace :tabs :standard-output-picker]
+                    (-> event :payload :tab)))}
+   :children [{:style {:width :fill
+                       :height :fill
+                       :layout {:direction :column
+                                :gap 10}}
+               :state {:subject (ui/project-state :subject)
+                       :reference-data (ui/project-state :reference-data)
+                       :workspace (ui/project-state :workspace)
+                       :interaction (ui/project-state :interaction)
+                       :derived (ui/project-state :derived)}
+               :children [{:style {:width :fill
+                                   :height 24
+                                   :layout {:direction :row
+                                            :align-items :center
+                                            :gap 8}}
+                           :state {:subject (ui/project-state :subject)
+                                   :workspace (ui/project-state :workspace)}
+                           :children [{:mode 'ui/text
+                                      :state {:value "Opposing"}}
+                                      {:mode 'terrain-standard-opposing-selector
+                                       :state
+                                       {:terrain-sets (ui/project-state :subject
+                                                                        :terrain-sets)
+                                        :selected-terrain-set-index (ui/project-state :workspace
+                                                                                      :selection
+                                                                                      :terrain-set-index)
+                                        :selected-terrain-index (ui/project-state :workspace
+                                                                                  :selection
+                                                                                  :terrain-index)
+                                        :terrain-standard-opposing (ui/project-state :workspace
+                                                                                     :rule-editor
+                                                                                     :opposing)}}
+                                      {:mode 'terrain-standard-setup-menu-button
+                                       :state {:label "Groups"
+                                               :terrain-sets (ui/project-state :subject
+                                                                               :terrain-sets)
+                                               :selected-terrain-set-index (ui/project-state :workspace
+                                                                                             :selection
+                                                                                             :terrain-set-index)
+                                               :selected-terrain-index (ui/project-state :workspace
+                                                                                         :selection
+                                                                                         :terrain-index)}}]}
+                          {:style {:width :fill
+                                   :height :fill}
+                           :state {:subject (ui/project-state :subject)
+                                   :reference-data (ui/project-state :reference-data)
+                                   :workspace (ui/project-state :workspace)
+                                   :interaction (ui/project-state :interaction)
+                                   :derived (ui/project-state :derived)}
+                           :children [(terrain-standard-setup-panel-groups-child)]}]}
+              {:style {:width manual/terrain-stamp-tile-picker-width
+                       :height :fill
+                       :layout {:direction :column
+                                :gap 8}}
+               :state (terrain-standard-output-picker-state)
+               :children [{:mode 'terrain-standard-output-picker-tabs
+                           :state (terrain-standard-output-picker-state)}]}]})

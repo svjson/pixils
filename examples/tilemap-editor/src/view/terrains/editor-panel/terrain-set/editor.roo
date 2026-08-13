@@ -1,0 +1,133 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain-set.editor
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.tilemap.project.model :as data]
+            tilemap-editor.view.property-sets.layout
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defcomponent terrain-readonly-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :style {:width 220}
+               :state {:value (ui/bind-state :value)}}]})
+
+(defun terrain-readonly-field-child [label value]
+  {:mode 'terrain-readonly-field
+   :state {:label label
+           :value value}})
+
+(defcomponent terrain-preview-tileset-selector
+  {:style {:width 220
+           :height 22}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))
+                   tilesets (or (:tilesets state) [])]
+               (assoc state
+                      :tileset-options (data/tileset-options tilesets)
+                      :selected-preview-tileset-index
+                      (data/tileset-index tilesets (:tileset terrain-set))
+                      :disabled? (or (nil? terrain-set)
+                                     (empty? tilesets)))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (ui/emit! (:view ctx)
+                                      :terrain/tileset-change
+                                      (-> event :payload :selected-index))
+                            state)}
+   :children [(cb/make {:options (ui/bind-state :tileset-options)
+                        :selected-index
+                        (ui/bind-state :selected-preview-tileset-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent terrain-unit-selector
+  {:style {:width 110
+           :height 22}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))]
+               (assoc state
+                      :terrain-unit-options model/terrain-unit-options
+                      :selected-terrain-unit-index
+                      (model/terrain-unit-option-index
+                       (data/terrain-unit terrain-set))
+                      :disabled? (nil? terrain-set))))
+   :on {:combo-box/change (fn [state {:keys [payload]} ctx]
+                            (ui/emit! (:view ctx)
+                                      :terrain/unit-change
+                                      (:value payload))
+                            (assoc state
+                                   :selected-terrain-unit-index
+                                   (:selected-index payload)))}
+   :children [(cb/make {:options (ui/bind-state :terrain-unit-options)
+                        :selected-index
+                        (ui/bind-state :selected-terrain-unit-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defun terrain-set-detail-editor-children []
+  [(terrain-readonly-field-child "Id" (ui/bind-state :set-id))
+   (terrain-readonly-field-child "Name" (ui/bind-state :set-label))
+   {:mode 'ui/button
+    :style {:width 78
+            :height 24}
+    :state {:label "Edit"
+            :disabled? (ui/bind-state :set-disabled?)}
+    :on-click (fn [state event ctx]
+                (ui/emit! (:view ctx) :terrain/set-edit)
+                state)}
+   {:mode 'ui/text
+    :class :ui/muted
+    :state {:value "Preview tileset"}}
+   {:mode 'terrain-preview-tileset-selector
+    :state {:terrain-sets (ui/project-state :terrain-sets)
+            :selected-terrain-set-index
+            (ui/project-state :selected-terrain-set-index)
+            :tilesets (ui/project-state :tilesets)}}
+   {:mode 'ui/text
+    :class :ui/muted
+    :state {:value "Terrain unit"}}
+   {:mode 'terrain-unit-selector
+    :state {:terrain-sets (ui/project-state :terrain-sets)
+            :selected-terrain-set-index
+            (ui/project-state :selected-terrain-set-index)}}
+   {:mode 'property-set-assignment-list
+    :state {:kind :terrain-set
+            :property-sets (ui/project-state :property-sets)
+            :assigned-property-set-ids
+            (ui/bind-state :property-set-ids)
+            :disabled? (ui/bind-state :set-disabled?)}}
+   {:mode 'property-value-list
+    :state {:title "Terrain Set Properties"
+            :kind :terrain-set-default
+            :property-sets (ui/project-state :property-sets)
+            :property-set-ids
+            (ui/bind-state :property-set-ids)
+            :default-values {}
+            :override-values
+            (ui/bind-state :property-default-values)
+            :disabled? (ui/bind-state :set-disabled?)}}])
+
+(defcomponent terrain-set-detail-editor
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))]
+               (assoc state
+                      :property-set-ids (:property-sets terrain-set)
+                      :property-default-values (:properties terrain-set))))
+   :children (terrain-set-detail-editor-children)})
+

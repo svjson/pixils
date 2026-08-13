@@ -1,0 +1,78 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
+             :as manual]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-base-tile-popup-children
+
+(deftest terrain-base-tile-popup-children/uses-tile-picker-panel
+  (let [children (manual/terrain-base-tile-popup-children {:x 10 :y 20})
+        picker (head children)]
+    (is (= 'terrain-base-tile-picker-scroll-pane (:mode picker)))
+    (is (= :absolute (-> picker :style :position)))
+    (is (= 10 (-> picker :style :left)))
+    (is (= 20 (-> picker :style :top)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-stamp-tile-picker-columns
+
+(deftest terrain-stamp-tile-picker-columns/tolerates-unlaid-out-bounds
+  (is (= 1 (manual/terrain-stamp-tile-picker-columns nil)))
+  (is (= {:x 0 :y 0 :w 32 :h 32}
+         (manual/terrain-stamp-tile-picker-cell-rect 0 nil))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-stamp-tile-picker-content-height
+
+(deftest terrain-stamp-tile-picker-content-height/grows-for-hidden-rows
+  (is (= 100 (manual/terrain-stamp-tile-picker-content-height 7 3)))
+  (is (= 100 (manual/terrain-stamp-tile-picker-content-height 8 3)))
+  (is (> (manual/terrain-stamp-tile-picker-content-height 22 3)
+         manual/terrain-stamp-tile-picker-height)))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-rule-transform-menu
+
+(deftest terrain-rule-transform-menu/includes-flip-and-rotate-commands
+  (let [items (:items manual/terrain-rule-transform-menu)]
+    (is (= :flip-horizontal (-> items head :payload :command)))
+    (is (= :flip-vertical (-> (nth items 1) :payload :command)))
+    (is (= :rotate-left (-> (nth items 3) :payload :command)))
+    (is (= :rotate-right (-> (nth items 4) :payload :command)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-stamp-tile-picker-scroll-pane
+
+(deftest terrain-stamp-tile-picker-scroll-pane/is-column-shaped
+  (is (< manual/terrain-stamp-tile-picker-width
+         manual/terrain-stamp-tile-picker-height))
+  (is (>= manual/terrain-stamp-tile-picker-width
+          manual/terrain-stamp-tile-picker-cell-size)))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-stamp-grid-size-for-unit
+
+(deftest terrain-stamp-grid-size-for-unit/follows-terrain-unit
+  (is (= {:w 32 :h 32}
+         (manual/terrain-stamp-grid-size-for-unit {:w 1 :h 1})))
+  (is (= {:w 66 :h 66}
+         (manual/terrain-stamp-grid-size-for-unit {:w 2 :h 2}))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-stamp-grid-preview
+
+(deftest terrain-stamp-grid-preview/renders-two-by-two-max
+  (let [row (manual/terrain-stamp-grid-row 0)]
+    (is (= 2 (count (:children row))))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor/terrain-rule-output-tileset-options
+
+(deftest terrain-rule-output-tileset-options/uses-tileset-ids
+  (is (= [{:value :water :label "Water"}
+          {:value :roads :label "Roads"}]
+         (manual/terrain-rule-output-tileset-options
+          [{:id :water :label "Water"}
+           {:id :roads :label "Roads"}]))))

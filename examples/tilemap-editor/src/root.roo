@@ -6,19 +6,20 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.maps :as map-model]
+            [tilemap-editor.model.mutation :as mutation]
             [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.model.view-state :as view-state]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
+            [tilemap-editor.view.terrains.model :as terrain-model]
             tilemap-editor.view.brushes.layout
             tilemap-editor.view.masks.panel
             [tilemap-editor.view.menu :as app-menu]
             tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.project.dialogs :as project-dialogs]
             tilemap-editor.view.resources.layout
-            tilemap-editor.view.terrains.layout
-            [tilemap-editor.view.terrains.rules.mutations :as rule-mutations]
+            tilemap-editor.view.terrains.workspace
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.dialogs
             tilemap-editor.view.tileset.layout))
@@ -132,9 +133,17 @@
   workbook history. The action contains `:op`, `:target`, and `:args` mutation
   data. Returns the updated workbook-backed editor state."
   [state action]
-  (editor-workbook/change-to state
-                             (:label action)
-                             (rule-mutations/apply state action)))
+  (let [next-state (mutation/apply state action)
+        next-state
+        (if (not= (:rulesets state) (:rulesets next-state))
+          (terrain-model/clear-terrain-standard-role-slot-cache
+           (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
+            state
+            next-state
+            (or (terrain-model/selected-terrain-ruleset-id state)
+                (terrain-model/selected-terrain-ruleset-id next-state))))
+          next-state)]
+    (editor-workbook/change-to state (:label action) next-state)))
 
 (defun apply-theme-selection! [state payload]
   (if (contains? payload :variant)

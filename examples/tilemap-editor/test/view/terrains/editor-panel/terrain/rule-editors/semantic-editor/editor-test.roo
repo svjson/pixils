@@ -1,0 +1,213 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor-test
+  (:require proof.core
+            [pixils.ui :as ui]
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor
+             :as semantic]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-output-picker-tabs-panel
+
+(deftest terrain-standard-output-picker-tabs-panel/includes-tiles-overlays-and-masks
+  (let [panel (semantic/terrain-standard-output-picker-tabs-panel)
+        tabs (-> panel :state :tabs)]
+    (is (= :tiles (-> tabs head :id)))
+    (is (= "Tiles" (-> tabs head :label)))
+    (is (= 'terrain-stamp-tile-picker-scroll-pane
+           (-> tabs head :child :mode)))
+    (is (= :overlays (-> tabs (nth 1) :id)))
+    (is (= "Overlays" (-> tabs (nth 1) :label)))
+    (is (= 'terrain-stamp-tile-picker-scroll-pane
+           (-> tabs (nth 1) :child :mode)))
+    (is (= :masks (-> tabs (nth 2) :id)))
+    (is (= "Masks" (-> tabs (nth 2) :label)))
+    (is (= 'terrain-standard-mask-picker
+           (-> tabs (nth 2) :child :mode)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-output-picker-state
+
+(deftest terrain-standard-output-picker-state/groups-editor-inputs
+  (is (= {:subject (ui/project-state :subject)
+          :reference-data (ui/project-state :reference-data)
+          :editor-context (ui/project-state :editor-context)
+          :workspace (ui/bind-state :workspace)
+          :interaction (ui/project-state :interaction)}
+         (semantic/terrain-standard-output-picker-state))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-mask-drag-payload
+
+(deftest terrain-standard-mask-drag-payload/identifies-mask
+  (let [payload (semantic/terrain-standard-mask-drag-payload
+                 {:value {:mask-set :soft-edge
+                          :mask :north}
+                  :label "North"}
+                 {}
+                 {})]
+    (is (= :terrain-rule/mask-output (:kind payload)))
+    (is (= {:mask-set :soft-edge
+            :mask :north
+            :polarity :solid-is-current}
+           (:mask payload)))))
+
+(deftest terrain-standard-mask-drag-payload/keeps-selected-polarity
+  (let [payload (semantic/terrain-standard-mask-drag-payload
+                 {:value {:mask-set :soft-edge
+                          :mask :north}
+                  :label "North"
+                  :terrain-rule-mask-polarity :solid-is-opposing}
+                 {}
+                 {})]
+    (is (= :terrain-rule/mask-output (:kind payload)))
+    (is (= {:mask-set :soft-edge
+            :mask :north
+            :polarity :solid-is-opposing}
+           (:mask payload)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-mask-options
+
+(deftest terrain-standard-mask-options/scopes-options-to-selected-terrain
+  (let [options (semantic/terrain-standard-mask-options
+                 {:terrain-sets [{:id :overworld
+                                  :terrains [{:id :grass
+                                              :transition-mask-set
+                                              :soft-edge}]}]
+                  :selected-terrain-set-index 0
+                  :selected-terrain-index 0
+                  :mask-sets [{:id :soft-edge
+                               :masks [{:id :north
+                                        :label "North"}]}
+                              {:id :hard-edge
+                               :masks [{:id :south
+                                        :label "South"}]}]})]
+    (is (= [{:value {:mask-set :soft-edge
+                     :mask :north}
+             :label "North"}]
+           options))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-transition-preview-draw-tile
+
+(deftest terrain-standard-transition-preview-draw-tile/uses-mask-source-size
+  (let [tile {:type :transition-mask
+              :id :grass-water
+              :image :pixils-transition-cache/grass-water
+              :size {:w 16 :h 16}
+              :mask-source {:size {:w 64 :h 48}}}
+        preview (semantic/terrain-standard-transition-preview-draw-tile tile)]
+    (is (= {:w 64 :h 48}
+           (:size preview)))
+    (is (= :pixils-transition-cache/preview-grass-water-64x48
+           (:image preview)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-setup-editor
+
+(deftest terrain-standard-setup-editor/exposes-role-slots
+  (let [slot (semantic/terrain-standard-role-slot-child :island-3x3 :n "N")]
+    (is (= 'terrain-standard-role-slot (:mode slot)))
+    (is (= :island-3x3 (-> slot :state :setup-id)))
+    (is (= :n (-> slot :state :role-id)))))
+
+(deftest terrain-standard-setup-editor/includes-group-visibility-menu-button
+  (let [items (:items semantic/terrain-standard-setup-menu)
+        panel (semantic/terrain-standard-setup-panel-child
+               {:id :island-3x3
+                :label "Island"
+                :matrix [[:nw]]})]
+    (is (= :terrain/standard-setup-visibility-toggle
+           (-> items head :action)))
+    (is (= :toggle (-> items head :type)))
+    (is (= [:option-state :island-3x3]
+           (-> items head :selected-path)))
+    (is (= 'terrain-standard-setup-panel (:mode panel)))
+    (is (= :island-3x3 (-> panel :state :setup-id)))
+    (is (= false (contains? (:state panel) :rulesets)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-opposing-menu
+
+(deftest terrain-standard-opposing-menu/includes-terrain-toggles
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}
+                                          {:id :water
+                                           :label "Water"}
+                                          {:id :sand
+                                           :label "Sand"}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :terrain-standard-opposing {:terrain-in [:water]}}
+        menu (semantic/terrain-standard-opposing-menu state)
+        option-state (semantic/terrain-standard-opposing-menu-option-state state)]
+    (is (= "None" (-> menu :items head :label)))
+    (is (= "Any other" (-> menu :items (nth 1) :label)))
+    (is (= "Not same or empty" (-> menu :items (nth 2) :label)))
+    (is (= :not-same-or-none
+           (-> menu :items (nth 2) :payload :opposing)))
+    (is (= "Water" (-> menu :items (nth 3) :label)))
+    (is (= :toggle (-> menu :items (nth 3) :type)))
+    (is (= :toggle-terrain
+           (-> menu :items (nth 3) :payload :action)))
+    (is (= [:option-state :water]
+           (-> menu :items (nth 3) :selected-path)))
+    (is (= true (:water option-state)))
+    (is (= false (:sand option-state)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-setup-panel-groups-content-child
+
+(deftest terrain-standard-setup-panel-groups-content-child/uses-wrapped-row-layout
+  (let [content (semantic/terrain-standard-setup-panel-groups-content-child)
+        layout-style (-> content :style :layout)
+        children (:children content)]
+    (is (= :row (:direction layout-style)))
+    (is (= :line (:wrap layout-style)))
+    (is (= semantic/terrain-standard-setup-panel-column-gap
+           (:gap layout-style)))
+    (is (= semantic/terrain-standard-setup-panel-row-gap
+           (:line-gap layout-style)))
+    (is (= 7 (count children)))
+    (is (= 'terrain-standard-setup-panel (-> children head :mode)))
+    (is (= :island-3x3 (-> children head :state :setup-id)))
+    (is (= :stumps (-> children (nth 6) :state :setup-id)))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-role-marker-directions
+
+(deftest terrain-standard-role-marker-directions/uses-not-same-match-directions
+  (is (= [:nw :n :ne]
+         (semantic/terrain-standard-role-marker-directions :n)))
+  (is (= [:nw]
+         (semantic/terrain-standard-role-marker-directions :inner-nw)))
+  (is (= [:n :w :e :s]
+         (semantic/terrain-standard-role-marker-directions :isolated-cardinal)))
+  (is (= [:nw :ne :sw :se]
+         (semantic/terrain-standard-role-marker-directions :isolated-diagonal))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-role-slot-size
+
+(deftest terrain-standard-role-slot-size/uses-surround-layout-only-for-isolated-setup
+  (is (= 40
+         (semantic/terrain-standard-role-slot-size :island-3x3)))
+  (is (= 40
+         (semantic/terrain-standard-role-slot-size :inner-corners)))
+  (is (= 66
+         (semantic/terrain-standard-role-slot-size :isolated)))
+  (is (= {:x 0 :y 0 :w 40 :h 40}
+         (semantic/terrain-standard-role-tile-rect {:setup-id :island-3x3})))
+  (is (= {:x 13 :y 13 :w 40 :h 40}
+         (semantic/terrain-standard-role-tile-rect {:setup-id :isolated}))))
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.semantic-editor.editor/terrain-standard-role-marker-rect
+
+(deftest terrain-standard-role-marker-rect/returns-third-sized-edge-aligned-rects
+  (is (= {:x 13 :y 0 :w 40 :h 13}
+         (semantic/terrain-standard-role-marker-rect :n)))
+  (is (= {:x 0 :y 13 :w 13 :h 40}
+         (semantic/terrain-standard-role-marker-rect :w)))
+  (is (= {:x 53 :y 53 :w 13 :h 13}
+         (semantic/terrain-standard-role-marker-rect :se))))

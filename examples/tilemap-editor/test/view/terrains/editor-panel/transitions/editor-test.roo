@@ -1,0 +1,13 @@
+(ns tilemap-editor.view.terrains.editor-panel.transitions.editor-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.editor-panel.transitions.editor :as transitions]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.transitions.editor/terrain-transition-summary-field
+
+(deftest terrain-transition-summary-field/renders-label-and-value
+  (let [field (transitions/terrain-transition-summary-field "Recipes" 2)]
+    (is (= "Recipes" (-> field :children head :state :value)))
+    (is (= 2 (-> field :children (nth 1) :state :value)))))
+

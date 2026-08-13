@@ -1,10 +1,11 @@
-(ns tilemap-editor.view.terrains.rules.list-test
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.list-test
   (:require proof.core
-            [tilemap-editor.view.terrains.rules.list :as rule-list]))
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.list
+             :as rule-list]))
 
 
 
-;; tilemap-editor.view.terrains.rules.list/context-menu
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.list/context-menu
 
 (deftest context-menu/includes-duplicate-command
   (is (= {:label "Duplicate"
@@ -14,7 +15,7 @@
 
 
 
-;; tilemap-editor.view.terrains.rules.list/make-list-box
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.list/make-list-box
 
 (deftest make-list-box/enables-reordering
   (is (= {:options []

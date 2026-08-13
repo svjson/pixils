@@ -4,13 +4,6 @@
             [tilemap-editor.view.property-sets.layout :as layout]
             [tilemap-editor.view.property-sets.targets :as targets]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun property-value-list-probe-source []
   "(ns tilemap-editor.test.property-value-list-probe
      (:require pixils
@@ -151,14 +144,14 @@
                                :render-backend false})]
     (runtime/eval! app (property-value-list-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [control (runtime/find-view app "property-value-number-control")]
       (is (= 4 (:value (runtime/view-state control))))
       (runtime/set-active-state!
        app
        (assoc (runtime/active-state app)
               :override-values {:cost 5}))
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (is (= control
              (runtime/find-view app "property-value-number-control")))
       (is (= 5 (:value (runtime/view-state control)))))))

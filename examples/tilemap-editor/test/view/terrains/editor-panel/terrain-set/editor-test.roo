@@ -1,0 +1,32 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain-set.editor-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.editor-panel.terrain-set.editor :as terrain-set]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain-set.editor/terrain-set-detail-editor-children
+
+(deftest terrain-set-detail-editor-children/shows-identity-as-labels
+  (let [children (terrain-set/terrain-set-detail-editor-children)
+        id-field (head children)
+        name-field (nth children 1)
+        edit-button (nth children 2)]
+    (is (= 'terrain-readonly-field (:mode id-field)))
+    (is (= 'terrain-readonly-field (:mode name-field)))
+    (is (= 'ui/button (:mode edit-button)))
+    (is (= "Edit" (-> edit-button :state :label)))))
+
+(deftest terrain-set-detail-editor-children/includes-terrain-unit-selector
+  (let [children (terrain-set/terrain-set-detail-editor-children)
+        label (nth children 5)
+        selector (nth children 6)]
+    (is (= "Terrain unit" (-> label :state :value)))
+    (is (= 'terrain-unit-selector (:mode selector)))))
+
+(deftest terrain-set-detail-editor-children/includes-property-assignment-and-values
+  (let [children (terrain-set/terrain-set-detail-editor-children)
+        assignment (nth children 7)
+        values (nth children 8)]
+    (is (= 'property-set-assignment-list (:mode assignment)))
+    (is (= "Terrain Set Properties" (-> values :state :title)))))
+

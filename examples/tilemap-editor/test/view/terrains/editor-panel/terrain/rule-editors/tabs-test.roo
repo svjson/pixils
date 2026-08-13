@@ -1,0 +1,49 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.ui :as ui]
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs
+             :as tabs]))
+
+
+
+;; tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs/make-tabs
+
+(deftest make-tabs/groups-both-rule-editors
+  (s/when []
+    (let [tabs (-> (tabs/make-tabs) :state :tabs)
+          rules-child (-> tabs head :child)]
+      {:rules-child (dissoc rules-child :on)
+       :setups-tab (nth tabs 1)
+       :rules-handler? (contains? (:on rules-child) :action/mutate!)}))
+
+  (s/then [{:keys [rules-child setups-tab rules-handler?]}]
+    (is (= {:style {:width :fill
+                    :height :fill
+                    :layout {:direction :column}}
+            :state {:subject (ui/project-state :subject)
+                    :reference-data (ui/project-state :reference-data)
+                    :editor-context (ui/project-state :editor-context)
+                    :workspace (ui/bind-state :workspace)
+                    :interaction (ui/project-state :interaction)
+                    :derived (ui/project-state :derived)}
+            :children
+            [{:mode 'terrain-rule-manual-editor
+              :state {:subject (ui/project-state :subject)
+                      :reference-data (ui/project-state :reference-data)
+                      :editor-context (ui/project-state :editor-context)
+                      :workspace (ui/bind-state :workspace)
+                      :interaction (ui/project-state :interaction)
+                      :derived (ui/project-state :derived)}}]}
+           rules-child))
+    (is (= {:id :setups
+            :label "Semantic Roles"
+            :child {:mode 'terrain-standard-setup-editor
+                    :state {:subject (ui/project-state :subject)
+                            :reference-data (ui/project-state :reference-data)
+                            :editor-context (ui/project-state :editor-context)
+                            :workspace (ui/bind-state :workspace)
+                            :interaction (ui/project-state :interaction)
+                            :derived (ui/project-state :derived)}}}
+           setups-tab))
+    (is rules-handler?)))

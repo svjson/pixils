@@ -2,14 +2,24 @@
 
 (defun apply
   "Applies a structural mutation to `state`. `mutation` contains `:op`, a
-  `:target` map with a concrete `:path`, and operation-specific `:args`.
-  Returns the updated state, or the original state when the operation or its
-  arguments are invalid."
+  `:target` map with a concrete `:path`, and operation-specific `:args` holding
+  completed values to set, merge, add, remove, or move. Returns the updated
+  state, or the original state when the operation or its arguments are
+  invalid."
   [state mutation]
   (let [path (-> mutation :target :path)
         args (:args mutation)]
     (if path
       (case (:op mutation)
+        :value/merge
+        (if (map? (:value args))
+          (if (empty? path)
+            (merge state (:value args))
+            (assoc-in state
+                      path
+                      (merge (get-in state path {}) (:value args))))
+          state)
+
         :value/set
         (cond-> state
           (contains? args :value)

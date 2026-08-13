@@ -14,6 +14,19 @@
            :target {:path [:document :name]}
            :args {:value "Overworld"}}))))
 
+(deftest apply/merges-completed-values-at-the-target
+  (is (= {:rulesets [:updated]
+          :selection :rule
+          :unrelated true}
+         (mutation/apply
+          {:rulesets [:original]
+           :selection nil
+           :unrelated true}
+          {:op :value/merge
+           :target {:path []}
+           :args {:value {:rulesets [:updated]
+                          :selection :rule}}}))))
+
 (deftest apply/adds-and-removes-collection-elements
   (is (= {:items [:grass :water]}
          (mutation/apply
@@ -43,4 +56,10 @@
           {:items [:grass]}
           {:op :element/remove
            :target {:path [:items]}
-           :args {:index 4}}))))
+           :args {:index 4}})))
+  (is (= {:document {:name "Untitled"}}
+         (mutation/apply
+          {:document {:name "Untitled"}}
+          {:op :value/merge
+           :target {:path [:document]}
+           :args {:value "Overworld"}}))))

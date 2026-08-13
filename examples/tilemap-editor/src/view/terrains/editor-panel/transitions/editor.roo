@@ -1,0 +1,86 @@
+(ns tilemap-editor.view.terrains.editor-panel.transitions.editor
+  (:require pixils
+            [pixils.ui :as ui]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(defun terrain-transition-summary-field [label value]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value value}}]})
+
+(defcomponent terrain-transition-editor
+  {:style {:width :fill
+           :height :fill
+           :padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [options (model/transition-options state)
+                   transition (model/selected-transition state)
+                   transition-mask-set (model/selected-transition-mask-set
+                                        state)]
+               (assoc state
+                      :transition-count (str (count options))
+                      :transition-label (if transition
+                                          (model/transition-label transition)
+                                          "")
+                      :transition-id (if transition
+                                       (model/transition-id-label
+                                        (:id transition))
+                                       "")
+                      :transition-base
+                      (if transition
+                        (model/transition-id-label (:base-terrain transition))
+                        "")
+                      :transition-overlay
+                      (if transition
+                        (model/transition-id-label
+                         (:overlay-terrain transition))
+                        "")
+                      :transition-mask-set (if transition-mask-set
+                                             (model/mask-set-label
+                                              transition-mask-set)
+                                             "")
+                      :empty-message
+                      (if (empty? options)
+                        "No transition recipes for this terrain set yet."
+                        ""))))
+   :children [{:class :ui/panel
+               :style {:width :fill
+                       :height :shrink
+                       :layout {:direction :column
+                                :gap 8}}
+               :children [{:mode 'ui/text
+                           :class :ui/title
+                           :state {:value "Transitions"}}
+                          (terrain-transition-summary-field
+                           "Recipes"
+                           (ui/bind-state :transition-count))
+                          (terrain-transition-summary-field
+                           "Selected"
+                           (ui/bind-state :transition-label))
+                          (terrain-transition-summary-field
+                           "Id"
+                           (ui/bind-state :transition-id))
+                          (terrain-transition-summary-field
+                           "Base"
+                           (ui/bind-state :transition-base))
+                          (terrain-transition-summary-field
+                           "Overlay"
+                           (ui/bind-state :transition-overlay))
+                          (terrain-transition-summary-field
+                           "Mask set"
+                           (ui/bind-state :transition-mask-set))
+                          {:mode 'ui/text
+                           :class :ui/muted
+                           :state {:value (ui/bind-state
+                                           :empty-message)}}]}]})

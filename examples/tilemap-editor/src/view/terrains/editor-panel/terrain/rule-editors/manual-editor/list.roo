@@ -1,4 +1,4 @@
-(ns tilemap-editor.view.terrains.rules.list
+(ns tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.list
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.list-box :as lb]
@@ -138,24 +138,28 @@
                                      (-> event :payload :value))
                            state)
         :list-box/reorder (fn [state event ctx]
-                            (ui/stop-propagation! event)
-                            (ui/emit! (:view ctx)
-                                      :action/mutate!
-                                      {:label "Move terrain rule"
-                                       :op :terrain-rule/reorder
-                                       :target
-                                       {:kind :terrain-rule-collection
-                                        :ruleset-id
-                                        (:selected-terrain-ruleset-id state)}
-                                       :args {:from (-> event
-                                                        :payload
-                                                        :from-index)
-                                              :to (-> event
-                                                      :payload
-                                                      :to-index)
-                                              :value (-> event
-                                                         :payload
-                                                         :value)}})
+                            (let [next-state
+                                  (model/reorder-selected-terrain-rules
+                                   state
+                                   (-> event :payload :from-index)
+                                   (-> event :payload :to-index)
+                                   (-> event :payload :value))]
+                              (ui/stop-propagation! event)
+                              (ui/emit!
+                               (:view ctx)
+                               :action/mutate!
+                               {:label "Move terrain rule"
+                                :op :value/set
+                                :target {:path []}
+                                :args
+                                {:value
+                                 (:rules
+                                  (model/selected-terrain-ruleset
+                                   next-state))}})
+                              (ui/emit!
+                               (:view ctx)
+                               :terrain/rule-select
+                               (:selected-terrain-rule-id next-state)))
                             state)}
    :children [(merge {:id "terrain-rule-list-box"}
                      (make-list-box {}))]})
