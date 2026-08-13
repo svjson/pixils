@@ -1,0 +1,19 @@
+(ns pixils.test.component-state-binding-probe
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(pixils/defcomponent component-state-child
+  {:ui/state-keys [:value]
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state :value 99))})
+
+(pixils/defcomponent component-state-parent
+  {:ui/state-keys [:value]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state :value 1))
+   :children [{:mode 'component-state-child
+               :ui-state {:value (ui/bind-state :value)}}]})
+
+(pixils/defmode root-mode
+  {:children [{:mode 'component-state-parent
+               :ui/state-policy :isolated}]})

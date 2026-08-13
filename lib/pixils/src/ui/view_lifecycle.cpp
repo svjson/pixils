@@ -394,6 +394,7 @@ namespace Pixils::UI
     view.id = slot.id;
     view.state_binding = slot.state_binding;
     view.component_state_binding = slot.component_state_binding;
+    view.ui_state_binding = slot.ui_state_binding;
     view.state = slot.initial_state;
     view.initial_state = slot.initial_state;
     view.state_policy = slot.state_policy.value_or(parent_state_policy);
@@ -519,6 +520,7 @@ namespace Pixils::UI
       ctx.set_state_from_child_bindings(
         init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state),
         runtime);
+      ctx.set_ui_state_from_child_bindings(*grandchild, runtime);
     }
 
     return Runtime::merge_component_ui_state(

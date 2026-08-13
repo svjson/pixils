@@ -669,6 +669,9 @@ namespace Pixils::Runtime
                                                 hook_args.init_args[1],
                                                 this->active_mode->children.back(),
                                                 parent_state);
+      this->active_mode->set_ui_state_from_child_bindings(
+        *this->active_mode->children.back(),
+        roo_runtime);
     }
 
     this->active_mode->set_state_if_changed(parent_state);

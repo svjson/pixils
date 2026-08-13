@@ -1,0 +1,23 @@
+(ns pixils.ui.component-state-binding-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(deftest ui-state-bindings-connect-parent-and-child-component-state
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/component-state-binding-probe.roo")
+    (runtime/push-mode! app 'root-mode)
+    (is (= 1
+           (:value
+            (:ui-state
+             (runtime/find-view app "component-state-child")))))
+    (runtime/update! app)
+    (is (= 99
+           (:value
+            (:ui-state
+             (runtime/find-view app "component-state-parent")))))
+    (is (nil? (:value (runtime/active-state app))))))

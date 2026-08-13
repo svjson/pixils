@@ -112,6 +112,38 @@ TEST_F(StateBindingTest, component_state_bindings_push_ui_state_changes_to_paren
   EXPECT_EQ(value->to_string(), "99");
 }
 
+TEST_F(StateBindingTest, ui_state_bindings_connect_parent_and_child_component_state)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent child-component
+      {:ui/state-keys [:value]
+       :update-ui (fn [ui-state state ctx]
+                    (assoc ui-state :value 99))})
+    (pixils/defcomponent parent-component
+      {:ui/state-keys [:value]
+       :init-ui (fn [ui-state state ctx]
+                  (assoc ui-state :value 1))
+       :children [{:mode 'child-component
+                   :ui-state {:value (pixils.ui/bind-state :value)}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'parent-component
+                   :ui/state-policy :isolated}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  auto parent = session.active_mode->children[0];
+  ASSERT_NE(parent, nullptr);
+  auto child = parent->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(map_key(child->ui_state, "value")->to_string(), "1");
+
+  session.update_mode();
+
+  EXPECT_EQ(map_key(parent->ui_state, "value")->to_string(), "99");
+  EXPECT_EQ(map_key(parent->state, "value")->to_string(), "nil");
+}
+
 TEST_F(StateBindingTest, writable_child_binding_updates_shared_component_ui_state)
 {
   runtime.eval(R"(

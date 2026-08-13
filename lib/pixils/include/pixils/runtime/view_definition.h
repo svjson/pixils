@@ -83,6 +83,7 @@ namespace Pixils::Runtime
     Roo::sptr_val overrides = Roo::Constant::NIL;
     Roo::sptr_val state_binding = Roo::Constant::NIL;
     Roo::sptr_val component_state_binding = Roo::Constant::NIL;
+    Roo::sptr_val ui_state_binding = Roo::Constant::NIL;
     std::optional<std::string> state_policy = std::nullopt;
   };
 

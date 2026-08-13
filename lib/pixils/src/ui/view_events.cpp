@@ -82,6 +82,7 @@ namespace Pixils::UI
         if (parent_view)
         {
           parent_view->set_state_from_child_bindings(merged, runtime);
+          parent_view->set_ui_state_from_child_bindings(receiver, runtime);
         }
         else
         {

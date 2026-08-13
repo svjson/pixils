@@ -68,6 +68,7 @@ namespace Pixils::Runtime
       auto previous_parent_state = parent_state;
       parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
       view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state, runtime);
+      view->set_ui_state_from_child_bindings(*new_child, runtime);
       *child_it = std::move(new_child);
       view->mark_children_changed();
     }
@@ -79,6 +80,7 @@ namespace Pixils::Runtime
       auto previous_parent_state = parent_state;
       parent_state = UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
       view->sync_ui_state_from_child_bindings(previous_parent_state, parent_state, runtime);
+      view->set_ui_state_from_child_bindings(*new_child, runtime);
       view->children.push_back(std::move(new_child));
       view->mark_children_changed();
     }

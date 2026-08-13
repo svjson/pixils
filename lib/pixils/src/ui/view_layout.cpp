@@ -583,6 +583,7 @@ namespace Pixils::UI
         parent->set_state_from_child_bindings(
           Runtime::merge_component_ui_state(parent->state, *view, view->ui_state),
           runtime);
+        parent->set_ui_state_from_child_bindings(*view, runtime);
       }
 
       native_hook_ctx.current_view = previous_view;

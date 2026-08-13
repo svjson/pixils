@@ -404,7 +404,10 @@ namespace Pixils::Script
       if (child_opts.contains("ui-state"))
       {
         slot.has_initial_ui_state = true;
-        slot.initial_ui_state = parse_ui_state(child_opts.val("ui-state"));
+        auto [ui_binding, ui_initial] =
+          Runtime::parse_state_binding(parse_ui_state(child_opts.val("ui-state")));
+        slot.ui_state_binding = ui_binding;
+        slot.initial_ui_state = ui_initial;
       }
       if (child_opts.contains("ui/state-policy"))
       {

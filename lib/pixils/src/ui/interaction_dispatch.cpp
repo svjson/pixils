@@ -229,6 +229,7 @@ namespace Pixils::UI
           *child,
           child->ui_state),
         rt);
+      parent->set_ui_state_from_child_bindings(*child, rt);
     }
 
     void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain,

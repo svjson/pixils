@@ -451,7 +451,7 @@
     (dotimes [inset point-height]
       (let [row-width (max 1 (- (:w rect) (* 2 inset)))]
         (r/rect! {:x (+ x (int (/ (- (:w rect) row-width) 2)))
-                  :y (+ y body-height n)
+                  :y (+ y body-height inset)
                   :w row-width
                   :h 1}
                  {:fill true :color color})))

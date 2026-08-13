@@ -56,6 +56,7 @@ namespace Pixils::Runtime
     std::unique_ptr<Mode> owned_mode;
     std::unique_ptr<Component> owned_component;
     Roo::sptr_val component_state_binding = Roo::Constant::NIL;
+    Roo::sptr_val ui_state_binding = Roo::Constant::NIL;
     Roo::sptr_val state = Roo::Constant::NIL;
     Roo::sptr_val initial_state = Roo::Constant::NIL;
     Roo::sptr_val ui_state = Roo::Constant::NIL;
@@ -108,6 +109,7 @@ namespace Pixils::Runtime
     bool set_ui_state_if_changed(const Roo::sptr_val& next_state);
     bool set_state_from_child_bindings(const Roo::sptr_val& next_state,
                                        Roo::Runtime& runtime);
+    bool set_ui_state_from_child_bindings(const View& child, Roo::Runtime& runtime);
     void sync_ui_state_from_child_bindings(const Roo::sptr_val& previous_state,
                                            const Roo::sptr_val& next_state,
                                            Roo::Runtime& runtime);

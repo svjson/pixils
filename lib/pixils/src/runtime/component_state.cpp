@@ -6,6 +6,7 @@
 #include <pixils/runtime/view.h>
 
 #include <algorithm>
+#include <roo/exception.h>
 #include <roo/runtime/dict.h>
 
 namespace Pixils::Runtime
@@ -48,49 +49,113 @@ namespace Pixils::Runtime
       return Roo::Dict::get_property(ui_state, key);
     }
 
+    Roo::sptr_val extract_bound_component_ui_state(const Roo::sptr_val& parent,
+                                                   const Pixils::Runtime::View& view,
+                                                   const Roo::sptr_val& binding,
+                                                   const Roo::sptr_val& current)
+    {
+      if (!binding || binding->type == Roo::Value::Type::NIL) return current;
+
+      auto result = current && current->type == Roo::Value::Type::MAP
+                      ? Roo::Dict::shallow_copy(current)
+                      : Roo::map({});
+
+      if (StateBindings::is_binding(binding))
+      {
+        const auto& path = Pixils::Runtime::bind_state_path(binding);
+        auto bound_value =
+          path.empty() ? parent : Roo::Dict::get_property_path(parent, path);
+        auto declared = declared_component_ui_state(view, bound_value);
+        for (const auto& key : Roo::Dict::map_sptr_keys(declared))
+        {
+          Roo::Dict::set_property(result, key, Roo::Dict::get_property(declared, key));
+        }
+        return result;
+      }
+
+      if (binding->type != Roo::Value::Type::MAP) return result;
+
+      for (const auto& key : Roo::Dict::map_sptr_keys(binding))
+      {
+        auto value = Roo::Dict::get_property(binding, key);
+        if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
+        {
+          Roo::Dict::set_property(
+            result,
+            key,
+            StateBindings::resolve_value(parent,
+                                         Roo::Dict::get_property(result, key),
+                                         value));
+        }
+      }
+      return result;
+    }
+
+    Roo::sptr_val merge_bound_component_ui_state(const Roo::sptr_val& parent,
+                                                 const Pixils::Runtime::View& view,
+                                                 const Roo::sptr_val& binding,
+                                                 const Roo::sptr_val& ui_state)
+    {
+      if (!binding || binding->type == Roo::Value::Type::NIL) return parent;
+
+      if (StateBindings::is_binding(binding))
+      {
+        if (!Pixils::Runtime::bind_state_writable(binding)) return parent;
+
+        const auto& path = Pixils::Runtime::bind_state_path(binding);
+        auto value = declared_component_ui_state(view, ui_state);
+        if (path.empty()) return value;
+        return Roo::Dict::assoc_in(parent, path, value);
+      }
+
+      if (binding->type != Roo::Value::Type::MAP) return parent;
+
+      auto result = parent;
+      for (const auto& key : Roo::Dict::map_sptr_keys(binding))
+      {
+        auto value = Roo::Dict::get_property(binding, key);
+        if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
+        {
+          result =
+            StateBindings::merge_pass(result, value, ui_property(ui_state, key), true);
+        }
+      }
+      for (const auto& key : Roo::Dict::map_sptr_keys(binding))
+      {
+        auto value = Roo::Dict::get_property(binding, key);
+        if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
+        {
+          result =
+            StateBindings::merge_pass(result, value, ui_property(ui_state, key), false);
+        }
+      }
+      return result;
+    }
+
   } // namespace
 
   Roo::sptr_val extract_component_ui_state(const Roo::sptr_val& parent,
                                            const Pixils::Runtime::View& view)
   {
-    const auto& binding = view.component_state_binding;
-
-    if (!view.component || !binding || binding->type == Roo::Value::Type::NIL)
+    if (!view.component)
     {
       return view.ui_state;
     }
 
-    auto result = view.ui_state && view.ui_state->type == Roo::Value::Type::MAP
-                    ? Roo::Dict::shallow_copy(view.ui_state)
-                    : Roo::map({});
-
-    if (StateBindings::is_binding(binding))
+    auto result = extract_bound_component_ui_state(parent,
+                                                   view,
+                                                   view.component_state_binding,
+                                                   view.ui_state);
+    if (view.ui_state_binding && view.ui_state_binding->type != Roo::Value::Type::NIL)
     {
-      const auto& path = Pixils::Runtime::bind_state_path(binding);
-      auto bound_value = path.empty() ? parent : Roo::Dict::get_property_path(parent, path);
-      auto declared = declared_component_ui_state(view, bound_value);
-      for (const auto& key : Roo::Dict::map_sptr_keys(declared))
+      if (!view.parent || !view.parent->has_component_ui_state())
       {
-        Roo::Dict::set_property(result, key, Roo::Dict::get_property(declared, key));
+        throw Roo::TypeError("Child :ui-state bindings require a component parent");
       }
-      return result;
-    }
-
-    if (binding->type != Roo::Value::Type::MAP)
-    {
-      return result;
-    }
-
-    for (const auto& key : Roo::Dict::map_sptr_keys(binding))
-    {
-      auto value = Roo::Dict::get_property(binding, key);
-      if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
-      {
-        Roo::Dict::set_property(
-          result,
-          key,
-          StateBindings::resolve_value(parent, Roo::Dict::get_property(result, key), value));
-      }
+      result = extract_bound_component_ui_state(view.parent->ui_state,
+                                                view,
+                                                view.ui_state_binding,
+                                                result);
     }
     return result;
   }
@@ -99,46 +164,31 @@ namespace Pixils::Runtime
                                          const Pixils::Runtime::View& view,
                                          const Roo::sptr_val& ui_state)
   {
-    const auto& binding = view.component_state_binding;
+    if (!view.component) return parent;
+    return merge_bound_component_ui_state(parent,
+                                          view,
+                                          view.component_state_binding,
+                                          ui_state);
+  }
 
-    if (!view.component || !binding || binding->type == Roo::Value::Type::NIL)
+  bool View::set_ui_state_from_child_bindings(const View& child, Roo::Runtime& runtime)
+  {
+    if (!child.ui_state_binding || child.ui_state_binding->type == Roo::Value::Type::NIL)
     {
-      return parent;
+      return false;
+    }
+    if (!has_component_ui_state())
+    {
+      throw Roo::TypeError("Child :ui-state bindings require a component parent");
     }
 
-    if (StateBindings::is_binding(binding))
-    {
-      if (!Pixils::Runtime::bind_state_writable(binding)) return parent;
-
-      const auto& path = Pixils::Runtime::bind_state_path(binding);
-      auto value = declared_component_ui_state(view, ui_state);
-      if (path.empty()) return value;
-      return Roo::Dict::assoc_in(parent, path, value);
-    }
-
-    if (binding->type != Roo::Value::Type::MAP)
-    {
-      return parent;
-    }
-
-    auto result = parent;
-    for (const auto& key : Roo::Dict::map_sptr_keys(binding))
-    {
-      auto value = Roo::Dict::get_property(binding, key);
-      if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
-      {
-        result = StateBindings::merge_pass(result, value, ui_property(ui_state, key), true);
-      }
-    }
-    for (const auto& key : Roo::Dict::map_sptr_keys(binding))
-    {
-      auto value = Roo::Dict::get_property(binding, key);
-      if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
-      {
-        result = StateBindings::merge_pass(result, value, ui_property(ui_state, key), false);
-      }
-    }
-    return result;
+    return transition_component_ui_state(
+      *this,
+      merge_bound_component_ui_state(ui_state,
+                                     child,
+                                     child.ui_state_binding,
+                                     child.ui_state),
+      runtime);
   }
 
 } // namespace Pixils::Runtime

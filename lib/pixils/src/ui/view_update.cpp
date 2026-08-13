@@ -38,9 +38,15 @@ namespace Pixils::UI
              view.component_state_binding->type != Roo::Value::Type::NIL;
     }
 
+    bool has_ui_state_binding(const Runtime::View& view)
+    {
+      return view.ui_state_binding && view.ui_state_binding->type != Roo::Value::Type::NIL;
+    }
+
     bool has_any_state_binding(const Runtime::View& view)
     {
-      return has_state_binding(view) || has_component_state_binding(view);
+      return has_state_binding(view) || has_component_state_binding(view) ||
+             has_ui_state_binding(view);
     }
 
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
@@ -246,6 +252,7 @@ namespace Pixils::UI
         if (parent_view)
         {
           parent_view->set_state_from_child_bindings(merged, rt);
+          parent_view->set_ui_state_from_child_bindings(view, rt);
         }
         else
         {
@@ -344,6 +351,7 @@ namespace Pixils::UI
         if (parent_view)
         {
           parent_view->set_state_from_child_bindings(merged, runtime);
+          parent_view->set_ui_state_from_child_bindings(view, runtime);
         }
         else
         {
