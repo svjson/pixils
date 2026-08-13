@@ -108,7 +108,7 @@ namespace
     if (view->definition && (view->definition->name == "ui/list-box-item" ||
                              view->definition->name == "ui/option-item"))
     {
-      auto label = get_key(view->state, "label");
+      auto label = get_key(view->ui_state, "label");
       if (label && label->str() == label_text) return view;
     }
 
@@ -162,7 +162,7 @@ namespace
   int offset_y(const std::shared_ptr<View>& view)
   {
     if (!view) return 0;
-    auto offset = get_key(view->state, "offset");
+    auto offset = get_key(view->ui_state, "offset");
     if (!offset || offset->type == Roo::Value::Type::NIL) return 0;
     auto y = get_key(offset, "y");
     return y && y->type != Roo::Value::Type::NIL ? y->num().get_int() : 0;
@@ -369,7 +369,7 @@ TEST_F(FileDialogTest, large_font_file_list_scroll_range_uses_measured_row_heigh
   ASSERT_NE(last_item, nullptr);
   EXPECT_GT(first_item->bounds.h, 22);
 
-  auto content_size = get_key(scroll_pane->state, "content-size");
+  auto content_size = get_key(scroll_pane->ui_state, "content-size");
   ASSERT_NE(content_size, nullptr);
   auto content_height = get_key(content_size, "h");
   ASSERT_NE(content_height, nullptr);

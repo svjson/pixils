@@ -676,7 +676,7 @@ TEST_F(IconTest, make_grid_wraps_icon_container_in_auto_scroll_pane)
   EXPECT_EQ(pane->definition->name, "ui/scroll-pane");
 
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
@@ -724,7 +724,7 @@ TEST_F(IconTest, make_grid_keeps_empty_grid_as_drop_surface)
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
@@ -771,7 +771,7 @@ TEST_F(IconTest, make_grid_can_bind_scroll_content_state_from_owner)
   auto pane = owner->children[0];
   ASSERT_NE(pane, nullptr);
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);

@@ -362,8 +362,8 @@ TEST_F(ListBoxTest, selected_default_item_is_marked_on_first_render)
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 2u);
 
-  auto first_selected = get_state_key(content->children[0], "selected");
-  auto second_selected = get_state_key(content->children[1], "selected");
+  auto first_selected = get_ui_state_key(content->children[0], "selected");
+  auto second_selected = get_ui_state_key(content->children[1], "selected");
   ASSERT_NE(first_selected, nullptr);
   ASSERT_NE(second_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
@@ -805,7 +805,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   auto content = viewport->children[0];
   ASSERT_GE(content->children.size(), 1u);
   auto first_item = content->children[0];
-  auto first_value = Roo::Dict::get_property(first_item->state, Roo::keyword("value"));
+  auto first_value = Roo::Dict::get_property(first_item->ui_state, Roo::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->to_string(), ":a");
 }
@@ -856,7 +856,7 @@ TEST_F(ListBoxTest, vertical_scrollbar_end_button_scrolls_list_box)
   input().mouse_up(button_center);
   update_cycle();
 
-  EXPECT_EQ(offset_y(scroll_pane->state), 10);
+  EXPECT_EQ(offset_y(scroll_pane->ui_state), 10);
   EXPECT_EQ(offset_y(list_box->ui_state), 10);
 }
 
@@ -915,12 +915,12 @@ TEST_F(ListBoxTest, dragging_vertical_scrollbar_handle_scrolls_list_box_to_end)
   input().mouse_up(track_end);
   update_cycle();
 
-  auto content_size = get_state_key(scroll_pane, "content-size");
+  auto content_size = get_ui_state_key(scroll_pane, "content-size");
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   const int max_offset = content_height->num().get_int() - viewport->bounds.h;
-  EXPECT_EQ(offset_y(scroll_pane->state), max_offset);
+  EXPECT_EQ(offset_y(scroll_pane->ui_state), max_offset);
   EXPECT_EQ(offset_y(list_box->ui_state), max_offset);
 }
 
@@ -993,7 +993,7 @@ TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 3u);
   auto first_value =
-    Roo::Dict::get_property(content->children[0]->state, Roo::keyword("value"));
+    Roo::Dict::get_property(content->children[0]->ui_state, Roo::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->to_string(), ":a");
 }
@@ -1037,7 +1037,7 @@ TEST_F(ListBoxTest, list_box_rebuilds_rows_when_bound_options_change)
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 4u);
   auto last_value =
-    Roo::Dict::get_property(content->children[3]->state, Roo::keyword("value"));
+    Roo::Dict::get_property(content->children[3]->ui_state, Roo::keyword("value"));
   ASSERT_NE(last_value, nullptr);
   EXPECT_EQ(last_value->to_string(), ":d");
 }
@@ -1072,7 +1072,7 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
   auto content = viewport->children[0];
   auto first_item = content->children[0];
   auto disabled =
-    Roo::Dict::get_property(first_item->state, Roo::keyword("disabled?"));
+    Roo::Dict::get_property(first_item->ui_state, Roo::keyword("disabled?"));
   ASSERT_NE(disabled, nullptr);
   EXPECT_EQ(disabled->to_string(), "true");
 }

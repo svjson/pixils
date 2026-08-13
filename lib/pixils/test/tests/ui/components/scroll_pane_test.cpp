@@ -66,7 +66,7 @@ namespace
 
   int offset_y(const std::shared_ptr<Pixils::Runtime::View>& view)
   {
-    auto offset = get_key(view->state, "offset");
+    auto offset = get_key(view->ui_state, "offset");
     if (!offset || offset->type == Roo::Value::Type::NIL) return 0;
     auto y = get_key(offset, "y");
     return y ? y->num().get_int() : 0;
@@ -578,7 +578,7 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
@@ -642,7 +642,7 @@ TEST_F(ScrollPaneTest, scroll_pane_preserves_runtime_content_replacement_when_au
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
@@ -789,13 +789,13 @@ TEST_F(ScrollPaneTest, auto_scrollbar_is_present_on_first_render_from_measured_c
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 120);
   auto effective_scroll_y =
-    Roo::Dict::get_property(pane->state, Roo::keyword("effective-scroll-y?"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("effective-scroll-y?"));
   ASSERT_NE(effective_scroll_y, nullptr);
   EXPECT_EQ(effective_scroll_y->to_string(), "true");
 
@@ -848,7 +848,7 @@ TEST_F(ScrollPaneTest, scroll_pane_auto_scrolls_to_bottom_when_content_height_gr
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
 
-  auto offset = Roo::Dict::get_property(pane->state, Roo::keyword("offset"));
+  auto offset = Roo::Dict::get_property(pane->ui_state, Roo::keyword("offset"));
   ASSERT_NE(offset, nullptr);
   auto y = Roo::Dict::get_property(offset, Roo::keyword("y"));
   ASSERT_NE(y, nullptr);
@@ -898,7 +898,7 @@ TEST_F(ScrollPaneTest, scroll_pane_auto_measures_padded_wrapping_content_height)
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
@@ -958,7 +958,7 @@ TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
   auto content_size =
-    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+    Roo::Dict::get_property(pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);

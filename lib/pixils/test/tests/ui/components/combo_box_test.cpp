@@ -590,7 +590,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   auto first_popup_item = popup_content->children[0];
   auto second_popup_item = popup_content->children[1];
   auto first_selected =
-    Roo::Dict::get_property(first_popup_item->state, Roo::keyword("selected"));
+    Roo::Dict::get_property(first_popup_item->ui_state, Roo::keyword("selected"));
   ASSERT_NE(first_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
   EXPECT_EQ(popup_viewport->bounds.w, 84);
@@ -688,7 +688,8 @@ TEST_F(ComboBoxTest, combo_box_popup_scroll_range_uses_measured_tall_item_height
   ASSERT_EQ(popup_content->children.size(), 5u);
   EXPECT_EQ(popup_content->children[0]->bounds.h, 32);
 
-  auto content_size = get_state_key(popup_scroll_pane, "content-size");
+  auto content_size =
+    Roo::Dict::get_property(popup_scroll_pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto measured_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(measured_height, nullptr);
@@ -879,7 +880,8 @@ TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport
   auto row = scroll_pane->children[0];
   ASSERT_EQ(row->children.size(), 2u);
 
-  auto content_size = get_state_key(scroll_pane, "content-size");
+  auto content_size =
+    Roo::Dict::get_property(scroll_pane->ui_state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
   auto measured_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(measured_height, nullptr);
