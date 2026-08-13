@@ -112,4 +112,9 @@ namespace Pixils::Runtime
   {
     pending_child_appends.push_back(QueuedChildAppend{std::move(child_slot)});
   }
+
+  void View::queue_remove_child(const std::string& child_id)
+  {
+    pending_child_removals.push_back(QueuedChildRemoval{child_id});
+  }
 } // namespace Pixils::Runtime

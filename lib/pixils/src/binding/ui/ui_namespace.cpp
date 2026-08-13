@@ -542,6 +542,42 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
+    /** RemoveChildBangFunction - remove-child! */
+    FUNC_IMPL(RemoveChildBangFunction,
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
+                   EXEC_DISPATCH(&RemoveChildBangFunction::exec_remove_child))));
+
+    EXEC_BODY(RemoveChildBangFunction, exec_remove_child)
+    {
+      auto target = resolve_view_target(args[0], "ui/remove-child!");
+      if (!target || target->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      if (args[1]->type != Roo::Value::Type::STRING &&
+          args[1]->type != Roo::Value::Type::SYMBOL &&
+          args[1]->type != Roo::Value::Type::KEYWORD)
+      {
+        throw Roo::TypeError("ui/remove-child! child id must be string-like");
+      }
+
+      std::string child_id = args[1]->str();
+      auto existing_child = std::find_if(view.children.begin(),
+                                         view.children.end(),
+                                         [&](const std::shared_ptr<Runtime::View>& child)
+                                         { return child && child->id == child_id; });
+      if (existing_child == view.children.end())
+      {
+        throw Roo::InvocationException("ui/remove-child! could not find child '" + child_id +
+                                       "'");
+      }
+
+      view.queue_remove_child(child_id);
+      return Roo::Constant::NIL;
+    }
+
     /** StyleBangFunction - style! */
     FUNC_IMPL(StyleBangFunction,
               SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
@@ -784,6 +820,7 @@ namespace Pixils::Script
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_FIRST_BANG,
                    Function::FocusFirstBangFunction::make());
+    values.emplace("remove-child!", Function::RemoveChildBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__SET_UI_STATE_BANG,
                    Function::SetUIStateBangFunction::make());

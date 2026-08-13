@@ -14,6 +14,54 @@
    :children [{:mode 'component-state-child
                :ui-state {:value (ui/bind-state :value)}}]})
 
+(pixils/defcomponent parent-driven-state-child
+  {:ui/state-keys [:value]})
+
+(pixils/defcomponent parent-driven-state-parent
+  {:ui/state-keys [:value]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state :value 1))
+   :update-ui (fn [ui-state state ctx]
+                (cond-> ui-state
+                  (:advance? state) (assoc :value 2)))
+   :children [{:mode 'parent-driven-state-child
+               :id "parent-driven-state-child"
+               :ui-state {:value (ui/bind-state :value)}}]})
+
+(pixils/defcomponent replacement-state-child
+  {:ui/state-keys [:value]})
+
+(pixils/defcomponent replacement-state-parent
+  {:ui/state-keys [:value]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state :value 1))
+   :update-ui (fn [ui-state state ctx]
+                (if (and (:advance? state)
+                         (not= 2 (:value ui-state)))
+                  (do
+                    (ui/replace-child! (:view ctx)
+                                       "replacement-state-child"
+                                       {:mode 'replacement-state-child
+                                        :id "replacement-state-child"
+                                        :ui-state {:value (ui/bind-state :value)}})
+                    (assoc ui-state :value 2))
+                  ui-state))
+   :children [{:mode 'replacement-state-child
+               :id "replacement-state-child"
+               :ui-state {:value (ui/bind-state :value)}}]})
+
 (pixils/defmode root-mode
   {:children [{:mode 'component-state-parent
+               :ui/state-policy :isolated}]})
+
+(pixils/defmode parent-driven-state-root-mode
+  {:init (fn [state ctx] {:advance? false})
+   :children [{:mode 'parent-driven-state-parent
+               :state (ui/bind-state)
+               :ui/state-policy :isolated}]})
+
+(pixils/defmode replacement-state-root-mode
+  {:init (fn [state ctx] {:advance? false})
+   :children [{:mode 'replacement-state-parent
+               :state (ui/bind-state)
                :ui/state-policy :isolated}]})

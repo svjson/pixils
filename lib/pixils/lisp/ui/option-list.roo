@@ -225,8 +225,8 @@
                      :height :fill}
              :content-size content-size
              :content-height-explicit? (:explicit-row-height? state)
-             :state {:offset (ui/bind-state :offset)
-                     :content-state (ui/bind-state :content-state)}
+             :ui-state {:offset (ui/bind-state :offset)}
+             :state {:content-state (ui/bind-state :content-state)}
              :scroll-x? false
              :scroll-y? :auto
              :step row-height

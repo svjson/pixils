@@ -1,0 +1,23 @@
+(ns pixils.ui.child-mutation-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(deftest remove-child-removes-only-the-addressed-child
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/child-mutation-probe.roo")
+    (runtime/push-mode! app 'child-removal-root)
+    (is (some? (runtime/find-view app "removable-child")))
+    (is (some? (runtime/find-view app "retained-child")))
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app) :remove? true))
+    (runtime/update! app)
+    (is (nil? (runtime/find-view app "removable-child")))
+    (is (some? (runtime/find-view app "retained-child")))
+    (is (= :retained
+           (:application-value (runtime/active-state app))))))

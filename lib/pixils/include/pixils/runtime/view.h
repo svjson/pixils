@@ -32,6 +32,11 @@ namespace Pixils::Runtime
     ChildSlot child_slot;
   };
 
+  struct QueuedChildRemoval
+  {
+    std::string child_id;
+  };
+
   /**
    * Live instance of a view definition. Holds the resolved shared definition
    * pointer, optional concrete mode/component pointer, Roo state, layout bounds,
@@ -98,6 +103,7 @@ namespace Pixils::Runtime
     std::vector<CustomEvent> emitted_events;
     std::vector<QueuedChildReplacement> pending_child_replacements;
     std::vector<QueuedChildAppend> pending_child_appends;
+    std::vector<QueuedChildRemoval> pending_child_removals;
 
     void set_parent(View* parent);
     void touch_subtree_generation();
@@ -120,6 +126,7 @@ namespace Pixils::Runtime
     void drain_events(std::vector<CustomEvent>& collected);
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);
     void queue_append_child(ChildSlot child_slot);
+    void queue_remove_child(const std::string& child_id);
   };
 
 } // namespace Pixils::Runtime

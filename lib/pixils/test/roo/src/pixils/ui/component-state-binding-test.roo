@@ -21,3 +21,51 @@
             (:ui-state
              (runtime/find-view app "component-state-parent")))))
     (is (nil? (:value (runtime/active-state app))))))
+
+(deftest parent-ui-state-changes-propagate-to-existing-child
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/component-state-binding-probe.roo")
+    (runtime/push-mode! app 'parent-driven-state-root-mode)
+    (is (= 1
+           (:value
+            (:ui-state
+             (runtime/find-view app "parent-driven-state-child")))))
+    (runtime/set-active-state! app {:advance? true})
+    (runtime/update! app)
+    (is (= 2
+           (:value
+            (:ui-state
+             (runtime/find-view app "parent-driven-state-parent")))))
+    (is (= 2
+           (:value
+            (:ui-state
+             (runtime/find-view app "parent-driven-state-child")))))))
+
+(deftest replaced-child-initializes-ui-state-from-current-parent
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/component-state-binding-probe.roo")
+    (runtime/push-mode! app 'replacement-state-root-mode)
+    (is (= 1
+           (:value
+            (:ui-state
+             (runtime/find-view app "replacement-state-child")))))
+    (runtime/set-active-state! app {:advance? true})
+    (runtime/update! app)
+    (is (= 2
+           (:value
+            (:ui-state
+             (runtime/find-view app "replacement-state-parent")))))
+    (is (= 2
+           (:value
+            (:ui-state
+             (runtime/find-view app "replacement-state-child")))))))

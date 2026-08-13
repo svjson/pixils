@@ -1,0 +1,23 @@
+(ns pixils.test.child-mutation-probe
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(pixils/defcomponent removable-child {})
+(pixils/defcomponent retained-child {})
+
+(pixils/defmode child-removal-root
+  {:init (fn [state ctx]
+           {:remove? false
+            :removed? false
+            :application-value :retained})
+   :update (fn [state ctx]
+             (if (and (:remove? state)
+                      (not (:removed? state)))
+               (do
+                 (ui/remove-child! (:view ctx) "removable")
+                 (assoc state :removed? true))
+               state))
+   :children [{:mode 'removable-child
+               :id "removable"}
+              {:mode 'retained-child
+               :id "retained"}]})

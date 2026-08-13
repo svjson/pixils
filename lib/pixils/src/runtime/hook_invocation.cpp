@@ -20,7 +20,7 @@ namespace Pixils::Runtime
     bool has_pending_child_mutations(const std::shared_ptr<View>& view)
     {
       return !view->pending_child_replacements.empty() ||
-             !view->pending_child_appends.empty();
+             !view->pending_child_appends.empty() || !view->pending_child_removals.empty();
     }
 
   } // namespace
@@ -48,8 +48,25 @@ namespace Pixils::Runtime
     auto parent_state = base_state;
     auto replacements = std::move(view->pending_child_replacements);
     auto appends = std::move(view->pending_child_appends);
+    auto removals = std::move(view->pending_child_removals);
     view->pending_child_replacements.clear();
     view->pending_child_appends.clear();
+    view->pending_child_removals.clear();
+
+    for (const auto& removal : removals)
+    {
+      auto child_it = std::find_if(view->children.begin(),
+                                   view->children.end(),
+                                   [&](const std::shared_ptr<View>& child)
+                                   { return child && child->id == removal.child_id; });
+      if (child_it == view->children.end())
+      {
+        continue;
+      }
+
+      view->children.erase(child_it);
+      view->mark_children_changed();
+    }
 
     for (auto& replacement : replacements)
     {

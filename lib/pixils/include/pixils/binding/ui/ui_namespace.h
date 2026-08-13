@@ -43,6 +43,7 @@ namespace Pixils::Script
     FUNC(FocusBangFunction, focus);
     FUNC(FocusFirstBangFunction, focus_first);
     FUNC(PreserveFocusBangFunction, preserve_focus);
+    FUNC(RemoveChildBangFunction, remove_child);
     FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(SetUIStateBangFunction, set_ui_state);
     FUNC(StyleBangFunction, style);

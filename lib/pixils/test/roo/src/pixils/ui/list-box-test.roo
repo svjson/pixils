@@ -167,7 +167,11 @@
       (runtime/press-key! app :down)
       (let [state (-> (runtime/find-view app "ui/list-box") :ui-state)]
         (is (= [4] (:selected-indices state)))
-        (is (= 30 (-> state :offset :y)))))))
+        (is (= 30 (-> state :offset :y)))
+        (is (= (:offset state)
+               (:offset
+                (:ui-state
+                 (runtime/find-view app "ui/scroll-pane")))))))))
 
 
 (deftest list-box-activation-reports-committed-selection
