@@ -14,6 +14,35 @@
    :track-thickness 3
    :track-border? false})
 
+(def SLIDER-UI-STATE-KEYS
+  [:value
+   :min
+   :max
+   :limit-min
+   :limit-max
+   :limits-enabled?
+   :step
+   :axis
+   :thumb-shape
+   :thumb-length
+   :thumb-point-size
+   :track-layout
+   :track-shape
+   :track-thickness
+   :track-border?
+   :track-color
+   :limit-track-color
+   :track-border-top-color
+   :track-border-bottom-color
+   :track-border-color
+   :handle-color
+   :border-color])
+
+(defun slider-axis [state]
+  (if (= (:axis state) :y)
+    :y
+    :x))
+
 (defun slider-min [state]
   (or (:min state) 0))
 
@@ -22,6 +51,13 @@
 
 (defun slider-limits-enabled? [state]
   (not= (:limits-enabled? state) false))
+
+(defun slider-set-value [state event ctx]
+  (let [ui-state (-> ctx :view :ui-state)
+        value (slider-value-at ui-state event ctx)]
+    (ui/set-ui-state! ctx (assoc ui-state :value value))
+    (ui/emit! (:view ctx) :slider/change value)
+    state))
 
 (defun slider-limit-min [state]
   (let [min-value (slider-min state)
@@ -96,24 +132,25 @@
               (slider-content-origin-inset ctx :top)
               (slider-content-origin-inset ctx :bottom)))))
 
-(defun slider-axis-size [{:keys [axis]} ctx]
-  (case axis
+(defun slider-axis-size [state ctx]
+  (case (slider-axis state)
     :y (slider-content-height ctx)
     :x (slider-content-width ctx)))
 
-(defun slider-cross-size [{:keys [axis]} ctx]
-  (case axis
+(defun slider-cross-size [state ctx]
+  (case (slider-axis state)
     :y (slider-content-width ctx)
     :x (slider-content-height ctx)))
 
-(defun slider-event-coord [{:keys [axis]} {:keys [position]} ctx]
-  (- (get position axis)
-     (if ctx
-       (slider-content-origin-inset ctx
-                                    (case axis
-                                      :y :top
-                                      :x :left))
-       0)))
+(defun slider-event-coord [state {:keys [position]} ctx]
+  (let [axis (slider-axis state)]
+    (- (get position axis)
+       (if ctx
+         (slider-content-origin-inset ctx
+                                      (case axis
+                                        :y :top
+                                        :x :left))
+         0))))
 
 (defun slider-handle-size [state ctx]
   (max 8
@@ -285,27 +322,26 @@
 
 (defun draw-slider-bevel! [rect tl-color br-color thickness]
   (dotimes [n thickness]
-    (do
-      (r/line! {:x (+ (:x rect) n)
-                :y (+ (:y rect) n)}
-               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
-                :y (+ (:y rect) n)}
-               tl-color)
-      (r/line! {:x (+ (:x rect) n)
-                :y (+ (:y rect) n)}
-               {:x (+ (:x rect) n)
-                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
-               tl-color)
-      (r/line! {:x (+ (:x rect) n)
-                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
-               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
-                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
-               br-color)
-      (r/line! {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
-                :y (+ (:y rect) n)}
-               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
-                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
-               br-color))))
+    (r/line! {:x (+ (:x rect) n)
+              :y (+ (:y rect) n)}
+             {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+              :y (+ (:y rect) n)}
+             tl-color)
+    (r/line! {:x (+ (:x rect) n)
+              :y (+ (:y rect) n)}
+             {:x (+ (:x rect) n)
+              :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+             tl-color)
+    (r/line! {:x (+ (:x rect) n)
+              :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+             {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+              :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+             br-color)
+    (r/line! {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+              :y (+ (:y rect) n)}
+             {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+              :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+             br-color)))
 
 (defun draw-slider-handle-border! [state ctx rect]
   (if (slider-bevel? ctx)
@@ -330,23 +366,22 @@
    :h (max 1 (- (:h rect) (* amount 2)))})
 
 (defun draw-slider-double-bevel! [rect bevel]
-  (do
-    (draw-slider-bevel! rect
-                        (:outer-top-color bevel)
-                        (:outer-bottom-color bevel)
-                        1)
-    (when (and (> (:w rect) 2)
-               (> (:h rect) 2))
-      (draw-slider-bevel! (inset-rect rect 1)
-                          (:inner-top-color bevel)
-                          (:inner-bottom-color bevel)
-                          1))))
+  (draw-slider-bevel! rect
+                      (:outer-top-color bevel)
+                      (:outer-bottom-color bevel)
+                      1)
+  (when (and (> (:w rect) 2)
+             (> (:h rect) 2))
+    (draw-slider-bevel! (inset-rect rect 1)
+                        (:inner-top-color bevel)
+                        (:inner-bottom-color bevel)
+                        1)))
 
 (defun slider-standard-track-rect [state ctx]
   (let [axis (slider-axis-size state ctx)
         cross (slider-cross-size state ctx)
         thickness (slider-track-thickness state ctx)]
-    (if (= (:axis state) :y)
+    (if (= (slider-axis state) :y)
       {:x (int (/ (- cross thickness) 2))
        :y 0
        :w thickness
@@ -361,7 +396,7 @@
         handle (slider-handle-size state ctx)
         span (slider-track-span state ctx)
         thickness (slider-track-thickness state ctx)]
-    (if (= (:axis state) :y)
+    (if (= (slider-axis state) :y)
       {:x (int (/ (- cross thickness) 2))
        :y (int (/ handle 2))
        :w thickness
@@ -377,7 +412,7 @@
     (slider-standard-track-rect state ctx)))
 
 (defun slider-track-axis-length [state rect]
-  (if (= (:axis state) :y)
+  (if (= (slider-axis state) :y)
     (:h rect)
     (:w rect)))
 
@@ -386,7 +421,7 @@
           (slider-track-axis-length state rect))))
 
 (defun slider-limit-background-segment-rect [state ctx rect start length]
-  (if (= (:axis state) :y)
+  (if (= (slider-axis state) :y)
     {:x 0
      :y (+ (:y rect) start)
      :w (slider-content-width ctx)
@@ -416,7 +451,7 @@
   (let [pos (slider-handle-pos state ctx)
         handle (slider-handle-size state ctx)
         cross (slider-cross-size state ctx)]
-    (if (= (:axis state) :y)
+    (if (= (slider-axis state) :y)
       {:x 0
        :y pos
        :w cross
@@ -425,6 +460,10 @@
        :y 0
        :w handle
        :h cross})))
+
+
+
+;; Rendering functions
 
 (defun draw-slider-horizontal-windows-handle! [state ctx rect]
   (let [point-height (min (slider-thumb-point-size state ctx)
@@ -533,7 +572,7 @@
                  inner-br-color)))))
 
 (defun draw-slider-windows-handle! [state ctx rect]
-  (if (= (:axis state) :y)
+  (if (= (slider-axis state) :y)
     (draw-slider-vertical-windows-handle! state ctx rect)
     (draw-slider-horizontal-windows-handle! state ctx rect)))
 
@@ -566,46 +605,54 @@
     (when upper
       (r/rect! upper {:fill true :color color}))))
 
-(defun slider-set-value [state event ctx]
-  (let [value (slider-value-at state event ctx)]
-    (ui/emit! (:view ctx) :slider/change value)
-    (assoc state :value value)))
+
+
+;; Main Component
 
 (defcomponent ui/slider
   {:focusable true
    :class :ui/slider
    :style {}
-   :init (fn [state ctx]
-           (assoc state :value (slider-value state)))
-   :update (fn [state ctx]
-             (assoc state :value (slider-value state)))
+   :ui/state-keys SLIDER-UI-STATE-KEYS
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :axis (slider-axis ui-state)
+                     :value (slider-value ui-state)))
+   :update-ui (fn [ui-state state ctx]
+                (assoc ui-state
+                       :axis (slider-axis ui-state)
+                       :value (slider-value ui-state)))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     (slider-set-value state event ctx))
    :on-drag (fn [state event ctx]
               (slider-set-value state event ctx))
    :render (fn [state ctx]
-             (draw-slider-limit-track! state ctx)
-             (draw-slider-track! state ctx)
-             (draw-slider-handle! state ctx))})
+             (let [ui-state (-> ctx :view :ui-state)]
+               (draw-slider-limit-track! ui-state ctx)
+               (draw-slider-track! ui-state ctx)
+               (draw-slider-handle! ui-state ctx)))})
 
-(defun make [{:keys [class style value min max limit-min limit-max limits-enabled? step axis thumb-shape thumb-length thumb-point-size track-layout track-shape track-thickness track-border? limit-track-color]}]
-  (merge {:mode 'ui/slider
-          :style (or style {})
-          :state {:value value
-                  :min min
-                  :max max
-                  :limit-min limit-min
-                  :limit-max limit-max
-                  :limits-enabled? limits-enabled?
-                  :step step
-                  :axis (or axis :x)
-                  :thumb-shape thumb-shape
-                  :thumb-length thumb-length
-                  :thumb-point-size thumb-point-size
-                  :track-layout track-layout
-                  :track-shape track-shape
-                  :track-thickness track-thickness
-                  :track-border? track-border?
-                  :limit-track-color limit-track-color}}
-         (if class {:class class} {})))
+
+;; Make function
+
+
+(defun make
+  "Builds a ui/slider child entry. :state contains caller application state;
+  slider behavior values are written under `:state :component`.
+
+  Static values, `ui/bind-state`, and `ui/project-state` are accepted for
+  component entries. Component keys supplied directly in :state are also
+  copied into :component for migration compatibility. The default shared state
+  policy keeps state-map themes and other legacy readers working; pass
+  `:state-policy :isolated` to keep slider details out of ordinary state."
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state SLIDER-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts SLIDER-UI-STATE-KEYS))]
+    (cond-> {:mode 'ui/slider
+             :state (assoc state :component component)
+             :ui/state-policy (or state-policy :shared)}
+            (contains? opts :style) (assoc :style style)
+            class (assoc :class class)
+            ui-state (assoc :ui-state ui-state))))

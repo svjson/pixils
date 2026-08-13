@@ -62,6 +62,112 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   EXPECT_EQ(zoom->num().get_int(), 4);
 }
 
+TEST_F(SliderTest,
+       slider_isolated_state_policy_keeps_component_state_out_of_application_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.slider/make
+                   {:style {:width 100 :height 10}
+                    :state {:label "Volume"}
+                    :state-policy :isolated
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto slider = session.active_mode->children[0];
+  ASSERT_NE(slider, nullptr);
+
+  auto label = Roo::Dict::get_property(slider->state, Roo::keyword("label"));
+  auto state_value = Roo::Dict::get_property(slider->state, Roo::keyword("value"));
+  auto state_axis = Roo::Dict::get_property(slider->state, Roo::keyword("axis"));
+  auto ui_value = Roo::Dict::get_property(slider->ui_state, Roo::keyword("value"));
+  auto ui_axis = Roo::Dict::get_property(slider->ui_state, Roo::keyword("axis"));
+
+  ASSERT_NE(label, nullptr);
+  EXPECT_EQ(label->str(), "Volume");
+  EXPECT_TRUE(state_value == nullptr || state_value->type == Roo::Value::Type::NIL);
+  EXPECT_TRUE(state_axis == nullptr || state_axis->type == Roo::Value::Type::NIL);
+  ASSERT_NE(ui_value, nullptr);
+  ASSERT_NE(ui_axis, nullptr);
+  EXPECT_EQ(ui_value->num().get_int(), 5);
+  EXPECT_EQ(ui_axis->to_string(), ":x");
+}
+
+TEST_F(SliderTest, slider_ui_state_survives_application_state_replacement)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(merge
+                   (pixils.ui.slider/make
+                    {:style {:width 100 :height 10}
+                     :state-policy :isolated
+                     :value 5
+                     :min 0
+                     :max 10
+                     :step 1})
+                   {:update (fn [state ctx] {})})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({95, 5});
+  update_cycle();
+
+  auto slider = session.active_mode->children[0];
+  ASSERT_NE(slider, nullptr);
+  auto state_value = Roo::Dict::get_property(slider->state, Roo::keyword("value"));
+  auto ui_value = Roo::Dict::get_property(slider->ui_state, Roo::keyword("value"));
+
+  EXPECT_TRUE(state_value == nullptr || state_value->type == Roo::Value::Type::NIL);
+  ASSERT_NE(ui_value, nullptr);
+  EXPECT_EQ(ui_value->num().get_int(), 10);
+}
+
+TEST_F(SliderTest, slider_make_defaults_to_shared_state_policy_for_compatibility)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.slider/make
+                   {:style {:width 100 :height 10}
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({95, 5});
+  update_cycle();
+
+  auto slider = session.active_mode->children[0];
+  ASSERT_NE(slider, nullptr);
+  auto state_value = Roo::Dict::get_property(slider->state, Roo::keyword("value"));
+  auto ui_value = Roo::Dict::get_property(slider->ui_state, Roo::keyword("value"));
+  auto state_axis = Roo::Dict::get_property(slider->state, Roo::keyword("axis"));
+  auto ui_axis = Roo::Dict::get_property(slider->ui_state, Roo::keyword("axis"));
+
+  ASSERT_NE(state_value, nullptr);
+  ASSERT_NE(ui_value, nullptr);
+  ASSERT_NE(state_axis, nullptr);
+  ASSERT_NE(ui_axis, nullptr);
+  EXPECT_EQ(state_value->num().get_int(), 10);
+  EXPECT_EQ(ui_value->num().get_int(), 10);
+  EXPECT_EQ(state_axis->to_string(), ":x");
+  EXPECT_EQ(ui_axis->to_string(), ":x");
+}
+
 TEST_F(SliderTest, slider_limits_clamp_value_and_pointer_input)
 {
   auto result = runtime.eval(R"(
