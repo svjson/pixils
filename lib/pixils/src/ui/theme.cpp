@@ -8,6 +8,16 @@ namespace Pixils::UI
 {
   namespace
   {
+    Roo::sptr_val state_property(const ThemeMatchContext& ctx, const Roo::sptr_val& key)
+    {
+      if (ctx.ui_state && ctx.ui_state->type == Roo::Value::Type::MAP &&
+          Roo::Dict::contains_key(*ctx.ui_state, key->str()))
+      {
+        return Roo::Dict::get_property(ctx.ui_state, key);
+      }
+      return Roo::Dict::get_property(ctx.state, key);
+    }
+
     bool interaction_matches_selector(const ThemeSelector& selector,
                                       const ThemeMatchContext& ctx)
     {
@@ -16,7 +26,7 @@ namespace Pixils::UI
       if (selector.focus_within && !ctx.interaction.focus_within) return false;
       if (selector.disabled)
       {
-        auto disabled = Roo::Dict::get_property(ctx.state, Roo::keyword("disabled?"));
+        auto disabled = state_property(ctx, Roo::keyword("disabled?"));
         if (!disabled || !Roo::is_truthy(*disabled)) return false;
       }
       return true;
@@ -25,8 +35,7 @@ namespace Pixils::UI
     int interaction_specificity(const ThemeSelector& selector)
     {
       return static_cast<int>(selector.hovered) + static_cast<int>(selector.focused) +
-             static_cast<int>(selector.focus_within) +
-             static_cast<int>(selector.disabled);
+             static_cast<int>(selector.focus_within) + static_cast<int>(selector.disabled);
     }
 
     bool rtval_equal(const Roo::sptr_val& lhs, const Roo::sptr_val& rhs)
@@ -55,6 +64,21 @@ namespace Pixils::UI
       {
         auto expected = Roo::Dict::get_property(selector_state, key);
         auto actual = Roo::Dict::get_property(view_state, *key);
+        if (!actual || !rtval_equal(expected, actual)) return false;
+      }
+
+      return true;
+    }
+
+    bool state_subset_matches(const Roo::sptr_val& selector_state,
+                              const ThemeMatchContext& ctx)
+    {
+      if (!selector_state || selector_state->type != Roo::Value::Type::MAP) return false;
+
+      for (const auto& key : Roo::Dict::keys(*selector_state))
+      {
+        auto expected = Roo::Dict::get_property(selector_state, key);
+        auto actual = state_property(ctx, key);
         if (!actual || !rtval_equal(expected, actual)) return false;
       }
 
@@ -181,7 +205,7 @@ namespace Pixils::UI
       return std::find(ctx.class_names.begin(), ctx.class_names.end(), value) !=
              ctx.class_names.end();
     case Type::STATE:
-      return state_subset_matches(state, ctx.state);
+      return state_subset_matches(state, ctx);
     case Type::COMPOUND:
       return std::all_of(children.begin(),
                          children.end(),
@@ -299,7 +323,8 @@ namespace Pixils::UI
                                         const ThemeSelector& selector) const
   {
     auto variant_it = variant_rules.find(variant);
-    const auto& source_rules = variant_it == variant_rules.end() ? rules : variant_it->second;
+    const auto& source_rules =
+      variant_it == variant_rules.end() ? rules : variant_it->second;
     auto it = std::find_if(source_rules.begin(),
                            source_rules.end(),
                            [&](const auto& rule) { return rule.selector == selector; });
@@ -340,10 +365,8 @@ namespace Pixils::UI
       }
     }
     PIXILS_BENCHMARK_ADD(theme_rules_rejected,
-                         static_cast<std::int64_t>(source_rules.size() -
-                                                   matching.size()));
-    PIXILS_BENCHMARK_ADD(theme_rules_matched,
-                         static_cast<std::int64_t>(matching.size()));
+                         static_cast<std::int64_t>(source_rules.size() - matching.size()));
+    PIXILS_BENCHMARK_ADD(theme_rules_matched, static_cast<std::int64_t>(matching.size()));
 
     std::stable_sort(
       matching.begin(),
@@ -379,7 +402,8 @@ namespace Pixils::UI
 
     resolved.selected_variant = target_variant;
     if (resolved.selected_variant &&
-        resolved.variant_rules.find(*resolved.selected_variant) == resolved.variant_rules.end() &&
+        resolved.variant_rules.find(*resolved.selected_variant) ==
+          resolved.variant_rules.end() &&
         resolved.vars.find(*resolved.selected_variant) == resolved.vars.end())
     {
       resolved.selected_variant = resolved.default_variant;

@@ -712,6 +712,7 @@ namespace Pixils::UI
 
       ThemeMatchContext ctx;
       ctx.state = view->state;
+      ctx.ui_state = view->ui_state;
       ctx.interaction = view->interaction;
       if (view->definition)
       {
@@ -900,6 +901,7 @@ namespace Pixils::UI
         view->style_view.parent() ? view->style_view.parent()->generation() : 0;
       if (view->style_view.valid_for(view->definition,
                                      view->state.get(),
+                                     view->ui_state.get(),
                                      view->interaction,
                                      inherited_theme,
                                      parent_generation))
@@ -932,6 +934,7 @@ namespace Pixils::UI
         resolve_effective_style(view, runtime, inherited_style, selector_path);
       view->style_view.mark_resolved(view->definition,
                                      view->state.get(),
+                                     view->ui_state.get(),
                                      view->interaction,
                                      inherited_theme,
                                      parent_generation);

@@ -2,7 +2,7 @@
   (:require proof.core
             [pixils.test.runtime :as runtime]))
 
-(deftest ui-state-bindings-connect-parent-and-child-component-state
+(deftest isolated-parent-preserves-default-child-state-policy
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
@@ -20,6 +20,10 @@
            (:value
             (:ui-state
              (runtime/find-view app "component-state-parent")))))
+    (is (= 99
+           (:value
+            (:state
+             (runtime/find-view app "component-state-child")))))
     (is (nil? (:value (runtime/active-state app))))))
 
 (deftest parent-ui-state-changes-propagate-to-existing-child

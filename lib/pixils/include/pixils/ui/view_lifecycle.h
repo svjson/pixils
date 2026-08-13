@@ -4,7 +4,6 @@
 #include <memory>
 #include <roo/form.h>
 #include <roo/runtime/value.h>
-#include <string>
 
 namespace Pixils::Asset
 {
@@ -35,12 +34,10 @@ namespace Pixils::UI
                         const Roo::sptr_val& overrides,
                         Roo::Runtime& runtime);
 
-  std::shared_ptr<Runtime::View> build_view_tree(
-    const Runtime::ChildSlot& slot,
-    const Roo::sptr_val& modes,
-    const Roo::sptr_val& components,
-    Roo::Runtime& runtime,
-    const std::string& parent_state_policy = "shared");
+  std::shared_ptr<Runtime::View> build_view_tree(const Runtime::ChildSlot& slot,
+                                                 const Roo::sptr_val& modes,
+                                                 const Roo::sptr_val& components,
+                                                 Roo::Runtime& runtime);
 
   void attach_style_view_tree(const std::shared_ptr<Runtime::View>& view,
                               Runtime::View* parent);

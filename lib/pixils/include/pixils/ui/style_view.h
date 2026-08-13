@@ -38,12 +38,13 @@ namespace Pixils::UI
 
     bool valid_for(const void* mode,
                    const void* state,
+                   const void* ui_state,
                    const InteractionState& interaction,
                    const Theme* inherited_theme,
                    std::uint64_t parent_generation) const
     {
       return cache_valid && mode_key == mode && state_key == state &&
-             inherited_theme_key == inherited_theme &&
+             ui_state_key == ui_state && inherited_theme_key == inherited_theme &&
              parent_generation_key == parent_generation &&
              hovered_key == interaction.hovered && focused_key == interaction.focused &&
              focus_within_key == interaction.focus_within;
@@ -51,12 +52,14 @@ namespace Pixils::UI
 
     void mark_resolved(const void* mode,
                        const void* state,
+                       const void* ui_state,
                        const InteractionState& interaction,
                        const Theme* inherited_theme,
                        std::uint64_t parent_generation)
     {
       mode_key = mode;
       state_key = state;
+      ui_state_key = ui_state;
       inherited_theme_key = inherited_theme;
       parent_generation_key = parent_generation;
       hovered_key = interaction.hovered;
@@ -103,6 +106,7 @@ namespace Pixils::UI
     bool cache_valid = false;
     const void* mode_key = nullptr;
     const void* state_key = nullptr;
+    const void* ui_state_key = nullptr;
     const Theme* inherited_theme_key = nullptr;
     std::uint64_t parent_generation_key = 0;
     bool hovered_key = false;

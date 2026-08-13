@@ -1,0 +1,27 @@
+(ns pixils.test.icon-grid-binding-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.icon-container :as icon-container]))
+
+(pixils/defcomponent bound-grid-owner
+  {:init (fn [state ctx]
+           {:items [{:id :one} {:id :two} {:id :three}]})
+   :children [(icon-container/make-grid
+               {:style {:width 50 :height 40}
+                :bind-content-state? true
+                :state {:items (ui/bind-state :items)}
+                :grid {:cell-width 20
+                       :cell-height 24
+                       :columns 2}
+                :children [{:mode 'ui/icon
+                            :style {:width 10 :height 10}
+                            :state {:item (ui/bind-state :items 0)}}
+                           {:mode 'ui/icon
+                            :style {:width 10 :height 10}
+                            :state {:item (ui/bind-state :items 1)}}
+                           {:mode 'ui/icon
+                            :style {:width 10 :height 10}
+                            :state {:item (ui/bind-state :items 2)}}]})]})
+
+(pixils/defmode root-mode
+  {:children [{:mode 'bound-grid-owner}]})

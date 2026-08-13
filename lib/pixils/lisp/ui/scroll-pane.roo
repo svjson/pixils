@@ -459,7 +459,11 @@
                    :step]
    :style {:width :fill
            :layout {:direction :row}}
-   :content-size {:w 0 :h default-scrollbar-size}
+   :content-size (fn [state ctx]
+                   {:w 0
+                    :h (ui/theme-var ctx
+                                     :scrollbar-size
+                                     default-scrollbar-size)})
    :children [{:mode 'ui/scrollbar
                :class :scroll-pane/horizontal-scrollbar
                :style {:width :fill

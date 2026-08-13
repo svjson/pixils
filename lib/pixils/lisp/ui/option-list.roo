@@ -218,7 +218,11 @@
 (defun scroll-pane-child [state children]
   (let [row-height (or (:computed-row-height state)
                        (:row-height state))
-        content-size (scroll-content-size state)]
+        content-size (scroll-content-size state)
+        item-state-projection (reduce (:item-state-keys state)
+                                      {}
+                                      (fn [out key]
+                                        (assoc out key (ui/project-state key))))]
     (merge {:id "scroll-pane"}
            (pixils.ui.scroll-pane/make
             {:style {:width :fill
@@ -226,7 +230,7 @@
              :content-size content-size
              :content-height-explicit? (:explicit-row-height? state)
              :ui-state {:offset (ui/bind-state :offset)}
-             :state {:content-state (ui/bind-state :content-state)}
+             :state {:content-state item-state-projection}
              :scroll-x? false
              :scroll-y? :auto
              :step row-height

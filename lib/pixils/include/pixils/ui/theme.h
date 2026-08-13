@@ -4,9 +4,9 @@
 #include <pixils/ui/style.h>
 
 #include <cstdint>
-#include <roo/runtime/value.h>
 #include <map>
 #include <optional>
+#include <roo/runtime/value.h>
 #include <string>
 #include <vector>
 
@@ -17,6 +17,7 @@ namespace Pixils::UI
     std::vector<std::string> mode_names;
     std::vector<std::string> class_names;
     Roo::sptr_val state = Roo::Constant::NIL;
+    Roo::sptr_val ui_state = Roo::Constant::NIL;
     InteractionState interaction;
   };
 

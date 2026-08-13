@@ -495,7 +495,7 @@ TEST_F(ButtonTest, button_shared_state_policy_records_pressed_in_state_and_ui_st
   EXPECT_EQ(inner_ui_pressed->to_string(), "true");
 }
 
-TEST_F(ButtonTest, button_isolated_state_policy_records_pressed_only_in_ui_state)
+TEST_F(ButtonTest, button_state_policy_is_local_to_the_view_that_declares_it)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -525,8 +525,9 @@ TEST_F(ButtonTest, button_isolated_state_policy_records_pressed_only_in_ui_state
   ASSERT_NE(inner, nullptr);
   auto inner_pressed = get_key(inner->state, "pressed");
   auto inner_ui_pressed = get_key(inner->ui_state, "pressed");
-  EXPECT_TRUE(inner_pressed == nullptr || inner_pressed->type == Roo::Value::Type::NIL);
+  ASSERT_NE(inner_pressed, nullptr);
   ASSERT_NE(inner_ui_pressed, nullptr);
+  EXPECT_EQ(inner_pressed->to_string(), "true");
   EXPECT_EQ(inner_ui_pressed->to_string(), "true");
 }
 

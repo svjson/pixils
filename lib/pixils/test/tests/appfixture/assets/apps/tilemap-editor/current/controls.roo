@@ -460,8 +460,6 @@
                    visible? (layer-visible? (:hidden-layer-indices state)
                                             (:index state))]
                (assoc state
-                      :selected (contains? (:selected-indices state)
-                                           (:index state))
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
@@ -510,8 +508,7 @@
    :state {:index index
            :value index
            :layer (ui/bind-state :layers index)
-           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-           :selected-indices (ui/bind-state :selected-indices)}})
+           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}})
 
 (defun layer-options [layers]
   (for-indexed [index layer (or layers [])]
@@ -561,7 +558,9 @@
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)
                                        :layer/select
-                                       (-> event :payload :value))
+                                       (head (-> event
+                                                 :payload
+                                                 :selected-values)))
                              state))}
    :children [(merge {:id "list-box"}
                      (layer-list-box-child data/tilemap-layers))]})

@@ -246,13 +246,12 @@
 
 (defun icon-grid-scroll-state [scroll-state bind-content-state?]
   (if bind-content-state?
-    (merge {:content-state (ui/bind-state)}
-           (or scroll-state {}))
+    (merge {:content-state (ui/project-state)}
+           scroll-state)
     scroll-state))
 
 (defun icon-grid-scroll-content-state [state content-state bind-content-state?]
-  (if bind-content-state?
-    {}
+  (unless bind-content-state?
     (or content-state state {})))
 
 (defun make-grid [{:keys [auto-scroll-y bind-content-state? children class container-style content-state grid items-key offset reorderable? scroll-state scroll-x? scroll-y? snap-to-grid? state step style]}]

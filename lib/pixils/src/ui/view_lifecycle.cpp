@@ -387,8 +387,7 @@ namespace Pixils::UI
   std::shared_ptr<Runtime::View> build_view_tree(const Runtime::ChildSlot& slot,
                                                  const Roo::sptr_val& modes,
                                                  const Roo::sptr_val& components,
-                                                 Roo::Runtime& runtime,
-                                                 const std::string& parent_state_policy)
+                                                 Roo::Runtime& runtime)
   {
     Runtime::View view;
     view.id = slot.id;
@@ -399,7 +398,7 @@ namespace Pixils::UI
     view.ui_state_binding = slot.ui_state_binding;
     view.state = slot.initial_state;
     view.initial_state = slot.initial_state;
-    view.state_policy = slot.state_policy.value_or(parent_state_policy);
+    view.state_policy = slot.state_policy.value_or("shared");
 
     if (slot.anonymous_mode)
     {
@@ -461,8 +460,7 @@ namespace Pixils::UI
 
     for (const auto& grandchild_slot : view.definition->children)
     {
-      view.children.push_back(
-        build_view_tree(grandchild_slot, modes, components, runtime, view.state_policy));
+      view.children.push_back(build_view_tree(grandchild_slot, modes, components, runtime));
     }
 
     auto root = std::make_shared<Runtime::View>(std::move(view));
