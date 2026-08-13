@@ -24,11 +24,50 @@
 #include <pixils/ui/components/text_node.h>
 
 #include <roo/io/dir_root_file_system.h>
+#include <roo/io/embedded_file_system.h>
+#include <roo/io/file_system_namespace_source.h>
 #include <roo/lang/io/io_namespace.h>
-#include <stdexcept>
+#include <roo/ordered_namespace_source.h>
 
 namespace Pixils
 {
+  namespace
+  {
+    Roo::EmbeddedFileSystem& embedded_lisp_file_system()
+    {
+      static Roo::EmbeddedFileSystem fs(EmbeddedLisp::core_sources());
+      return fs;
+    }
+
+    std::unique_ptr<Roo::NamespaceSource> make_namespace_source(
+      Roo::FileSystem* application_fs,
+      const std::vector<Roo::NamespaceRoot>& namespace_roots)
+    {
+      std::vector<std::unique_ptr<Roo::NamespaceSource>> sources;
+      sources.push_back(std::make_unique<Roo::FileSystemNamespaceSource>(
+        &embedded_lisp_file_system(),
+        std::vector<std::string>{".roo"},
+        std::vector<Roo::NamespaceRoot>{{"pixils.ui.theme", "ui/themes"},
+                                        {"pixils.ui", "ui"}}));
+      sources.push_back(
+        std::make_unique<Roo::FileSystemNamespaceSource>(application_fs,
+                                                         std::vector<std::string>{".roo"},
+                                                         namespace_roots));
+      return std::make_unique<Roo::OrderedNamespaceSource>(std::move(sources));
+    }
+
+    void load_embedded_namespaces(Roo::Runtime& runtime)
+    {
+      std::string source = "(ns pixils.embedded.autoload (:require";
+      for (const auto& namespace_name : EmbeddedLisp::core_namespaces())
+      {
+        source += " " + std::string(namespace_name);
+      }
+      source += "))";
+      runtime.eval(source, "<pixils-embedded-autoload>");
+    }
+  } // namespace
+
   std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(RenderContext& ctx)
   {
     std::vector<std::unique_ptr<Roo::Namespace>> namespaces;
@@ -84,25 +123,16 @@ namespace Pixils
 
     std::unique_ptr<Roo::DirRootFileSystem> fs =
       std::make_unique<Roo::DirRootFileSystem>(rtconfig.load_path);
+    auto* application_fs = fs.get();
 
     Roo::Runtime roo_runtime(default_namespace,
                              std::move(rtconfig.native_namespaces),
                              std::move(fs.release()));
-    roo_runtime.set_namespace_roots(rtconfig.namespace_roots);
+    roo_runtime.set_namespace_source(
+      make_namespace_source(application_fs, rtconfig.namespace_roots));
     UI::Components::register_text_node_component(roo_runtime);
     UI::Components::register_rich_text_component(roo_runtime);
-    for (const auto& embedded_source : EmbeddedLisp::core_sources())
-    {
-      try
-      {
-        roo_runtime.eval(embedded_source.source);
-      }
-      catch (const std::exception& e)
-      {
-        throw std::runtime_error(std::string("Failed to evaluate embedded Roo source ") +
-                                 embedded_source.path + ": " + e.what());
-      }
-    }
+    load_embedded_namespaces(roo_runtime);
     roo_runtime.eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
     {
@@ -148,25 +178,16 @@ namespace Pixils
 
     std::unique_ptr<Roo::DirRootFileSystem> fs =
       std::make_unique<Roo::DirRootFileSystem>(rtconfig.load_path);
+    auto* application_fs = fs.get();
 
     auto roo_runtime = std::make_unique<Roo::Runtime>(default_namespace,
                                                       std::move(rtconfig.native_namespaces),
                                                       std::move(fs.release()));
-    roo_runtime->set_namespace_roots(rtconfig.namespace_roots);
+    roo_runtime->set_namespace_source(
+      make_namespace_source(application_fs, rtconfig.namespace_roots));
     UI::Components::register_text_node_component(*roo_runtime);
     UI::Components::register_rich_text_component(*roo_runtime);
-    for (const auto& embedded_source : EmbeddedLisp::core_sources())
-    {
-      try
-      {
-        roo_runtime->eval(embedded_source.source);
-      }
-      catch (const std::exception& e)
-      {
-        throw std::runtime_error(std::string("Failed to evaluate embedded Roo source ") +
-                                 embedded_source.path + ": " + e.what());
-      }
-    }
+    load_embedded_namespaces(*roo_runtime);
     roo_runtime->eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
     {
