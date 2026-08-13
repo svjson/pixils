@@ -3,13 +3,6 @@
             [pixils.test.runtime :as runtime]
             [widget-showcase.menu :as showcase-menu]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun view-center-x [view]
   (int (/ (:w (:bounds view)) 2)))
 
@@ -139,7 +132,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (is (not (nil? (runtime/find-view app "ui/window"))))
     (is (not (nil? (runtime/find-view app "ui/tab-panel"))))
     (is (not (nil? (runtime/find-view app "ui/scroll-pane"))))
@@ -155,7 +148,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           body (runtime/find-view app "ui/window-body")
           scroll-pane (runtime/find-view app "ui/scroll-pane")
@@ -176,7 +169,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [pickers (runtime/find-views app "ui/color-picker")]
       (is (= 1 (count pickers)))
       (is (= {:r 220 :g 64 :b 48 :a 255}
@@ -188,12 +181,12 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [layout-tab (runtime/find-view-containing app
                                                    "ui/tab"
                                                    ":tab-id :layout")]
       (runtime/click! app layout-tab)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [collapsible (runtime/find-view app "ui/collapsible")
             content (runtime/find-view app "ui/collapsible-content")
             header (runtime/find-view app "ui/collapsible-header")]
@@ -201,7 +194,7 @@
         (is (= true (:layout-collapsible-expanded? (runtime/active-state app))))
         (is (= true (> (:h (:bounds content)) 0)))
         (runtime/click! app header)
-        (settle-layout! app)
+        (runtime/settle-layout! app)
         (let [content-after (runtime/find-view app "ui/collapsible-content")]
           (is (= false
                  (:layout-collapsible-expanded? (runtime/active-state app))))
@@ -213,9 +206,9 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/click! app (runtime/find-view-containing app "ui/tab" ":tab-id :layout"))
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [rich-text (runtime/find-view app "ui/rich-text")]
       (is (not (nil? rich-text)))
       (is (= 56 (:h (:bounds rich-text))))
@@ -241,13 +234,13 @@
                                :render-backend true})]
     (runtime/eval! app "(pixils/set-theme! 'pixils/windows-3)")
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/click! app (runtime/find-view-containing app "ui/tab" ":tab-id :layout"))
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [rich-text (runtime/find-view app "ui/rich-text")]
       (runtime/mouse-move-in! app rich-text 8 8)
       (runtime/update! app)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (is (= "ui/popover-overlay" (runtime/active-mode-name app)))
       (let [info-popover (runtime/find-view app "ui/popover")]
         (is (not (nil? info-popover)))
@@ -266,7 +259,7 @@
                                  (-> rich-text :bounds :h)
                                  8))
       (runtime/update! app)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (is (= "main-mode" (runtime/active-mode-name app)))
       (is (= "Rich text hover cleared."
              (:message (runtime/active-state app)))))))
@@ -287,13 +280,13 @@
                                     :children [{:mode 'ui/text
                                                 :state {:value \"Local content\"}}]})]})")
     (runtime/push-mode! app 'popover-trigger-root)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [popover (runtime/find-view app "ui/popover")
           trigger (runtime/find-view app "ui/popover-trigger-control")]
       (is (not (nil? popover)))
       (is (= false (:open? (runtime/view-state popover))))
       (runtime/click! app trigger)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (is (= true (:open? (runtime/view-state (runtime/find-view app "ui/popover"))))))))
 
 (deftest popover-open-pushes-overlay-mode
@@ -318,7 +311,7 @@
                                                              :state {:value \"Overlay content\"}}]})
                                                state)}]})")
     (runtime/push-mode! app 'popover-open-root)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/click! app (runtime/find-view app "ui/button"))
     (runtime/update! app)
     (is (= "ui/popover-overlay" (runtime/active-mode-name app)))
@@ -412,7 +405,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [bodies (runtime/find-views app "ui/group-box-body")
           choices-body (nth bodies 1)
           combo (runtime/find-view app "ui/combo-box")]
@@ -426,7 +419,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [tab-panel (runtime/find-view app "ui/tab-panel")
           before-body-state (:rendered-body-state
                              (runtime/view-state tab-panel))
@@ -445,7 +438,7 @@
                             (- (:w (:bounds slider)) 2)
                             (view-center-y slider))
       (runtime/update! app)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [after-tab-panel (runtime/find-view app "ui/tab-panel")
             after-body-state (:rendered-body-state
                               (runtime/view-state after-tab-panel))]
@@ -459,7 +452,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [min-limit-slider (slider-with-state app
                                               (fn [state]
                                                 (= 20 (:value state))))]
@@ -469,7 +462,7 @@
                               (view-center-y min-limit-slider))
       (is (= 85
              (:slider-limit-min (runtime/active-state app))))
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [max-limit-slider (slider-with-state
                               app
                               (fn [state]
@@ -488,7 +481,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [button (runtime/find-view-containing app
                                                "ui/button"
                                                ":label \"Normal\"")
@@ -510,7 +503,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [combo (runtime/find-view app "ui/combo-box")]
       (runtime/mouse-click-in! app
                                combo
@@ -525,7 +518,7 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [combo (runtime/find-view app "ui/combo-box")]
       (runtime/mouse-click-in! app
                                combo
@@ -540,12 +533,12 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [lists-tab (runtime/find-view-containing app
                                                   "ui/tab"
                                                   ":tab-id :lists")]
       (runtime/click! app lists-tab)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [row (runtime/find-view-containing app
                                               "ui/list-box-item"
                                               ":value :four")]
@@ -553,7 +546,7 @@
                                  row
                                  (view-center-x row)
                                  (view-lower-y row))
-        (settle-layout! app)
+        (runtime/settle-layout! app)
         (let [selected-row (runtime/find-view-containing app
                                                          "ui/list-box-item"
                                                          ":value :four")]
@@ -566,12 +559,12 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [lists-tab (runtime/find-view-containing app
                                                   "ui/tab"
                                                   ":tab-id :lists")]
       (runtime/click! app lists-tab)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [row (runtime/find-view-containing app
                                               "ui/list-box-item"
                                               ":value :four")]
@@ -579,7 +572,7 @@
                                  row
                                  (view-center-x row)
                                  (view-upper-y row))
-        (settle-layout! app)
+        (runtime/settle-layout! app)
         (let [selected-row (runtime/find-view-containing app
                                                          "ui/list-box-item"
                                                          ":value :four")]
@@ -592,12 +585,12 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [lists-tab (runtime/find-view-containing app
                                                   "ui/tab"
                                                   ":tab-id :lists")]
       (runtime/click! app lists-tab)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [row (runtime/find-view-containing app
                                               "ui/list-box-item"
                                               ":reorderable? true")
@@ -611,7 +604,7 @@
         (runtime/update! app)
         (runtime/mouse-up-at! app x drop-y)
         (runtime/update! app)
-        (settle-layout! app)
+        (runtime/settle-layout! app)
         (let [state (runtime/active-state app)]
           (is (= "List row reordered."
                  (:message state)))
@@ -624,12 +617,12 @@
                                :buffer-height 600
                                :render-backend false})]
     (runtime/push-mode! app 'main-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [lists-tab (runtime/find-view-containing app
                                                   "ui/tab"
                                                   ":tab-id :lists")]
       (runtime/click! app lists-tab)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [tree (runtime/find-view app "ui/tree-view")
             state (runtime/view-state tree)]
         (is (not (nil? tree)))
