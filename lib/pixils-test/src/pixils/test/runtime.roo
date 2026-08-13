@@ -10,7 +10,7 @@
 (defun pop-mode! [app payload] (native/pop-mode! app payload))
 (defun update! [app] (native/update! app))
 (defun render! [app] (native/render! app))
-(defun layout! [app] (native/layout! app))
+
 (defun frame! [app] (native/frame! app))
 (defun rendered-pixel [app x y] (native/rendered-pixel app x y))
 (defun active-mode [app] (native/active-mode app))
@@ -76,5 +76,39 @@
     (mouse-up-in! app to-view to-x to-y button)
     (update! app)
     app))
+
+
+
+;; Layout
+
+(defun layout! [app] (native/layout! app))
+
+(defun settle-layout!
+  "Runs two update and layout cycles, then returns `app`.
+
+  Use this after creating or changing views whose measured layout needs a
+  follow-up update before assertions."
+  [app]
+  (update! app)
+  (layout! app)
+  (update! app)
+  (layout! app)
+  app)
+
+
+
+;; Keyboard input
+
 (defun key-down! [app key] (native/key-down! app key))
+
 (defun key-up! [app key] (native/key-up! app key))
+
+(defun press-key!
+  "Presses and releases `key`, updating `app` after each input
+   transition, and returns `app`."
+  [app key]
+  (key-down! app key)
+  (update! app)
+  (key-up! app key)
+  (update! app)
+  app)
