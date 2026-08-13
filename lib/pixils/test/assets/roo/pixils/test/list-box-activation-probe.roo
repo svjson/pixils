@@ -1,0 +1,47 @@
+(ns pixils.test.list-box-activation-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]))
+
+(pixils/defmode activating-item
+  {:on-click (fn [state event ctx]
+               (ui/emit! (:view ctx)
+                         :list-box/item-click
+                         (merge state {:shift? false :ctrl? false}))
+               (ui/emit! (:view ctx)
+                         :list-box/item-activate
+                         (merge state {:shift? false :ctrl? false}))
+               state)})
+
+(pixils/defmode root-mode
+  {:init (fn [state ctx]
+           {:selected [0]
+            :activated nil
+            :event-order []})
+   :on {:list-box/selection-change
+        (fn [state event ctx]
+          (assoc state
+                 :selected
+                 (:selected-indices (:payload event))
+                 :event-order
+                 (append (:event-order state) :selection-change)))
+        :list-box/activate
+        (fn [state event ctx]
+          (assoc state
+                 :activated (:payload event)
+                 :event-order
+                 (append (:event-order state) :activate)))}
+   :children [(list-box/make
+               {:options [{:value :a :label "Alpha"}
+                          {:value :b :label "Beta"}]
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :multi-select? true
+                :toggle-selected? true
+                :selected-indices (ui/project-state :selected)
+                :item-child (fn [index item]
+                              {:mode 'activating-item
+                               :state {:index index
+                                       :value (:value item)}})})]})

@@ -1,0 +1,36 @@
+(ns pixils.test.list-box-keyboard-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]))
+
+(pixils/defmode root-mode
+  {:init (fn [state ctx]
+           {:options [{:value :a :label "Alpha"}
+                      {:value :b :label "Beta" :disabled? true}
+                      {:value :c :label "Gamma"}
+                      {:value :d :label "Delta"}
+                      {:value :e :label "Epsilon"}]
+            :selected [0]
+            :last-change nil
+            :focused? false})
+   :update (fn [state ctx]
+             (unless (:focused? state)
+               (ui/focus! (head (ui/children ctx))))
+             (assoc state :focused? true))
+   :on {:list-box/selection-change
+        (fn [state event ctx]
+          (assoc (assoc state
+                        :selected (:selected-indices (:payload event)))
+                 :last-change (:payload event)))}
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/down (assoc state :root-key-down true)
+                    :default state))
+   :children [(list-box/make
+               {:options (ui/project-state :options)
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :force-selection? true
+                :selected-indices (ui/project-state :selected)})]})

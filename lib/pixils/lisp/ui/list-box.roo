@@ -353,10 +353,7 @@
                           (ui/stop-propagation! event)
                           (let [next-ui-state (apply-keyboard-selection ui-state index ctx)]
                             (ui/set-ui-state! ctx next-ui-state)
-                            (assoc state
-                                   :selected-indices (:selected-indices next-ui-state)
-                                   :anchor-index (:anchor-index next-ui-state)
-                                   :offset (:offset next-ui-state))))
+                            state))
                         state))))
    :on-drag-start (fn [state event ctx]
                     (case (-> event :payload :kind)
@@ -417,28 +414,22 @@
                                                               :anchor-index (:index payload))]
                                      (ui/stop-propagation! event)
                                      (ui/set-ui-state! ctx next-ui-state)
-                                     (assoc state
-                                            :selected-indices selected
-                                            :anchor-index (:index payload))))))
+                                     state))))
         :list-box/item-activate (fn [state event ctx]
                                   (let [ui-state (-> ctx :view :ui-state)
                                         payload (:payload event)
                                         option (nth (:options ui-state) (:index payload))
                                         disabled? (or (:disabled? ui-state)
-                                                      (:disabled? option))
-                                        selected (if disabled?
-                                                   (:selected-indices ui-state)
-                                                   (click-selection ui-state payload))
-                                        values (option-list/values-at-indices
-                                                (:options ui-state)
-                                                selected)]
+                                                      (:disabled? option))]
                                     (ui/stop-propagation! event)
                                     (unless disabled?
-                                    (ui/emit! (:view ctx)
-                                              :list-box/activate
-                                              (merge payload
-                                                     {:selected-indices selected
-                                                      :selected-values values})))
+                                      (ui/emit! (:view ctx)
+                                                :list-box/activate
+                                                (merge payload
+                                                       (select-keys
+                                                        ui-state
+                                                        [:selected-indices
+                                                         :selected-values]))))
                                     state))}
    :on-drop (fn [state event ctx]
               (let [ui-state (-> ctx :view :ui-state)
@@ -460,9 +451,7 @@
                                       (assoc ui-state
                                              :reorder-drag nil
                                              :reorder-drag-ended? false))
-                    (assoc state
-                           :reorder-drag nil
-                           :reorder-drag-ended? false))
+                    state)
                   state)))})
 
 
@@ -490,15 +479,16 @@
    :style {...}
    :state {...}
    :ui-state {...}
-   :state-policy :shared}
+   :state-policy :isolated}
   ```
 
   Stock list-box behavior values are written under `:state :component`.
   Static values, `ui/bind-state`, and `ui/project-state` are accepted for
   component entries. Ordinary :state entries remain available for caller
   application state. During migration, component keys supplied directly in
-  :state are also copied into :component, and the default shared state policy
-  keeps declared component keys visible in ordinary state."
+  :state are also copied into :component. List boxes use isolated component
+  state by default; pass `:state-policy :shared` only for compatibility with
+  code that reads component keys from ordinary state."
   [{:keys [class style state ui-state state-policy] :as opts}]
   (let [supplied-component (merge (select-keys state LIST-BOX-UI-STATE-KEYS)
                                    (:component state)
@@ -530,8 +520,8 @@
                                               :reorder-drag-threshold]})]
     (cond-> {:mode 'ui/list-box
              :state (assoc state :component component)
+             :ui/state-policy (or state-policy :isolated)
              :children [(option-list/scroll-pane-for-state component)]}
             (contains? opts :style) (assoc :style style)
             class (assoc :class class)
-            ui-state (assoc :ui-state ui-state)
-            state-policy (assoc :ui/state-policy state-policy))))
+            ui-state (assoc :ui-state ui-state))))

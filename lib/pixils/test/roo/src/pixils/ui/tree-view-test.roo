@@ -68,13 +68,6 @@
                 (fn [node]
                   (-> node :state :node :id)))))))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun view-center-y [view]
   (int (/ (:h (:bounds view)) 2)))
 
@@ -300,7 +293,7 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/key-down! app :down)
     (runtime/update! app)
     (runtime/key-up! app :down)
@@ -309,7 +302,7 @@
     (runtime/update! app)
     (runtime/key-up! app :right)
     (runtime/update! app)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
           root-state (runtime/active-state app)]
       (is (= :project (:selected root-state)))
@@ -325,13 +318,13 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [item (runtime/find-view app "ui/tree-view-item")]
       (runtime/mouse-down-in! app item 2 (view-center-y item))
       (runtime/update! app)
       (runtime/mouse-up-in! app item 2 (view-center-y item))
       (runtime/update! app)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
             root-state (runtime/active-state app)]
         (is (= :project (-> root-state :last-expand :id)))
@@ -345,7 +338,7 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-scroll-offset-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [before-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
           before-scroll-state (runtime/view-state
                                (runtime/find-view app "ui/scroll-pane"))]
@@ -357,7 +350,7 @@
       (runtime/update! app)
       (runtime/key-up! app :right)
       (runtime/update! app)
-      (settle-layout! app)
+      (runtime/settle-layout! app)
       (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
             scroll-state (runtime/view-state
                           (runtime/find-view app "ui/scroll-pane"))]
@@ -373,7 +366,7 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-themed-disclosure-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [items (runtime/find-views app "ui/tree-view-item")
           disclosures (runtime/find-views app "ui/tree-view-disclosure")]
       (is (= ["-" "+" "" "+"]
@@ -404,8 +397,8 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-nested-expansion-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
+    (runtime/settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
           item-ids (map (runtime/find-views app "ui/tree-view-item")
                         (fn [view]
@@ -427,8 +420,8 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-bound-initial-expansion-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
+    (runtime/settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
           item-ids (map (runtime/find-views app "ui/tree-view-item")
                         (fn [view]
@@ -451,7 +444,7 @@
                                :render-backend false})]
     (runtime/eval! app (tree-view-lazy-adapter-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
           item-ids (map (runtime/find-views app "ui/tree-view-item")
                         (fn [view]

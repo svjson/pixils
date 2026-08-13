@@ -3,13 +3,6 @@
             [pixils.ui.group-box :as group-box]
             [pixils.test.runtime :as runtime]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun make-app []
   (runtime/make-app {:package-root "../.."
                      :buffer-width 160
@@ -127,7 +120,7 @@
   (let [app (make-app)]
     (runtime/eval! app (group-box-layout-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [group (runtime/find-view app "ui/group-box")
           frame (runtime/find-view app "ui/group-box-frame")
           title (runtime/find-view app "ui/group-box-title")
@@ -146,7 +139,7 @@
   (let [app (make-app)]
     (runtime/eval! app (windows-group-box-layout-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [group (runtime/find-view app "ui/group-box")
           frame (runtime/find-view app "ui/group-box-frame")
           group-bounds (:bounds group)
@@ -164,7 +157,7 @@
   (let [app (make-app)]
     (runtime/eval! app (group-box-body-state-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [text (runtime/find-view-containing app "ui/text" "Selected: Audio")]
       (is (= "Selected: Audio"
              (:value (runtime/view-state text)))))))

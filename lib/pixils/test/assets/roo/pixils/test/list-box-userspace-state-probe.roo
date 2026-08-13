@@ -1,0 +1,14 @@
+(ns pixils.test.list-box-userspace-state-probe
+  (:require pixils
+            [pixils.ui.list-box :as list-box]))
+
+(pixils/defmode root-mode
+  {:update (fn [state ctx] {})
+   :children [(list-box/make
+               {:options [{:value :a :label "Alpha"}
+                          {:value :b :label "Beta"}]
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :selected-indices [0]})]})

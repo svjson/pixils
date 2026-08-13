@@ -3,59 +3,6 @@
             [pixils.ui.list-box :as list-box]
             [pixils.test.runtime :as runtime]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
-(defun press-key! [app key]
-  (runtime/key-down! app key)
-  (runtime/update! app)
-  (runtime/key-up! app key)
-  (runtime/update! app)
-  app)
-
-(defun list-box-keyboard-probe-source []
-  "(ns pixils.test.list-box-keyboard-probe
-     (:require pixils
-               [pixils.ui :as ui]
-               [pixils.ui.list-box :as list-box]))
-
-   (pixils/defmode root-mode
-     {:init (fn [state ctx]
-              {:options [{:value :a :label \"Alpha\"}
-                         {:value :b :label \"Beta\" :disabled? true}
-                         {:value :c :label \"Gamma\"}
-                         {:value :d :label \"Delta\"}
-                         {:value :e :label \"Epsilon\"}]
-               :selected [0]
-               :last-change nil
-               :focused? false})
-      :update (fn [state ctx]
-                (do
-                  (when (not (:focused? state))
-                    (ui/focus! (head (ui/children ctx))))
-                  (assoc state :focused? true)))
-      :on {:list-box/selection-change
-           (fn [state event ctx]
-             (assoc (assoc state
-                           :selected (:selected-indices (:payload event)))
-                    :last-change (:payload event)))}
-      :on-key-down (fn [state event ctx]
-                     (if (= :key/down (:key event))
-                       (assoc state :root-key-down true)
-                       state))
-      :children [(list-box/make
-                  {:options (ui/project-state :options)
-                   :style {:width 100}
-                   :row-height 10
-                   :visible-rows 2
-                   :content-width 100
-                   :force-selection? true
-                   :selected-indices (ui/project-state :selected)})]})")
-
 (deftest list-box-keyboard-target-skips-disabled-options
   (is (= 2
          (list-box/keyboard-target-index
@@ -88,28 +35,32 @@
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (is (= [:a]
            (:selected-values
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))))
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))))
 
 (deftest list-box-updates-selected-values-with-bound-selection-and-options
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app) :selected [2]))
     (runtime/update! app)
     (is (= [:c]
            (:selected-values
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app)
@@ -119,7 +70,7 @@
     (runtime/update! app)
     (is (= [:updated]
            (:selected-values
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))
     (is (= {:selected-indices [2]
             :selected-values [:updated]}
            (:last-change (runtime/active-state app))))))
@@ -129,9 +80,11 @@
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app)
@@ -149,16 +102,18 @@
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app) :selected []))
     (runtime/update! app)
     (is (= [0]
            (:selected-indices
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))
     (is (nil? (:last-change (runtime/active-state app))))
     (runtime/set-active-state!
      app
@@ -166,7 +121,7 @@
     (runtime/update! app)
     (is (= [0]
            (:selected-indices
-            (runtime/view-state (runtime/find-view app "ui/list-box")))))
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))
     (is (nil? (:last-change (runtime/active-state app))))))
 
 (deftest list-box-arrow-key-navigation-selects-next-enabled-item
@@ -174,21 +129,21 @@
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (do
       (is (= true (-> (runtime/find-view app "ui/list-box")
                       :interaction
                       :focused)))
       (is (= 5 (count (:options
-                       (runtime/view-state
-                        (runtime/find-view app "ui/list-box"))))))
+                       (-> (runtime/find-view app "ui/list-box") :ui-state)))))
       (is (= 0 (:anchor-index
-                (runtime/view-state
-                 (runtime/find-view app "ui/list-box")))))
-      (press-key! app :down)
-      (let [state (runtime/view-state (runtime/find-view app "ui/list-box"))
+                (-> (runtime/find-view app "ui/list-box") :ui-state))))
+      (runtime/press-key! app :down)
+      (let [state (-> (runtime/find-view app "ui/list-box") :ui-state)
             root-state (runtime/active-state app)]
         (is (nil? (:root-key-down root-state)))
         (is (= [2] (:selected-indices state)))
@@ -201,13 +156,66 @@
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-keyboard-probe.roo")
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (do
-      (press-key! app :down)
-      (press-key! app :down)
-      (press-key! app :down)
-      (let [state (runtime/view-state (runtime/find-view app "ui/list-box"))]
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (let [state (-> (runtime/find-view app "ui/list-box") :ui-state)]
         (is (= [4] (:selected-indices state)))
         (is (= 30 (-> state :offset :y)))))))
+
+
+(deftest list-box-activation-reports-committed-selection
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-activation-probe.roo")
+    (runtime/push-mode! app 'root-mode)
+    (runtime/settle-layout! app)
+    (runtime/click! app
+                    (head (runtime/find-views app "activating-item")))
+    (is (= {:ui-selection []
+            :ui-values []
+            :application-selection []
+            :activation-selection []
+            :activation-values []
+            :event-order [:selection-change :activate]}
+           (let [ui-state (-> (runtime/find-view app "ui/list-box") :ui-state)
+                 application-state (runtime/active-state app)
+                 activated (:activated application-state)]
+             {:ui-selection (:selected-indices ui-state)
+              :ui-values (:selected-values ui-state)
+              :application-selection (:selected application-state)
+              :activation-selection (:selected-indices activated)
+              :activation-values (:selected-values activated)
+              :event-order (:event-order application-state)})))))
+
+
+(deftest list-box-survives-userspace-state-replacement
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "../assets/roo/pixils/test/list-box-userspace-state-probe.roo")
+    (runtime/push-mode! app 'root-mode)
+    (runtime/settle-layout! app)
+    (runtime/click! app
+                    (nth (runtime/find-views app "ui/list-box-item") 1))
+    (runtime/update! app)
+    (is (= {} (runtime/active-state app)))
+    (is (= [1]
+           (:selected-indices
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))
+    (is (= [:b]
+           (:selected-values
+            (-> (runtime/find-view app "ui/list-box") :ui-state))))))

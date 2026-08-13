@@ -2,13 +2,6 @@
   (:require proof.core
             [pixils.test.runtime :as runtime]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun fill-scroll-pane-probe-source []
   "(ns pixils.test.fill-scroll-pane-probe
      (:require pixils
@@ -32,7 +25,7 @@
                                :render-backend false})]
     (runtime/eval! app (fill-scroll-pane-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [scroll-pane (runtime/find-view app "ui/scroll-pane")
           viewport (runtime/find-view app "ui/scroll-pane-viewport")]
       (is (= 80 (:h (:bounds scroll-pane))))

@@ -791,7 +791,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(list_box->bounds.h, 22);
 
   auto selected =
-    Roo::Dict::get_property(list_box->state, Roo::keyword("selected-indices"));
+    Roo::Dict::get_property(list_box->ui_state, Roo::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0]");
 
@@ -1062,7 +1062,7 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
 
   auto list_box = session.active_mode->children[0];
   auto selected =
-    Roo::Dict::get_property(list_box->state, Roo::keyword("selected-indices"));
+    Roo::Dict::get_property(list_box->ui_state, Roo::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1]");
 

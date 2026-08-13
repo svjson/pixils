@@ -2,23 +2,9 @@
   (:require proof.core
             [pixils.test.runtime :as runtime]))
 
-(defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  app)
-
 (defun layout-frame! [app]
   (runtime/update! app)
   (runtime/layout! app)
-  app)
-
-(defun press-key! [app key]
-  (runtime/key-down! app key)
-  (runtime/update! app)
-  (runtime/key-up! app key)
-  (runtime/update! app)
   app)
 
 (defun press-shift-tab! [app]
@@ -564,7 +550,7 @@
                                :render-backend false})]
     (runtime/eval! app (centered-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
@@ -647,7 +633,7 @@
                                :render-backend false})]
     (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [before-window (runtime/find-view app "ui/window")
           before-bounds (:bounds before-window)
           body (runtime/find-view app "dynamic-body")]
@@ -722,7 +708,7 @@
                                :render-backend false})]
     (runtime/eval! app (centered-scaled-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
@@ -744,7 +730,7 @@
                                :render-backend false})]
     (runtime/eval! app (body-style-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [body (runtime/find-view app "ui/window-body")]
       (is (= 40 (:h (:bounds body)))))))
 
@@ -755,7 +741,7 @@
                                :render-backend false})]
     (runtime/eval! app (autofocus-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")]
       (is (= true (-> window :interaction :focused)))
       (is (= true (-> window :interaction :focus-within))))))
@@ -767,7 +753,7 @@
                                :render-backend false})]
     (runtime/eval! app (child-autofocus-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           input (runtime/find-view app "ui/text-input-inner")]
       (is (= false (-> window :interaction :focused)))
@@ -781,7 +767,7 @@
                                :render-backend false})]
     (runtime/eval! app (first-body-autofocus-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           button (runtime/find-view app "ui/button")]
       (is (= false (-> window :interaction :focused)))
@@ -795,7 +781,7 @@
                                :render-backend false})]
     (runtime/eval! app (first-body-autofocus-skips-disabled-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [buttons (runtime/find-views app "ui/button")
           disabled (head buttons)
           enabled (nth buttons 1)]
@@ -809,16 +795,16 @@
                                :render-backend false})]
     (runtime/eval! app (tab-focus-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (do
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-button app "First")))
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= false (focused-button app "Disabled")))
       (is (= true (focused-button app "Second")))
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-button app "Third")))
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-button app "First"))))))
 
 (deftest shift-tab-focuses_previous_focusable_view_and_wraps
@@ -828,7 +814,7 @@
                                :render-backend false})]
     (runtime/eval! app (tab-focus-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (do
       (press-shift-tab! app)
       (is (= true (focused-button app "Third")))
@@ -845,13 +831,13 @@
                                :render-backend false})]
     (runtime/eval! app (tab-consuming-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (do
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-button app "First")))
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-consuming-button app)))
-      (press-key! app :tab)
+      (runtime/press-key! app :tab)
       (is (= true (focused-consuming-button app)))
       (is (= true (:tab-consumed?
                    (runtime/view-state
@@ -864,7 +850,7 @@
                                :render-backend false})]
     (runtime/eval! app (autofocus-disabled-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")]
       (is (= false (-> window :interaction :focused)))
       (is (= false (-> window :interaction :focus-within))))))
@@ -876,7 +862,7 @@
                                :render-backend false})]
     (runtime/eval! app (oversized-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           title-bar (runtime/find-view app "ui/window-title-bar")
           state (runtime/view-state window)]
@@ -897,7 +883,7 @@
                                :render-backend false})]
     (runtime/eval! app (explicit-offscreen-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= true (:window/explicit-position? state)))
@@ -913,7 +899,7 @@
                                :render-backend false})]
     (runtime/eval! app (modal-overlay-focus-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           input (runtime/find-view app "ui/text-input-inner")]
       (is (= true (-> input :interaction :focused)))
@@ -935,7 +921,7 @@
                                :render-backend false})]
     (runtime/eval! app (centered-dialog-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
@@ -953,7 +939,7 @@
                                :render-backend false})]
     (runtime/eval! app (window-move-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           title-bar (runtime/find-view app "ui/window-title-bar")]
       (is (= 24 (:x (:bounds window))))
@@ -989,7 +975,7 @@
                                :render-backend false})]
     (runtime/eval! app (fixed-frame-move-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
+    (runtime/settle-layout! app)
     (let [window (runtime/find-view app "ui/window")
           body (runtime/find-view app "move-emitter-body")]
       (is (= 24 (:x (:bounds window))))
