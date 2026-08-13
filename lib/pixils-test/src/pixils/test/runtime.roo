@@ -1,8 +1,8 @@
 (ns pixils.test.runtime
-  (:require [pixils.test.runtime.native :as native]))
+  (:require [roo.io :as io]
+            [pixils.test.runtime.native :as native]))
 
 (defun make-app [opts] (native/make-app opts))
-(defun eval! [app source] (native/eval! app source))
 (defun push-mode! [app mode] (native/push-mode! app mode))
 (defun push-mode-with-state! [app mode state] (native/push-mode! app mode state))
 (defun push-mode-with-overrides! [app mode state overrides]
@@ -76,6 +76,15 @@
     (mouse-up-in! app to-view to-x to-y button)
     (update! app)
     app))
+
+
+;; Code evaluation/injection
+
+(defun eval! [app source] (native/eval! app source))
+(defun eval-file!
+  "Evaluates the Roo source file at `path` in `app`'s isolated runtime."
+  [app path]
+  (eval! app (io/slurp! path)))
 
 
 
