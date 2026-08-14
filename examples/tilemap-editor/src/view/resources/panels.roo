@@ -28,29 +28,29 @@
                       :command :delete}}]})
 
 (defun image-resource-context-menu [resource-ids]
-  (let [edit-disabled? (not= (count (or resource-ids [])) 1)]
-  {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Edit"
-            :disabled? edit-disabled?
-            :action :resource/context-dummy
-            :payload {:kind :image
-                      :resource-ids resource-ids
-                      :command :edit}}
-           {:label "Replace"
-            :disabled? edit-disabled?
-            :action :resource/context-dummy
-            :payload {:kind :image
-                      :resource-ids resource-ids
-                      :command :replace}}
-           {:label "Delete"
-            :action :resource/context-dummy
-            :payload {:kind :image
-                      :resource-ids resource-ids
-                      :command :delete}}]}))
+  (let [edit-disabled? (not= (count resource-ids) 1)]
+    {:settings {:mnemonics {:enabled false}}
+     :items [{:label "Edit"
+              :disabled? edit-disabled?
+              :action :resource/context-dummy
+              :payload {:kind :image
+                        :resource-ids resource-ids
+                        :command :edit}}
+             {:label "Replace"
+              :disabled? edit-disabled?
+              :action :resource/context-dummy
+              :payload {:kind :image
+                        :resource-ids resource-ids
+                        :command :replace}}
+             {:label "Delete"
+              :action :resource/context-dummy
+              :payload {:kind :image
+                        :resource-ids resource-ids
+                        :command :delete}}]}))
 
 (defun image-resource-context-resource-ids [state]
   (if (and (contains? (:selected-indices state) (:index state))
-           (> (count (or (:selected-image-resources state) [])) 1))
+           (> (count (:selected-image-resources state)) 1))
     (:selected-image-resources state)
     [(:value state)]))
 
@@ -78,25 +78,19 @@
 (defun image-resource-drag-position [event payload]
   (point-minus (:global-position event) (:offset payload)))
 
-(defun emit-image-resource-drag-start! [state event ctx]
-  (let [payload (:payload event)]
+(defun emit-image-resource-drag-start! [state {:keys [payload] :as event} ctx]
+  (ui/emit! (:view ctx)
+            :resource/image-drag-start
+            (assoc payload
+                   :position (image-resource-drag-position event payload)))
+  state)
 
-      (ui/emit! (:view ctx)
-                :resource/image-drag-start
-                (assoc payload
-                       :position (image-resource-drag-position event
-                                                               payload)))
-      state))
-
-(defun emit-image-resource-drag-move! [state event ctx]
-  (let [payload (:payload event)]
-
-      (ui/emit! (:view ctx)
-                :resource/image-drag-move
-                (assoc payload
-                       :position (image-resource-drag-position event
-                                                               payload)))
-      state))
+(defun emit-image-resource-drag-move! [state {:keys [payload] :as event} ctx]
+  (ui/emit! (:view ctx)
+            :resource/image-drag-move
+            (assoc payload
+                   :position (image-resource-drag-position event payload)))
+  state)
 
 (defun emit-image-resource-drag-end! [state event ctx]
 
@@ -125,15 +119,9 @@
    :on-drag-start emit-image-resource-drag-start!
    :on-drag emit-image-resource-drag-move!
    :on-drag-end emit-image-resource-drag-end!
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
-   :on-mouse-down (fn [state event ctx]
-
-                      (ui/stop-propagation! event)
-                      state)
    :on-mouse-up (fn [state event ctx]
-                  (if (= (:button event) :right)
+                  (case (:button event)
+                    :right
                     (let [resource-ids
                           (image-resource-context-resource-ids state)]
 
@@ -144,21 +132,8 @@
                          state
                          ctx)
                         state)
+                    :default
                     state))
-   :on-click (fn [state event {:keys [held-keys] :as ctx}]
-               (if (= (:button event) :right)
-                 (do
-                   (ui/stop-propagation! event)
-                   state)
-                 (do
-                   (unless (:disabled? state)
-                     (ui/emit! (:view ctx)
-                               :list-box/item-click
-                               {:index (:index state)
-                                :value (:value state)
-                                :shift? (contains? held-keys :key/left-shift)
-                                :ctrl? (contains? held-keys :key/left-ctrl)}))
-                   state)))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
 
@@ -199,9 +174,6 @@
            :padding [3 6]
            :layout {:direction :row
                     :align-items :center}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
    :on-drop (fn [state event ctx]
               (when-let [payload (image-resource-drop-payload (:value state)
                                                               (:payload event))]
@@ -210,19 +182,9 @@
                           :resource/move-image-to-bundle
                           payload))
               state)
-   :on-mouse-down (fn [state event ctx]
-
-                      (ui/stop-propagation! event)
-                      state)
    :on-mouse-up (fn [state event ctx]
 
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
                     (when (= (:button event) :right)
                       (menu/open-context-menu! bundle-context-menu
                                                (:global-position event)
@@ -378,11 +340,10 @@
            :hidden true}
    :update (fn [state ctx]
              (let [preview (:drag-preview state)
-                   position (:position preview)
-                   visible? (not (nil? preview))]
+                   position (:position preview)]
 
                  (ui/style! (:view ctx)
-                            (if visible?
+                            (if preview
                               {:hidden false
                                :left (:x position)
                                :top (:y position)

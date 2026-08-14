@@ -40,13 +40,24 @@
                       :disabled? (or (nil? terrain-set)
                                      (empty? tilesets)))))
    :on {:combo-box/change (fn [state event ctx]
-                            (ui/emit! (:view ctx)
-                                      :terrain/tileset-change
-                                      (-> event :payload :selected-index))
+                            (let [next-state
+                                  (model/set-selected-terrain-set-tileset
+                                   state
+                                   (-> event :payload :selected-index))
+                                  terrain-set
+                                  (model/selected-terrain-set
+                                   (:terrain-sets next-state)
+                                   (:selected-terrain-set-index next-state))]
+                              (ui/emit! (:view ctx)
+                                        :action/mutate!
+                                        {:label "Change terrain set tileset"
+                                         :op :value/set
+                                         :target {:path []}
+                                         :args {:value terrain-set}}))
                             state)}
    :children [(cb/make {:options (ui/bind-state :tileset-options)
-                        :selected-index
-                        (ui/bind-state :selected-preview-tileset-index)
+                        :selected-index (ui/bind-state
+                                         :selected-preview-tileset-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
 (defcomponent terrain-unit-selector
@@ -58,20 +69,30 @@
                                 (:selected-terrain-set-index state))]
                (assoc state
                       :terrain-unit-options model/terrain-unit-options
-                      :selected-terrain-unit-index
-                      (model/terrain-unit-option-index
-                       (data/terrain-unit terrain-set))
+                      :selected-terrain-unit-index (model/terrain-unit-option-index
+                                                    (data/terrain-unit terrain-set))
                       :disabled? (nil? terrain-set))))
    :on {:combo-box/change (fn [state {:keys [payload]} ctx]
-                            (ui/emit! (:view ctx)
-                                      :terrain/unit-change
-                                      (:value payload))
+                            (let [next-state
+                                  (model/set-selected-terrain-set-unit
+                                   state
+                                   (:value payload))
+                                  terrain-set
+                                  (model/selected-terrain-set
+                                   (:terrain-sets next-state)
+                                   (:selected-terrain-set-index next-state))]
+                              (ui/emit! (:view ctx)
+                                        :action/mutate!
+                                        {:label "Change terrain set unit"
+                                         :op :value/set
+                                         :target {:path []}
+                                         :args {:value terrain-set}}))
                             (assoc state
                                    :selected-terrain-unit-index
                                    (:selected-index payload)))}
    :children [(cb/make {:options (ui/bind-state :terrain-unit-options)
-                        :selected-index
-                        (ui/bind-state :selected-terrain-unit-index)
+                        :selected-index (ui/bind-state
+                                         :selected-terrain-unit-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
 (defun terrain-set-detail-editor-children []
@@ -90,31 +111,30 @@
     :state {:value "Preview tileset"}}
    {:mode 'terrain-preview-tileset-selector
     :state {:terrain-sets (ui/project-state :terrain-sets)
-            :selected-terrain-set-index
-            (ui/project-state :selected-terrain-set-index)
+            :selected-terrain-set-index (ui/project-state
+                                         :selected-terrain-set-index)
+            :selected-terrain-index (ui/project-state
+                                     :selected-terrain-index)
             :tilesets (ui/project-state :tilesets)}}
    {:mode 'ui/text
     :class :ui/muted
     :state {:value "Terrain unit"}}
    {:mode 'terrain-unit-selector
     :state {:terrain-sets (ui/project-state :terrain-sets)
-            :selected-terrain-set-index
-            (ui/project-state :selected-terrain-set-index)}}
+            :selected-terrain-set-index (ui/project-state
+                                         :selected-terrain-set-index)}}
    {:mode 'property-set-assignment-list
     :state {:kind :terrain-set
             :property-sets (ui/project-state :property-sets)
-            :assigned-property-set-ids
-            (ui/bind-state :property-set-ids)
+            :assigned-property-set-ids (ui/bind-state :property-set-ids)
             :disabled? (ui/bind-state :set-disabled?)}}
    {:mode 'property-value-list
     :state {:title "Terrain Set Properties"
             :kind :terrain-set-default
             :property-sets (ui/project-state :property-sets)
-            :property-set-ids
-            (ui/bind-state :property-set-ids)
+            :property-set-ids (ui/bind-state :property-set-ids)
             :default-values {}
-            :override-values
-            (ui/bind-state :property-default-values)
+            :override-values (ui/bind-state :property-default-values)
             :disabled? (ui/bind-state :set-disabled?)}}])
 
 (defcomponent terrain-set-detail-editor
@@ -129,5 +149,18 @@
                (assoc state
                       :property-set-ids (:property-sets terrain-set)
                       :property-default-values (:properties terrain-set))))
+   :on {:action/mutate!
+        (fn [state {:keys [payload] :as event} ctx]
+          (let [terrain-set-index
+                (model/selected-terrain-set-index
+                 (:terrain-sets state)
+                 (:selected-terrain-set-index state))]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :action/mutate!
+                      (assoc-in payload
+                                [:target :path]
+                                (concat [:terrain-sets terrain-set-index]
+                                        (-> payload :target :path))))
+            state))}
    :children (terrain-set-detail-editor-children)})
-

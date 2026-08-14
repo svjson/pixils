@@ -52,9 +52,28 @@
                       :disabled? (or (:terrain-disabled? state)
                                      (empty? (:mask-sets state))))))
    :on {:combo-box/change (fn [state {:keys [payload]} ctx]
-                            (ui/emit! (:view ctx)
-                                      :terrain/transition-mask-set-change
-                                      (:value payload))
+                            (let [next-state
+                                  (model/set-selected-terrain-transition-mask-set
+                                   state
+                                   (:value payload))
+                                  terrain-set
+                                  (model/selected-terrain-set
+                                   (:terrain-sets next-state)
+                                   (:selected-terrain-set-index next-state))
+                                  terrain
+                                  (model/selected-terrain
+                                   terrain-set
+                                   (:selected-terrain-index next-state))]
+                              (ui/emit!
+                               (:view ctx)
+                               :action/mutate!
+                               {:label "Change terrain transition mask set"
+                                :op :value/set
+                                :target {:path []}
+                                :args {:value terrain}})
+                              (ui/emit! (:view ctx)
+                                        :terrain/rule-selected-mask-change
+                                        nil))
                             (assoc state
                                    :selected-mask-set-option-index
                                    (:selected-index payload)))}
@@ -162,6 +181,38 @@
                        :reference-data (ui/project-state :reference-data)
                        :workspace (ui/project-state :workspace)
                        :detail (ui/project-state :detail)}
+               :on {:action/mutate!
+                    (fn [state {:keys [payload] :as event} ctx]
+                      (let [terrain-set-index
+                            (model/selected-terrain-set-index
+                             (-> state :subject :terrain-sets)
+                             (-> state
+                                 :workspace
+                                 :selection
+                                 :terrain-set-index))
+                            terrain-set
+                            (nth (-> state :subject :terrain-sets)
+                                 terrain-set-index)
+                            terrain-index
+                            (model/selected-terrain-index
+                             terrain-set
+                             (-> state
+                                 :workspace
+                                 :selection
+                                 :terrain-index))]
+                        (ui/stop-propagation! event)
+                        (ui/emit!
+                         (:view ctx)
+                         :action/mutate!
+                         (assoc-in
+                          payload
+                          [:target :path]
+                          (concat [:terrain-sets
+                                   terrain-set-index
+                                   :terrains
+                                   terrain-index]
+                                  (-> payload :target :path))))
+                        state))}
                :children [{:mode 'ui/text
                            :class :ui/muted
                            :style {:width 92}

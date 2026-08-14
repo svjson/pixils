@@ -10,32 +10,32 @@
 (def layer-list-min-visible-rows 3)
 
 (defun layer-visible? [hidden-layer-indices index]
-  (not (contains? (or hidden-layer-indices []) index)))
+  (not (contains? hidden-layer-indices index)))
 
 (defun terrain-set-label [terrain-sets terrain-set]
-  (if-let [item (head (filter (or terrain-sets [])
-                           (fn [item]
-                             (= (:id item) terrain-set))))] (or (:label item) (:name item) (str (:id item))) ""))
+  (if-let [item (find-first terrain-sets
+                            (fn [item]
+                              (= (:id item) terrain-set)))]
+    (or (:label item) (:name item) (str (:id item)))
+    ""))
 
 (defun layer-source-label [state layer]
-  (if (= (:data-kind layer) :terrain)
-    (terrain-set-label (:terrain-sets state) (:terrain-set layer))
+  (case (:data-kind layer)
+    :terrain (terrain-set-label (:terrain-sets state) (:terrain-set layer))
+    :default
     (data/tileset-label (:tilesets state) (:tileset layer))))
 
-(defun layer-source-menu-item [state]
-  (let [layer (:layer state)
-        terrain-layer? (= :terrain (:data-kind layer))
-        tile-layer? (not terrain-layer?)
-        has-terrain-sets? (not-empty? (or (:terrain-sets state) []))
-        has-tilesets? (not-empty? (or (:tilesets state) []))]
+(defun layer-source-menu-item [{:keys [layer terrain-sets tilesets]}]
+  (let [terrain-layer? (= :terrain (:data-kind layer))
+        tile-layer? (not terrain-layer?)]
     (if terrain-layer?
       {:label "Change Terrain Set"
        :action :layer/context-dummy
-       :disabled? (not has-terrain-sets?)
+       :disabled? (empty? terrain-sets)
        :payload {:command :terrain-set}}
       {:label "Change Tileset"
        :action :layer/context-dummy
-       :disabled? (not (and tile-layer? has-tilesets?))
+       :disabled? (not (and tile-layer? (not-empty? tilesets)))
        :payload {:command :tileset}})))
 
 (defun layer-context-menu [state]
@@ -93,25 +93,13 @@
                    visible? (layer-visible? (:hidden-layer-indices state)
                                             (:index state))]
                (assoc state
-                      :selected (contains? (:selected-indices state)
-                                           (:index state))
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
                       :tileset-label (layer-source-label state layer))))
-   :on-mouse-down (fn [state event ctx]
-
-                      (ui/stop-propagation! event)
-                      state)
    :on-mouse-up (fn [state event ctx]
 
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:index state)
-                               :shift? false
-                               :ctrl? false})
                     (when (= (:button event) :right)
                       (menu/open-context-menu! (layer-context-menu state)
                                                (:global-position event)
@@ -149,14 +137,14 @@
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun layer-options [layers]
-  (for-indexed [index layer (or layers [])]
+  (for-indexed [index layer layers]
     {:value index
      :label (:label layer)}))
 
 (defun layer-list-height [layers]
   (* layer-list-row-height
      (max layer-list-min-visible-rows
-          (count (or layers [])))))
+          (count layers))))
 
 (defun selected-layer-indices [state]
   (if (nil? (:selected-layer-index state))
@@ -247,13 +235,13 @@
                            :tilesets (ui/bind-state :tilesets)
                            :terrain-sets (ui/bind-state :terrain-sets)
                            :layers (ui/bind-state :layers)}
-                          (or (:state opts) {}))
+                          (:state opts))
             :body-state (merge {:layers (ui/bind-state :layers)
                                 :tilesets (ui/bind-state :tilesets)
                                 :terrain-sets (ui/bind-state :terrain-sets)
                                 :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                 :selected-layer-index (ui/bind-state :selected-layer-index)}
-                               (or (:body-state opts) {}))
+                               (:body-state opts))
             :on (:on opts)
             :children [{:mode 'layer-list
                         :state {:layers (ui/bind-state :layers)

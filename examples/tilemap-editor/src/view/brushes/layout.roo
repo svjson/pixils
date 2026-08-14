@@ -39,20 +39,8 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 6}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
-   :on-mouse-down (fn [state event ctx]
-                    (ui/stop-propagation! event)
-                    state)
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
-                  (ui/emit! (:view ctx)
-                            :list-box/item-click
-                            {:index (:index state)
-                             :value (:value state)
-                             :shift? false
-                             :ctrl? false})
                   (when (= (:button event) :right)
                     (menu/open-context-menu! (brush-context-menu)
                                              (:global-position event)
@@ -84,11 +72,10 @@
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun brush-options [brushes]
-  (map (model/brush-options brushes)
-       (fn [option]
-         (assoc option
-                :kind-label (model/brush-kind-label
-                             (nth (or brushes []) (:value option)))))))
+  (for [option (model/brush-options brushes)]
+    (assoc option
+           :kind-label (model/brush-kind-label
+                        (nth (or brushes []) (:value option))))))
 
 (defun brush-list-child [brushes selected-index]
   (let [brushes (or brushes [])
@@ -341,12 +328,11 @@
 (defun sync-brush-map-layers [state]
   (let [source (:brush-map-source-layers state)
         editor-layers (:brush-map-layers state)]
-    (if (and source (not= editor-layers source))
+    (cond-> state
+      (and source (not= editor-layers source))
       (change-brush-state
-       state
        "Edit brush map"
-       (model/replace-selected-brush-layers state editor-layers))
-      state)))
+       (model/replace-selected-brush-layers state editor-layers)))))
 
 (defun tileset-tile-size [tilesets tileset]
   (let [definition (data/tileset-definition tilesets tileset)]
@@ -356,10 +342,11 @@
   (:tileset (data/terrain-set-definition terrain-sets terrain-set)))
 
 (defun pattern-layer-tile-size [state layer]
-  (if (= (:data-kind layer) :terrain)
-    (tileset-tile-size (:tilesets state)
-                       (terrain-set-tileset (:terrain-sets state)
-                                            (:terrain-set layer)))
+  (case (:data-kind layer)
+    :terrain (tileset-tile-size (:tilesets state)
+                                (terrain-set-tileset (:terrain-sets state)
+                                                     (:terrain-set layer)))
+    :default
     (tileset-tile-size (:tilesets state) (:tileset layer))))
 
 (defun selected-brush-map-tile-size [state brush]
@@ -704,7 +691,7 @@
         index (model/selected-pattern-layer-index
                brush
                (:selected-brush-layer-index state))]
-    (when-let [index index]
+    (when index
       (nth (or (-> brush :pattern :layers) []) index))))
 
 (defun open-brush-layer-add-dialog! [state ctx]
@@ -778,7 +765,8 @@
   (editor-workbook/change-to state label next-state))
 
 (defun apply-brush-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (case (:operation payload)
       :add
       (change-brush-state state
@@ -796,10 +784,11 @@
                           (model/duplicate-selected-brush state payload))
 
       :default state)
-    state))
+    :default state))
 
 (defun apply-brush-layer-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (case (:operation payload)
       :add
       (change-brush-state state
@@ -817,10 +806,11 @@
                           (model/duplicate-selected-pattern-layer state payload))
 
       :default state)
-    state))
+    :default state))
 
 (defun apply-brush-layer-source-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (case (:operation payload)
       :tileset
       (change-brush-state
@@ -835,12 +825,14 @@
        (model/set-pattern-layer-terrain-set! state (:source-index payload)))
 
       :default state)
-    state))
+    :default state))
 
 (defun apply-brush-delete-result [state payload]
-  (if (= (:choice payload) :dialog/ok)
-    (change-brush-state state "Delete brush" (model/delete-selected-brush state))
-    state))
+  (case (:choice payload)
+    :dialog/ok (change-brush-state state
+                                    "Delete brush"
+                                    (model/delete-selected-brush state))
+    :default state))
 
 (defun select-brush-index [state index]
   (let [brush (model/selected-brush (:brushes state) index)]
@@ -861,9 +853,8 @@
 (defun apply-brush-layer-context-command [state payload ctx]
   (let [state (assoc state
                      :selected-brush-layer-index (:index payload)
-                     :brush-selected-tile nil)
-        command (:command payload)]
-    (case command
+                     :brush-selected-tile nil)]
+    (case (:command payload)
       :rename (open-brush-layer-edit-dialog! state ctx)
       :tileset (open-brush-layer-tileset-dialog! state ctx)
       :terrain-set (open-brush-layer-terrain-set-dialog! state ctx)
@@ -940,10 +931,10 @@
            (model/apply-pattern-layer-reorder state (:payload event))))
         :brush/layer-toggle-visible
         (fn [state event ctx]
-          (assoc state
-                 :brush-hidden-layer-indices
-                 (model/toggle-hidden-layer (:brush-hidden-layer-indices state)
-                                            (:payload event))))
+          (update state
+                  :brush-hidden-layer-indices
+                  model/toggle-hidden-layer
+                  (:payload event)))
         :brush/layer-context-command
         (fn [state event ctx]
           (apply-brush-layer-context-command state (:payload event) ctx))
@@ -969,22 +960,20 @@
            state
            "Change brush layer target"
            (model/set-pattern-layer-source! state (:payload event))))
-        :brush/size-change (fn [state event ctx]
-                             (let [payload (:payload event)]
+        :brush/size-change (fn [state {:keys [payload]} ctx]
+                             (change-brush-state
+                              state
+                              "Resize brush"
+                              (model/set-pattern-size! state
+                                                       (:dimension payload)
+                                                       (:value payload))))
+        :brush/anchor-change (fn [state {:keys [payload]} ctx]
                                (change-brush-state
                                 state
-                                "Resize brush"
-                                (model/set-pattern-size! state
-                                                         (:dimension payload)
-                                                         (:value payload)))))
-        :brush/anchor-change (fn [state event ctx]
-                               (let [payload (:payload event)]
-                                 (change-brush-state
-                                  state
-                                  "Change brush anchor"
-                                  (model/set-pattern-anchor! state
-                                                             (:dimension payload)
-                                                             (:value payload)))))
+                                "Change brush anchor"
+                                (model/set-pattern-anchor! state
+                                                           (:dimension payload)
+                                                           (:value payload))))
         :brush/tile-select (fn [state event ctx]
                              (assoc state :brush-selected-tile (:payload event)))}
    :children [(make-brush-list-panel)

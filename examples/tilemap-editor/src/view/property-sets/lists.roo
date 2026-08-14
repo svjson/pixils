@@ -24,39 +24,23 @@
            :padding [3 6]
            :layout {:direction :row
                     :align-items :center}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
-   :on-mouse-down (fn [state event ctx]
-
-                      (ui/stop-propagation! event)
-                      state)
    :on-mouse-up (fn [state event ctx]
 
                     (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
                     (when (= (:button event) :right)
                       (menu/open-context-menu! property-set-context-menu
                                                (:global-position event)
                                                state
                                                ctx))
                     state)
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :property-set/context-command
-                                       {:property-set-index (:index state)
-                                        :command
-                                        (-> payload :payload :command)}))
-                           state))}
+   :on {:menu/select (fn [state {:keys [payload] :as event} ctx]
+                       (ui/stop-propagation! event)
+                       (when (= (:type payload) :action)
+                         (ui/emit! (:view ctx)
+                                   :property-set/context-command
+                                   {:property-set-index (:index state)
+                                    :command (-> payload :payload :command)}))
+                       state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
@@ -73,9 +57,9 @@
             :style {:width :fill
                     :height :fill}
             :row-height property-set-list-row-height
-            :visible-rows (max 1 (count (or property-sets [])))
+            :visible-rows (max 1 (count property-sets))
             :content-width 220
-            :disabled? (empty? (or property-sets []))
+            :disabled? (empty? property-sets)
             :selected-indices (ui/bind-state :selected-indices)
             :force-selection? true
             :item-child property-set-row-child}))
@@ -116,9 +100,6 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 6}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}

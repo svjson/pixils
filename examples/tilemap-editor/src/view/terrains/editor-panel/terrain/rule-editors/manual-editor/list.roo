@@ -38,20 +38,8 @@
            :padding [3 6]
            :layout {:direction :row
                     :align-items :center}}
-   :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
-   :on-mouse-down (fn [state event ctx]
-                    (ui/stop-propagation! event)
-                    state)
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
-                  (ui/emit! (:view ctx)
-                            :list-box/item-click
-                            {:index (:index state)
-                             :value (:value state)
-                             :shift? false
-                             :ctrl? false})
                   (when (= (:button event) :right)
                     (menu/open-context-menu! context-menu
                                              (:global-position event)

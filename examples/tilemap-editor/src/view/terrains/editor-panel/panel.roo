@@ -36,6 +36,9 @@
                             :selected-terrain-set-index (ui/project-state :workspace
                                                                           :selection
                                                                           :terrain-set-index)
+                            :selected-terrain-index (ui/project-state :workspace
+                                                                      :selection
+                                                                      :terrain-index)
                             :set-id (ui/project-state :detail :set-id)
                             :set-label (ui/project-state :detail :set-label)
                             :set-disabled? (ui/project-state :detail :set-disabled?)}}}

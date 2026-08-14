@@ -85,40 +85,44 @@
     (assoc state :pending-tileset-shortcut-dialog? false)))
 
 (defun open-pending-tileset-shortcut-dialog! [state ctx]
-  (if (and (:pending-tileset-shortcut-dialog? state)
-           (= (:workspace-tab state) :tilesets))
-    (open-tileset-shortcut-dialog! state ctx)
-    state))
+  (cond-> state
+    (and (:pending-tileset-shortcut-dialog? state)
+         (= (:workspace-tab state) :tilesets))
+    (open-tileset-shortcut-dialog! ctx)))
 
 (defun apply-tileset-shortcut-dialog-result [state payload]
   (tileset-model/add-tileset-definition! state payload))
 
 (defun apply-map-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (let [operation (-> payload :context :operation)
           label (case operation
                   :add "Add map"
                   :rename "Rename map"
                   :duplicate "Duplicate map"
                   :default nil)]
-      (if label
+      (cond-> state
+        label
         (editor-workbook/change-to
-         state
          label
-         (map-model/apply-map-dialog-result state payload))
-        state))
-    state))
+         (map-model/apply-map-dialog-result state payload))))
+
+    :default state))
 
 (defun apply-map-delete-dialog-result [state payload]
-  (if (= (:choice payload) :dialog/ok)
+  (case (:choice payload)
+    :dialog/ok
     (editor-workbook/change-to
      state
      "Delete map"
      (map-model/delete-map state (-> payload :payload :map-id)))
-    state))
+
+    :default state))
 
 (defun apply-map-dimensions-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (editor-workbook/change-to
      state
      "Change map dimensions"
@@ -126,7 +130,8 @@
                                  (:width payload)
                                  (:height payload)
                                  (:tile-size payload)))
-    state))
+
+    :default state))
 
 (defun apply-mutation
   "Applies user `action` to editor `state` and records its `:label` in
@@ -142,7 +147,10 @@
             next-state
             (or (terrain-model/selected-terrain-ruleset-id state)
                 (terrain-model/selected-terrain-ruleset-id next-state))))
-          next-state)]
+          next-state)
+        next-state (cond-> next-state
+                     (not= (:terrain-sets state) (:terrain-sets next-state))
+                     tilemap/rebuild-terrain-stamp-preview)]
     (editor-workbook/change-to state (:label action) next-state)))
 
 (defun apply-theme-selection! [state payload]
@@ -308,14 +316,13 @@
                                                   (dec (count tilesets))))
                   tileset-definition (when-let [index tileset-definition-index]
                                        (nth tilesets index))
-                  tileset-tile-count (count (or (:tiles tileset-definition) []))
+                  tileset-tile-count (count (:tiles tileset-definition))
                   tileset-tile-index (when (> tileset-tile-count 0)
                                        (min (or (:selected-tileset-tile-index state) 0)
                                             (dec tileset-tile-count)))
-                  tileset-tile-indices (filter (or (:selected-tileset-tile-indices state)
-                                                    [])
+                  tileset-tile-indices (filter (:selected-tileset-tile-indices state)
                                                 (fn [index]
-                                                  (and (not (nil? index))
+                                                  (and (some? index)
                                                        (>= index 0)
                                                        (< index tileset-tile-count))))
                   tileset-tile-indices (if (or (not-empty? tileset-tile-indices)
@@ -757,9 +764,9 @@
        :map/duplicate (fn [state event ctx]
                         (controls/open-map-duplicate-dialog! state ctx))
        :map/delete (fn [state event ctx]
-                     (if (> (count (or (:maps state) [])) 1)
-                       (controls/open-map-delete-confirm-dialog! state ctx)
-                       state))
+                     (cond-> state
+                       (> (count (:maps state)) 1)
+                       (controls/open-map-delete-confirm-dialog! ctx)))
        :map/identity-dialog-result
        (fn [state event ctx]
          (apply-map-dialog-result state (:payload event)))
@@ -805,21 +812,16 @@
                                              state
                                              (:payload event)))
               :project/resources-change
-              (fn [state event ctx]
-                (let [payload (:payload event)]
-                  (assoc state
-                         :resources (:resources payload)
-                         :selected-resource-bundle (:selected-resource-bundle payload)
-                         :selected-image-resource (:selected-image-resource payload))))
+              (fn [state {:keys [payload]} ctx]
+                (assoc state
+                       :resources (:resources payload)
+                       :selected-resource-bundle (:selected-resource-bundle payload)
+                       :selected-image-resource (:selected-image-resource payload)))
               :view/toggle-grid (fn [state event ctx]
-                                  (assoc state
-                                         :show-grid?
-                                         (not (:show-grid? state))))
+                                  (update state :show-grid? not))
               :view/toggle-terrain-rules
               (fn [state event ctx]
-                (assoc state
-                       :show-terrain-rules?
-                       (not (:show-terrain-rules? state))))
+                (update state :show-terrain-rules? not))
               :terrain-rules/set-application
               (fn [state event ctx]
                 (tilemap/set-terrain-rule-application state (:payload event)))
