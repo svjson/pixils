@@ -152,6 +152,30 @@ TEST_F(DefThemeTest, component_selector_matches_modes_that_extend_the_component)
   EXPECT_EQ(*matches[0]->text->scale, 2);
 }
 
+TEST_F(DefThemeTest, direct_component_rule_overrides_inherited_component_rule)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {'board-button {:text {:scale 3}}
+                'button {:text {:scale 2}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+  auto matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"board-button", "button"},
+                                  .class_names = {},
+                                  .state = Roo::Constant::NIL,
+                                  .interaction = {}});
+
+  ASSERT_EQ(matches.size(), 2u);
+  ASSERT_TRUE(matches[0]->text.has_value());
+  ASSERT_TRUE(matches[0]->text->scale.has_value());
+  EXPECT_EQ(*matches[0]->text->scale, 2);
+  ASSERT_TRUE(matches[1]->text.has_value());
+  ASSERT_TRUE(matches[1]->text->scale.has_value());
+  EXPECT_EQ(*matches[1]->text->scale, 3);
+}
+
 TEST_F(DefThemeTest, class_selector_matches_runtime_view_classes)
 {
   runtime.eval(R"(

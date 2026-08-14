@@ -299,15 +299,15 @@
     ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
     {:text {:color (var :selection-text)}}
 
-    'ui/list-box {:width :shrink
-                  :height :shrink
-                  :background (var :field-bg)
-                  :border (var :inset-border-style)}
-
     'ui/option-list {:width :shrink
                      :height :shrink
                      :background (var :field-bg)
                      :border (var :inset-border-style)}
+
+    'ui/list-box {:width :shrink
+                  :height :shrink
+                  :background (var :field-bg)
+                  :border (var :inset-border-style)}
 
     'ui/tree-view {:background (var :field-bg)
                    :border (var :inset-border-style)}

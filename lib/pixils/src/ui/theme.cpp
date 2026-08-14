@@ -90,35 +90,105 @@ namespace Pixils::UI
       return state_subset_matches(lhs, rhs) && state_subset_matches(rhs, lhs);
     }
 
-    bool matches_descendant_chain(const std::vector<ThemeSelector>& selectors,
-                                  size_t selector_idx,
-                                  const std::vector<ThemeMatchContext>& path,
-                                  size_t path_idx)
+    struct SelectorMatch
     {
-      if (!selectors[selector_idx].matches(path[path_idx]))
+      size_t component_inheritance_distance = 0;
+    };
+
+    std::optional<SelectorMatch> match_selector(const ThemeSelector& selector,
+                                                const ThemeMatchContext& ctx)
+    {
+      if (!interaction_matches_selector(selector, ctx))
       {
-        return false;
+        return std::nullopt;
       }
 
-      if (selector_idx == 0)
+      switch (selector.type)
       {
-        return true;
+      case ThemeSelector::Type::COMPONENT_TYPE:
+      {
+        auto mode = std::find(ctx.mode_names.begin(), ctx.mode_names.end(), selector.value);
+        if (mode == ctx.mode_names.end()) return std::nullopt;
+        return SelectorMatch{.component_inheritance_distance =
+                               static_cast<size_t>(mode - ctx.mode_names.begin())};
+      }
+      case ThemeSelector::Type::CLASS_NAME:
+        if (std::find(ctx.class_names.begin(), ctx.class_names.end(), selector.value) ==
+            ctx.class_names.end())
+        {
+          return std::nullopt;
+        }
+        return SelectorMatch{};
+      case ThemeSelector::Type::STATE:
+        if (!state_subset_matches(selector.state, ctx)) return std::nullopt;
+        return SelectorMatch{};
+      case ThemeSelector::Type::COMPOUND:
+      {
+        SelectorMatch compound_match;
+        for (const auto& child : selector.children)
+        {
+          auto child_match = match_selector(child, ctx);
+          if (!child_match) return std::nullopt;
+          compound_match.component_inheritance_distance +=
+            child_match->component_inheritance_distance;
+        }
+        return compound_match;
+      }
+      case ThemeSelector::Type::DESCENDANT:
+        return std::nullopt;
       }
 
-      if (path_idx == 0)
-      {
-        return false;
-      }
+      return std::nullopt;
+    }
 
+    std::optional<SelectorMatch> match_descendant_chain(
+      const std::vector<ThemeSelector>& selectors,
+      size_t selector_idx,
+      const std::vector<ThemeMatchContext>& path,
+      size_t path_idx)
+    {
+      auto current_match = match_selector(selectors[selector_idx], path[path_idx]);
+      if (!current_match) return std::nullopt;
+
+      if (selector_idx == 0) return current_match;
+      if (path_idx == 0) return std::nullopt;
+
+      std::optional<SelectorMatch> best_match;
       for (size_t i = path_idx; i-- > 0;)
       {
-        if (matches_descendant_chain(selectors, selector_idx - 1, path, i))
+        auto ancestor_match = match_descendant_chain(selectors, selector_idx - 1, path, i);
+        if (!ancestor_match) continue;
+
+        SelectorMatch match{.component_inheritance_distance =
+                              ancestor_match->component_inheritance_distance +
+                              current_match->component_inheritance_distance};
+        if (!best_match || match.component_inheritance_distance <
+                             best_match->component_inheritance_distance)
         {
-          return true;
+          best_match = match;
         }
       }
 
-      return false;
+      return best_match;
+    }
+
+    std::optional<SelectorMatch> match_selector_path(
+      const ThemeSelector& selector,
+      const std::vector<ThemeMatchContext>& path)
+    {
+      if (path.empty()) return std::nullopt;
+      if (selector.type != ThemeSelector::Type::DESCENDANT)
+      {
+        return match_selector(selector, path.back());
+      }
+      if (selector.children.empty() || selector.children.size() > path.size())
+      {
+        return std::nullopt;
+      }
+      return match_descendant_chain(selector.children,
+                                    selector.children.size() - 1,
+                                    path,
+                                    path.size() - 1);
     }
 
   } // namespace
@@ -191,50 +261,12 @@ namespace Pixils::UI
 
   bool ThemeSelector::matches(const ThemeMatchContext& ctx) const
   {
-    if (!interaction_matches_selector(*this, ctx))
-    {
-      return false;
-    }
-
-    switch (type)
-    {
-    case Type::COMPONENT_TYPE:
-      return std::find(ctx.mode_names.begin(), ctx.mode_names.end(), value) !=
-             ctx.mode_names.end();
-    case Type::CLASS_NAME:
-      return std::find(ctx.class_names.begin(), ctx.class_names.end(), value) !=
-             ctx.class_names.end();
-    case Type::STATE:
-      return state_subset_matches(state, ctx);
-    case Type::COMPOUND:
-      return std::all_of(children.begin(),
-                         children.end(),
-                         [&](const auto& child) { return child.matches(ctx); });
-    case Type::DESCENDANT:
-      return false;
-    }
-
-    return false;
+    return match_selector(*this, ctx).has_value();
   }
 
   bool ThemeSelector::matches_path(const std::vector<ThemeMatchContext>& path) const
   {
-    if (path.empty())
-    {
-      return false;
-    }
-
-    if (type != Type::DESCENDANT)
-    {
-      return matches(path.back());
-    }
-
-    if (children.empty() || children.size() > path.size())
-    {
-      return false;
-    }
-
-    return matches_descendant_chain(children, children.size() - 1, path, path.size() - 1);
+    return match_selector_path(*this, path).has_value();
   }
 
   int ThemeSelector::specificity() const
@@ -345,6 +377,7 @@ namespace Pixils::UI
     struct MatchingRule
     {
       const ThemeRule* rule;
+      SelectorMatch selector_match;
     };
 
     std::vector<MatchingRule> matching;
@@ -359,20 +392,30 @@ namespace Pixils::UI
 
     for (size_t i = 0; i < source_rules.size(); i++)
     {
-      if (source_rules[i].selector.matches_path(path))
+      auto selector_match = match_selector_path(source_rules[i].selector, path);
+      if (selector_match)
       {
-        matching.push_back(MatchingRule{.rule = &source_rules[i]});
+        matching.push_back(
+          MatchingRule{.rule = &source_rules[i], .selector_match = *selector_match});
       }
     }
     PIXILS_BENCHMARK_ADD(theme_rules_rejected,
                          static_cast<std::int64_t>(source_rules.size() - matching.size()));
     PIXILS_BENCHMARK_ADD(theme_rules_matched, static_cast<std::int64_t>(matching.size()));
 
-    std::stable_sort(
-      matching.begin(),
-      matching.end(),
-      [](const auto& lhs, const auto& rhs)
-      { return lhs.rule->selector.specificity() < rhs.rule->selector.specificity(); });
+    std::stable_sort(matching.begin(),
+                     matching.end(),
+                     [](const auto& lhs, const auto& rhs)
+                     {
+                       int lhs_specificity = lhs.rule->selector.specificity();
+                       int rhs_specificity = rhs.rule->selector.specificity();
+                       if (lhs_specificity != rhs_specificity)
+                       {
+                         return lhs_specificity < rhs_specificity;
+                       }
+                       return lhs.selector_match.component_inheritance_distance >
+                              rhs.selector_match.component_inheritance_distance;
+                     });
 
     std::vector<const Style*> result;
     result.reserve(matching.size());
