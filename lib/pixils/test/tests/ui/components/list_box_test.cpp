@@ -1276,77 +1276,6 @@ TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
   EXPECT_EQ(first_item->bounds.w, viewport->bounds.w);
 }
 
-TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
-{
-  runtime.eval(R"(
-    (pixils/defcomponent custom-list-row
-      {:extend 'ui/list-box-item
-       :on-mouse-down (fn [state event ctx]
-                        (do
-                          (pixils.ui/stop-propagation! event)
-                          state))
-       :on-mouse-up (fn [state event ctx]
-                      (do
-                        (pixils.ui/emit! (:view ctx)
-                                         :option-item/click
-                                         {:index (:index state)
-                                          :value (:value state)
-                                          :shift? false
-                                          :ctrl? false})
-                        state))
-       :children [{:mode 'ui/text
-                   :style {:width :fill}
-                   :state {:value (pixils.ui/bind-state :custom-label)}}]})
-
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:selected [0]})
-       :on {:list-box/selection-change (fn [state event ctx]
-                               (assoc state
-                                      :selected (:selected-indices (:payload event))))}
-       :children [(pixils.ui.list-box/make
-                   {:options [{:value :a :label "Alpha"}
-                              {:value :b :label "Beta"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 2
-                    :content-width 100
-                    :selected-indices (pixils.ui/bind-state :selected)
-                    :force-selection? true
-                    :item-child (fn [index option]
-                                  {:mode 'custom-list-row
-                                   :style {:height 10}
-                                   :state {:index index
-                                           :value (:value option)
-                                           :selected-indices (pixils.ui/bind-state
-                                                              :selected-indices)
-                                           :custom-label (str "Custom " (:label option))}})})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-  session.update_mode();
-  session.render_mode();
-
-  auto list_box = session.active_mode->children[0];
-  auto scroll_pane = list_box->children[0];
-  auto row = scroll_pane->children[0];
-  auto viewport = row->children[0];
-  auto content = viewport->children[0];
-  ASSERT_EQ(content->children.size(), 2u);
-  EXPECT_EQ(content->children[0]->definition->name, "custom-list-row");
-
-  input().mouse_down({5, 15});
-  update_cycle();
-  input().mouse_up({5, 15});
-  update_cycle();
-
-  auto selected =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
-  ASSERT_NE(selected, nullptr);
-  EXPECT_EQ(selected->to_string(), "[1]");
-}
-
 TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
 {
   runtime.eval(R"(
@@ -1566,27 +1495,13 @@ TEST_F(ListBoxTest, reorderable_list_box_none_strategy_keeps_flow_positions_whil
   EXPECT_EQ(content->children[2]->bounds.y, content->bounds.y + 20);
 }
 
-TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_drop_event)
+TEST_F(ListBoxTest, reorderable_list_box_with_custom_row_emits_reorder_drop_event)
 {
   runtime.eval(R"(
     (pixils/defcomponent custom-row
       {:extend 'ui/list-box-item
        :style {:width :fill
                :height 10}
-       :on-mouse-down (fn [state event ctx]
-                        (do
-                          (pixils.ui/stop-propagation! event)
-                          state))
-       :on-mouse-up (fn [state event ctx]
-                      (do
-                        (pixils.ui/stop-propagation! event)
-                        (pixils.ui/emit! (:view ctx)
-                                         :option-item/click
-                                         {:index (:index state)
-                                          :value (:value state)
-                                          :shift? false
-                                          :ctrl? false})
-                        state))
        :children [{:mode 'ui/text
                    :state {:value (pixils.ui/bind-state :label)}}]})
 

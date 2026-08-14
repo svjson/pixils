@@ -1,5 +1,6 @@
 (ns pixils.ui.list-box-test
   (:require proof.core
+            [proof.syntax :as s]
             [pixils.ui.list-box :as list-box]
             [pixils.test.runtime :as runtime]))
 
@@ -342,3 +343,64 @@
     (is (= [:b]
            (:selected-values
             (-> (runtime/find-view app "ui/list-box") :ui-state))))))
+
+
+
+;; pixils.ui.list-box/make
+
+(deftest make/custom-item-inherits-stock-selection
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "pixils/test/list-box-custom-item-probe.roo")
+      (runtime/push-mode! app 'inherited-list-item-mode)
+      (runtime/settle-layout! app)))
+
+  (s/when [app]
+    (let [items (runtime/find-views app "inherited-list-item")]
+      (runtime/click! app (nth items 1))
+      (runtime/update! app)
+      {:item-modes (map items runtime/view-mode-name)
+       :application-state (runtime/active-state app)}))
+
+  (s/then [result]
+    (is (= {:item-modes ["inherited-list-item"
+                         "inherited-list-item"]
+            :application-state
+            {:selected [1]
+             :selection-change {:selected-indices [1]
+                                :selected-values [:b]}}}
+           result))))
+
+(deftest make/custom-item-can-override-stock-selection
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "pixils/test/list-box-custom-item-probe.roo")
+      (runtime/push-mode! app 'overridden-list-item-mode)
+      (runtime/settle-layout! app)))
+
+  (s/when [app]
+    (let [items (runtime/find-views app "overridden-list-item")]
+      (runtime/click! app (nth items 1))
+      (runtime/update! app)
+      {:item-modes (map items runtime/view-mode-name)
+       :application-state (runtime/active-state app)}))
+
+  (s/then [result]
+    (is (= {:item-modes ["overridden-list-item"
+                         "overridden-list-item"]
+            :application-state
+            {:selected [0]
+             :selection-change nil
+             :custom-click {:index 1
+                            :value :b}}}
+           result))))

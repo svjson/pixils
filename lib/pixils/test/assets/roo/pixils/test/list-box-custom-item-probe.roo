@@ -1,0 +1,77 @@
+(ns pixils.test.list-box-custom-item-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]))
+
+(def options
+  "List-box option maps shared by the inherited and overridden item probes."
+  [{:value :a :label "Alpha"}
+   {:value :b :label "Beta"}])
+
+(pixils/defcomponent inherited-list-item
+  {:extend 'ui/list-box-item
+   :style {:width :fill
+           :height 10}
+   :children [{:mode 'ui/text
+               :state {:value (ui/bind-state :custom-label)}}]})
+
+(pixils/defcomponent overridden-list-item
+  {:extend 'ui/list-box-item
+   :style {:width :fill
+           :height 10}
+   :on-click (fn [state event ctx]
+               (let [ui-state (-> ctx :view :ui-state)]
+                 (ui/emit! (:view ctx)
+                           :custom-list-item/click
+                           (select-keys ui-state [:index :value])))
+               state)
+   :children [{:mode 'ui/text
+               :state {:value (ui/bind-state :custom-label)}}]})
+
+(pixils/defmode inherited-list-item-mode
+  {:init (fn [state ctx]
+           {:selected [0]
+            :selection-change nil})
+   :on {:list-box/selection-change
+        (fn [state event ctx]
+          (assoc state
+                 :selected (-> event :payload :selected-indices)
+                 :selection-change (:payload event)))}
+   :children [(list-box/make
+               {:options options
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :selected-indices (ui/project-state :selected)
+                :force-selection? true
+                :item-child (fn [index option]
+                              {:mode 'inherited-list-item
+                               :state {:custom-label
+                                       (str "Custom " (:label option))}})})]})
+
+(pixils/defmode overridden-list-item-mode
+  {:init (fn [state ctx]
+           {:selected [0]
+            :selection-change nil
+            :custom-click nil})
+   :on {:list-box/selection-change
+        (fn [state event ctx]
+          (assoc state
+                 :selected (-> event :payload :selected-indices)
+                 :selection-change (:payload event)))
+        :custom-list-item/click
+        (fn [state event ctx]
+          (assoc state :custom-click (:payload event)))}
+   :children [(list-box/make
+               {:options options
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :selected-indices (ui/project-state :selected)
+                :force-selection? true
+                :item-child (fn [index option]
+                              {:mode 'overridden-list-item
+                               :state {:custom-label
+                                       (str "Custom " (:label option))}})})]})
