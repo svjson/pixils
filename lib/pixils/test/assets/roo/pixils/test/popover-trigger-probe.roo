@@ -1,0 +1,9 @@
+(ns pixils.test.popover-trigger-probe
+  (:require pixils
+            [pixils.ui.popover :as popover]))
+
+(pixils/defmode popover-trigger-root
+  {:children [(popover/make-trigger
+               {:label "Toggle"
+                :children [{:mode 'ui/text
+                            :state {:value "Local content"}}]})]})

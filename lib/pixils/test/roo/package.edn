@@ -9,6 +9,7 @@
                      pixils.ui.component-state-binding-test
                      pixils.ui.icon-container-test
                      pixils.ui.option-list-reconciliation-test
+                     pixils.ui.popover-test
                      pixils.ui.window-test
                      pixils.ui.scroll-pane-test
                      pixils.ui.group-box-test

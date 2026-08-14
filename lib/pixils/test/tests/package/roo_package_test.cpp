@@ -60,13 +60,14 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
                "pixils.ui.icon-container-test "
                "pixils.ui.list-box-test "
                "pixils.ui.option-list-reconciliation-test "
+               "pixils.ui.popover-test "
                "pixils.ui.window-test "
                "pixils.ui.scroll-pane-test "
                "pixils.ui.group-box-test))");
 
   auto summary = runtime.eval("(proof.reporter/result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 55 :passed 55 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 59 :passed 59 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)

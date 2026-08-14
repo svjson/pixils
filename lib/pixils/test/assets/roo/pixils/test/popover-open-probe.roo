@@ -1,0 +1,15 @@
+(ns pixils.test.popover-open-probe
+  (:require pixils
+            [pixils.ui.popover :as popover]))
+
+(pixils/defmode popover-open-root
+  {:children [{:mode 'ui/button
+               :style {:width 80
+                       :height 24}
+               :state {:label "Open"}
+               :on-click (fn [state event ctx]
+                           (popover/open!
+                            ctx
+                            {:children [{:mode 'ui/text
+                                         :state {:value "Overlay content"}}]})
+                           state)}]})

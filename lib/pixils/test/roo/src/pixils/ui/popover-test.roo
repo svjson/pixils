@@ -1,0 +1,62 @@
+(ns pixils.ui.popover-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+
+
+;; pixils.ui.popover/make-trigger
+
+(deftest make-trigger/toggles-the-local-popover
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 800
+                                 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/popover-trigger-probe.roo")
+      (runtime/push-mode! app 'popover-trigger-root)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [popover (runtime/find-view app "ui/popover")
+          before {:present? (some? popover)
+                  :open? (:open? (runtime/view-state popover))}]
+      (runtime/click! app
+                      (runtime/find-view app "ui/popover-trigger-control"))
+      (runtime/settle-layout! app)
+      {:before before
+       :after {:open? (:open? (runtime/view-state
+                               (runtime/find-view app "ui/popover")))}}))
+
+  (s/then [result]
+    (is (= {:before {:present? true
+                     :open? false}
+            :after {:open? true}}
+           result))))
+
+
+
+;; pixils.ui.popover/open!
+
+(deftest open!/pushes-an-overlay-mode
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/popover-open-probe.roo")
+      (runtime/push-mode! app 'popover-open-root)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view app "ui/button"))
+    (runtime/update! app)
+    {:mode (runtime/active-mode-name app)
+     :popover? (some? (runtime/find-view app "ui/popover"))})
+
+  (s/then [opened]
+    (is (= {:mode "ui/popover-overlay"
+            :popover? true}
+           opened))))
