@@ -73,21 +73,6 @@
           [{:id :soft-edge
             :label "Soft Edge"}]))))
 
-(deftest selected-terrain-transition-mask-set-can-be-set
-  (let [state (model/set-selected-terrain-transition-mask-set
-               {:terrain-sets [{:id :overworld
-                                :terrains [{:id :grass}]}]
-                :mask-sets [{:id :soft-edge}]
-                :selected-terrain-set-index 0
-                :selected-terrain-index 0}
-               :soft-edge)]
-    (is (= :soft-edge
-           (get-in state
-                   [:terrain-sets 0 :terrains 0 :transition-mask-set])))
-    (is (= 1
-           (model/selected-terrain-transition-mask-set-option-index
-            state)))))
-
 (deftest terrain-mask-options-scope-to-selected-terrain-mask-set
   (is (= [{:value {:mask-set :soft-edge
                    :mask :north}

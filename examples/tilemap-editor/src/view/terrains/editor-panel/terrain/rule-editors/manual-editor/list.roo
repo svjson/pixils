@@ -3,7 +3,8 @@
             [pixils.ui :as ui]
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
-            [tilemap-editor.view.terrains.model :as model]))
+            [tilemap-editor.view.terrains.model :as model]
+            [tilemap-editor.view.terrains.rules.dialogs :as rule-dialogs]))
 
 (def row-height
   "Defines the rendered height, in pixels, of one terrain-rule list row."
@@ -60,7 +61,14 @@
                :state {:value (ui/bind-state :label)}}]})
 
 (defun make-row
-  "Constructs a terrain-rule row child. `index` is the list position and `option` contains `:value` and `:label`; returns a child map bound to the list selection."
+  "Constructs a terrain-rule row child bound to the list selection.
+
+  Args:
+  - `index`: Position of the rule in the list.
+  - `option`: Rule option containing `:value` and `:label`.
+
+  Returns:
+  A terrain-rule row child map."
   [index option]
   {:mode 'terrain-rule-row
    :state {:index index
@@ -69,7 +77,13 @@
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun make-list-box
-  "Constructs the terrain-rule list box for editor `state`. Returns a reorderable, force-selected list-box child map."
+  "Constructs the terrain-rule list box for editor `state`.
+
+  Args:
+  - `state`: Terrain-rule editor state used to derive the rule options.
+
+  Returns:
+  A reorderable, force-selected list-box child map."
   [state]
   (let [options (model/terrain-rule-options state)]
     (lb/make {:options options
@@ -125,6 +139,110 @@
                                      :terrain/rule-select
                                      (-> event :payload :value))
                            state)
+        :terrain/rule-context-command
+        (fn [state {:keys [payload] :as event} ctx]
+          (let [rule-id (:rule-id payload)
+                selected-state (assoc state
+                                      :selected-terrain-rule-id
+                                      rule-id)
+                name (model/terrain-rule-label-by-id selected-state rule-id)]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx) :terrain/rule-select rule-id)
+            (case (:command payload)
+              :rename
+              (rule-dialogs/open-name! state ctx rule-id name)
+
+              :duplicate
+              (let [next-state
+                    (model/duplicate-selected-terrain-rule selected-state)]
+                (ui/emit!
+                 (:view ctx)
+                 :action/mutate!
+                 {:label "Duplicate terrain rule"
+                  :op :value/set
+                  :target {:path []}
+                  :args
+                  {:value
+                   (:rules (model/selected-terrain-ruleset next-state))}})
+                (ui/emit! (:view ctx)
+                          :terrain/rule-select
+                          (:selected-terrain-rule-id next-state)))
+
+              :move-up
+              (let [next-state
+                    (model/move-selected-terrain-rule selected-state :up)]
+                (ui/emit!
+                 (:view ctx)
+                 :action/mutate!
+                 {:label "Move terrain rule"
+                  :op :value/set
+                  :target {:path []}
+                  :args
+                  {:value
+                   (:rules (model/selected-terrain-ruleset next-state))}}))
+
+              :move-down
+              (let [next-state
+                    (model/move-selected-terrain-rule selected-state :down)]
+                (ui/emit!
+                 (:view ctx)
+                 :action/mutate!
+                 {:label "Move terrain rule"
+                  :op :value/set
+                  :target {:path []}
+                  :args
+                  {:value
+                   (:rules (model/selected-terrain-ruleset next-state))}}))
+
+              :delete
+              (rule-dialogs/open-delete-confirmation!
+               state
+               ctx
+               rule-id
+               name)
+
+              :default
+              nil)
+            state))
+        :terrain/rule-name-dialog-result
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (when (= (:type payload) :confirm)
+            (let [ruleset (model/selected-terrain-ruleset state)
+                  rule-index (model/rule-index-by-id (:rules ruleset)
+                                                     (:rule-id payload))
+                  rule (nth (:rules ruleset) rule-index)]
+              (ui/emit!
+               (:view ctx)
+               :action/mutate!
+               {:label "Rename terrain rule"
+                :op :value/set
+                :target {:path [rule-index]}
+                :args {:value (assoc rule :label (:name payload))}})))
+          state)
+        :terrain/rule-delete-confirm-result
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (when (and (= (:choice payload) :dialog/ok)
+                     (-> payload :payload :rule-id))
+            (let [next-state
+                  (model/delete-selected-terrain-rule
+                   (assoc state
+                          :selected-terrain-rule-id
+                          (-> payload :payload :rule-id)))]
+              (ui/emit!
+               (:view ctx)
+               :action/mutate!
+               {:label "Delete terrain rule"
+                :op :value/set
+                :target {:path []}
+                :args
+                {:value
+                 (:rules (model/selected-terrain-ruleset next-state))}})
+              (ui/emit! (:view ctx)
+                        :terrain/rule-select
+                        (:selected-terrain-rule-id next-state))))
+          state)
         :list-box/reorder (fn [state event ctx]
                             (let [next-state
                                   (model/reorder-selected-terrain-rules

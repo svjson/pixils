@@ -67,42 +67,6 @@
            :padding [10 12]
            :layout {:direction :row
                     :gap 12}}
-   :on {:form/change
-        (fn [state {:keys [payload] :as event} ctx]
-            (let [editor-state
-                  {:terrain-sets (-> state :subject :terrain-sets)
-                   :selected-terrain-set-index
-                   (-> state :workspace :selection :terrain-set-index)
-                   :selected-terrain-index
-                   (-> state :workspace :selection :terrain-index)
-                   :rulesets (-> state :subject :rulesets)
-                   :selected-terrain-ruleset-id
-                   (-> state :workspace :selection :ruleset-id)
-                   :selected-terrain-rule-id
-                   (-> state :workspace :selection :rule-id)}
-                  ruleset (model/selected-terrain-ruleset editor-state)
-                  rule (model/selected-terrain-rule editor-state)
-                  ruleset-index
-                  (find-index (-> state :subject :rulesets)
-                              (fn [candidate]
-                                (= (:id candidate) (:id ruleset))))
-                  rule-index (model/rule-index-by-id (:rules ruleset)
-                                                     (:id rule))]
-              (ui/stop-propagation! event)
-              (ui/emit!
-               (:view ctx)
-               :action/mutate!
-               {:label "Change terrain rule options"
-                :op :value/set
-                :target
-                {:path [ruleset-index
-                        :rules
-                        rule-index]}
-                :args
-                {:value (assoc rule
-                               :exclusive?
-                               (-> payload :form-value :exclusive?))}}))
-            state)}
    :children [{:style {:width 196
                        :height :fill
                        :layout {:direction :column
@@ -1485,7 +1449,21 @@
                        :editor-context (ui/project-state :editor-context)
                        :workspace (ui/bind-state :workspace)
                        :interaction (ui/project-state :interaction)
-                       :derived (ui/project-state :derived)}
+                       :derived (ui/project-state :derived)
+                       :selected-terrain-rule (ui/project-state :derived
+                                                                :terrain
+                                                                :selected-rule)}
+               :on {:form/change
+                    (fn [state {:keys [payload] :as event} ctx]
+                      (ui/stop-propagation! event)
+                      (ui/emit!
+                       (:view ctx)
+                       :action/mutate!
+                       {:label "Change terrain rule options"
+                        :op :value/set
+                        :target {:path []}
+                        :args {:value (:form-value payload)}})
+                      state)}
                :children [{:style {:width :shrink
                                    :height :shrink
                                    :layout {:direction :row
@@ -1581,11 +1559,7 @@
                                    :reference-data (ui/project-state :reference-data)
                                    :editor-context (ui/project-state :editor-context)
                                    :workspace (ui/project-state :workspace)}}
-                          (merge (rule-options/make)
-                                 {:state
-                                  {:selected-terrain-rule (ui/project-state :derived
-                                                                            :terrain
-                                                                            :selected-rule)}})]}
+                          (rule-options/make)]}
               {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/project-state :subject :rulesets)
                        :selected-terrain-ruleset-id (ui/project-state :workspace

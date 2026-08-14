@@ -5,11 +5,8 @@
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]
             [tilemap-editor.view.terrains.actions :as actions]
-            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
-             :as manual-editor]
             [tilemap-editor.view.terrains.layout :as layout]
-            [tilemap-editor.view.terrains.model :as model]
-            [tilemap-editor.view.terrains.rules.dialogs :as rule-dialogs]))
+            [tilemap-editor.view.terrains.model :as model]))
 
 (defun terrain-id-by-index [state terrain-index]
   (let [terrain-set (model/selected-terrain-set
@@ -494,19 +491,6 @@
                                                             (:value payload))
 
             :default state))
-        :terrain/base-tile-open
-        (fn [state event ctx]
-          (manual-editor/open-terrain-base-tile-popup!
-           state
-           ctx
-           (-> event :payload :position)))
-        :terrain/base-tile-popup-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (model/set-selected-terrain-tile state (:tile payload))
-
-            :default state))
         :terrain/ruleset-select
         (fn [state event ctx]
           (assoc state
@@ -531,111 +515,6 @@
         :terrain/rule-selected-mask-change
         (fn [state event ctx]
           (assoc state :terrain-rule-selected-mask (:payload event)))
-        :terrain/rule-context-command
-        (fn [state {:keys [payload]} ctx]
-          (let [rule-id (:rule-id payload)
-                state (assoc state :selected-terrain-rule-id rule-id)
-                name (model/terrain-rule-label-by-id state rule-id)]
-            (case (:command payload)
-              :rename
-              (rule-dialogs/open-name! state ctx rule-id name)
-
-              :duplicate
-              (let [next-state
-                    (model/duplicate-selected-terrain-rule state)]
-                (ui/emit!
-                 (:view ctx)
-                 :action/mutate!
-                 {:label "Duplicate terrain rule"
-                  :op :value/merge
-                  :target {:path []}
-                  :args
-                  {:value
-                   (select-keys next-state
-                                [:rulesets :selected-terrain-rule-id])}})
-                state)
-
-              :move-up
-              (let [next-state
-                    (model/move-selected-terrain-rule state :up)]
-                (ui/emit! (:view ctx)
-                          :action/mutate!
-                          {:label "Move terrain rule"
-                           :op :value/set
-                           :target {:path [:rulesets]}
-                           :args {:value (:rulesets next-state)}})
-                state)
-
-              :move-down
-              (let [next-state
-                    (model/move-selected-terrain-rule state :down)]
-                (ui/emit! (:view ctx)
-                          :action/mutate!
-                          {:label "Move terrain rule"
-                           :op :value/set
-                           :target {:path [:rulesets]}
-                           :args {:value (:rulesets next-state)}})
-                state)
-
-              :delete
-              (rule-dialogs/open-delete-confirmation! state ctx rule-id name)
-
-              :default
-              state)))
-        :terrain/rule-name-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-              (let [ruleset (model/selected-terrain-ruleset state)
-                    ruleset-index
-                    (find-index
-                     (:rulesets state)
-                     (fn [candidate]
-                       (= (:id candidate) (:id ruleset))))
-                    rule (model/rule-by-id
-                          (:rules ruleset)
-                          (:rule-id payload))
-                    rule-index
-                    (model/rule-index-by-id
-                     (:rules ruleset)
-                     (:rule-id payload))]
-                (ui/emit!
-                 (:view ctx)
-                 :action/mutate!
-                 {:label "Rename terrain rule"
-                  :op :value/set
-                  :target
-                  {:path [:rulesets
-                          ruleset-index
-                          :rules
-                          rule-index]}
-                  :args
-                  {:value (assoc rule :label (:name payload))}})
-                state)
-
-            :default
-            state))
-        :terrain/rule-delete-confirm-result
-        (fn [state {:keys [payload]} ctx]
-          (if (and (= (:choice payload) :dialog/ok)
-                   (-> payload :payload :rule-id))
-              (let [next-state
-                    (model/delete-selected-terrain-rule
-                     (assoc state
-                            :selected-terrain-rule-id
-                            (-> payload :payload :rule-id)))]
-                (ui/emit!
-                 (:view ctx)
-                 :action/mutate!
-                 {:label "Delete terrain rule"
-                  :op :value/merge
-                  :target {:path []}
-                  :args
-                  {:value
-                   (select-keys next-state
-                                [:rulesets :selected-terrain-rule-id])}})
-                state)
-            state))
         :terrain/rule-stamp-tile-select
         (fn [state {:keys [payload]} ctx]
           (let [tile (if (map? payload)

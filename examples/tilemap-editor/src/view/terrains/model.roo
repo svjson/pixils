@@ -1035,18 +1035,6 @@
     (get-in state (concat path [:transition-mask-set]))
     nil))
 
-(defun selected-terrain-transition-mask-set-option-index [state]
-  (or (option-index-by-value
-       (terrain-transition-mask-set-options (:mask-sets state))
-       (or (selected-terrain-transition-mask-set state) :none))
-      0))
-
-(defun set-selected-terrain-transition-mask-set [state mask-set-id]
-  (if-let [path (selected-terrain-path state)]
-    (let [mask-set-id (unless (= mask-set-id :none) mask-set-id)]
-      (assoc-in state (concat path [:transition-mask-set]) mask-set-id))
-    state))
-
 (defun terrain-mask-options-for-selected-terrain [state]
   (let [mask-set-id (selected-terrain-transition-mask-set state)
         mask-set (mask-set-by-id (:mask-sets state) mask-set-id)]

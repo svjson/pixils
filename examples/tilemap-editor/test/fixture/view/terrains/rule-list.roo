@@ -1,0 +1,46 @@
+(ns tilemap-editor.fixture.view.terrains.rule-list
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun open-context-menu!
+  "Opens the context menu for `rule-id` in the terrain-rule list.
+
+  Args:
+  - `app`: Running tilemap-editor test application.
+  - `rule-id`: Identity of the rule whose row should open the menu.
+  - `opts`: Interaction options containing the requested `:by` mechanism.
+
+  Returns:
+  The running test application."
+  [app rule-id opts]
+  (let [row (runtime/find-view-containing app
+                                          "terrain-rule-row"
+                                          (str ":value " rule-id))]
+    (is (some? row))
+    (case (:by opts)
+      :mouse/right-click (runtime/mouse-click-in! app row 5 5 :right)
+      :default (runtime/mouse-click-in! app row 5 5 :right))
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= "ui/context-menu" (runtime/active-mode-name app)))
+    app))
+
+(defun rule-ids-are?
+  "Asserts the stored terrain-rule identities equal `expected`.
+
+  Args:
+  - `app`: Running tilemap-editor test application.
+  - `expected`: Ordered rule identities expected in the selected ruleset.
+
+  Returns:
+  True after the assertion."
+  [app expected]
+  (let [state (runtime/active-state app)]
+    (is (= expected
+           (map (:rules (find-first (:rulesets state)
+                                    (fn [candidate]
+                                      (= (:id candidate)
+                                         (:selected-terrain-ruleset-id
+                                          state)))))
+                :id)))
+    true))

@@ -7,6 +7,8 @@
             tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs
+            [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
+             :as manual-editor]
             [tilemap-editor.view.terrains.model :as model]))
 
 (defun terrain-preview-tile [tilesets terrain-set terrain]
@@ -24,11 +26,22 @@
                     state)
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
-                  (unless (:disabled? state)
-                    (ui/emit! (:view ctx)
-                              :terrain/base-tile-open
-                              {:position (:global-position event)}))
-                  state)
+                  (if (:disabled? state)
+                    state
+                    (manual-editor/open-terrain-base-tile-popup!
+                     state
+                     ctx
+                     (:global-position event))))
+   :on {:terrain/base-tile-popup-result
+        (fn [state {:keys [payload]} ctx]
+          (when (= (:type payload) :confirm)
+            (ui/emit! (:view ctx)
+                      :action/mutate!
+                      {:label "Change terrain base tile"
+                       :op :value/set
+                       :target {:path [:tile]}
+                       :args {:value (:tile payload)}}))
+          state)}
    :render (fn [state ctx]
              (r/rect! {:x 0 :y 0 :w 48 :h 48}
                       {:fill true
@@ -43,34 +56,26 @@
            :height 22}
    :update (fn [state ctx]
              (let [options (model/terrain-transition-mask-set-options
-                            (:mask-sets state))]
+                            (:mask-sets state))
+                   selected-value (or (:transition-mask-set state) :none)]
                (assoc state
                       :mask-set-options options
                       :selected-mask-set-option-index
-                      (model/selected-terrain-transition-mask-set-option-index
-                       state)
+                      (or (model/option-index-by-value options selected-value)
+                          0)
                       :disabled? (or (:terrain-disabled? state)
                                      (empty? (:mask-sets state))))))
    :on {:combo-box/change (fn [state {:keys [payload]} ctx]
-                            (let [next-state
-                                  (model/set-selected-terrain-transition-mask-set
-                                   state
-                                   (:value payload))
-                                  terrain-set
-                                  (model/selected-terrain-set
-                                   (:terrain-sets next-state)
-                                   (:selected-terrain-set-index next-state))
-                                  terrain
-                                  (model/selected-terrain
-                                   terrain-set
-                                   (:selected-terrain-index next-state))]
+                            (let [mask-set-id (:value payload)
+                                  mask-set-id (unless (= mask-set-id :none)
+                                                mask-set-id)]
                               (ui/emit!
                                (:view ctx)
                                :action/mutate!
                                {:label "Change terrain transition mask set"
                                 :op :value/set
-                                :target {:path []}
-                                :args {:value terrain}})
+                                :target {:path [:transition-mask-set]}
+                                :args {:value mask-set-id}})
                               (ui/emit! (:view ctx)
                                         :terrain/rule-selected-mask-change
                                         nil))
@@ -101,10 +106,21 @@
            :layout {:direction :row
                     :align-items :start
                     :gap 12}}
-   :state {:detail (ui/project-state :detail)}
+   :state {:subject (ui/project-state :subject)
+           :reference-data (ui/project-state :reference-data)
+           :workspace (ui/project-state :workspace)
+           :detail (ui/project-state :detail)}
    :children [{:mode 'terrain-preview
                :state {:tile (ui/project-state :detail :preview-tile)
-                       :disabled? (ui/project-state :detail :terrain-disabled?)}}
+                       :disabled? (ui/project-state :detail :terrain-disabled?)
+                       :terrain-sets (ui/project-state :subject :terrain-sets)
+                       :selected-terrain-set-index (ui/project-state :workspace
+                                                                     :selection
+                                                                     :terrain-set-index)
+                       :selected-terrain-index (ui/project-state :workspace
+                                                                 :selection
+                                                                 :terrain-index)
+                       :tilesets (ui/project-state :reference-data :tilesets)}}
               {:style {:width :fill
                        :height 48
                        :layout {:direction :column
@@ -135,6 +151,68 @@
                           (terrain-identity-summary-field
                            "Name"
                            (ui/project-state :detail :terrain-label))]}]})
+
+(defcomponent terrain-subject-editor
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :on {:action/mutate!
+        (fn [state {:keys [payload] :as event} ctx]
+          (let [terrain-set-index
+                (model/selected-terrain-set-index
+                 (-> state :subject :terrain-sets)
+                 (-> state :workspace :selection :terrain-set-index))
+                terrain-set (nth (-> state :subject :terrain-sets)
+                                 terrain-set-index)
+                terrain-index
+                (model/selected-terrain-index
+                 terrain-set
+                 (-> state :workspace :selection :terrain-index))]
+            (ui/stop-propagation! event)
+            (ui/emit!
+             (:view ctx)
+             :action/mutate!
+             (assoc-in payload
+                       [:target :path]
+                       (concat [:terrain-sets
+                                terrain-set-index
+                                :terrains
+                                terrain-index]
+                               (-> payload :target :path))))
+            state))}
+   :children [(terrain-value-detail-header-child)
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 92}
+                           :state {:value "Mask set"}}
+                          {:mode 'terrain-transition-mask-set-selector
+                           :state {:mask-sets (ui/project-state :reference-data
+                                                                :mask-sets)
+                                   :transition-mask-set (ui/project-state :detail
+                                                                          :terrain
+                                                                          :transition-mask-set)
+                                   :terrain-disabled? (ui/project-state :detail
+                                                                        :terrain-disabled?)}}]}
+              {:mode 'property-value-list
+               :state {:title "Terrain Properties"
+                       :kind :terrain
+                       :property-sets (ui/project-state :reference-data :property-sets)
+                       :property-set-ids (ui/project-state :derived
+                                                           :terrain
+                                                           :property-set-ids)
+                       :default-values (ui/project-state :derived
+                                                         :terrain
+                                                         :property-default-values)
+                       :override-values (ui/project-state :derived
+                                                          :terrain
+                                                          :property-override-values)
+                       :disabled? (ui/project-state :detail :terrain-disabled?)}}]})
 
 (defcomponent terrain-value-detail-editor
   {:style {:width :fill
@@ -171,79 +249,12 @@
                     (-> state :workspace :selection :ruleset-id)
                     :selected-terrain-rule-id
                     (-> state :workspace :selection :rule-id)}))})))
-   :children [(terrain-value-detail-header-child)
-              {:style {:width :fill
-                       :height 24
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 8}}
+   :children [{:mode 'terrain-subject-editor
                :state {:subject (ui/project-state :subject)
                        :reference-data (ui/project-state :reference-data)
                        :workspace (ui/project-state :workspace)
-                       :detail (ui/project-state :detail)}
-               :on {:action/mutate!
-                    (fn [state {:keys [payload] :as event} ctx]
-                      (let [terrain-set-index
-                            (model/selected-terrain-set-index
-                             (-> state :subject :terrain-sets)
-                             (-> state
-                                 :workspace
-                                 :selection
-                                 :terrain-set-index))
-                            terrain-set
-                            (nth (-> state :subject :terrain-sets)
-                                 terrain-set-index)
-                            terrain-index
-                            (model/selected-terrain-index
-                             terrain-set
-                             (-> state
-                                 :workspace
-                                 :selection
-                                 :terrain-index))]
-                        (ui/stop-propagation! event)
-                        (ui/emit!
-                         (:view ctx)
-                         :action/mutate!
-                         (assoc-in
-                          payload
-                          [:target :path]
-                          (concat [:terrain-sets
-                                   terrain-set-index
-                                   :terrains
-                                   terrain-index]
-                                  (-> payload :target :path))))
-                        state))}
-               :children [{:mode 'ui/text
-                           :class :ui/muted
-                           :style {:width 92}
-                           :state {:value "Mask set"}}
-                          {:mode 'terrain-transition-mask-set-selector
-                           :state {:terrain-sets (ui/project-state :subject
-                                                                   :terrain-sets)
-                                   :selected-terrain-set-index (ui/project-state :workspace
-                                                                                 :selection
-                                                                                 :terrain-set-index)
-                                   :selected-terrain-index (ui/project-state :workspace
-                                                                             :selection
-                                                                             :terrain-index)
-                                   :mask-sets (ui/project-state :reference-data
-                                                                :mask-sets)
-                                   :terrain-disabled? (ui/project-state :detail
-                                                                        :terrain-disabled?)}}]}
-              {:mode 'property-value-list
-               :state {:title "Terrain Properties"
-                       :kind :terrain
-                       :property-sets (ui/project-state :reference-data :property-sets)
-                       :property-set-ids (ui/project-state :derived
-                                                           :terrain
-                                                           :property-set-ids)
-                       :default-values (ui/project-state :derived
-                                                         :terrain
-                                                         :property-default-values)
-                       :override-values (ui/project-state :derived
-                                                          :terrain
-                                                          :property-override-values)
-                       :disabled? (ui/project-state :detail :terrain-disabled?)}}
+                       :derived (ui/project-state :derived)
+                       :detail (ui/project-state :detail)}}
               {:mode 'terrain-rule-editor-tabs
                :state {:subject (ui/project-state :subject)
                        :reference-data (ui/project-state :reference-data)

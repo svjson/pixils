@@ -933,8 +933,7 @@
         (fn [state event ctx]
           (update state
                   :brush-hidden-layer-indices
-                  model/toggle-hidden-layer
-                  (:payload event)))
+                  [model/toggle-hidden-layer (:payload event)]))
         :brush/layer-context-command
         (fn [state event ctx]
           (apply-brush-layer-context-command state (:payload event) ctx))

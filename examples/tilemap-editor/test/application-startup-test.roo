@@ -3,6 +3,7 @@
             [roo.io :as io]
             [pixils.tilemap.project.model :as data]
             [pixils.test.runtime :as runtime]
+            [pixils.test.ui.list-box :as list-box]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.brushes.model :as brush-model]
@@ -18,9 +19,8 @@
 (def DIRECT-LOAD-HISTORY-PATH "/tmp/pixils-tilemap-editor-direct-load-history.edn")
 
 (defun remove-file-if-exists! [path]
-  (if (io/exists? path)
-    (io/remove-tree! path)
-    nil))
+  (when (io/exists? path)
+    (io/remove-tree! path)))
 
 (defun cleanup-application-startup-test-files! []
   (remove-file-if-exists! TERRAIN-PAINT-PATH)
@@ -241,12 +241,15 @@
                 {:format data/project-format
                  :version data/project-format-version
                  :resources {:bundles {:editor-assets
-                                       {:images {:spritesheet
-                                                 {:file-name "assets/simples_pimples.png"}}}
+                                       {:images
+                                        {:spritesheet
+                                         {:file-name "assets/simples_pimples.png"}}}
                                        :project-assets
-                                       {:images {:spritesheet
-                                                 {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
-                                                  :name "Spritesheet"}}}}}
+                                       {:images
+                                        {:spritesheet
+                                         {:file-name
+                                          "examples/tilemap-editor/assets/simples_pimples.png"
+                                          :name "Spritesheet"}}}}}
                  :tilesets [{:id :loaded
                              :label "Loaded"
                              :tile-size 16
@@ -279,11 +282,11 @@
     (runtime/render! app)
     (is (= "main-mode" (runtime/active-mode-name app)))
     (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
-      (is (not (nil? tilesets-tab)))
+      (is (some? tilesets-tab))
       (runtime/click! app tilesets-tab))
     (runtime/render! app)
     (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-    (is (not (nil? (runtime/find-view app "tileset-definition-workspace"))))))
+    (is (some? (runtime/find-view app "tileset-definition-workspace")))))
 
 (deftest menu-shortcuts-dispatch-from-main-mode-action-map
   (let [app (make-startup-app)]
@@ -337,7 +340,7 @@
     (runtime/update! app)
     (runtime/render! app)
     (let [canvas (runtime/find-view app "map-canvas")]
-      (is (not (nil? canvas)))
+      (is (some? canvas))
       (runtime/mouse-drag-in! app canvas 2 2 24 24))
     (runtime/update! app)
     (runtime/render! app)
@@ -351,7 +354,7 @@
                                                   "ui/menu-bar-item"
                                                   ":menu-index 1")
           state (runtime/view-state edit-item)]
-      (is (not (nil? edit-item)))
+      (is (some? edit-item))
       (is (= [nil nil nil]
              [(get-in state [:node :items 3 :disabled?])
               (get-in state [:node :items 4 :disabled?])
@@ -401,7 +404,7 @@
                                                   "ui/menu-bar-item"
                                                   ":menu-index 1")
           state (runtime/view-state edit-item)]
-      (is (not (nil? edit-item)))
+      (is (some? edit-item))
       (is (= "&Undo Rename layer"
              (get-in state [:node :items 0 :label])))
       (is (= false
@@ -428,12 +431,12 @@
     (let [tile-select-grid (runtime/find-view-containing app
                                                          "tile-select-grid"
                                                          "Night Sky")]
-      (is (not (nil? tile-select-grid)))
+      (is (some? tile-select-grid))
       (runtime/mouse-click-in! app tile-select-grid 21 5))
     (is (= :cave-depth (:selected-tile (runtime/active-state app))))
-    (is (not (nil? (runtime/find-view-containing app
-                                                 "tile-select-grid"
-                                                 "Cave Depth")))))
+    (is (some? (runtime/find-view-containing app
+                                             "tile-select-grid"
+                                             "Cave Depth"))))
   (cleanup-application-startup-test-files!))
 
 (deftest map-canvas-right-click-clears-active-tile-layer-cell
@@ -493,7 +496,7 @@
     (runtime/update! app)
     (runtime/render! app)
     (let [canvas (runtime/find-view app "map-canvas")]
-      (is (not (nil? canvas)))
+      (is (some? canvas))
       (runtime/mouse-click-in! app canvas 8 8 :right))
     (runtime/update! app)
     (is (nil? (get-in (runtime/active-state app)
@@ -518,7 +521,7 @@
     (let [terrain-unit-combo (runtime/find-view-containing app
                                                            "ui/combo-box"
                                                            ":unit-2x2")]
-      (is (not (nil? terrain-unit-combo)))
+      (is (some? terrain-unit-combo))
       (runtime/mouse-down-in! app terrain-unit-combo 5 5))
     (runtime/update! app)
     (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
@@ -533,7 +536,7 @@
     (let [terrain-unit-combo (runtime/find-view-containing app
                                                            "ui/combo-box"
                                                            ":unit-2x2")]
-      (is (not (nil? terrain-unit-combo)))
+      (is (some? terrain-unit-combo))
       (is (= 1 (:selected-index (runtime/view-state terrain-unit-combo))))
       (is (= "2 x 2" (:selected-label (runtime/view-state terrain-unit-combo)))))))
 
@@ -549,14 +552,12 @@
                          :label "Soft Edge"}]))
     (runtime/update! app)
     (runtime/render! app)
-    (is (not (nil? (runtime/find-view app "mask-set-workspace"))))
+    (is (some? (runtime/find-view app "mask-set-workspace")))
     (is (= [{:id :soft-edge
              :label "Soft Edge"}]
            (:mask-sets (runtime/view-state
                         (runtime/find-view app "mask-set-workspace")))))
-    (is (not (nil? (runtime/find-view-containing app
-                                                  "ui/list-box"
-                                                  ":soft-edge"))))))
+    (list-box/has-visible-text? app "Soft Edge")))
 
 (deftest masks-tab-renders-selected-mask-palette-and-canvas
   (let [app (make-startup-app)]
@@ -589,9 +590,9 @@
           composition-canvas (runtime/find-view
                               app
                               "mask-composition-canvas")]
-      (is (not (nil? tileset-selector)))
-      (is (not (nil? tile-palette)))
-      (is (not (nil? composition-canvas)))
+      (is (some? tileset-selector))
+      (is (some? tile-palette))
+      (is (some? composition-canvas))
       (is (= false (:disabled? (runtime/view-state tileset-selector))))
       (is (= false (:disabled? (runtime/view-state tile-palette))))
       (is (= [{:value 0
@@ -633,7 +634,7 @@
     (let [tileset-selector (runtime/find-view
                             app
                             "mask-workspace-source-tileset-selector")]
-      (is (not (nil? tileset-selector)))
+      (is (some? tileset-selector))
       (is (= 0 (:selected-tileset-index
                 (runtime/view-state tileset-selector))))
       (runtime/mouse-down-in! app tileset-selector 5 5))
@@ -682,7 +683,7 @@
     (runtime/update! app)
     (runtime/render! app)
     (let [canvas (runtime/find-view app "mask-composition-canvas")]
-      (is (not (nil? canvas)))
+      (is (some? canvas))
       (runtime/mouse-click-in! app canvas 10 10))
     (runtime/update! app)
     (runtime/render! app)
@@ -719,7 +720,7 @@
     (runtime/update! app)
     (runtime/render! app)
     (let [canvas (runtime/find-view app "mask-composition-canvas")]
-      (is (not (nil? canvas)))
+      (is (some? canvas))
       (runtime/mouse-click-in! app canvas 10 10 :right))
     (runtime/update! app)
     (is (= "ui/context-menu" (runtime/active-mode-name app)))
@@ -727,7 +728,7 @@
     (let [remove-item (runtime/find-view-containing app
                                                     "ui/popup-menu-item"
                                                     ":command :remove")]
-      (is (not (nil? remove-item)))
+      (is (some? remove-item))
       (runtime/click! app remove-item))
     (runtime/update! app)
     (runtime/render! app)
@@ -769,7 +770,7 @@
                                       :recent-projects []))
     (runtime/render! app)
     (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
-      (is (not (nil? tilesets-tab)))
+      (is (some? tilesets-tab))
       (runtime/click! app tilesets-tab))
     (runtime/render! app)
     (runtime/push-mode-with-overrides!
@@ -784,5 +785,5 @@
     (runtime/render! app)
     (is (= "main-mode" (runtime/active-mode-name app)))
     (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-    (is (not (nil? (runtime/find-view app "sprite-source-preview")))))
+    (is (some? (runtime/find-view app "sprite-source-preview"))))
   (cleanup-application-startup-test-files!))
