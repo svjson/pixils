@@ -53,6 +53,7 @@ namespace Pixils::Script
      * @return A writable state-binding descriptor.
      *
      * @since 0.1.0
+     * @see pixils.ui/consume-state
      * @see pixils.ui/project-state
      */
     FUNC(BindStateFn, bind_state);
@@ -77,8 +78,34 @@ namespace Pixils::Script
      *
      * @since 0.1.0
      * @see pixils.ui/bind-state
+     * @see pixils.ui/consume-state
      */
     FUNC(ProjectStateFn, project_state);
+
+    /*!
+     * @brief Creates an upward-only consumption from child state into a path
+     * in parent state.
+     *
+     * The child owns and initializes the declared value. Once present, that
+     * value is written to the parent path. Parent changes are never projected
+     * into the child through this descriptor.
+     *
+     * Usage:
+     * @code
+     * {:ui-state {:measured-size (pixils.ui/consume-state :content-size)}}
+     * @endcode
+     *
+     * | Arg     | Description                              |
+     * | ------- | ---------------------------------------- |
+     * | path... | Keys identifying the path in the parent. |
+     *
+     * @return An upward-only state-binding descriptor.
+     *
+     * @since 0.1.0
+     * @see pixils.ui/bind-state
+     * @see pixils.ui/project-state
+     */
+    FUNC(ConsumeStateFn, consume_state);
 
     /*!
      * @brief Appends a child description to a live view after the current

@@ -66,6 +66,7 @@
 
 (defun scroll-pane-viewport-child [content-size content-state-key children scroll-x? scroll-y? content-width-explicit? content-height-explicit? viewport-fill-width? viewport-fill-height?]
   {:mode 'ui/scroll-pane-viewport
+   :ui/state-policy :isolated
    :style (scroll-pane-viewport-style content-size
                                        scroll-x?
                                        scroll-y?
@@ -76,14 +77,18 @@
    :ui-state {:offset (ui/bind-state :offset)
               :content-size (ui/bind-state :content-size)
               :content-width-explicit? (ui/bind-state :content-width-explicit?)
-              :content-height-explicit? (ui/bind-state :content-height-explicit?)}
+              :content-height-explicit? (ui/bind-state :content-height-explicit?)
+              :content-ui-state (ui/project-state :content-ui-state)}
    :state {:content-state (ui/bind-state :content-state)}
    :children [{:mode 'ui/scroll-pane-content
+               :ui/state-policy :isolated
                :state (scroll-pane-content-state-binding content-state-key)
+               :ui-state {:content-ui-state (ui/project-state :content-ui-state)}
                :children children}]})
 
 (defun scroll-pane-vertical-scrollbar-child []
   {:mode 'ui/scrollbar
+   :ui/state-policy :isolated
    :class :scroll-pane/vertical-scrollbar
    :style {:height :fill}
    :ui-state {:axis :y
@@ -93,6 +98,7 @@
 
 (defun scroll-pane-horizontal-scrollbar-child []
   {:mode 'ui/scrollbar
+   :ui/state-policy :isolated
    :class :scroll-pane/horizontal-scrollbar
    :style {:width :fill
            :height :fill}
@@ -103,6 +109,7 @@
 
 (defun scroll-pane-corner-child []
   {:mode 'ui/scrollbar-corner
+   :ui/state-policy :isolated
    :class :scroll-pane/corner
    :style {}})
 
@@ -111,10 +118,12 @@
                       :effective-scroll-y? effective-scroll-y?}]
     {:mode 'ui/scroll-pane-row
      :id "row"
+     :ui/state-policy :isolated
      :ui-state {:offset (ui/bind-state :offset)
                 :content-size (ui/bind-state :content-size)
                 :content-width-explicit? (ui/bind-state :content-width-explicit?)
                 :content-height-explicit? (ui/bind-state :content-height-explicit?)
+                :content-ui-state (ui/project-state :content-ui-state)
                 :step (ui/bind-state :step)}
      :state {:content-state (ui/bind-state :content-state)}
      :children (concat [(scroll-pane-viewport-child content-size
@@ -136,6 +145,7 @@
                       :effective-scroll-y? effective-scroll-y?}]
     {:mode 'ui/scroll-pane-footer
      :id "footer"
+     :ui/state-policy :isolated
      :ui-state {:offset (ui/bind-state :offset)
                 :content-size (ui/bind-state :content-size)
                 :step (ui/bind-state :step)}
@@ -412,20 +422,23 @@
 ;; Internal Components
 
 (defcomponent ui/scroll-pane-content
-  {})
+  {:ui/state-keys [:content-ui-state]})
 
 
 (defcomponent ui/scroll-pane-viewport
   {:ui/state-keys [:offset
                    :content-size
                    :content-width-explicit?
-                   :content-height-explicit?]
+                   :content-height-explicit?
+                   :content-ui-state]
    :style {:width :fill
            :height :fill
            :clip true}
    :init-ui scroll-pane-sync-content-style
    :update-ui scroll-pane-sync-content-style
-   :children [{:mode 'ui/scroll-pane-content}]})
+   :children [{:mode 'ui/scroll-pane-content
+               :ui/state-policy :isolated
+               :ui-state {:content-ui-state (ui/project-state :content-ui-state)}}]})
 
 
 (defcomponent ui/scroll-pane-row
@@ -433,19 +446,23 @@
                    :content-size
                    :content-width-explicit?
                    :content-height-explicit?
+                   :content-ui-state
                    :step]
    :style {:width :fill
            :height :fill
            :layout {:direction :row}}
    :children [{:mode 'ui/scroll-pane-viewport
+               :ui/state-policy :isolated
                :ui-state {:offset (ui/bind-state :offset)
                           :content-size (ui/bind-state :content-size)
                           :content-width-explicit?
                           (ui/bind-state :content-width-explicit?)
                           :content-height-explicit?
-                          (ui/bind-state :content-height-explicit?)}
+                          (ui/bind-state :content-height-explicit?)
+                          :content-ui-state (ui/project-state :content-ui-state)}
                :state {:content-state (ui/bind-state :content-state)}}
               {:mode 'ui/scrollbar
+               :ui/state-policy :isolated
                :class :scroll-pane/vertical-scrollbar
                :style {:height :fill}
                :ui-state {:axis :y
@@ -465,6 +482,7 @@
                                      :scrollbar-size
                                      default-scrollbar-size)})
    :children [{:mode 'ui/scrollbar
+               :ui/state-policy :isolated
                :class :scroll-pane/horizontal-scrollbar
                :style {:width :fill
                        :height :fill}
@@ -473,6 +491,7 @@
                           :step (ui/bind-state :step)
                           :content-size (ui/bind-state :content-size :w)}}
               {:mode 'ui/scrollbar-corner
+               :ui/state-policy :isolated
                :class :scroll-pane/corner
                :style {}}]})
 
@@ -488,6 +507,7 @@
    :content-height-explicit?
    :viewport-fill-width?
    :viewport-fill-height?
+   :content-ui-state
    :scroll-x?
    :scroll-y?
    :effective-scroll-y?
@@ -508,6 +528,7 @@
                       :content-height-explicit? false
                       :viewport-fill-width? true
                       :viewport-fill-height? true
+                      :content-ui-state {}
                       :scroll-x? true
                       :scroll-y? true
                       :effective-scroll-y? true
@@ -521,11 +542,14 @@
                       (scroll-pane-sync-auto-managed ui-state ctx))
    :on-mouse-wheel scroll-pane-mouse-wheel
    :children [{:mode 'ui/scroll-pane-row
+               :ui/state-policy :isolated
                :ui-state {:offset (ui/bind-state :offset)
                           :content-size (ui/bind-state :content-size)
+                          :content-ui-state (ui/project-state :content-ui-state)
                           :step (ui/bind-state :step)}
                :state {:content-state (ui/bind-state :content-state)}}
               {:mode 'ui/scroll-pane-footer
+               :ui/state-policy :isolated
                :ui-state {:offset (ui/bind-state :offset)
                           :content-size (ui/bind-state :content-size)
                           :step (ui/bind-state :step)}}]})

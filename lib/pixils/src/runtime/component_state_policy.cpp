@@ -2,6 +2,7 @@
 #include "state_binding.h"
 #include <pixils/benchmark/counters.h>
 #include <pixils/runtime/component.h>
+#include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 
 #include <roo/runtime/dict.h>
@@ -34,11 +35,14 @@ namespace Pixils::Runtime
     {
       const auto& binding = view.state_binding;
       if (!binding || binding->type == Roo::Value::Type::NIL) return false;
-      if (StateBindings::is_binding(binding)) return true;
+      if (StateBindings::is_binding(binding))
+      {
+        return Pixils::Runtime::bind_state_readable(binding);
+      }
       if (binding->type != Roo::Value::Type::MAP) return false;
 
       auto value = Roo::Dict::get_property(binding, Roo::keyword(key));
-      return StateBindings::contains_binding(value);
+      return StateBindings::contains_readable_binding(value);
     }
 
   } // namespace

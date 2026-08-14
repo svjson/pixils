@@ -69,12 +69,6 @@ namespace
            *view->effective_style.visibility == Pixils::UI::Style::Visibility::NONE;
   }
 
-  Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
-                              const std::string& key)
-  {
-    return Roo::Dict::get_property(view->state, Roo::keyword(key));
-  }
-
   Roo::sptr_val get_ui_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
                                  const std::string& key)
   {
@@ -374,7 +368,8 @@ TEST_F(ListBoxTest, selected_custom_item_is_marked_on_first_render)
 {
   runtime.eval(R"(
     (pixils/defcomponent custom-item
-      {:style {:width :fill
+      {:extend 'ui/list-box-item
+       :style {:width :fill
                :height 10}})
 
     (pixils/defmode root-mode
@@ -399,8 +394,8 @@ TEST_F(ListBoxTest, selected_custom_item_is_marked_on_first_render)
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 2u);
 
-  auto first_selected = get_state_key(content->children[0], "selected");
-  auto second_selected = get_state_key(content->children[1], "selected");
+  auto first_selected = get_ui_state_key(content->children[0], "selected");
+  auto second_selected = get_ui_state_key(content->children[1], "selected");
   ASSERT_NE(first_selected, nullptr);
   ASSERT_NE(second_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
@@ -718,7 +713,8 @@ TEST_F(ListBoxTest, tab_switch_explicit_content_width_item_fills_on_first_frame)
   EXPECT_EQ(stable_selected_item->bounds.w, first_frame_item_width);
 }
 
-TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
+TEST_F(ListBoxTest,
+       windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
 {
   runtime.eval(R"(
     (pixils/defcomponent natural-row
@@ -998,7 +994,7 @@ TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
-TEST_F(ListBoxTest, list_box_rebuilds_rows_when_bound_options_change)
+TEST_F(ListBoxTest, list_box_reconciles_rows_when_bound_options_change)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -1071,8 +1067,7 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
   auto viewport = row->children[0];
   auto content = viewport->children[0];
   auto first_item = content->children[0];
-  auto disabled =
-    Roo::Dict::get_property(first_item->ui_state, Roo::keyword("disabled?"));
+  auto disabled = Roo::Dict::get_property(first_item->ui_state, Roo::keyword("disabled?"));
   ASSERT_NE(disabled, nullptr);
   EXPECT_EQ(disabled->to_string(), "true");
 }
@@ -1468,20 +1463,12 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
   ASSERT_NE(reorder, nullptr);
   ASSERT_NE(selected, nullptr);
   ASSERT_NE(reorder->to_string(), "nil");
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))
-              ->num()
-              .get_int(),
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))->num().get_int(),
             0);
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))
-              ->num()
-              .get_int(),
-            2);
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("drop-index"))
-              ->num()
-              .get_int(),
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))->num().get_int(), 2);
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("drop-index"))->num().get_int(),
             3);
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("value"))->to_string(),
-            ":a");
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("value"))->to_string(), ":a");
   EXPECT_EQ(selected->to_string(), "[]");
 }
 
@@ -1649,14 +1636,9 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_dro
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
   ASSERT_NE(reorder, nullptr);
   ASSERT_NE(reorder->to_string(), "nil");
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))
-              ->num()
-              .get_int(),
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))->num().get_int(),
             0);
-  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))
-              ->num()
-              .get_int(),
-            2);
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))->num().get_int(), 2);
 }
 
 TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
@@ -1704,10 +1686,8 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
   input().mouse_up({5, 15});
   update_cycle();
 
-  selected =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
-  changes =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changes"));
+  selected = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
+  changes = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changes"));
   ASSERT_NE(selected, nullptr);
   ASSERT_NE(changes, nullptr);
   EXPECT_EQ(selected->to_string(), "[1]");
@@ -1765,8 +1745,7 @@ TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_wi
   input().key_up(SDLK_LCTRL);
   update_cycle();
 
-  selected =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
+  selected = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1 2]");
 
@@ -1775,8 +1754,7 @@ TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_wi
   input().mouse_up({5, 15});
   update_cycle();
 
-  selected =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
+  selected = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[2]");
 }
@@ -1861,9 +1839,8 @@ TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
   auto activated =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("activated"));
   ASSERT_NE(activated, nullptr);
-  EXPECT_EQ(Roo::Dict::get_property(activated, Roo::keyword("value"))->to_string(),
-            ":b");
-  EXPECT_EQ(Roo::Dict::get_property(activated, Roo::keyword("selected-indices"))
-              ->to_string(),
-            "[1]");
+  EXPECT_EQ(Roo::Dict::get_property(activated, Roo::keyword("value"))->to_string(), ":b");
+  EXPECT_EQ(
+    Roo::Dict::get_property(activated, Roo::keyword("selected-indices"))->to_string(),
+    "[1]");
 }

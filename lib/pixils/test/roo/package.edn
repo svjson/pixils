@@ -3,11 +3,12 @@
  :dependencies {pixils {:path "../.."}
                 pixils-test {:path "../../../pixils-test"}
                 proof "0.1.0"}
- :load-roots ["src"]
+ :load-roots ["src" "../assets/roo"]
  :config {proof {:test-roots ["src"]}}
  :test-entry-points [pixils.package-test
                      pixils.ui.component-state-binding-test
                      pixils.ui.icon-container-test
+                     pixils.ui.option-list-reconciliation-test
                      pixils.ui.window-test
                      pixils.ui.scroll-pane-test
                      pixils.ui.group-box-test

@@ -9,15 +9,15 @@
 
 namespace Pixils::Runtime
 {
-  BindState::BindState(Roo::sptr_val_v p, bool w)
+  BindState::BindState(Roo::sptr_val_v p, StateBindingDirection d)
     : path(std::move(p))
-    , writable(w)
+    , direction(d)
   {
   }
 
-  Roo::sptr_val make_state_binding(Roo::sptr_val_v path, bool writable)
+  Roo::sptr_val make_state_binding(Roo::sptr_val_v path, StateBindingDirection direction)
   {
-    return Script::BindStateAdapter::make_unique(BindState(std::move(path), writable));
+    return Script::BindStateAdapter::make_unique(BindState(std::move(path), direction));
   }
 
   Roo::sptr_val extract_state(const Roo::sptr_val& parent, const Pixils::Runtime::View& view)
@@ -32,6 +32,11 @@ namespace Pixils::Runtime
 
     if (StateBindings::is_binding(binding))
     {
+      if (!Pixils::Runtime::bind_state_readable(binding))
+      {
+        if (view.state && view.state->type != Roo::Value::Type::NIL) return view.state;
+        return view.initial_state;
+      }
       const auto& path = Pixils::Runtime::bind_state_path(binding);
       if (path.empty()) return parent;
       return Roo::Dict::get_property_path(parent, path);
@@ -43,7 +48,10 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(binding))
     {
       auto value = Roo::Dict::get_property(binding, key);
-      if (StateBindings::contains_binding(value))
+      auto result_has_key = result && result->type == Roo::Value::Type::MAP &&
+                            Roo::Dict::contains_key(*result, key->str());
+      if (StateBindings::contains_binding(value) &&
+          (StateBindings::contains_readable_binding(value) || result_has_key))
       {
         Roo::Dict::set_property(
           result,
@@ -86,7 +94,14 @@ namespace Pixils::Runtime
 
   bool bind_state_writable(const Roo::sptr_val& value)
   {
-    return Roo::obj<Runtime::BindState>(*value).writable;
+    return Roo::obj<Runtime::BindState>(*value).direction !=
+           StateBindingDirection::PARENT_TO_CHILD;
+  }
+
+  bool bind_state_readable(const Roo::sptr_val& value)
+  {
+    return Roo::obj<Runtime::BindState>(*value).direction !=
+           StateBindingDirection::CHILD_TO_PARENT;
   }
 
   StateBinding parse_state_binding(const Roo::sptr_val& state_value)

@@ -62,6 +62,7 @@ namespace Pixils::Runtime
 
       if (StateBindings::is_binding(binding))
       {
+        if (!Pixils::Runtime::bind_state_readable(binding)) return current;
         const auto& path = Pixils::Runtime::bind_state_path(binding);
         auto bound_value =
           path.empty() ? parent : Roo::Dict::get_property_path(parent, path);
@@ -78,7 +79,10 @@ namespace Pixils::Runtime
       for (const auto& key : Roo::Dict::map_sptr_keys(binding))
       {
         auto value = Roo::Dict::get_property(binding, key);
-        if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
+        auto result_has_key = result && result->type == Roo::Value::Type::MAP &&
+                              Roo::Dict::contains_key(*result, key->str());
+        if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value) &&
+            (StateBindings::contains_readable_binding(value) || result_has_key))
         {
           Roo::Dict::set_property(
             result,
@@ -116,8 +120,13 @@ namespace Pixils::Runtime
         auto value = Roo::Dict::get_property(binding, key);
         if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
         {
-          result =
-            StateBindings::merge_pass(result, value, ui_property(ui_state, key), true);
+          auto child_value_present = ui_state && ui_state->type == Roo::Value::Type::MAP &&
+                                     Roo::Dict::contains_key(*ui_state, key->str());
+          result = StateBindings::merge_pass(result,
+                                             value,
+                                             ui_property(ui_state, key),
+                                             true,
+                                             child_value_present);
         }
       }
       for (const auto& key : Roo::Dict::map_sptr_keys(binding))
@@ -125,8 +134,13 @@ namespace Pixils::Runtime
         auto value = Roo::Dict::get_property(binding, key);
         if (declared_component_ui_key(view, key) && StateBindings::contains_binding(value))
         {
-          result =
-            StateBindings::merge_pass(result, value, ui_property(ui_state, key), false);
+          auto child_value_present = ui_state && ui_state->type == Roo::Value::Type::MAP &&
+                                     Roo::Dict::contains_key(*ui_state, key->str());
+          result = StateBindings::merge_pass(result,
+                                             value,
+                                             ui_property(ui_state, key),
+                                             false,
+                                             child_value_present);
         }
       }
       return result;

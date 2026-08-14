@@ -1,0 +1,25 @@
+(ns pixils.test.option-list-reconciliation-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]))
+
+(pixils/defcomponent preserved-option-row
+  {:extend 'ui/list-box-item})
+
+(pixils/defmode option-list-reconciliation-root
+  {:init (fn [state ctx]
+           {:expanded? false
+            :items [{:value :a :label "Alpha"}
+                    {:value :b :label "Beta"}]})
+   :update (fn [state ctx]
+             (cond-> state
+               (:expanded? state)
+               (assoc :items [{:value :a :label "Updated Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}])))
+   :children [(list-box/make
+               {:options (ui/bind-state :items)
+                :row-height 16
+                :visible-rows 2
+                :item-child (fn [index option]
+                              {:mode 'preserved-option-row})})]})

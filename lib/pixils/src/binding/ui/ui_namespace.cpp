@@ -240,7 +240,19 @@ namespace Pixils::Script
 
     EXEC_BODY(ProjectStateFn, exec_project_state)
     {
-      return BindStateAdapter::make_unique(Runtime::BindState(args, false));
+      return BindStateAdapter::make_unique(
+        Runtime::BindState(args, Runtime::StateBindingDirection::PARENT_TO_CHILD));
+    }
+
+    /** ConsumeStateFn - pixils.ui/consume-state */
+    FUNC_IMPL(ConsumeStateFn,
+              SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
+                   EXEC_DISPATCH(&ConsumeStateFn::exec_consume_state))));
+
+    EXEC_BODY(ConsumeStateFn, exec_consume_state)
+    {
+      return BindStateAdapter::make_unique(
+        Runtime::BindState(args, Runtime::StateBindingDirection::CHILD_TO_PARENT));
     }
 
     /** BlurBangFunction - pixils.ui/blur! */
@@ -855,6 +867,7 @@ namespace Pixils::Script
     : Roo::Namespace(std::string(NS__PIXILS__UI))
   {
     values.emplace("bind-state", Function::BindStateFn::make());
+    values.emplace("consume-state", Function::ConsumeStateFn::make());
     values.emplace("project-state", Function::ProjectStateFn::make());
     values.emplace(FN__PIXILS__UI__BLUR_BANG, Function::BlurBangFunction::make());
     values.emplace("append-child!", Function::AppendChildBangFunction::make());

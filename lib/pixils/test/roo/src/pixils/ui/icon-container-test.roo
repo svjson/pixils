@@ -9,7 +9,7 @@
                                :render-backend false})]
     (runtime/eval-file!
      app
-     "../assets/roo/pixils/test/icon-grid-binding-probe.roo")
+     "pixils/test/icon-grid-binding-probe.roo")
     (runtime/push-mode! app 'root-mode)
     (is (= [{:id :one} {:id :two} {:id :three}]
            (:items

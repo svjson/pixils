@@ -8,15 +8,23 @@ namespace Pixils::Runtime
 {
   struct View;
 
+  enum class StateBindingDirection
+  {
+    BIDIRECTIONAL,
+    PARENT_TO_CHILD,
+    CHILD_TO_PARENT
+  };
+
   /**
    * State binding path.
    */
   struct BindState
   {
     Roo::sptr_val_v path;
-    bool writable = true;
+    StateBindingDirection direction = StateBindingDirection::BIDIRECTIONAL;
     BindState() = default;
-    explicit BindState(Roo::sptr_val_v p, bool w = true);
+    explicit BindState(Roo::sptr_val_v p,
+                       StateBindingDirection d = StateBindingDirection::BIDIRECTIONAL);
   };
 
   struct StateBinding
@@ -29,7 +37,9 @@ namespace Pixils::Runtime
    * Create a state binding value for runtime-generated view definitions.
    * An empty path binds the child to the whole parent state.
    */
-  Roo::sptr_val make_state_binding(Roo::sptr_val_v path = {}, bool writable = true);
+  Roo::sptr_val make_state_binding(
+    Roo::sptr_val_v path = {},
+    StateBindingDirection direction = StateBindingDirection::BIDIRECTIONAL);
 
   /**
    * Apply state_binding to produce the child state handed to hooks. For a
@@ -52,6 +62,7 @@ namespace Pixils::Runtime
                             const Roo::sptr_val& child_state);
 
   const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
+  bool bind_state_readable(const Roo::sptr_val& val);
   bool bind_state_writable(const Roo::sptr_val& val);
 
   /**

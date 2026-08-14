@@ -50,6 +50,58 @@
                :id "replacement-state-child"
                :ui-state {:value (ui/bind-state :value)}}]})
 
+(pixils/defmode consuming-state-child
+  {:init (fn [state ctx]
+           {:produced :child
+            :explicit-nil nil})})
+
+(pixils/defmode consuming-state-root-mode
+  {:init (fn [state ctx]
+           {:received :parent
+            :untouched :parent
+            :cleared :parent})
+   :children [{:mode 'consuming-state-child
+               :state {:produced (ui/consume-state :received)
+                       :missing (ui/consume-state :untouched)
+                       :explicit-nil (ui/consume-state :cleared)}}]})
+
+(pixils/defcomponent consuming-ui-state-child
+  {:ui/state-keys [:produced :missing :explicit-nil]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :produced :child
+                     :explicit-nil nil))})
+
+(pixils/defcomponent consuming-ui-state-parent
+  {:ui/state-keys [:received :untouched :cleared]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state
+                     :received :parent
+                     :untouched :parent
+                     :cleared :parent))
+   :children [{:mode 'consuming-ui-state-child
+               :ui-state {:produced (ui/consume-state :received)
+                          :missing (ui/consume-state :untouched)
+                          :explicit-nil (ui/consume-state :cleared)}}]})
+
+(pixils/defcomponent projected-state-leaf
+  {:ui/state-keys [:value]})
+
+(pixils/defcomponent projected-state-middle
+  {:ui/state-keys [:value]
+   :children [{:mode 'projected-state-leaf
+               :ui-state {:value (ui/project-state :value)}}]})
+
+(pixils/defcomponent projected-state-parent
+  {:ui/state-keys [:value]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state :value 1))
+   :update-ui (fn [ui-state state ctx]
+                (cond-> ui-state
+                  (:advance? state) (assoc :value 2)))
+   :children [{:mode 'projected-state-middle
+               :ui-state {:value (ui/project-state :value)}}]})
+
 (pixils/defmode root-mode
   {:children [{:mode 'component-state-parent
                :ui/state-policy :isolated}]})
@@ -63,5 +115,16 @@
 (pixils/defmode replacement-state-root-mode
   {:init (fn [state ctx] {:advance? false})
    :children [{:mode 'replacement-state-parent
+               :state (ui/bind-state)
+               :ui/state-policy :isolated}]})
+
+(pixils/defmode consuming-ui-state-root-mode
+  {:children [{:mode 'consuming-ui-state-parent
+               :ui/state-policy :isolated}]})
+
+(pixils/defmode projected-state-root-mode
+  {:init (fn [state ctx]
+           {:advance? false})
+   :children [{:mode 'projected-state-parent
                :state (ui/bind-state)
                :ui/state-policy :isolated}]})

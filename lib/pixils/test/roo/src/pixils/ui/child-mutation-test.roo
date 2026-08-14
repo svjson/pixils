@@ -10,7 +10,7 @@
                                :render-backend false})]
     (runtime/eval-file!
      app
-     "../assets/roo/pixils/test/child-mutation-probe.roo")
+     "pixils/test/child-mutation-probe.roo")
     (runtime/push-mode! app 'child-removal-root)
     (is (some? (runtime/find-view app "removable-child")))
     (is (some? (runtime/find-view app "retained-child")))
@@ -30,7 +30,7 @@
                                :render-backend false})]
     (runtime/eval-file!
      app
-     "../assets/roo/pixils/test/child-mutation-probe.roo")
+     "pixils/test/child-mutation-probe.roo")
     (runtime/push-mode! app 'child-reconciliation-root)
     (ui/set-ui-state! (head (ui/children (runtime/active-mode app)))
                       {:value 42})

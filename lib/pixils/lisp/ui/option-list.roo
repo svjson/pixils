@@ -229,7 +229,12 @@
                      :height :fill}
              :content-size content-size
              :content-height-explicit? (:explicit-row-height? state)
-             :ui-state {:offset (ui/bind-state :offset)}
+             :ui-state {:offset (ui/bind-state :offset)
+                        :content-size (ui/project-state :scroll-content-size)
+                        :content-height-explicit?
+                        (ui/project-state :explicit-row-height?)
+                        :content-ui-state (ui/project-state :content-state)
+                        :step (ui/project-state :computed-row-height)}
              :state {:content-state item-state-projection}
              :scroll-x? false
              :scroll-y? :auto
@@ -252,16 +257,11 @@
                   {:height height}))))
 
 (defun merge-item-state [child item-state]
-  (if (-> child :state :component)
-    (update child :state
-            (fn [state]
-              (update state :component
-                      (fn [component]
-                        (merge component item-state)))))
-    (assoc child
-           :state
-           (merge (or (:state child) {})
-                  item-state))))
+  (update child :state
+          (fn [state]
+            (assoc (or state {})
+                   :component
+                   (merge (:component state) item-state)))))
 
 (defun make-item-child [{:keys [decorate-item
                                 disabled?
@@ -272,6 +272,11 @@
                       (:disabled? item))
         selected? (and (sequential? selected-indices)
                        (contains? selected-indices index))
+        item-state {:index index
+                    :value (option/value item)
+                    :label (option/label item)
+                    :disabled? disabled?
+                    :selected selected?}
         item-height (or (:computed-row-height state)
                         (:row-height state))
         child (if-let [item-child (:item-child state)]
@@ -287,16 +292,40 @@
                                       :selected selected?
                                       :selected-indices
                                       (ui/bind-state :selected-indices)}}})]
-    (-> child
-        (merge-item-state {:disabled? disabled?
-                           :selected selected?})
-        (cond-> decorate-item (decorate-item state index item))
-        (apply-item-height item-height)
-        (cond-> (:stretch-items? state) stretch-item))))
+    (let [child (-> child
+                    (merge-item-state item-state)
+                    (cond-> decorate-item (decorate-item state index item))
+                    (apply-item-height item-height)
+                    (cond-> (:stretch-items? state) stretch-item))
+          item-ui-state (assoc (get-in child [:state :component])
+                               :selected-indices
+                               (or selected-indices []))
+          projected-ui-state (reduce-kv item-ui-state
+                                        (or (:ui-state child) {})
+                                        (fn [out key value]
+                                          (assoc out
+                                                 key
+                                                 (ui/project-state :content-ui-state
+                                                                   :items
+                                                                   index
+                                                                   key))))]
+      (assoc child
+             :id (or (:id child)
+                     (str "option-"
+                          index
+                          "-"
+                          (or (:mode child) (:component child))))
+             :ui-state projected-ui-state))))
 
 (defun item-children [state]
   (for-indexed [index item (or (:options state) [])]
     (make-item-child state index item)))
+
+(defun item-ui-states [state children]
+  (for [child children]
+    (assoc (get-in child [:state :component])
+           :selected-indices
+           (or (:selected-indices state) []))))
 
 (defun render-key [state]
   (merge (select-keys state
@@ -316,7 +345,16 @@
 (defun scroll-pane-for-state [state]
   (scroll-pane-child state (item-children state)))
 
-(defun sync-rendered-options [state ctx]
+(defun sync-retained-item-styles! [content children]
+  (let [styles (reduce children
+                       {}
+                       (fn [out child]
+                         (assoc out (:id child) (:style child))))]
+    (doseq [child (ui/children content)]
+      (when-let [style (get styles (:id child))]
+        (ui/style! child style)))))
+
+(defun sync-layout [state ctx]
   (let [computed-row-height (if (:auto-row-height? state)
                               (measured-row-height ctx)
                               (:row-height state))
@@ -325,26 +363,46 @@
                                  (:content-width state))
         computed-visible-rows (or (:visible-rows state)
                                   (theme-visible-rows ctx))
+        previous-layout (select-keys state
+                                     [:computed-row-height
+                                      :computed-content-width])
         state (assoc state :computed-row-height computed-row-height)
         state (assoc state :computed-content-width computed-content-width)
         state (assoc state :computed-visible-rows computed-visible-rows)
-        render-key (render-key state)]
-    (when (not= render-key (:rendered-render-key state))
-      (ui/replace-child! (:view ctx)
-                         "scroll-pane"
-                         (scroll-pane-for-state state)))
+        state (assoc state :scroll-content-size (scroll-content-size state))]
+    (when (not= previous-layout
+                 (select-keys state
+                              [:computed-row-height
+                               :computed-content-width]))
+      (when-let [content (content-view ctx)]
+        (sync-retained-item-styles! content (item-children state))))
     (when (and (:managed-height? state)
                (can-sync-managed-height? ctx))
       (ui/style! (:view ctx)
                  (managed-style state ctx)))
+    state))
+
+(defun sync-rendered-items [state ctx]
+  (let [children (item-children state)
+        state (update state
+                      :content-state
+                      (fn [content-state]
+                        (assoc content-state
+                               :items
+                               (item-ui-states state children))))
+        render-key (render-key state)]
+    (when (not= render-key (:rendered-render-key state))
+      (when-let [content (content-view ctx)]
+        (sync-retained-item-styles! content children)
+        (ui/reconcile-children! content children)))
     (assoc state :rendered-render-key render-key)))
 
 (defun sync-ui [ui-state state ctx]
-  (sync-rendered-options
-   (assoc ui-state
-          :content-state (content-state ui-state state)
-          :scroll-y? :auto)
-   ctx))
+  (-> ui-state
+      (assoc :content-state (content-state ui-state state)
+             :scroll-y? :auto)
+      (sync-layout ctx)
+      (sync-rendered-items ctx)))
 
 
 
@@ -377,6 +435,7 @@
    :content-state
    :offset
    :scroll-y?
+   :scroll-content-size
    :rendered-render-key])
 
 (defcomponent ui/option-list
@@ -385,7 +444,8 @@
    :content-size component-content-size
    :init-ui sync-ui
    :update-ui sync-ui
-   :after-layout-ui sync-ui})
+   :after-layout-ui (fn [ui-state state ctx]
+                      (sync-layout ui-state ctx))})
 
 
 
@@ -409,7 +469,10 @@
                           :managed-height? (not (and style
                                                      (contains? style :height)))
                           :stretch-items? (stretches-items? style)
-                          :item-mode 'ui/option-item})]
+                          :item-mode 'ui/option-item})
+        component (assoc component
+                         :scroll-content-size
+                         (scroll-content-size component))]
     (cond-> {:mode 'ui/option-list
              :state (assoc state :component component)
              :children [(scroll-pane-for-state component)]}
