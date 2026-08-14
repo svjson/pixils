@@ -1,0 +1,121 @@
+(ns widget-showcase.pages.lists-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [widget-showcase.fixture :as fixture]))
+
+
+
+;; widget-showcase.pages.lists/make
+
+(deftest make/selects-a-list-row-from-its-lower-edge
+  (s/given
+    (fixture/open-tab! (fixture/start! {}) :lists))
+
+  (s/when [app]
+    (let [row (runtime/find-view-containing app
+                                            "ui/list-box-item"
+                                            ":value :four")]
+      (runtime/mouse-click-in! app
+                               row
+                               (int (/ (-> row :bounds :w) 2))
+                               (max 0 (- (-> row :bounds :h) 3)))
+      (runtime/settle-layout! app)
+      (:selected (:ui-state
+                  (runtime/find-view-containing app
+                                                "ui/list-box-item"
+                                                ":value :four")))))
+
+  (s/then [selected?]
+    (is (= true selected?))))
+
+(deftest make/selects-a-list-row-from-its-upper-edge
+  (s/given
+    (fixture/open-tab! (fixture/start! {}) :lists))
+
+  (s/when [app]
+    (let [row (runtime/find-view-containing app
+                                            "ui/list-box-item"
+                                            ":value :four")]
+      (runtime/mouse-click-in! app
+                               row
+                               (int (/ (-> row :bounds :w) 2))
+                               2)
+      (runtime/settle-layout! app)
+      (:selected (:ui-state
+                  (runtime/find-view-containing app
+                                                "ui/list-box-item"
+                                                ":value :four")))))
+
+  (s/then [selected?]
+    (is (= true selected?))))
+
+(deftest make/maintains-independent-list-box-selection
+  (s/given
+    (fixture/open-tab! (fixture/start! {}) :lists))
+
+  (s/when [app]
+    (runtime/click! app
+                    (nth (runtime/find-views-containing app
+                                                        "ui/list-box-item"
+                                                        ":reorderable? true")
+                         2))
+    (runtime/settle-layout! app)
+    (let [lists (runtime/find-views app "ui/list-box")
+          reorder-rows (runtime/find-views-containing app
+                                                       "ui/list-box-item"
+                                                       ":reorderable? true")]
+      {:left-selection (:selected-indices (:ui-state (head lists)))
+       :right-selection (:selected-indices (:ui-state (nth lists 1)))
+       :right-row-selection
+       (for [row reorder-rows]
+         (:selected (:ui-state row)))}))
+
+  (s/then [selection]
+    (is (= {:left-selection [1]
+            :right-selection [2]
+            :right-row-selection [false false true false false false false false]}
+           selection))))
+
+(deftest make/reorders-list-rows-by-dragging
+  (s/given
+    (fixture/open-tab! (fixture/start! {}) :lists))
+
+  (s/when [app]
+    (let [row (runtime/find-view-containing app
+                                            "ui/list-box-item"
+                                            ":reorderable? true")
+          bounds (:bounds row)
+          x (+ (:x bounds) (int (/ (:w bounds) 2)))
+          y (+ (:y bounds) (int (/ (:h bounds) 2)))
+          drop-y (+ y 88)]
+      (runtime/mouse-down-at! app x y)
+      (runtime/update! app)
+      (runtime/mouse-move-at! app x drop-y)
+      (runtime/update! app)
+      (runtime/mouse-up-at! app x drop-y)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (for [option (:list-reorder-options (runtime/active-state app))]
+        (:value option))))
+
+  (s/then [values]
+    (is (= [:two :three :disabled :four :one :five :six :seven]
+           values))))
+
+(deftest make/renders-the-tree-view-from-bound-state
+  (s/when []
+    (let [app (fixture/open-tab! (fixture/start! {}) :lists)
+          tree (runtime/find-view app "ui/tree-view")]
+      {:tree? (some? tree)
+       :expanded (:tree-expanded (runtime/active-state app))
+       :selected (:tree-selected (runtime/active-state app))
+       :row-ids (for [row (:rows (runtime/view-state tree))]
+                  (:id row))}))
+
+  (s/then [rendered]
+    (is (= {:tree? true
+            :expanded [:workspace]
+            :selected :src
+            :row-ids [:workspace :src :assets :readme :packages]}
+           rendered))))

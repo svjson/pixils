@@ -1,0 +1,64 @@
+(ns widget-showcase.pages.layout-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [widget-showcase.fixture :as fixture]))
+
+
+
+;; widget-showcase.pages.layout/make
+
+(deftest make/toggles-the-disclosure-section
+  (s/given
+    (fixture/open-tab! (fixture/start! {}) :layout))
+
+  (s/when [app]
+    (let [collapsible (runtime/find-view app "ui/collapsible")
+          content (runtime/find-view app "ui/collapsible-content")
+          header (runtime/find-view app "ui/collapsible-header")
+          before {:collapsible? (some? collapsible)
+                  :expanded? (:layout-collapsible-expanded?
+                              (runtime/active-state app))
+                  :content-height (-> content :bounds :h)}]
+      (runtime/click! app header)
+      (runtime/settle-layout! app)
+      {:before before
+       :after {:expanded? (:layout-collapsible-expanded?
+                           (runtime/active-state app))
+               :content-height (-> (runtime/find-view app "ui/collapsible-content")
+                                   :bounds
+                                   :h)}}))
+
+  (s/then [result]
+    (is (= true (-> result :before :collapsible?)))
+    (is (= true (-> result :before :expanded?)))
+    (is (> (-> result :before :content-height) 0))
+    (is (= {:expanded? false
+            :content-height 0}
+           (:after result)))))
+
+(deftest make/renders-structured-rich-text
+  (s/when []
+    (let [app (fixture/open-tab! (fixture/start! {}) :layout)
+          rich-text (runtime/find-view app "ui/rich-text")
+          state (runtime/view-state rich-text)]
+      {:present? (some? rich-text)
+       :height (-> rich-text :bounds :h)
+       :run-count (count (:runs state))
+       :metadata-title (-> state :runs (nth 0) :value :title)
+       :inline-run (select-keys (nth (:runs state) 2)
+                                [:text :class :style])
+       :plain-title (-> state :runs (nth 4) :value :title)
+       :reference-title (-> state :runs (nth 6) :value :title)}))
+
+  (s/then [rendered]
+    (is (= {:present? true
+            :height 56
+            :run-count 8
+            :metadata-title "Marked Metadata"
+            :inline-run {:text "inline"
+                         :class :rich-text/emphasis
+                         :style {:text {:font-styles :bold}}}
+            :plain-title nil
+            :reference-title nil}
+           rendered))))

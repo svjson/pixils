@@ -1,0 +1,77 @@
+(ns widget-showcase.root-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [widget-showcase.fixture :as fixture]))
+
+
+
+;; widget-showcase.root/main-mode
+
+(deftest main-mode/renders-the-main-window-and-inputs-page
+  (s/when []
+    (let [app (fixture/start! {})
+          progress (runtime/find-view app "ui/progress-bar")]
+      {:window? (some? (runtime/find-view app "ui/window"))
+       :tab-panel? (some? (runtime/find-view app "ui/tab-panel"))
+       :scroll-pane? (some? (runtime/find-view app "ui/scroll-pane"))
+       :button? (some? (runtime/find-view app "ui/button"))
+       :text-input? (some? (runtime/find-view app "ui/text-input"))
+       :progress-value (:value (runtime/view-state progress))}))
+
+  (s/then [rendered]
+    (is (= {:window? true
+            :tab-panel? true
+            :scroll-pane? true
+            :button? true
+            :text-input? true
+            :progress-value 42}
+           rendered))))
+
+(deftest main-mode/handles-rich-text-hover-and-leave
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800
+                                 :buffer-height 600
+                                 :render-backend true})]
+      (runtime/eval! app "(pixils/set-theme! 'pixils/windows-3)")
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      (fixture/open-tab! app :layout)))
+
+  (s/when [app]
+    (let [rich-text (runtime/find-view app "ui/rich-text")]
+      (runtime/mouse-move-in! app rich-text 8 8)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (let [popover (runtime/find-view app "ui/popover")
+            hovered {:mode (runtime/active-mode-name app)
+                     :popover? (some? popover)
+                     :popover-open? (:open? (runtime/view-state popover))
+                     :popover-above-rich-text?
+                     (< (-> popover :bounds :y)
+                        (+ (-> rich-text :bounds :y)
+                           (-> rich-text :bounds :h)))
+                     :title? (some? (runtime/find-view-containing app
+                                                                  "ui/text"
+                                                                  "Marked Metadata"))}]
+        (runtime/mouse-move-at! app
+                                (+ (-> rich-text :bounds :x) 4)
+                                (+ (-> rich-text :bounds :y)
+                                   (-> rich-text :bounds :h)
+                                   8))
+        (runtime/update! app)
+        (runtime/settle-layout! app)
+        {:hovered hovered
+         :after-leave {:mode (runtime/active-mode-name app)
+                       :message (:message (runtime/active-state app))}})))
+
+  (s/then [result]
+    (is (= {:hovered {:mode "ui/popover-overlay"
+                      :popover? true
+                      :popover-open? true
+                      :popover-above-rich-text? true
+                      :title? true}
+            :after-leave {:mode "main-mode"
+                          :message "Rich text hover cleared."}}
+           result))))

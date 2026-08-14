@@ -1,0 +1,41 @@
+(ns widget-showcase.menu-test
+  (:require proof.core
+            [widget-showcase.menu :as menu]))
+
+
+
+;; widget-showcase.menu/showcase-menu
+
+(deftest showcase-menu/nests-multi-variant-themes
+  (is (= {:label "&Theme"
+          :items [{:label "Pixils &Default"
+                   :action :showcase/theme
+                   :payload {:theme nil
+                             :label "Pixils Default"}}
+                  {:label "Windows &3"
+                   :items [{:label "&Light"
+                            :action :showcase/theme
+                            :payload {:theme 'pixils/windows-3
+                                      :variant :light
+                                      :label "Windows 3 Light"}}
+                           {:label "&Dark"
+                            :action :showcase/theme
+                            :payload {:theme 'pixils/windows-3
+                                      :variant :dark
+                                      :label "Windows 3 Dark"}}]}
+                  {:label "Windows &95"
+                   :items [{:label "&Light"
+                            :action :showcase/theme
+                            :payload {:theme 'pixils/windows-95
+                                      :variant :light
+                                      :label "Windows 95 Light"}}
+                           {:label "&Dark"
+                            :action :showcase/theme
+                            :payload {:theme 'pixils/windows-95
+                                      :variant :dark
+                                      :label "Windows 95 Dark"}}]}
+                  {:label "&Classic Blue"
+                   :action :showcase/theme
+                   :payload {:theme 'pixils/classic-blue
+                             :label "Classic Blue"}}]}
+         (nth (:items menu/showcase-menu) 2))))

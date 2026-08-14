@@ -10,17 +10,17 @@
             [widget-showcase.style :as style]))
 
 (defun remove-tree-expanded-id [expanded id]
-  (filter (or expanded [])
+  (filter expanded
           (fn [item]
             (not= item id))))
 
 (defun add-tree-expanded-id [expanded id]
-  (if (contains? (or expanded []) id)
-    (or expanded [])
-    (concat (or expanded []) [id])))
+  (if (contains? expanded id)
+    expanded
+    (append expanded id)))
 
 (defun tree-expanded-state-key [id]
-  (if (= (type-of id) "string")
+  (if (string? id)
     :file-tree-expanded
     :tree-expanded))
 
@@ -61,12 +61,14 @@
                                  checked? (:checked? payload)]
 
                                (ui/stop-propagation! event)
-                               (if (= (:value payload) :slider-limits-enabled?)
+                               (case (:value payload)
+                                 :slider-limits-enabled?
                                  (assoc state
                                         :slider-limits-enabled? checked?
                                         :message (if checked?
                                                    "Slider visual limits enabled."
                                                    "Slider visual limits disabled."))
+                                 :default
                                  (assoc state
                                         :checked? checked?
                                         :message "Checkbox changed."))))
@@ -92,22 +94,16 @@
 
                              (ui/stop-propagation! event)
                              (assoc state
-                                    :list-selected (-> event :payload :selected-indices)
                                     :message "List selection changed."))
-        :list-box/reorder (fn [state event ctx]
-                            (let [payload (:payload event)
-                                  options (:list-reorder-options state)
-                                  from (:from-index payload)
-                                  to (:to-index payload)
-                                  item (nth options from)
-                                  remaining (drop options from (inc from))
-                                  reordered (concat (take to remaining)
-                                                    [item]
-                                                    (slice remaining to))]
+        :list-box/reorder (fn [state {:keys [payload] :as event} ctx]
+                            (let [{:keys [from-index to-index]} payload]
 
                                 (ui/stop-propagation! event)
                                 (assoc state
-                                       :list-reorder-options reordered
+                                       :list-reorder-options
+                                       (move-nth (:list-reorder-options state)
+                                                 from-index
+                                                 to-index)
                                        :message "List row reordered.")))
         :tree-view/change (fn [state event ctx]
 
@@ -143,9 +139,9 @@
                            (ui/stop-propagation! event)
                            (let [payload (:payload event)
                                  value (:value payload)
-                                 title (when (= (type-of value) "map")
+                                 title (when (map? value)
                                          (:title value))
-                                 body (when (= (type-of value) "map")
+                                 body (when (map? value)
                                         (:body value))
                                  message (str "Hover rich text: "
                                               (:text payload))]
@@ -184,9 +180,8 @@
                                   :rich-text-event "leave"))
         :rich-text/click (fn [state event ctx]
                            (ui/stop-propagation! event)
-                           (let [payload (:payload event)
-                                 message (str "Clicked rich text: "
-                                              (:text payload))]
+                           (let [message (str "Clicked rich text: "
+                                              (-> event :payload :text))]
                              (assoc state
                                     :message message
                                     :rich-text-event message)))
@@ -212,19 +207,17 @@
                                (assoc state
                                       :accent-color (-> event :payload :value)
                                       :message "Color picker changed."))
-        :ui/icon-select (fn [state event ctx]
-                          (let [item (:payload event)]
+        :ui/icon-select (fn [state {:keys [payload] :as event} ctx]
+                          (let [item payload]
 
                               (ui/stop-propagation! event)
                               (assoc state
                                      :desktop-selected-id (:id item)
                                      :message (str "Selected icon " (:label item)))))
-        :ui/icon-activate (fn [state event ctx]
-                            (let [item (:payload event)]
-
-                                (ui/stop-propagation! event)
-                                (assoc state
-                                       :message (str "Activated icon " (:label item)))))
+        :ui/icon-activate (fn [state {:keys [payload] :as event} ctx]
+                            (ui/stop-propagation! event)
+                            (assoc state
+                                   :message (str "Activated icon " (:label payload))))
         :ui/icon-reorder (fn [state event ctx]
 
                              (ui/stop-propagation! event)
@@ -262,16 +255,15 @@
                                                    {:label "All files"
                                                     :extensions ["*"]}]})
                                        state)
-        :showcase/theme (fn [state event ctx]
-                          (let [payload (:payload event)]
+        :showcase/theme (fn [state {:keys [payload]} ctx]
 
-                              (if (contains? payload :variant)
-                                (pixils/set-theme! (:theme payload) (:variant payload))
-                                (pixils/set-theme! (:theme payload)))
-                              (assoc state
-                                     :theme-label (:label payload)
-                                     :message (str "Theme changed to "
-                                                   (:label payload)))))
+                          (if (contains? payload :variant)
+                            (pixils/set-theme! (:theme payload) (:variant payload))
+                            (pixils/set-theme! (:theme payload)))
+                          (assoc state
+                                 :theme-label (:label payload)
+                                 :message (str "Theme changed to "
+                                               (:label payload))))
         :showcase/reset (fn [state event ctx]
                           (assoc (showcase-state/initial-state)
                                  :message "Showcase state reset."))

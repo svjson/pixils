@@ -1,0 +1,149 @@
+(ns widget-showcase.pages.inputs-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [widget-showcase.fixture :as fixture]))
+
+
+
+;; widget-showcase.pages.inputs/make
+
+(deftest make/renders-the-bound-color-picker
+  (s/when []
+    (let [app (fixture/start! {})
+          pickers (runtime/find-views app "ui/color-picker")]
+      {:count (count pickers)
+       :value (:value (runtime/view-state (head pickers)))}))
+
+  (s/then [rendered]
+    (is (= {:count 1
+            :value {:r 220 :g 64 :b 48 :a 255}}
+           rendered))))
+
+(deftest make/expands-the-choices-group-to-contain-the-combo-box
+  (s/when []
+    (let [app (fixture/start! {})
+          choices-body (nth (runtime/find-views app "ui/group-box-body") 1)
+          combo (runtime/find-view app "ui/combo-box")]
+      {:combo-bottom (+ (-> combo :bounds :y)
+                        (-> combo :bounds :h))
+       :choices-bottom (+ (-> choices-body :bounds :y)
+                          (-> choices-body :bounds :h))}))
+
+  (s/then [{:keys [combo-bottom choices-bottom]}]
+    (is (<= combo-bottom choices-bottom))))
+
+(deftest make/retains-the-tab-body-while-dragging-the-slider
+  (s/given
+    (let [app (fixture/start! {})]
+      {:app app
+       :body-state-before
+       (:rendered-body-state
+        (runtime/view-state (runtime/find-view app "ui/tab-panel")))}))
+
+  (s/when [{:keys [app body-state-before]}]
+    (let [slider (runtime/find-view app "ui/slider")
+          center-y (int (/ (-> slider :bounds :h) 2))]
+      (runtime/mouse-down-in! app slider 102 center-y)
+      (runtime/update! app)
+      (runtime/mouse-move-in! app slider 140 center-y)
+      (runtime/update! app)
+      (runtime/mouse-move-in! app slider (- (-> slider :bounds :w) 2) center-y)
+      (runtime/update! app)
+      (runtime/mouse-up-in! app slider (- (-> slider :bounds :w) 2) center-y)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      {:body-state-before body-state-before
+       :body-state-after (:rendered-body-state
+                          (runtime/view-state
+                           (runtime/find-view app "ui/tab-panel")))
+       :slider-value (:slider-value (runtime/active-state app))}))
+
+  (s/then [result]
+    (is (= (:body-state-before result)
+           (:body-state-after result)))
+    (is (= 85 (:slider-value result)))))
+
+(deftest make/prevents-slider-limit-controls-from-crossing
+  (s/given
+    (fixture/start! {}))
+
+  (s/when [app]
+    (let [min-limit-slider
+          (find-first (runtime/find-views app "ui/slider")
+                      (fn [slider]
+                        (= 20 (:value (runtime/view-state slider)))))]
+      (runtime/mouse-click-in! app
+                               min-limit-slider
+                               (- (-> min-limit-slider :bounds :w) 2)
+                               (int (/ (-> min-limit-slider :bounds :h) 2)))
+      (runtime/settle-layout! app)
+      (let [max-limit-slider
+            (find-first (runtime/find-views app "ui/slider")
+                        (fn [slider]
+                          (let [state (runtime/view-state slider)]
+                            (and (= 85 (:value state))
+                                 (some? (:limit-min state))))))]
+        (runtime/mouse-click-in! app
+                                 max-limit-slider
+                                 2
+                                 (int (/ (-> max-limit-slider :bounds :h) 2)))
+        {:minimum (:slider-limit-min (runtime/active-state app))
+         :maximum (:slider-limit-max (runtime/active-state app))})))
+
+  (s/then [limits]
+    (is (= {:minimum 85
+            :maximum 85}
+           limits))))
+
+(deftest make/uses-the-button-full-visual-height-for-hover
+  (s/given
+    (fixture/start! {}))
+
+  (s/when [app]
+    (let [button (runtime/find-view-containing app
+                                               "ui/button"
+                                               ":label \"Normal\"")]
+      (runtime/mouse-move-in! app
+                              button
+                              (int (/ (-> button :bounds :w) 2))
+                              (int (/ (-> button :bounds :h) 2)))
+      (runtime/update! app)
+      (-> (runtime/find-view-containing app
+                                        "ui/button"
+                                        ":label \"Normal\"")
+          :interaction
+          :hovered)))
+
+  (s/then [hovered?]
+    (is (= true hovered?))))
+
+(deftest make/opens-the-combo-box-from-its-lower-edge
+  (s/given
+    (fixture/start! {}))
+
+  (s/when [app]
+    (let [combo (runtime/find-view app "ui/combo-box")]
+      (runtime/mouse-click-in! app
+                               combo
+                               (int (/ (-> combo :bounds :w) 2))
+                               (max 0 (- (-> combo :bounds :h) 3)))
+      (runtime/active-mode-name app)))
+
+  (s/then [mode]
+    (is (= "ui/combo-box-popup" mode))))
+
+(deftest make/opens-the-combo-box-from-its-upper-edge
+  (s/given
+    (fixture/start! {}))
+
+  (s/when [app]
+    (let [combo (runtime/find-view app "ui/combo-box")]
+      (runtime/mouse-click-in! app
+                               combo
+                               (int (/ (-> combo :bounds :w) 2))
+                               2)
+      (runtime/active-mode-name app)))
+
+  (s/then [mode]
+    (is (= "ui/combo-box-popup" mode))))

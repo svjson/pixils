@@ -4,7 +4,7 @@
  :dependencies {proof "0.1.0"
                 pixils-runner {:path "../../lib/pixils-runner"}
                 pixils-test {:path "../../lib/pixils-test"}}
- :load-roots ["src"]
- :namespace-roots {widget-showcase ["src" "test"]}
+ :load-roots ["src" "test"]
+ :namespace-roots {widget-showcase "src"}
  :config {proof {:test-roots ["test"]}}
  :entry-points [widget-showcase.core]}

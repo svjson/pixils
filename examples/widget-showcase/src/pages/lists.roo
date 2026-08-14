@@ -7,13 +7,9 @@
             [widget-showcase.state :as showcase-state]
             [widget-showcase.style :as style]))
 
-(defun list-item-child [index option]
+(defun list-item-child [_index _option]
   {:mode 'ui/list-box-item
-   :style {:height 22}
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :selected-indices (ui/bind-state :selected-indices)}})
+   :style {:height 22}})
 
 (defun make []
   {:style style/page-style
