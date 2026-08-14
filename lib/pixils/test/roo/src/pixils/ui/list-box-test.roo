@@ -13,6 +13,60 @@
            :anchor-index 0}
           :key/down))))
 
+(deftest navigation-state-transition/preserves-shift-selection-anchor
+  (is (= {:anchor-index 2
+          :active-index 0}
+         (list-box/navigation-state-transition
+          {:options [{:value :a}
+                     {:value :b}
+                     {:value :c}]
+           :selected-indices [2]
+           :anchor-index 2
+           :active-index 2}
+          {:options [{:value :a}
+                     {:value :b}
+                     {:value :c}]
+           :selected-indices [0 1 2]
+           :anchor-index 2
+           :active-index 0}
+          [:selected-indices :active-index]))))
+
+(deftest reorder-at-position/precomputes-drop-geometry
+  (is (= {:row-height 10
+          :drop-index 3
+          :target-index 2
+          :drag-top 23}
+         (select-keys
+          (list-box/reorder-at-position
+           {:options [{:value :a}
+                      {:value :b}
+                      {:value :c}]
+            :computed-row-height 10
+            :offset {:x 0 :y 0}}
+           {:phase :dragging
+            :index 0
+            :start-position {:x 5 :y 5}}
+           {:x 5 :y 28})
+          [:row-height :drop-index :target-index :drag-top]))))
+
+(deftest navigation-state-transition/follows-external-selection
+  (is (= {:anchor-index 2
+          :active-index 2}
+         (list-box/navigation-state-transition
+          {:options [{:value :a}
+                     {:value :b}
+                     {:value :c}]
+           :selected-indices [0]
+           :anchor-index 0
+           :active-index 0}
+          {:options [{:value :a}
+                     {:value :b}
+                     {:value :c}]
+           :selected-indices [2]
+           :anchor-index 0
+           :active-index 0}
+          [:selected-indices]))))
+
 
 ;;; pixils.ui.list-box/click-selection
 

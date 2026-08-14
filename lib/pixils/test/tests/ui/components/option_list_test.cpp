@@ -60,6 +60,8 @@ TEST_F(OptionListTest, option_list_emits_item_interaction_without_owning_selecti
   ASSERT_NE(second->definition, nullptr);
   EXPECT_EQ(first->definition->name, "ui/option-item");
   EXPECT_EQ(second->definition->name, "ui/option-item");
+  EXPECT_EQ(get_key(first->ui_state, "index")->to_string(), "0");
+  EXPECT_EQ(get_key(first->ui_state, "selected-indices")->to_string(), "[0]");
   EXPECT_EQ(get_key(first->ui_state, "selected")->to_string(), "true");
   EXPECT_EQ(get_key(second->ui_state, "selected")->to_string(), "false");
 

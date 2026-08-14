@@ -245,7 +245,14 @@ namespace Pixils::Script
     apply_hook(component.after_layout_ui, "after-layout-ui");
     if (opts.contains("ui/state-keys"))
     {
-      component.ui_state_keys = parse_ui_state_keys(opts.val("ui/state-keys"));
+      for (const auto& key : parse_ui_state_keys(opts.val("ui/state-keys")))
+      {
+        if (std::find(component.ui_state_keys.begin(), component.ui_state_keys.end(), key) ==
+            component.ui_state_keys.end())
+        {
+          component.ui_state_keys.push_back(key);
+        }
+      }
     }
     if (opts.contains("ui/models"))
     {

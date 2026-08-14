@@ -54,7 +54,7 @@
                   (do
                     (ui/stop-propagation! event)
                     (ui/emit! (:view ctx)
-                              :list-box/item-click
+                              :option-item/click
                               {:index (:index state)
                                :value (:value state)
                                :shift? false

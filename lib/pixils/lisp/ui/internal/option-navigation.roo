@@ -14,12 +14,9 @@
        (not (:disabled? (nth options index)))))
 
 (defun first-enabled-index [options]
-  (when-let [match (find-first (for-indexed [index item options]
-                                 {:index index
-                                  :item item})
-                               (fn [entry]
-                                 (not (:disabled? (:item entry)))))]
-    (:index match)))
+  (find-index options
+              (fn [item]
+                (not (:disabled? item)))))
 
 (defun next-enabled-index-from [options index direction]
   (let [next-index (+ index direction)]

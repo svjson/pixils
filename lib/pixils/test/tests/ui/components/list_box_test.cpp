@@ -1288,7 +1288,7 @@ TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
        :on-mouse-up (fn [state event ctx]
                       (do
                         (pixils.ui/emit! (:view ctx)
-                                         :list-box/item-click
+                                         :option-item/click
                                          {:index (:index state)
                                           :value (:value state)
                                           :shift? false
@@ -1581,7 +1581,7 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_dro
                       (do
                         (pixils.ui/stop-propagation! event)
                         (pixils.ui/emit! (:view ctx)
-                                         :list-box/item-click
+                                         :option-item/click
                                          {:index (:index state)
                                           :value (:value state)
                                           :shift? false

@@ -32,11 +32,55 @@
       (selection/select (:options state) selected-indices index state))))
 
 (defun navigation-base-index [state direction]
-  (or (:anchor-index state)
-      (head (or (:selected-indices state) []))
+  (or (:active-index state)
+      (head (:selected-indices state))
       (if (> direction 0)
         -1
         (count (:options state)))))
+
+(defun navigation-state-transition [current candidate _changed-keys]
+  (let [options (:options candidate)
+        selected-index (head (:selected-indices candidate))
+        selected-changed? (not= (:selected-indices current)
+                                (:selected-indices candidate))
+        anchor-index (cond
+                       (and (not= (:anchor-index current)
+                                  (:anchor-index candidate))
+                            (navigation/enabled-index? options
+                                                       (:anchor-index candidate)))
+                       (:anchor-index candidate)
+
+                       (and (not= (:active-index current)
+                                  (:active-index candidate))
+                            (navigation/enabled-index? options
+                                                       (:anchor-index candidate)))
+                       (:anchor-index candidate)
+
+                       selected-changed?
+                       selected-index
+
+                       (navigation/enabled-index? options
+                                                  (:anchor-index candidate))
+                       (:anchor-index candidate)
+
+                       :default selected-index)
+        active-index (cond
+                       (and (not= (:active-index current)
+                                  (:active-index candidate))
+                            (navigation/enabled-index? options
+                                                       (:active-index candidate)))
+                       (:active-index candidate)
+
+                       selected-changed?
+                       selected-index
+
+                       (navigation/enabled-index? options
+                                                  (:active-index candidate))
+                       (:active-index candidate)
+
+                       :default selected-index)]
+    {:anchor-index anchor-index
+     :active-index active-index}))
 
 (defun keyboard-target-index [state key]
   (let [{:keys [options]} state]
@@ -64,31 +108,20 @@
 (defun apply-keyboard-selection [{:keys [options selected-indices] :as state}
                                  index
                                  ctx]
-  (cond
-    (navigation/enabled-index? options index)
+  (if (navigation/enabled-index? options index)
     (let [selected (selection/select options selected-indices index state)
           next-state (assoc state
                             :selected-indices selected
-                            :anchor-index index)
-          next-state (assoc next-state
-                            :offset
-                            (option-list/scroll-offset-for-index next-state
-                                                                 ctx
-                                                                 index))]
-      next-state)
-
-    true
+                            :anchor-index index
+                            :active-index index)]
+      (assoc next-state
+             :offset
+             (option-list/scroll-offset-for-index next-state ctx index)))
     state))
 
 
 
 ;; Reorder support
-
-(defun reorder-placeholder-strategy? [state]
-  (let [strategy (or (:reorder-visual-strategy state)
-                     :placeholder)]
-    (or (= strategy :placeholder)
-        (= strategy :move-with-hole))))
 
 (defun reorder-drag-policy [threshold]
   {:start {:mode :threshold
@@ -100,17 +133,6 @@
                  :value (:reorder-value ui-state)
                  :option (:reorder-option ui-state)}))})
 
-(defun reorderable-child [child threshold]
-  (update child :drag [merge (reorder-drag-policy threshold)]))
-
-(defun drop-index [state event]
-  (let [row-height (or (:computed-row-height state)
-                       (:row-height state))
-        offset (or (:offset state) {:x 0 :y 0})
-        y (+ (-> event :position :y) (or (:y offset) 0))
-        raw (int (/ (+ y (int (/ row-height 2))) row-height))]
-    (clamp raw 0 (count (:options state)))))
-
 (defun drop-index-from-local-y [state local-y]
   (let [row-height (or (:computed-row-height state)
                        (:row-height state))
@@ -119,11 +141,44 @@
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
     (clamp raw 0 (count (:options state)))))
 
-(defun reorder-target-index [from-index drop-index options]
+(defun reorder-target-index [from-index drop-index item-count]
   (clamp (cond-> drop-index
            (> drop-index from-index) dec)
          0
-         (dec (count options))))
+         (dec item-count)))
+
+(defun reorder-at-position [state reorder position]
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state))
+        geometry-key {:from-index (:index reorder)
+                      :position-x (or (:x position) 0)
+                      :position-y (or (:y position) 0)
+                      :row-height row-height
+                      :offset-y (or (-> state :offset :y) 0)
+                      :item-count (count (:options state))}]
+    (if (= geometry-key (:geometry-key reorder))
+      reorder
+      (let [drop-index (drop-index-from-local-y state (:y position))]
+        (assoc reorder
+               :position position
+               :geometry-key geometry-key
+               :row-height row-height
+               :drop-index drop-index
+               :target-index (reorder-target-index (:index reorder)
+                                                   drop-index
+                                                   (count (:options state)))
+               :drag-top (+ (* (:index reorder) row-height)
+                            (- (or (:y position) 0)
+                               (or (-> reorder :start-position :y) 0))))))))
+
+(defun sync-reorder [state]
+  (case (-> state :reorder :phase)
+    :dragging (assoc state
+                     :reorder
+                     (reorder-at-position state
+                                          (:reorder state)
+                                          (-> state :reorder :position)))
+    :default state))
 
 (defun reorder-for-drop [state event]
   (let [{:keys [payload]} event]
@@ -139,15 +194,12 @@
                          (:start-global-position event)))
           reorder)))))
 
-(defun reorder-event-payload [state event reorder]
+(defun reorder-event-payload [state reorder]
   (let [from-index (:index reorder)
-        options (:options state)
-        drop-index (drop-index state event)
-        to-index (reorder-target-index from-index drop-index options)
-        option (nth options from-index)]
+        option (nth (:options state) from-index)]
     {:from-index from-index
-     :to-index to-index
-     :drop-index drop-index
+     :to-index (:target-index reorder)
+     :drop-index (:drop-index reorder)
      :value (option/value option)
      :option option}))
 
@@ -169,13 +221,6 @@
             :b 0
             :l 0}})
 
-(defun preview-target-index [state]
-  (reorder-target-index (-> state :reorder :index)
-                        (drop-index-from-local-y
-                         state
-                         (-> state :reorder :position :y))
-                        (:options state)))
-
 (defun compact-item-index [index from-index]
   (cond-> index
     (> index from-index) dec))
@@ -194,15 +239,10 @@
 (defun reorder-item-style [state index]
   (let [reorder (:reorder state)
         from-index (:index reorder)
-        row-height (or (:computed-row-height state)
-                       (:row-height state))
-        target-index (preview-target-index state)
-        local-y (-> reorder :position :y)
-        drag-top (+ (* from-index row-height)
-                    (- (or local-y 0)
-                       (or (:y (:start-position reorder)) 0)))]
+        row-height (:row-height reorder)
+        target-index (:target-index reorder)]
     (if (= index from-index)
-      (absolute-item-style row-height drag-top)
+      (absolute-item-style row-height (:drag-top reorder))
       (flow-item-style (if (placeholder-before? index
                                                 from-index
                                                 target-index)
@@ -215,22 +255,21 @@
                          row-height
                          0)))))
 
-(defun apply-reorder-visuals-indexed! [state items index]
-  (unless (empty? items)
-    (ui/style! (head items)
-               (if (and (:reorderable? state)
-                        (= :dragging (-> state :reorder :phase))
-                        (reorder-placeholder-strategy? state))
-                 (reorder-item-style state index)
-                 (flow-item-style 0 0)))
-    (apply-reorder-visuals-indexed! state (tail items) (inc index))))
-
 (defun apply-reorder-visuals! [state ctx]
-  (let [content (option-list/content-view ctx)]
-    (when content
-      (apply-reorder-visuals-indexed! state
-                                      (ui/children content)
-                                      0))
+  (let [content (option-list/content-view ctx)
+        dragging? (and (:reorderable? state)
+                       (= :dragging (-> state :reorder :phase))
+                       (= (or (:reorder-visual-strategy state)
+                              :placeholder)
+                          :placeholder))
+        ended? (= :ended (-> state :reorder :phase))]
+    (when (and content (or dragging? ended?))
+      (let [items (ui/children content)]
+        (dotimes [index (count items)]
+          (ui/style! (nth items index)
+                     (if dragging?
+                       (reorder-item-style state index)
+                       (flow-item-style 0 0))))))
     state))
 
 
@@ -238,105 +277,67 @@
 ;; Components
 
 (def LIST-BOX-UI-STATE-KEYS
-  [:options
-   :item-state-keys
-   :row-height
-   :explicit-row-height?
-   :computed-row-height
-   :auto-row-height?
-   :visible-rows
-   :computed-visible-rows
-   :max-height
-   :fixed-visible-rows?
-   :content-width
-   :computed-content-width
-   :auto-content-width?
-   :managed-height?
-   :stretch-items?
-   :disabled?
-   :item-mode
-   :decorate-item
-   :render-state-keys
-   :reorderable?
+  [:reorderable?
    :reorder-drag-threshold
    :reorder-visual-strategy
-   :item-child
-   :hover-highlight?
-   :selected-indices
-   :active-index
    :selected-values
    :multi-select?
    :force-selection?
    :toggle-selected?
    :anchor-index
-   :content-state
-   :offset
-   :scroll-y?
-   :scroll-content-size
-   :rendered-render-key
    :reorder])
 
 
 (defcomponent ui/list-box-item
   {:extend 'ui/option-item
    :class [:ui/list-item :ui/list-box-item]
-   :ui/state-keys [:index
-                   :value
-                   :label
-                   :disabled?
-                   :selected
-                   :selected-indices
-                   :reorderable?
+   :ui/state-keys [:reorderable?
                    :reorder-index
                    :reorder-value
-                   :reorder-option]
-   :on-click (fn [state event ctx]
-               (let [ui-state (-> ctx :view :ui-state)]
-                 (unless (:disabled? ui-state)
-                   (ui/emit! (:view ctx)
-                             :list-box/item-click
-                             (option/event-payload ui-state ctx))))
-               state)
-   :on-double-click (fn [state event ctx]
-                      (let [ui-state (-> ctx :view :ui-state)]
-                        (unless (:disabled? ui-state)
-                          (ui/emit! (:view ctx)
-                                    :list-box/item-activate
-                                    (option/event-payload ui-state ctx))))
-                      state)})
+                   :reorder-option]})
 
 (defcomponent ui/list-box
   {:extend 'ui/option-list
    :focusable true
    :class :ui/list-box
    :ui/state-keys LIST-BOX-UI-STATE-KEYS
-   :ui/models [(selection/model :list-box/selection-change)]
+   :ui/models [(selection/model :list-box/selection-change)
+               {:owns [:anchor-index :active-index]
+                :depends-on [:options
+                             :selected-indices
+                             :multi-select?
+                             :force-selection?]
+                :transition navigation-state-transition}]
    :init-ui (fn [{:keys [selected-indices] :as ui-state} state ctx]
               (option-list/sync-ui (-> ui-state
                                        (update :anchor-index [or (head selected-indices)])
+                                       (update :active-index [or (head selected-indices)])
                                        (assoc :reorder {:phase :idle}))
                                    state
                                    ctx))
    :update-ui (fn [ui-state state ctx]
-                (apply-reorder-visuals! (option-list/sync-ui ui-state state ctx)
+                (apply-reorder-visuals! (sync-reorder
+                                         (option-list/sync-ui ui-state state ctx))
                                         ctx))
    :after-layout-ui (fn [ui-state state ctx]
-                      (cond-> (apply-reorder-visuals! (option-list/sync-layout ui-state ctx)
-                                                      ctx)
+                      (cond-> (apply-reorder-visuals!
+                               (sync-reorder
+                                (-> ui-state
+                                    (option-list/sync-layout ctx)
+                                    (option-list/sync-rendered-items ctx)))
+                               ctx)
                               (= :ended (-> ui-state :reorder :phase))
                               (assoc :reorder {:phase :idle})))
    :on-key-down (fn [state event ctx]
                   (let [{:keys [disabled?] :as ui-state} (-> ctx :view :ui-state)
                         target-index (keyboard-target-index ui-state (:key event))]
-                    (cond-> state
-
-                            (and target-index (not disabled?))
-                            (let [next-ui-state (apply-keyboard-selection ui-state
-                                                                          target-index
-                                                                          ctx)]
-                              (ui/stop-propagation! event)
-                              (ui/set-ui-state! ctx next-ui-state)
-                              state))))
+                    (when (and target-index (not disabled?))
+                      (let [next-ui-state (apply-keyboard-selection ui-state
+                                                                    target-index
+                                                                    ctx)]
+                        (ui/stop-propagation! event)
+                        (ui/set-ui-state! ctx next-ui-state)))
+                    state))
    :on-drag-start (fn [state event ctx]
                     (case (-> event :payload :kind)
                       :list-box/reorder-item
@@ -344,15 +345,16 @@
                         (ui/set-ui-state! ctx
                                           (assoc ui-state
                                                  :reorder
-                                                 (assoc (:payload event)
-                                                        :phase
-                                                        :dragging
-                                                        :position
-                                                        (:position event)
-                                                        :start-position
-                                                        (:start-position event)
-                                                        :start-global-position
-                                                        (:start-global-position event))))
+                                                 (reorder-at-position
+                                                  ui-state
+                                                  (assoc (:payload event)
+                                                         :phase
+                                                         :dragging
+                                                         :start-position
+                                                         (:start-position event)
+                                                         :start-global-position
+                                                         (:start-global-position event))
+                                                  (:position event))))
                         state)
 
                       :default state))
@@ -363,12 +365,10 @@
                   (ui/set-ui-state! ctx
                                     (assoc ui-state
                                            :reorder
-                                           (assoc (merge (:payload event)
-                                                         (:reorder ui-state))
-                                                  :phase
-                                                  :dragging
-                                                  :position
-                                                  (:position event))))
+                                           (reorder-at-position
+                                            ui-state
+                                            (:reorder ui-state)
+                                            (:position event))))
                   state)
 
                 :default state))
@@ -380,51 +380,66 @@
                                                   [:reorder :phase]
                                                   :ended))))
                   state)
-   :on {:list-box/item-click (fn [state event ctx]
-                               (let [ui-state (-> ctx :view :ui-state)]
-                                 (if (not= :idle (-> ui-state :reorder :phase))
-                                   (do
-                                     (ui/stop-propagation! event)
-                                     state)
-                                   (let [payload (:payload event)
-                                         option (nth (:options ui-state) (:index payload))
-                                         disabled? (or (:disabled? ui-state)
-                                                       (:disabled? option))
-                                         selected (if disabled?
-                                                    (:selected-indices ui-state)
-                                                    (click-selection ui-state payload))
-                                         next-ui-state (assoc ui-state
-                                                              :selected-indices selected
-                                                              :anchor-index (:index payload))]
-                                     (ui/stop-propagation! event)
-                                     (ui/set-ui-state! ctx next-ui-state)
-                                     state))))
-        :list-box/item-activate (fn [state event ctx]
-                                  (let [ui-state (-> ctx :view :ui-state)
-                                        payload (:payload event)
-                                        option (nth (:options ui-state) (:index payload))
-                                        disabled? (or (:disabled? ui-state)
-                                                      (:disabled? option))]
-                                    (ui/stop-propagation! event)
-                                    (unless disabled?
-                                    (ui/emit! (:view ctx)
-                                              :list-box/activate
-                                              (merge payload
-                                                     (select-keys
-                                                      ui-state
-                                                      [:selected-indices
-                                                       :selected-values]))))
-                                    state))}
+   :on {:option-item/click
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                disabled? (or (:disabled? ui-state)
+                              (not (navigation/enabled-index?
+                                    (:options ui-state)
+                                    (:index payload))))]
+            (cond
+              (not= :idle (-> ui-state :reorder :phase))
+              (do
+                (ui/stop-propagation! event)
+                state)
+
+              disabled?
+              (do
+                (ui/stop-propagation! event)
+                state)
+
+              :default
+              (let [selected (click-selection ui-state payload)
+                    next-ui-state (cond-> (assoc ui-state
+                                                 :selected-indices selected
+                                                 :active-index (:index payload))
+                                    (not (and (:multi-select? ui-state)
+                                              (:shift? payload)))
+                                    (assoc :anchor-index (:index payload)))]
+                (ui/stop-propagation! event)
+                (ui/set-ui-state! ctx next-ui-state)
+                state))))
+        :option-item/activate
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                disabled? (or (:disabled? ui-state)
+                              (not (navigation/enabled-index?
+                                    (:options ui-state)
+                                    (:index payload))))]
+            (ui/stop-propagation! event)
+            (unless disabled?
+              (ui/emit! (:view ctx)
+                        :list-box/activate
+                        (merge payload
+                               (select-keys ui-state
+                                            [:selected-indices
+                                             :selected-values]))))
+            state))}
    :on-drop (fn [state event ctx]
               (let [ui-state (-> ctx :view :ui-state)
-                    reorder (reorder-for-drop ui-state event)
+                    reorder (when-let [reorder (reorder-for-drop ui-state event)]
+                              (reorder-at-position ui-state
+                                                   reorder
+                                                   (:position event)))
                     from-index (:index reorder)]
                 (if (and (:reorderable? ui-state)
                          reorder
                          (navigation/valid-index? (:options ui-state) from-index)
                          (not (:disabled? (nth (:options ui-state)
                                                from-index))))
-                  (let [event-payload (reorder-event-payload ui-state event reorder)]
+                  (let [event-payload (reorder-event-payload ui-state reorder)]
                     (ui/stop-propagation! event)
                     (when (not= (:from-index event-payload)
                                 (:to-index event-payload))
@@ -433,7 +448,7 @@
                                 event-payload))
                     (ui/set-ui-state! ctx
                                       (assoc ui-state
-                                             :reorder {:phase :idle}))
+                                             :reorder (assoc reorder :phase :ended)))
                     state)
                   state)))})
 
@@ -473,23 +488,12 @@
   state by default; pass `:state-policy :shared` only for compatibility with
   code that reads component keys from ordinary state."
   [{:keys [class style state ui-state state-policy] :as opts}]
-  (let [supplied-component (merge (select-keys state LIST-BOX-UI-STATE-KEYS)
-                                   (:component state)
-                                   (select-keys opts LIST-BOX-UI-STATE-KEYS))
-        component (merge supplied-component
-                         {:options (or (:options supplied-component) [])
-                          :explicit-row-height? (some? (:row-height supplied-component))
-                          :computed-row-height (:row-height supplied-component)
-                          :auto-row-height? (nil? (:row-height supplied-component))
-                          :computed-visible-rows (:visible-rows supplied-component)
-                          :computed-content-width (or (:content-width supplied-component) 1)
-                          :auto-content-width? (nil? (:content-width supplied-component))
-                          :managed-height? (not (and style
-                                                     (contains? style :height)))
-                          :stretch-items? (option-list/stretches-items? style)
-                          :item-mode 'ui/list-box-item
+  (let [component (merge (option-list/component-state opts)
+                         (select-keys state LIST-BOX-UI-STATE-KEYS)
+                         (select-keys opts LIST-BOX-UI-STATE-KEYS)
+                         {:item-mode 'ui/list-box-item
                           :decorate-item (fn [child
-                                              {:keys [reorder-drag-theshold
+                                              {:keys [reorder-drag-threshold
                                                       reorderable?] :as state}
                                               index
                                               item]
@@ -500,8 +504,11 @@
                                                          :reorder-value (option/value item)
                                                          :reorder-option item})]
                                              (cond-> child
-                                                     reorderable? (reorderable-child
-                                                                   reorder-drag-threshold))))
+                                                     reorderable? (update
+                                                                   :drag
+                                                                   [merge
+                                                                    (reorder-drag-policy
+                                                                     reorder-drag-threshold)]))))
                           :render-state-keys [:reorderable?
                                               :reorder-drag-threshold]})]
     (cond-> {:mode 'ui/list-box

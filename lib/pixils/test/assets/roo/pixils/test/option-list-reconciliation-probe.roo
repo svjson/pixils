@@ -1,14 +1,15 @@
 (ns pixils.test.option-list-reconciliation-probe
   (:require pixils
             [pixils.ui :as ui]
-            [pixils.ui.list-box :as list-box]))
+            [pixils.ui.option-list :as option-list]))
 
 (pixils/defcomponent preserved-option-row
-  {:extend 'ui/list-box-item})
+  {:extend 'ui/option-item})
 
 (pixils/defmode option-list-reconciliation-root
   {:init (fn [state ctx]
            {:expanded? false
+            :selected [0]
             :items [{:value :a :label "Alpha"}
                     {:value :b :label "Beta"}]})
    :update (fn [state ctx]
@@ -17,8 +18,9 @@
                (assoc :items [{:value :a :label "Updated Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}])))
-   :children [(list-box/make
+   :children [(option-list/make
                {:options (ui/bind-state :items)
+                :selected-indices (ui/bind-state :selected)
                 :row-height 16
                 :visible-rows 2
                 :item-child (fn [index option]

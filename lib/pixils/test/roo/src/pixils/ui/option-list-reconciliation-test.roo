@@ -21,11 +21,15 @@
                         (assoc (:ui-state first-row) :sentinel :first-row)))
     (runtime/set-active-state!
      app
-     (assoc (runtime/active-state app) :expanded? true))
+     (assoc (runtime/active-state app)
+            :expanded? true
+            :selected [1]))
     (runtime/settle-layout! app)
     (let [scroll-pane (runtime/find-view app "ui/scroll-pane")
           rows (runtime/find-views app "preserved-option-row")]
       (is (= 3 (count rows)))
       (is (= :scroll-pane (-> scroll-pane :ui-state :sentinel)))
       (is (= :first-row (-> (head rows) :ui-state :sentinel)))
-      (is (= "Updated Alpha" (-> (head rows) :ui-state :label))))))
+      (is (= "Updated Alpha" (-> (head rows) :ui-state :label)))
+      (is (= false (-> (head rows) :ui-state :selected)))
+      (is (= true (-> (nth rows 1) :ui-state :selected))))))

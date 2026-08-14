@@ -11,8 +11,7 @@ using DefModeTest = BaseFixture;
 
 namespace
 {
-  Pixils::Runtime::ViewDefinition& get_definition(Roo::Runtime& rt,
-                                                  const std::string& name)
+  Pixils::Runtime::ViewDefinition& get_definition(Roo::Runtime& rt, const std::string& name)
   {
     auto val = rt.eval("(get pixils/modes '" + name + ")");
     if (!val || val->type == Roo::Value::Type::NIL)
@@ -98,6 +97,23 @@ TEST_F(DefModeTest, defcomponent_creates_component_definition)
   EXPECT_EQ(mode_val->type, Roo::Value::Type::NIL);
 }
 
+TEST_F(DefModeTest, defcomponent_extend_adds_unique_ui_state_keys)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent base-component
+      {:ui/state-keys [:base :shared]})
+    (pixils/defcomponent derived-component
+      {:extend 'base-component
+       :ui/state-keys [:derived :shared]})
+  )");
+
+  auto& component = get_component(runtime, "derived-component");
+  ASSERT_EQ(component.ui_state_keys.size(), 3u);
+  EXPECT_EQ(component.ui_state_keys[0], "base");
+  EXPECT_EQ(component.ui_state_keys[1], "shared");
+  EXPECT_EQ(component.ui_state_keys[2], "derived");
+}
+
 TEST_F(DefModeTest, defmode_rejects_component_ui_state_fields)
 {
   EXPECT_THROW(runtime.eval("(pixils/defmode bad-mode {:ui/state-keys [:pressed]})"),
@@ -108,7 +124,7 @@ TEST_F(DefModeTest, defmode_rejects_component_ui_state_fields)
   EXPECT_THROW(
     runtime.eval(
       "(pixils/defmode bad-mode {:update-ui (fn [ui-state state ctx] ui-state)})"),
-               Roo::TypeError);
+    Roo::TypeError);
   EXPECT_THROW(
     runtime.eval(
       "(pixils/defmode bad-mode {:after-layout-ui (fn [ui-state state ctx] ui-state)})"),

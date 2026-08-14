@@ -227,31 +227,27 @@
                     0
                     scrollbar-size))}))
 
-(defun scroll-pane-child-at [children index]
-  (when (> (count children) index)
-    (nth children index)))
-
 (defun scroll-pane-row-view [ctx]
-  (scroll-pane-child-at (ui/children ctx) 0))
+  (head (ui/children ctx)))
 
 (defun scroll-pane-viewport-view [ctx]
   (if-let [row (scroll-pane-row-view ctx)]
-    (scroll-pane-child-at (ui/children row) 0)))
+    (head (ui/children row))))
 
 (defun scroll-pane-vertical-scrollbar-view [ctx]
   (if-let [row (scroll-pane-row-view ctx)]
-    (scroll-pane-child-at (ui/children row) 1)))
+    (nth (ui/children row) 1)))
 
 (defun scroll-pane-footer-view [ctx]
-  (scroll-pane-child-at (ui/children ctx) 1))
+  (nth (ui/children ctx) 1))
 
 (defun scroll-pane-corner-view [ctx]
   (if-let [footer (scroll-pane-footer-view ctx)]
-    (scroll-pane-child-at (ui/children footer) 1)))
+    (nth (ui/children footer) 1)))
 
 (defun scroll-pane-content-view [ctx]
   (if-let [viewport (scroll-pane-viewport-view ctx)]
-    (scroll-pane-child-at (ui/children viewport) 0)))
+    (head (ui/children viewport))))
 
 (defun scroll-pane-viewport-size-from-view [ctx]
   (let [viewport (scroll-pane-viewport-view ctx)

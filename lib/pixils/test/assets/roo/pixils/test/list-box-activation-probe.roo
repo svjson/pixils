@@ -12,10 +12,10 @@
                               :shift? false
                               :ctrl? false}]
                  (ui/emit! (:view ctx)
-                           :list-box/item-click
+                           :option-item/click
                            payload)
                  (ui/emit! (:view ctx)
-                           :list-box/item-activate
+                           :option-item/activate
                            payload))
                state)})
 
