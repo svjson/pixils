@@ -50,6 +50,50 @@
            {:x 5 :y 28})
           [:row-height :drop-index :target-index :drag-top]))))
 
+(deftest reorder-at-position/uses-quarter-row-overlap-threshold
+  (let [state {:options [{:value :a}
+                         {:value :b}
+                         {:value :c}]
+               :computed-row-height 10}]
+    (is (= 0
+           (:target-index
+            (list-box/reorder-at-position
+             state
+             {:phase :dragging
+              :index 0
+              :start-position {:x 5 :y 5}}
+             {:x 5 :y 7}))))
+    (is (= 1
+           (:target-index
+            (list-box/reorder-at-position
+             state
+             {:phase :dragging
+              :index 1
+              :start-position {:x 5 :y 15}}
+             {:x 5 :y 13}))))
+    (is (= {:drop-index 2
+            :target-index 1
+            :drag-top 3}
+           (select-keys
+            (list-box/reorder-at-position
+             state
+             {:phase :dragging
+              :index 0
+              :start-position {:x 5 :y 5}}
+             {:x 5 :y 8})
+            [:drop-index :target-index :drag-top])))
+    (is (= {:drop-index 0
+            :target-index 0
+            :drag-top 7}
+           (select-keys
+            (list-box/reorder-at-position
+             state
+             {:phase :dragging
+              :index 1
+              :start-position {:x 5 :y 15}}
+             {:x 5 :y 12})
+            [:drop-index :target-index :drag-top])))))
+
 (deftest navigation-state-transition/follows-external-selection
   (is (= {:anchor-index 2
           :active-index 2}

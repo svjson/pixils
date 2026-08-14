@@ -133,19 +133,17 @@
                  :value (:reorder-value ui-state)
                  :option (:reorder-option ui-state)}))})
 
-(defun drop-index-from-local-y [state local-y]
-  (let [row-height (or (:computed-row-height state)
-                       (:row-height state))
-        offset (or (:offset state) {:x 0 :y 0})
-        y (+ (or local-y 0) (or (:y offset) 0))
-        raw (int (/ (+ y (int (/ row-height 2))) row-height))]
-    (clamp raw 0 (count (:options state)))))
-
-(defun reorder-target-index [from-index drop-index item-count]
-  (clamp (cond-> drop-index
-           (> drop-index from-index) dec)
+(defun reorder-target-index [from-index drag-top row-height item-count]
+  (let [origin-top (* from-index row-height)
+        required-overlap (* row-height 0.25)
+        threshold-y (if (< drag-top origin-top)
+                      (+ drag-top required-overlap)
+                      (- (+ drag-top row-height)
+                         required-overlap))]
+    (clamp (int (/ threshold-y
+                   row-height))
          0
-         (dec item-count)))
+         (dec item-count))))
 
 (defun reorder-at-position [state reorder position]
   (let [row-height (or (:computed-row-height state)
@@ -154,22 +152,26 @@
                       :position-x (or (:x position) 0)
                       :position-y (or (:y position) 0)
                       :row-height row-height
-                      :offset-y (or (-> state :offset :y) 0)
                       :item-count (count (:options state))}]
     (if (= geometry-key (:geometry-key reorder))
       reorder
-      (let [drop-index (drop-index-from-local-y state (:y position))]
+      (let [from-index (:index reorder)
+            drag-top (+ (* from-index row-height)
+                        (- (or (:y position) 0)
+                           (or (-> reorder :start-position :y) 0)))
+            target-index (reorder-target-index from-index
+                                               drag-top
+                                               row-height
+                                               (count (:options state)))
+            drop-index (cond-> target-index
+                         (> target-index from-index) inc)]
         (assoc reorder
                :position position
                :geometry-key geometry-key
                :row-height row-height
                :drop-index drop-index
-               :target-index (reorder-target-index (:index reorder)
-                                                   drop-index
-                                                   (count (:options state)))
-               :drag-top (+ (* (:index reorder) row-height)
-                            (- (or (:y position) 0)
-                               (or (-> reorder :start-position :y) 0))))))))
+               :target-index target-index
+               :drag-top drag-top)))))
 
 (defun sync-reorder [state]
   (case (-> state :reorder :phase)
@@ -181,18 +183,19 @@
     :default state))
 
 (defun reorder-for-drop [state event]
-  (let [{:keys [payload]} event]
-    (case (:kind payload)
-      :list-box/reorder-item
-      payload
+  (let [{:keys [payload]} event
+        reorder (:reorder state)
+        tracked? (and (or (= :dragging (:phase reorder))
+                          (= :ended (:phase reorder)))
+                      (pt/= (:start-global-position reorder)
+                            (:start-global-position event)))]
+    (if tracked?
+      reorder
+      (case (:kind payload)
+        :list-box/reorder-item
+        (reorder-at-position state payload (:position event))
 
-      :default
-      (let [reorder (:reorder state)]
-        (when (and (or (= :dragging (:phase reorder))
-                       (= :ended (:phase reorder)))
-                   (pt/= (:start-global-position reorder)
-                         (:start-global-position event)))
-          reorder)))))
+        :default nil))))
 
 (defun reorder-event-payload [state reorder]
   (let [from-index (:index reorder)
@@ -429,10 +432,7 @@
             state))}
    :on-drop (fn [state event ctx]
               (let [ui-state (-> ctx :view :ui-state)
-                    reorder (when-let [reorder (reorder-for-drop ui-state event)]
-                              (reorder-at-position ui-state
-                                                   reorder
-                                                   (:position event)))
+                    reorder (reorder-for-drop ui-state event)
                     from-index (:index reorder)]
                 (if (and (:reorderable? ui-state)
                          reorder
