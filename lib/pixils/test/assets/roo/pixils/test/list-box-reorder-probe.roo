@@ -1,0 +1,26 @@
+(ns pixils.test.list-box-reorder-probe
+  (:require pixils
+            [pixils.ui.list-box :as list-box]))
+
+(pixils/defcomponent drop-surface
+  {})
+
+(pixils/defmode root-mode
+  {:init (fn [state ctx]
+           {:reorder nil})
+   :style {:layout {:direction :column}}
+   :on {:list-box/reorder (fn [state event ctx]
+                            (assoc state :reorder (:payload event)))}
+   :children [(list-box/make
+               {:options [{:value :a :label "Alpha"}
+                          {:value :b :label "Beta"}
+                          {:value :c :label "Gamma"}]
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 3
+                :content-width 100
+                :reorderable? true})
+              {:mode 'drop-surface
+               :id "drop-surface"
+               :style {:width 100
+                       :height 30}}]})

@@ -203,6 +203,71 @@
               :event-order (:event-order application-state)})))))
 
 
+(deftest list-box-reorder-state-has-explicit-lifecycle
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "pixils/test/list-box-reorder-probe.roo")
+    (runtime/push-mode! app 'root-mode)
+    (runtime/settle-layout! app)
+    (let [list-box (runtime/find-view app "ui/list-box")
+          first-item (head (runtime/find-views app "ui/list-box-item"))]
+      (is (= {:phase :idle}
+             (:reorder (:ui-state list-box))))
+      (runtime/mouse-down-in! app first-item 5 5)
+      (runtime/update! app)
+      (runtime/mouse-move-in! app list-box 5 28)
+      (runtime/update! app)
+      (is (= :dragging
+             (-> (runtime/find-view app "ui/list-box")
+                 :ui-state
+                 :reorder
+                 :phase)))
+      (is (= 0
+             (-> (runtime/find-view app "ui/list-box")
+                 :ui-state
+                 :reorder
+                 :index)))
+      (runtime/mouse-up-in! app list-box 5 28)
+      (runtime/settle-layout! app)
+      (is (= {:phase :idle}
+             (:reorder
+              (:ui-state
+               (runtime/find-view app "ui/list-box")))))
+      (is (= {:from-index 0
+              :to-index 2
+              :drop-index 3
+              :value :a
+              :option {:value :a :label "Alpha"}}
+             (:reorder (runtime/active-state app))))
+      (let [first-item (head (runtime/find-views app "ui/list-box-item"))
+            drop-surface (runtime/find-view app "drop-surface")]
+        (runtime/mouse-down-in! app first-item 5 5)
+        (runtime/update! app)
+        (runtime/mouse-move-in! app drop-surface 5 5)
+        (runtime/update! app)
+        (is (= :dragging
+               (-> (runtime/find-view app "ui/list-box")
+                   :ui-state
+                   :reorder
+                   :phase)))
+        (runtime/mouse-up-in! app drop-surface 5 5)
+        (runtime/update! app)
+        (is (= :ended
+               (-> (runtime/find-view app "ui/list-box")
+                   :ui-state
+                   :reorder
+                   :phase)))
+        (runtime/settle-layout! app)
+        (is (= {:phase :idle}
+               (:reorder
+                (:ui-state
+                 (runtime/find-view app "ui/list-box")))))))))
+
+
 (deftest list-box-survives-userspace-state-replacement
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
