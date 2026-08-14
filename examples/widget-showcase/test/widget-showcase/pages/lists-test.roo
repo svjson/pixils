@@ -99,26 +99,47 @@
     (fixture/open-tab! (fixture/start! {}) :lists))
 
   (s/when [app]
-    (let [row (runtime/find-view-containing app
-                                            "ui/list-box-item"
-                                            ":reorderable? true")
+    (let [list-box (nth (runtime/find-views app "ui/list-box") 1)
+          row (nth (filter (runtime/find-views app "ui/list-box-item")
+                           (fn [row]
+                             (>= (-> row :bounds :x)
+                                 (-> list-box :bounds :x))))
+                   1)
           bounds (:bounds row)
           x (+ (:x bounds) (int (/ (:w bounds) 2)))
           y (+ (:y bounds) (int (/ (:h bounds) 2)))
-          drop-y (+ y 88)]
+          drop-y (- y 7)]
       (runtime/mouse-down-at! app x y)
       (runtime/update! app)
       (runtime/mouse-move-at! app x drop-y)
       (runtime/update! app)
-      (runtime/mouse-up-at! app x drop-y)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
-      (for [option (:list-reorder-options (runtime/active-state app))]
-        (:value option))))
+      (let [preview (-> list-box :ui-state :reorder)]
+        (runtime/mouse-up-at! app x drop-y)
+        (runtime/update! app)
+        (runtime/settle-layout! app)
+        {:application-values
+         (for [option (:list-reorder-options (runtime/active-state app))]
+           (:value option))
+         :component-values
+         (for [option (:options (:ui-state list-box))]
+           (:value option))
+         :rendered-values
+         (for [row (filter (runtime/find-views app "ui/list-box-item")
+                           (fn [row]
+                             (>= (-> row :bounds :x)
+                                 (-> list-box :bounds :x))))]
+           (:value (:ui-state row)))
+         :preview-target (:target-index preview)})))
 
-  (s/then [values]
-    (is (= [:two :three :disabled :four :one :five :six :seven]
-           values))))
+  (s/then [result]
+    (is (= {:application-values
+            [:two :one :three :disabled :four :five :six :seven]
+            :component-values
+            [:two :one :three :disabled :four :five :six :seven]
+            :rendered-values
+            [:two :one :three :disabled :four :five :six :seven]
+            :preview-target 0}
+           result))))
 
 (deftest make/renders-the-tree-view-from-bound-state
   (s/when []
