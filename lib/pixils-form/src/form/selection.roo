@@ -4,8 +4,7 @@
             [pixils.form.layout :as form-layout]
             [pixils.ui :as ui]
             [pixils.ui.menu :as menu]
-            [pixils.ui.option-item :as option]
-            [pixils.ui.internal.interaction :as k]))
+            [pixils.ui.option-item :as option]))
 
 (def default-toolbar-style
   {:width :fill
@@ -73,7 +72,7 @@
       (= true config)
       base
 
-      (= (type-of config) "map")
+      (map? config)
       (if base
         (merge base config)
         (merge {:key key} config))
@@ -81,66 +80,59 @@
       :default base)))
 
 (defun actions-from-map [selection action-map]
-  (filter
-   (map [:add :save :cancel :edit :delete :move-up :move-down]
+  (keep [:add :save :cancel :edit :delete :move-up :move-down]
         (fn [key]
           (when (contains? action-map key)
             (configured-action selection
                                key
-                               (get action-map key)))))
-   (fn [action]
-     (not (nil? action)))))
+                               (get action-map key))))))
 
 (defun actions-from-vector [selection action-list]
-  (filter
-   (map (or action-list [])
+  (keep action-list
         (fn [action]
           (cond
             (keyword? action)
             (configured-action selection action true)
 
-            (= (type-of action) "map")
+            (map? action)
             action
 
-            :default nil)))
-   (fn [action]
-     (not (nil? action)))))
+            :default nil))))
 
-(defun actions [selection]
-  (let [configured (:actions selection)]
-    (cond
-      (= true configured)
+(defun actions [{:keys [actions editable?] :as selection}]
+  (cond
+      (= true actions)
       (actions-from-map selection
                         {:add true
                          :save true
                          :cancel true
                          :delete true})
 
-      (= (type-of configured) "map")
-      (actions-from-map selection configured)
+      (map? actions)
+      (actions-from-map selection actions)
 
-      (= (type-of configured) "vector")
-      (actions-from-vector selection configured)
+      (sequential? actions)
+      (actions-from-vector selection actions)
 
-      (and (nil? configured)
-           (= true (:editable? selection)))
+      (and (nil? actions)
+           (= true editable?))
       (actions-from-map selection
                         {:add true
                          :save true
                          :cancel true
                          :delete true})
 
-      :default [])))
+      :default []))
 
-(defun action-presentation [selection action]
-  (let [presentation (:action-presentation selection)]
-    (or (:presentation action)
-        (when (= (type-of presentation) "map")
-          (or (get presentation (:key action))
-              (get presentation :default)))
-        (when (keyword? presentation)
-          presentation)
-        :toolbar)))
+(defun action-presentation [{:keys [action-presentation]} action]
+  (or (:presentation action)
+        (when (map? action-presentation)
+          (get action-presentation
+               (:key action)
+               (:default action-presentation)))
+        (when (keyword? action-presentation)
+          action-presentation)
+        :toolbar))
 
 (defun actions-for-presentation [selection presentation]
   (filter (actions selection)
@@ -155,21 +147,8 @@
      :payload (:payload action)}))
 
 (defun context-menu [actions]
-  {:items (map actions
-               (fn [action]
-                 (menu-item action)))})
-
-(defun list-item-payload [state ctx]
-  {:index (:index state)
-   :value (:value state)
-   :shift? (k/held-shift? ctx)
-   :ctrl? (k/held-ctrl? ctx)})
-
-(defun list-item-selected-state [state]
-  (assoc state
-         :selected
-         (contains? (:selected-indices state)
-                    (:index state))))
+  {:items (for [action actions]
+            (menu-item action))})
 
 (defun open-context-menu! [state event ctx]
   (when (and (= (:button event) :right)
@@ -182,44 +161,23 @@
      ctx)))
 
 (defcomponent pixils/form-selection-list-item
-  {:class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
+  {:extend 'ui/option-item
+   :class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
    :style {:width :fill
            :clip true
            :layout {:direction :row
                     :align-items :center}}
-   :init (fn [state ctx]
-           (list-item-selected-state state))
-   :update (fn [state ctx]
-             (list-item-selected-state state))
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
    :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (when (not (:disabled? state))
-                      (ui/emit! (:view ctx)
-                                :list-box/item-click
-                                (list-item-payload state ctx)))
-                    (open-context-menu! state event ctx)
-                    state))
-   :on-double-click (fn [state event ctx]
-                      (do
-                        (when (not (:disabled? state))
-                          (ui/emit! (:view ctx)
-                                    :list-box/item-activate
-                                    (list-item-payload state ctx)))
-                        state))
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-                         (do
-                           (ui/stop-propagation! event)
-                           (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       (:action payload)
-                                       (:payload payload)))
-                           state)))}
+                  (ui/stop-propagation! event)
+                  (open-context-menu! state event ctx)
+                  state)
+   :on {:menu/select (fn [state {:keys [payload] :as event} ctx]
+                       (ui/stop-propagation! event)
+                       (when (= (:type payload) :action)
+                         (ui/emit! (:view ctx)
+                                   (:action payload)
+                                   (:payload payload)))
+                       state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
@@ -240,6 +198,5 @@
                                          default-toolbar-style)
               {})
    :state {:form/action-disabled (ui/project-state :form/action-disabled)}
-   :children (map actions
-                  (fn [action]
-                    (form-actions/action-view action opts)))})
+   :children (for [action actions]
+               (form-actions/action-view action opts))})

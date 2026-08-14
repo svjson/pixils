@@ -2134,7 +2134,9 @@
                              (assoc state
                                     :new? false
                                     :selected-index
-                                    (-> event :payload :value))))
+                                    (head (-> event
+                                              :payload
+                                              :selected-indices)))))
         :list-box/activate (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)
