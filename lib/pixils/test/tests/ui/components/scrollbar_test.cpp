@@ -460,15 +460,12 @@ TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
 
   auto active_part = get_state_key(scrollbar, "active-part");
   auto ui_active_part = get_map_key(scrollbar->ui_state, "active-part");
-  auto pressed = get_state_key(handle, "pressed");
   auto ui_pressed = get_map_key(handle->ui_state, "pressed");
   ASSERT_NE(active_part, nullptr);
   ASSERT_NE(ui_active_part, nullptr);
-  ASSERT_NE(pressed, nullptr);
   ASSERT_NE(ui_pressed, nullptr);
   EXPECT_EQ(active_part->to_string(), ":handle");
   EXPECT_EQ(ui_active_part->to_string(), ":handle");
-  EXPECT_EQ(pressed->to_string(), "true");
   EXPECT_EQ(ui_pressed->to_string(), "true");
 
   input().mouse_up({5, 20});
@@ -477,15 +474,12 @@ TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
 
   active_part = get_state_key(scrollbar, "active-part");
   ui_active_part = get_map_key(scrollbar->ui_state, "active-part");
-  pressed = get_state_key(handle, "pressed");
   ui_pressed = get_map_key(handle->ui_state, "pressed");
   ASSERT_NE(active_part, nullptr);
   ASSERT_NE(ui_active_part, nullptr);
-  ASSERT_NE(pressed, nullptr);
   ASSERT_NE(ui_pressed, nullptr);
   EXPECT_EQ(active_part->to_string(), "nil");
   EXPECT_EQ(ui_active_part->to_string(), "nil");
-  EXPECT_EQ(pressed->to_string(), "false");
   EXPECT_EQ(ui_pressed->to_string(), "false");
 }
 

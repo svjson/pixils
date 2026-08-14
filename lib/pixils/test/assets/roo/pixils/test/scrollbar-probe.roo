@@ -1,0 +1,12 @@
+(ns pixils.test.scrollbar-probe
+  (:require pixils))
+
+(pixils/defmode root-mode
+  {:children [{:mode 'ui/scrollbar
+               :ui/state-policy :isolated
+               :style {:width 14
+                       :height 200}
+               :ui-state {:axis :y
+                          :content-size 400
+                          :viewport-size 200
+                          :value 0}}]})

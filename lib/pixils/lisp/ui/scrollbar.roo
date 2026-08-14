@@ -57,9 +57,9 @@
    :handle {:pos 42 :offset 28 :size 32 :rect {...}}
    :end-button {:pos 106 :size 14 :rect {...}}}
   ```"
-  [state ctx]
+  [ctx]
   (let [ui-state (-> ctx :view :ui-state)
-        axis (case (get ui-state :axis (:axis state))
+        axis (case (:axis ui-state)
                :x :x
                :default :y)
         theme-size (ui/theme-var ctx :scrollbar-size nil)
@@ -81,9 +81,8 @@
                       0)
         button-size (scrollbar-constrained-button-size axis-len cross-len ctx)
         track-size (max 1 (- axis-len (* 2 button-size)))
-        content-size (or (get ui-state :content-size (:content-size state)) 0)
-        visible-size (or (get ui-state :viewport-size (:viewport-size state))
-                         axis-len)
+        content-size (or (:content-size ui-state) 0)
+        visible-size (or (:viewport-size ui-state) axis-len)
         max-value (max 0 (- content-size visible-size))
         rendered-handle-size (let [children (ui/children ctx)
                                    track (when (> (count children) 1)
@@ -113,7 +112,7 @@
                           :default
                           track-size))
         span (max 1 (- track-size handle-size))
-        value (clamp (or (get ui-state :value (:value state)) 0) 0 max-value)
+        value (clamp (or (:value ui-state) 0) 0 max-value)
         handle-offset (cond
                         (= max-value 0)
                         0
@@ -186,13 +185,42 @@
   [ui-state state ctx]
   (assoc ui-state :pressed (get ui-state :pressed (:pressed state))))
 
+(defun update-scrollbar-ui-state
+  "Returns current scrollbar UI state and keeps its child layout direction in
+  sync with the configured axis. A released pointer clears transient gesture
+  state."
+  [ui-state state ctx]
+  (let [ui-state (merge (select-keys state
+                                     [:axis
+                                      :value
+                                      :content-size
+                                      :viewport-size
+                                      :step
+                                      :active-part
+                                      :drag-kind
+                                      :grab-offset])
+                        ui-state)
+        ui-state (cond-> ui-state
+                   (and (:active-part ui-state)
+                        (not (contains? (-> ctx :view :interaction :pressed) :left)))
+                   (merge {:active-part nil
+                           :drag-kind nil
+                           :grab-offset nil}))
+        direction (case (:axis ui-state)
+                    :x :row
+                    :default :column)]
+    (when (not= (-> ctx :view :style :layout :direction) direction)
+      (ui/style! ctx {:layout {:direction direction}}))
+    ui-state))
+
 
 
 ;; Internal components
 
 (defcomponent ui/scrollbar-button
   {:content-size (fn [state ctx]
-                   (let [axis (case (:axis state)
+                   (let [ui-state (-> ctx :view :ui-state)
+                         axis (case (:axis ui-state)
                                 :x :x
                                 :default :y)
                          theme-size (ui/theme-var ctx :scrollbar-size nil)
@@ -204,7 +232,7 @@
                                      :default (-> ctx :view :bounds :w))
                                    theme-size
                                    0)
-                         viewport (or (:viewport-size state)
+                         viewport (or (:viewport-size ui-state)
                                       (case axis
                                         :x (:available-width ctx)
                                         :default (:available-height ctx))
@@ -217,7 +245,7 @@
                      (case axis
                        :x {:w size :h cross}
                        :default {:w cross :h size})))
-   :ui/state-keys [:pressed]
+   :ui/state-keys [:axis :viewport-size :pressed]
    :init-ui init-pressed-state
    :update-ui (fn [ui-state state ctx]
                 (assoc ui-state
@@ -248,7 +276,7 @@
                                 :w (max 0 (- (:w bounds) left right))
                                 :h (max 0 (- (:h bounds) top bottom))}
                    symbols (ui/theme-var ctx :scrollbar-button-symbols nil)
-                   image (case (:axis state)
+                   image (case (-> ctx :view :ui-state :axis)
                            :x (case (:part state)
                                 :start (:left-image symbols)
                                 :default (:right-image symbols))
@@ -265,7 +293,8 @@
 
 (defcomponent ui/scrollbar-handle
   {:content-size (fn [state ctx]
-                   (let [axis (case (:axis state)
+                   (let [ui-state (-> ctx :view :ui-state)
+                         axis (case (:axis ui-state)
                                 :x :x
                                 :default :y)
                          theme-size (ui/theme-var ctx :scrollbar-size nil)
@@ -285,8 +314,8 @@
                                      :default (-> ctx :view :bounds :w))
                                    theme-size
                                    0)
-                         content (or (:content-size state) 0)
-                         viewport (or (:viewport-size state)
+                         content (or (:content-size ui-state) 0)
+                         viewport (or (:viewport-size ui-state)
                                       (+ track (* 2 cross)))
                          max-value (max 0 (- content viewport))
                          fixed (ui/theme-var ctx :scrollbar-handle-size nil)
@@ -326,17 +355,19 @@
                      (case axis
                        :x {:w handle-content :h cross-content}
                        :default {:w cross-content :h handle-content})))
-   :ui/state-keys [:pressed]
+   :ui/state-keys [:axis :content-size :viewport-size :active-part :pressed]
    :init-ui init-pressed-state
    :update-ui (fn [ui-state state ctx]
-                (assoc ui-state :pressed (= (:active-part state) :handle)))})
+                (assoc ui-state :pressed (= (:active-part ui-state) :handle)))})
 
 (defcomponent ui/scrollbar-track
-  {:children [{:mode 'ui/scrollbar-handle
-               :state {:axis (ui/bind-state :axis)
-                       :content-size (ui/bind-state :content-size)
-                       :viewport-size (ui/bind-state :viewport-size)
-                       :active-part (ui/bind-state :active-part)}}]})
+  {:ui/state-keys [:axis :content-size :viewport-size :active-part]
+   :children [{:mode 'ui/scrollbar-handle
+               :ui/state-policy :isolated
+               :ui-state {:axis (ui/project-state :axis)
+                          :content-size (ui/project-state :content-size)
+                          :viewport-size (ui/project-state :viewport-size)
+                          :active-part (ui/project-state :active-part)}}]})
 
 
 
@@ -353,67 +384,34 @@
                    :active-part
                    :drag-kind
                    :grab-offset]
-   :init (fn [state ctx]
-           (let [direction (case (:axis state)
-                             :x :row
-                             :default :column)]
-             (when (not= (-> ctx :view :style :layout :direction) direction)
-               (ui/style! ctx {:layout {:direction direction}})))
-           state)
-   :update (fn [state ctx]
-             (let [direction (case (:axis state)
-                               :x :row
-                               :default :column)]
-               (when (not= (-> ctx :view :style :layout :direction) direction)
-                 (ui/style! ctx {:layout {:direction direction}})))
-             state)
-   :after-layout (fn [state ctx]
-                   (let [geometry (scrollbar-geometry state ctx)
-                         children (ui/children ctx)
-                         track (when (> (count children) 1)
-                                 (nth children 1))
-                         track-children (or (when track
-                                              (ui/children track))
-                                            [])
-                         handle (head track-children)
-                         handle-offset (-> geometry :handle :offset)
-                         style (case (:axis geometry)
-                                 :x {:position :absolute
-                                     :left handle-offset
-                                     :top 0
-                                     :height :fill}
-                                 :default {:position :absolute
-                                           :left 0
-                                           :top handle-offset
-                                           :width :fill})]
-                     (when handle
-                       (ui/style! handle style)))
-                   state)
-   :init-ui (fn [ui-state state ctx]
-              (merge ui-state
-                     {:axis (get ui-state :axis (:axis state))
-                      :value (get ui-state :value (:value state))
-                      :content-size (get ui-state
-                                         :content-size
-                                         (:content-size state))
-                      :viewport-size (get ui-state
-                                          :viewport-size
-                                          (:viewport-size state))
-                      :step (get ui-state :step (:step state))
-                      :active-part (get ui-state :active-part (:active-part state))
-                      :drag-kind (get ui-state :drag-kind (:drag-kind state))
-                      :grab-offset (get ui-state :grab-offset (:grab-offset state))}))
-   :update-ui (fn [ui-state state ctx]
-                (cond-> ui-state
-                  (and (:active-part ui-state)
-                       (not (contains? (-> ctx :view :interaction :pressed) :left)))
-                  (merge {:active-part nil
-                          :drag-kind nil
-                          :grab-offset nil})))
+   :after-layout-ui (fn [ui-state state ctx]
+                      (let [geometry (scrollbar-geometry ctx)
+                            children (ui/children ctx)
+                            track (when (> (count children) 1)
+                                    (nth children 1))
+                            track-children (or (when track
+                                                 (ui/children track))
+                                               [])
+                            handle (head track-children)
+                            handle-offset (-> geometry :handle :offset)
+                            style (case (:axis geometry)
+                                    :x {:position :absolute
+                                        :left handle-offset
+                                        :top 0
+                                        :height :fill}
+                                    :default {:position :absolute
+                                              :left 0
+                                              :top handle-offset
+                                              :width :fill})]
+                        (when handle
+                          (ui/style! handle style)))
+                      ui-state)
+   :init-ui update-scrollbar-ui-state
+   :update-ui update-scrollbar-ui-state
 
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
-                    (let [geometry (scrollbar-geometry state ctx)
+                    (let [geometry (scrollbar-geometry ctx)
                           coord (case (:axis geometry)
                                   :x (-> event :position :x)
                                   :default (-> event :position :y))]
@@ -428,7 +426,7 @@
                                                     :drag-kind :button
                                                     :grab-offset nil
                                                     :value value}))
-                          (assoc state :value value))
+                          state)
 
                         (>= coord (-> geometry :end-button :pos))
                         (let [value (scrollbar-step-value (-> ctx :view :ui-state)
@@ -440,7 +438,7 @@
                                                     :drag-kind :button
                                                     :grab-offset nil
                                                     :value value}))
-                          (assoc state :value value))
+                          state)
 
                         :default
                         (let [handle (:handle geometry)
@@ -463,9 +461,7 @@
                                                     :drag-kind :handle
                                                     :grab-offset grab-offset
                                                     :value value}))
-                          (if handle-hit?
-                            state
-                            (assoc state :value value))))))
+                          state))))
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
                   (ui/set-ui-state! ctx
@@ -477,7 +473,7 @@
    :on-drag-start (fn [state event ctx]
                     (case (-> ctx :view :ui-state :drag-kind)
                       :button state
-                      :default (let [geometry (scrollbar-geometry state ctx)
+                      :default (let [geometry (scrollbar-geometry ctx)
                                      coord (case (:axis geometry)
                                              :x (-> event :position :x)
                                              :default (-> event :position :y))
@@ -489,11 +485,11 @@
                                  (ui/set-ui-state! ctx
                                                    (merge (-> ctx :view :ui-state)
                                                           {:value value}))
-                                 (assoc state :value value))))
+                                 state)))
    :on-drag (fn [state event ctx]
               (case (-> ctx :view :ui-state :drag-kind)
                 :button state
-                :default (let [geometry (scrollbar-geometry state ctx)
+                :default (let [geometry (scrollbar-geometry ctx)
                                coord (case (:axis geometry)
                                        :x (-> event :position :x)
                                        :default (-> event :position :y))
@@ -505,7 +501,7 @@
                            (ui/set-ui-state! ctx
                                              (merge (-> ctx :view :ui-state)
                                                     {:value value}))
-                           (assoc state :value value))))
+                           state)))
    :on-drag-end (fn [state event ctx]
                   (ui/set-ui-state! ctx
                                     (merge (-> ctx :view :ui-state)
@@ -514,21 +510,23 @@
                                             :grab-offset nil}))
                   state)
    :children [{:mode 'ui/scrollbar-button
-               :state {:axis (ui/bind-state :axis)
-                       :part :start
-                       :viewport-size (ui/bind-state :viewport-size)}}
+               :ui/state-policy :isolated
+               :ui-state {:axis (ui/project-state :axis)
+                          :viewport-size (ui/project-state :viewport-size)}
+               :state {:part :start}}
               {:mode 'ui/scrollbar-track
+               :ui/state-policy :isolated
                :style {:width :fill
                        :height :fill}
-               :state {:axis (ui/bind-state :axis)
-                       :content-size (ui/bind-state :content-size)
-                       :value (ui/bind-state :value)
-                       :viewport-size (ui/bind-state :viewport-size)
-                       :active-part (ui/bind-state :active-part)}}
+               :ui-state {:axis (ui/project-state :axis)
+                          :content-size (ui/project-state :content-size)
+                          :viewport-size (ui/project-state :viewport-size)
+                          :active-part (ui/project-state :active-part)}}
               {:mode 'ui/scrollbar-button
-               :state {:axis (ui/bind-state :axis)
-                       :part :end
-                       :viewport-size (ui/bind-state :viewport-size)}}]})
+               :ui/state-policy :isolated
+               :ui-state {:axis (ui/project-state :axis)
+                          :viewport-size (ui/project-state :viewport-size)}
+               :state {:part :end}}]})
 
 
 
@@ -564,14 +562,14 @@
   (let [state (or state {})]
     (cond-> {:mode 'ui/scrollbar
              :style (or style {})
-             :state (assoc state
-                           :component
-                           (merge (:component state)
-                                  {:axis axis
-                                   :value value
-                                   :content-size content-size
-                                   :viewport-size viewport-size
-                                   :step step}))}
+             :state (update state
+                            :component
+                            merge
+                            {:axis axis
+                             :value value
+                             :content-size content-size
+                             :viewport-size viewport-size
+                             :step step})}
       class (assoc :class class)
       ui-state (assoc :ui-state ui-state)
       state-policy (assoc :ui/state-policy state-policy)

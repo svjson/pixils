@@ -1,0 +1,30 @@
+(ns pixils.ui.scrollbar-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+
+
+;; pixils.ui/scrollbar-handle
+
+(deftest scrollbar-handle/reflects-parent-drag-state-with-isolated-state
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 80
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/scrollbar-probe.roo")
+      (runtime/push-mode! app 'root-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [handle (runtime/find-view app "ui/scrollbar-handle")]
+      (runtime/mouse-down-in! app handle 5 5)
+      (runtime/update! app)
+      (-> (runtime/find-view app "ui/scrollbar-handle")
+          :ui-state
+          :pressed)))
+
+  (s/then [pressed]
+    (is (= true pressed))))
