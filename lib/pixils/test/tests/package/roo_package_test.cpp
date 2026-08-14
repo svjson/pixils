@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <filesystem>
 #include <gtest/gtest.h>
 #include <roo-package/manifest.h>
 #include <roo-package/native_loader.h>
@@ -8,21 +7,6 @@
 
 namespace
 {
-  class ScopedCurrentPath
-  {
-   public:
-    explicit ScopedCurrentPath(const std::filesystem::path& path)
-      : original_path(std::filesystem::current_path())
-    {
-      std::filesystem::current_path(path);
-    }
-
-    ~ScopedCurrentPath() { std::filesystem::current_path(original_path); }
-
-   private:
-    std::filesystem::path original_path;
-  };
-
   Roo::Package::ResolveOptions test_package_resolve_options()
   {
     return Roo::Package::ResolveOptions{
@@ -39,36 +23,6 @@ namespace
                                            test_package_resolve_options());
   }
 } // namespace
-
-TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
-{
-  auto plan = resolve_test_package(PIXILS_TEST_ROO_PACKAGE_DIR);
-  ScopedCurrentPath test_package_cwd(PIXILS_TEST_ROO_PACKAGE_DIR);
-
-  auto fs = Roo::Package::make_load_path_file_system(plan);
-  Roo::Package::LoadedNativePackages native_packages;
-  Roo::Runtime runtime(fs.get());
-  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
-  native_packages = Roo::Package::load_native_libraries(runtime, plan);
-  Roo::Package::load_autoloads(runtime, plan);
-
-  runtime.eval("(ns pixils.package-test-runner "
-               "(:require proof.core "
-               "proof.reporter "
-               "pixils.package-test "
-               "pixils.ui.component-state-binding-test "
-               "pixils.ui.icon-container-test "
-               "pixils.ui.list-box-test "
-               "pixils.ui.option-list-reconciliation-test "
-               "pixils.ui.popover-test "
-               "pixils.ui.window-test "
-               "pixils.ui.scroll-pane-test "
-               "pixils.ui.group-box-test))");
-
-  auto summary = runtime.eval("(proof.reporter/result-summary (run))");
-
-  EXPECT_EQ(summary->to_string(), "{:total 59 :passed 59 :failed 0}");
-}
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)
 {
@@ -111,23 +65,4 @@ TEST(PixilsRooPackageTest, pixils_test_package_loads)
   runtime.eval("(ns pixils.test-package-test (:require pixils.test))");
 
   EXPECT_EQ(runtime.eval("pixils.test/test-package-loaded?")->to_string(), "true");
-}
-
-TEST(PixilsRooPackageTest, pixils_test_package_runs_proof_tests)
-{
-  auto plan = resolve_test_package(PIXILS_TEST_PACKAGE_DIR);
-
-  auto fs = Roo::Package::make_load_path_file_system(plan);
-  Roo::Package::LoadedNativePackages native_packages;
-  Roo::Runtime runtime(fs.get());
-  Roo::Package::configure_runtime_namespace_roots(runtime, plan);
-  native_packages = Roo::Package::load_native_libraries(runtime, plan);
-  Roo::Package::load_autoloads(runtime, plan);
-
-  runtime.eval("(ns pixils.test-package-proof-runner "
-               "(:require proof.core proof.reporter pixils.test.package-test))");
-
-  auto summary = runtime.eval("(proof.reporter/result-summary (run))");
-
-  EXPECT_EQ(summary->to_string(), "{:total 5 :passed 5 :failed 0}");
 }

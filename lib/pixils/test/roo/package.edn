@@ -3,17 +3,5 @@
  :dependencies {pixils {:path "../.."}
                 pixils-test {:path "../../../pixils-test"}
                 proof "0.1.0"}
- :load-roots ["src" "../assets/roo"]
- :config {proof {:test-roots ["src"]}}
- :test-entry-points [pixils.package-test
-                     pixils.ui.component-state-binding-test
-                     pixils.ui.icon-container-test
-                     pixils.ui.option-list-reconciliation-test
-                     pixils.ui.popover-test
-                     pixils.ui.window-test
-                     pixils.ui.scroll-pane-test
-                     pixils.ui.group-box-test
-                     pixils.ui.number-input-test
-                     pixils.ui.option-selection-test
-                     pixils.ui.list-box-test
-                     pixils.ui.tree-view-test]}
+ :load-roots ["test" "../assets/roo"]
+ :config {proof {:test-roots ["test"]}}}
