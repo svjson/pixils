@@ -8,6 +8,23 @@
 
 ;; widget-showcase.pages.lists/make
 
+(deftest make/renders-visible-windows-3-list-box-bottom-border
+  (s/given
+    (fixture/open-tab! (fixture/start! {:render-backend true
+                                        :theme 'pixils/windows-3})
+                       :lists))
+
+  (s/when [app]
+    (runtime/render! app)
+    (let [list-box (runtime/find-view app "ui/list-box")
+          {:keys [x y w h]} (:bounds list-box)
+          middle-x (+ x (int (/ w 2)))]
+      {:bottom-border (runtime/rendered-pixel app middle-x (+ y h -1))
+       :surrounding-surface (runtime/rendered-pixel app middle-x (+ y h))}))
+
+  (s/then [{:keys [bottom-border surrounding-surface]}]
+    (is (not= surrounding-surface bottom-border))))
+
 (deftest make/selects-a-list-row-from-its-lower-edge
   (s/given
     (fixture/open-tab! (fixture/start! {}) :lists))
