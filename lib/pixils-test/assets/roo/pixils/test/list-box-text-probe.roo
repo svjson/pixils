@@ -1,0 +1,24 @@
+(ns pixils.test.list-box-text-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]))
+
+(defcomponent labelled-list-row
+  {:extend 'ui/list-box-item
+   :children [{:mode 'ui/text
+               :state {:value (ui/bind-state :label)}}]})
+
+(defcomponent root-mode
+  {:children [(list-box/make
+               {:options [{:value :alpha
+                           :label "Alpha"}]
+                :selected-indices [0]
+                :item-child (fn [index option]
+                              {:mode 'labelled-list-row
+                               :state {:index index
+                                       :value (:value option)
+                                       :label (:label option)
+                                       :selected-indices (ui/bind-state
+                                                          :selected-indices)}})})
+              {:mode 'ui/text
+               :state {:value "Outside"}}]})

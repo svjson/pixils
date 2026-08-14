@@ -1,0 +1,32 @@
+(ns pixils.test.ui.list-box-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.ui.list-box :as list-box]))
+
+
+
+;; pixils.test.ui.list-box/views-containing
+
+(deftest views-containing/scopes-exact-rendered-text-to-list-box-descendants
+  (s/given
+    (runtime/make-app {:package-root "."
+                       :buffer-width 160
+                       :buffer-height 120
+                       :render-backend false}))
+
+  (s/when [app]
+    (runtime/eval-file!
+     app
+     "assets/roo/pixils/test/list-box-text-probe.roo")
+    (runtime/push-mode! app 'root-mode)
+    (runtime/settle-layout! app)
+    {:exact (count (list-box/views-containing app "Alpha"))
+     :partial (count (list-box/views-containing app "Alp"))
+     :outside (count (list-box/views-containing app "Outside"))})
+
+  (s/then [matches]
+    (is (= {:exact 1
+            :partial 0
+            :outside 0}
+           matches))))
