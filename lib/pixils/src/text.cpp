@@ -714,10 +714,15 @@ namespace Pixils
 
     int Renderer::get_char_advance(char32_t chr) const
     {
+      return rounded_scaled_pixel(get_char_advance_width(chr));
+    }
+
+    float Renderer::get_char_advance_width(char32_t chr) const
+    {
       char32_t c = font_map.has_char(chr) ? chr : ' ';
-      if (!font_map.has_char(c)) return 0;
+      if (!font_map.has_char(c)) return 0.0f;
       const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-      return rounded_scaled_pixel(static_cast<float>(char_rect.w + spacing) * scale.x);
+      return static_cast<float>(char_rect.w + spacing) * scale.x;
     }
 
     std::optional<TextRenderOp> make_text_render_op(
@@ -906,6 +911,81 @@ namespace Pixils
       return layout;
     }
 
+    TextMetrics measure_text(RenderContext& rc,
+                             const TextRenderOp& op,
+                             const std::string& text)
+    {
+      auto layout = layout_text(rc, op, text, WrapMode::NONE, std::nullopt);
+      TextMetrics metrics{.size = layout.size,
+                          .line_height = op_line_height(op),
+                          .x_positions = {}};
+      metrics.x_positions.reserve(text.size() + 1);
+      metrics.x_positions.push_back(0);
+
+      int segment_x = 0;
+      float segment_width = 0.0f;
+      bool use_inline_style = false;
+      bool after_carriage_return = false;
+      const bool inline_enabled = inline_style_enabled(op);
+      const char marker = inline_style_marker(op);
+
+      auto current_x = [&]()
+      {
+        return segment_x + rounded_scaled_pixel(segment_width);
+      };
+      auto append_character = [&](char c)
+      {
+        segment_width += select_renderer(op, use_inline_style).get_char_advance_width(c);
+        metrics.x_positions.push_back(current_x());
+      };
+
+      for (size_t i = 0; i < text.size(); i++)
+      {
+        const char c = text.at(i);
+        if (c == '\r')
+        {
+          segment_x = 0;
+          segment_width = 0.0f;
+          after_carriage_return = true;
+          metrics.x_positions.push_back(0);
+          continue;
+        }
+        if (c == '\n')
+        {
+          if (!after_carriage_return)
+          {
+            segment_x = 0;
+            segment_width = 0.0f;
+          }
+          after_carriage_return = false;
+          metrics.x_positions.push_back(0);
+          continue;
+        }
+        after_carriage_return = false;
+
+        if (inline_enabled && c == marker)
+        {
+          if (i + 1 < text.size() && text.at(i + 1) == marker)
+          {
+            metrics.x_positions.push_back(current_x());
+            append_character(marker);
+            i++;
+            continue;
+          }
+
+          segment_x = current_x();
+          segment_width = 0.0f;
+          use_inline_style = !use_inline_style;
+          metrics.x_positions.push_back(segment_x);
+          continue;
+        }
+
+        append_character(c);
+      }
+
+      return metrics;
+    }
+
     void render_layout_line(RenderContext& rc,
                             const TextRenderOp& op,
                             const LayoutLine& line,
@@ -963,11 +1043,11 @@ namespace Pixils
       }
     }
 
-    void render_text(RenderContext& rc,
-                     const TextRenderOp& op,
-                     const std::string& text,
-                     int x,
-                     int y)
+    SDL_Rect render_text(RenderContext& rc,
+                         const TextRenderOp& op,
+                         const std::string& text,
+                         int x,
+                         int y)
     {
       PIXILS_BENCHMARK_COUNT(text_render_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(text_render_time_ns);
@@ -981,6 +1061,7 @@ namespace Pixils
                            x,
                            y + static_cast<int>(i) * line_height);
       }
+      return SDL_Rect{x, y, layout.size.w, layout.size.h};
     }
 
     /**

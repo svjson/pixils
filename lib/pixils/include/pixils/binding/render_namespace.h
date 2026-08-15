@@ -19,6 +19,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__DRAW_POLYGON_BANG = "polygon!";
   inline constexpr std::string_view FN__DRAW_RECT_BANG = "rect!";
   inline constexpr std::string_view FN__RENDER_TEXT_BANG = "text!";
+  inline constexpr std::string_view FN__TEXT_METRICS = "text-metrics";
   inline constexpr std::string_view FN__TEXT_SIZE = "text-size";
   inline constexpr std::string_view FN__USE_COLOR_BANG = "use-color!";
   inline constexpr std::string_view FN__WITH_CLIP_RECT = "with-clip-rect";
@@ -111,6 +112,24 @@ namespace Pixils::Script
     FUNC(DrawRectBang, draw_rect, draw_rect_from_points);
     /*! @brief text! function */
     FUNC(RenderTextBang, text_no_opts, text);
+    /**
+     * @brief Measure text and its insertion-point positions.
+     *
+     * Usage:
+     * @code
+     * (pixils.render/text-metrics "abc" {:font :font/console})
+     * @endcode
+     *
+     * | Arg # | Description                                   |
+     * |-------|-----------------------------------------------|
+     * | 0     | Text to measure                               |
+     * | 1     | Optional text options accepted by `text-size` |
+     *
+     * @return map containing dimensions, line height, and cumulative x positions
+     *
+     * @since 0.1.0
+     */
+    FUNC(TextMetrics, metrics_no_opts, metrics);
     /*! @brief text-size function */
     FUNC(TextSize, size_no_opts, size);
     /*! @brief use-color! function */

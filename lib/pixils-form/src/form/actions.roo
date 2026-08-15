@@ -58,7 +58,7 @@
          (disabled-action-map state actions)))
 
 (defcomponent pixils/form-action
-  {:init (fn [state ctx]
+ {:init (fn [state ctx]
            (if (contains? state :disabled?)
              state
              (assoc state :disabled? (action-disabled? state))))

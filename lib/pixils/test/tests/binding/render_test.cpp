@@ -1937,6 +1937,35 @@ TEST_F(RenderTest, text_size_accepts_fractional_scale)
   EXPECT_EQ(h->num().get_int(), 11);
 }
 
+TEST_F(RenderTest, text_metrics_returns_dimensions_and_insertion_positions)
+{
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+  )");
+
+  auto result = runtime.eval(R"((pixils.render/text-metrics
+                     "AAA"
+                     {:font :font/test-font :scale 1.5}))");
+
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
+  auto line_height = Roo::Dict::get_property(result, Roo::keyword("line-height"));
+  auto x_positions = Roo::Dict::get_property(result, Roo::keyword("x-positions"));
+  ASSERT_TRUE(w);
+  ASSERT_TRUE(h);
+  ASSERT_TRUE(line_height);
+  ASSERT_TRUE(x_positions);
+  EXPECT_EQ(w->num().get_int(), 23);
+  EXPECT_EQ(h->num().get_int(), 11);
+  EXPECT_EQ(line_height->num().get_int(), 11);
+  EXPECT_EQ(x_positions->to_string(), "[0 8 15 23]");
+}
+
 TEST_F(RenderTest, text_size_applies_scale_to_ttf_fonts)
 {
   runtime.eval(R"(

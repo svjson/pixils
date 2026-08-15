@@ -9,6 +9,7 @@
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
+#include <pixils/runtime/text_rendering.h>
 #include <pixils/sdl_render.h>
 
 #include <SDL3/SDL_blendmode.h>
@@ -492,23 +493,22 @@ namespace Pixils::Script
 #if defined(PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY)
       using SDLRenderGeometryFn =
         bool (*)(SDL_Renderer*, SDL_Texture*, const SDL_Vertex*, int, const int*, int);
-      #if SDL_VERSION_ATLEAST(3, 2, 0)
-        using SDLRenderGeometryRawFn =
-          bool (*)(SDL_Renderer*,
-                   SDL_Texture*,
-                   const float*,
-                   int,
-                   const SDL_FColor*,
-                   int,
-                   const float*,
-                   int,
-                   int,
-                   const void*,
-                   int,
-                   int);
-      #else
-        using SDLRenderGeometryRawFn = std::nullptr_t;
-      #endif
+#if SDL_VERSION_ATLEAST(3, 2, 0)
+      using SDLRenderGeometryRawFn = bool (*)(SDL_Renderer*,
+                                              SDL_Texture*,
+                                              const float*,
+                                              int,
+                                              const SDL_FColor*,
+                                              int,
+                                              const float*,
+                                              int,
+                                              int,
+                                              const void*,
+                                              int,
+                                              int);
+#else
+      using SDLRenderGeometryRawFn = std::nullptr_t;
+#endif
 
       SDLRenderGeometryFn sdl_render_geometry_fn()
       {
@@ -519,12 +519,12 @@ namespace Pixils::Script
 
       SDLRenderGeometryRawFn sdl_render_geometry_raw_fn()
       {
-      #if SDL_VERSION_ATLEAST(3, 2, 0)
+#if SDL_VERSION_ATLEAST(3, 2, 0)
         static SDLRenderGeometryRawFn fn = SDL_RenderGeometryRaw;
         return fn;
-      #else
+#else
         return nullptr;
-      #endif
+#endif
       }
 #else
       using SDLRenderGeometryFn = std::nullptr_t;
@@ -1231,10 +1231,10 @@ namespace Pixils::Script
         if (stroke_width <= 1.0f)
         {
           SDL_RenderLine(renderer,
-                             from.round_x(),
-                             from.round_y(),
-                             to.round_x(),
-                             to.round_y());
+                         from.round_x(),
+                         from.round_y(),
+                         to.round_x(),
+                         to.round_y());
           return;
         }
 
@@ -1293,8 +1293,8 @@ namespace Pixils::Script
         }
 
         const float length = std::sqrt(length_sq);
-        const float t = (((sample.x - from.x) * dx) + ((sample.y - from.y) * dy)) /
-                        length_sq;
+        const float t =
+          (((sample.x - from.x) * dx) + ((sample.y - from.y) * dy)) / length_sq;
         const float extension = 0.5f / length;
         const float clamped_t = std::clamp(t, -extension, 1.0f + extension);
         const float closest_x = from.x + (clamped_t * dx);
@@ -1364,10 +1364,8 @@ namespace Pixils::Script
               for (int sx = 0; sx < SAMPLE_GRID; sx++)
               {
                 const Point sample{
-                  static_cast<float>(x) +
-                    ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
-                  static_cast<float>(y) +
-                    ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
+                  static_cast<float>(x) + ((static_cast<float>(sx) + 0.5f) / SAMPLE_GRID),
+                  static_cast<float>(y) + ((static_cast<float>(sy) + 0.5f) / SAMPLE_GRID)};
                 if (stroke_segment_contains_sample(from, to, stroke_width, sample))
                 {
                   mask |= static_cast<uint16_t>(1u << ((sy * SAMPLE_GRID) + sx));
@@ -1401,8 +1399,8 @@ namespace Pixils::Script
         {
           estimated_length += point_distance(points.back(), points.front());
         }
-        pixel_samples.reserve(static_cast<size_t>(
-          std::ceil(estimated_length * (stroke_width + 2.0f) * 2.0f)));
+        pixel_samples.reserve(
+          static_cast<size_t>(std::ceil(estimated_length * (stroke_width + 2.0f) * 2.0f)));
 
         for (size_t i = 0; i + 1 < points.size(); i++)
         {
@@ -1423,12 +1421,12 @@ namespace Pixils::Script
         constexpr int SAMPLE_COUNT = 16;
         for (const auto& [key, mask] : pixel_samples)
         {
-          fill_coverage_pixel(renderer,
-                              pixel_key_x(key),
-                              pixel_key_y(key),
-                              color,
-                              static_cast<double>(coverage_sample_count(mask)) /
-                                SAMPLE_COUNT);
+          fill_coverage_pixel(
+            renderer,
+            pixel_key_x(key),
+            pixel_key_y(key),
+            color,
+            static_cast<double>(coverage_sample_count(mask)) / SAMPLE_COUNT);
         }
       }
 
@@ -1752,12 +1750,12 @@ namespace Pixils::Script
         else
         {
           render_texture_rotated(renderer,
-                           texture,
-                           source,
-                           &dest,
-                           static_cast<double>(rotation) * RADIANS_TO_DEGREES,
-                           nullptr,
-                           flip);
+                                 texture,
+                                 source,
+                                 &dest,
+                                 static_cast<double>(rotation) * RADIANS_TO_DEGREES,
+                                 nullptr,
+                                 flip);
         }
       }
 
@@ -1825,8 +1823,8 @@ namespace Pixils::Script
 
         bool geometry_supported() const
         {
-          return !entry_clip && !repeat_x && !repeat_y && rotation == 0.0f &&
-                 dest.w > 0 && dest.h > 0;
+          return !entry_clip && !repeat_x && !repeat_y && rotation == 0.0f && dest.w > 0 &&
+                 dest.h > 0;
         }
       };
 
@@ -1870,8 +1868,12 @@ namespace Pixils::Script
           opts.contains(std::get<std::string>(MapKey::TARGET->value))
             ? opts.val(std::get<std::string>(MapKey::TARGET->value))
             : opts.val(std::get<std::string>(MapKey::POS->value));
-        ImageTarget target = image_target_from_value(
-          ctx, target_value, source_width, source_height, scale, context);
+        ImageTarget target = image_target_from_value(ctx,
+                                                     target_value,
+                                                     source_width,
+                                                     source_height,
+                                                     scale,
+                                                     context);
 
         std::optional<Rect> previous_clip = rc.current_clip_rect;
         std::optional<Rect> requested_clip =
@@ -1907,7 +1909,9 @@ namespace Pixils::Script
                              blend_mode};
       }
 
-      void render_image_spec(RenderContext& rc, SDL_Texture* texture, const ImageDrawSpec& spec)
+      void render_image_spec(RenderContext& rc,
+                             SDL_Texture* texture,
+                             const ImageDrawSpec& spec)
       {
         const SDL_Rect* source_ptr = spec.source ? &*spec.source : nullptr;
         std::optional<Rect> previous_clip = rc.current_clip_rect;
@@ -2000,10 +2004,7 @@ namespace Pixils::Script
         const float x2 = static_cast<float>(spec.dest.x + spec.dest.w);
         const float y2 = static_cast<float>(spec.dest.y + spec.dest.h);
         const int base = static_cast<int>(batch.xy.size() / 2);
-        const SDL_FColor color{1.0f,
-                               1.0f,
-                               1.0f,
-                               static_cast<float>(spec.alpha) / 255.0f};
+        const SDL_FColor color{1.0f, 1.0f, 1.0f, static_cast<float>(spec.alpha) / 255.0f};
 
         batch.xy.insert(batch.xy.end(), {x1, y1, x2, y1, x2, y2, x1, y2});
         batch.uv.insert(batch.uv.end(), {u1, v1, u2, v1, u2, v2, u1, v2});
@@ -2026,19 +2027,18 @@ namespace Pixils::Script
           SDL_SetTextureBlendMode(texture, batch.blend_mode);
         }
 
-        bool rendered =
-          render_geometry_raw(rc.renderer,
-                              texture,
-                              batch.xy.data(),
-                              static_cast<int>(sizeof(float) * 2),
-                              batch.colors.data(),
-                              static_cast<int>(sizeof(SDL_FColor)),
-                              batch.uv.data(),
-                              static_cast<int>(sizeof(float) * 2),
-                              static_cast<int>(batch.xy.size() / 2),
-                              batch.indices.data(),
-                              static_cast<int>(batch.indices.size()),
-                              static_cast<int>(sizeof(int)));
+        bool rendered = render_geometry_raw(rc.renderer,
+                                            texture,
+                                            batch.xy.data(),
+                                            static_cast<int>(sizeof(float) * 2),
+                                            batch.colors.data(),
+                                            static_cast<int>(sizeof(SDL_FColor)),
+                                            batch.uv.data(),
+                                            static_cast<int>(sizeof(float) * 2),
+                                            static_cast<int>(batch.xy.size() / 2),
+                                            batch.indices.data(),
+                                            static_cast<int>(batch.indices.size()),
+                                            static_cast<int>(sizeof(int)));
 
         if (batch.blend_mode != SDL_BLENDMODE_BLEND)
         {
@@ -2083,11 +2083,12 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    FUNC_IMPL(DrawImagesBang,
-              MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY)),
-                         EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs)),
-                        (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY), (&Roo::Type::MAP)),
-                         EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs_with_opts))));
+    FUNC_IMPL(
+      DrawImagesBang,
+      MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY)),
+                 EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs)),
+                (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY), (&Roo::Type::MAP)),
+                 EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs_with_opts))));
 
     EXEC_BODY(DrawImagesBang, exec_draw_imgs)
     {
@@ -2098,11 +2099,10 @@ namespace Pixils::Script
 
     EXEC_BODY(DrawImagesBang, exec_draw_imgs_with_opts)
     {
-      static Roo::MapSchema draw_images_opts_schema(
-        {},
-        {{"clip-rect", &HostType::RECT},
-         {"opacity", &Roo::Type::NUMBER},
-         {"blend-mode", &Roo::Type::KEYWORD}});
+      static Roo::MapSchema draw_images_opts_schema({},
+                                                    {{"clip-rect", &HostType::RECT},
+                                                     {"opacity", &Roo::Type::NUMBER},
+                                                     {"blend-mode", &Roo::Type::KEYWORD}});
 
       auto [asset_bundle, asset_key] = args.front()->qual();
       RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
@@ -2145,12 +2145,12 @@ namespace Pixils::Script
         for (auto& entry : Roo::get_children(*args[1]))
         {
           auto spec = parse_image_draw_spec(ctx,
-                                           rc,
-                                           texture,
-                                           entry,
-                                           inherited_alpha,
-                                           inherited_blend_mode,
-                                           "images!");
+                                            rc,
+                                            texture,
+                                            entry,
+                                            inherited_alpha,
+                                            inherited_blend_mode,
+                                            "images!");
           if (!spec) continue;
 
           if (render_geometry_raw && spec->geometry_supported())
@@ -2655,163 +2655,6 @@ namespace Pixils::Script
                 (FN_ARGS((&Roo::Type::STRING), (&HostType::POINT), (&Roo::Type::MAP)),
                  EXEC_DISPATCH(&RenderTextBang::exec_text))));
 
-    static Roo::MapSchema text_opts_schema({},
-                                           {{"font", &Roo::Type::KEYWORD},
-                                            {"color", &HostType::COLOR},
-                                            {"scale", &Roo::Type::ANY},
-                                            {"font-styles", &Roo::Type::ANY},
-                                            {"shadow", &Roo::Type::ANY},
-                                            {"marked-style", &Roo::Type::ANY}});
-
-    static Text::Scale parse_text_scale(const Roo::sptr_val& value)
-    {
-      if (!value || value->type == Roo::Value::Type::NIL) return Text::Scale(1);
-      if (value->type == Roo::Value::Type::NUMBER) return Text::Scale(value->f32());
-      if (value->type != Roo::Value::Type::VECTOR)
-      {
-        throw Roo::TypeError("Text scale must be a number or [x y] vector");
-      }
-
-      auto children = Roo::get_children(*value);
-      if (children.size() != 2 || children[0]->type != Roo::Value::Type::NUMBER ||
-          children[1]->type != Roo::Value::Type::NUMBER)
-      {
-        throw Roo::TypeError("Text scale vector must be [x y] numbers");
-      }
-      return Text::Scale(children[0]->f32(), children[1]->f32());
-    }
-
-    static std::vector<Text::FontStyle> parse_font_styles(const Roo::sptr_val& value)
-    {
-      if (!value || value->type == Roo::Value::Type::NIL) return {};
-
-      auto parse_one = [](const Roo::sptr_val& style_value)
-      {
-        if (!style_value || style_value->type != Roo::Value::Type::KEYWORD)
-        {
-          throw Roo::TypeError("Text font style must be a keyword");
-        }
-
-        if (style_value->str() == "bold") return Text::FontStyle::BOLD;
-        if (style_value->str() == "underline") return Text::FontStyle::UNDERLINE;
-        throw Roo::TypeError("Unknown text font style: " + style_value->to_string());
-      };
-
-      if (value->type == Roo::Value::Type::KEYWORD) return {parse_one(value)};
-      if (value->type != Roo::Value::Type::VECTOR)
-      {
-        throw Roo::TypeError("Text font styles must be a keyword or vector");
-      }
-
-      std::vector<Text::FontStyle> out;
-      for (auto& child : Roo::get_children(*value))
-      {
-        out.push_back(parse_one(child));
-      }
-      return out;
-    }
-
-    static std::vector<Text::Shadow> parse_shadows(Roo::Context& ctx,
-                                                   const Roo::sptr_val& shadow_val)
-    {
-      std::vector<Text::Shadow> shadows;
-      if (!shadow_val || shadow_val->type == Roo::Value::Type::NIL) return shadows;
-
-      static Roo::MapSchema shadow_schema(
-        {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
-        {});
-
-      auto parse_one = [&](const Roo::sptr_val& s)
-      {
-        auto sh = shadow_schema.bind(ctx, *s);
-        return Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
-      };
-
-      if (shadow_val->type == Roo::Value::Type::VECTOR)
-      {
-        for (auto& s : Roo::get_children(*shadow_val))
-          shadows.push_back(parse_one(s));
-      }
-      else if (shadow_val->type == Roo::Value::Type::MAP)
-      {
-        shadows.push_back(parse_one(shadow_val));
-      }
-
-      return shadows;
-    }
-
-    static std::optional<char> parse_inline_marker(const Roo::sptr_val& value)
-    {
-      if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
-      if (value->type == Roo::Value::Type::CHAR) return static_cast<char>(value->ch());
-      if (value->type == Roo::Value::Type::STRING ||
-          value->type == Roo::Value::Type::KEYWORD ||
-          value->type == Roo::Value::Type::SYMBOL)
-      {
-        std::string raw = value->str();
-        if (raw.size() == 1) return raw[0];
-      }
-      return std::nullopt;
-    }
-
-    static std::optional<Text::InlineTextStyleSpec> parse_marked_style(
-      Roo::Context& ctx,
-      const Roo::sptr_val& value)
-    {
-      if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
-
-      static Roo::MapSchema inline_schema({},
-                                          {{"enabled", &Roo::Type::BOOL},
-                                           {"marker", &Roo::Type::ANY},
-                                           {"font", &Roo::Type::KEYWORD},
-                                           {"color", &HostType::COLOR},
-                                           {"scale", &Roo::Type::ANY},
-                                           {"font-styles", &Roo::Type::ANY},
-                                           {"shadow", &Roo::Type::ANY}});
-
-      auto inline_source = value;
-      if (Roo::Dict::contains_key(*value, "color"))
-      {
-        auto color_value = Roo::Dict::get_property(*value, "color");
-        if (color_value && color_value->type == Roo::Value::Type::KEYWORD &&
-            color_value->str() == "none")
-        {
-          inline_source = Roo::Dict::shallow_copy(value);
-          Roo::Dict::set_property(inline_source, Roo::keyword("color"), Roo::Constant::NIL);
-        }
-      }
-
-      auto opts = inline_schema.bind(ctx, *inline_source);
-      Text::InlineTextStyleSpec spec;
-      spec.enabled = opts.contains("enabled") ? opts.boolean("enabled") : true;
-      if (auto marker = parse_inline_marker(opts.val("marker")); marker.has_value())
-      {
-        spec.marker = *marker;
-      }
-      if (opts.contains("font")) spec.font_key = opts.str("font");
-      if (auto color_value = opts.val("color");
-          color_value && color_value->type == Roo::Value::Type::KEYWORD &&
-          color_value->str() == "none")
-      {
-        spec.use_font_color = true;
-      }
-      else if (auto color_value = opts.val("color");
-               color_value && color_value->type != Roo::Value::Type::NIL)
-      {
-        spec.color = Roo::obj<Color>(*color_value);
-      }
-      if (opts.contains("scale")) spec.scale = parse_text_scale(opts.val("scale"));
-      if (opts.contains("font-styles"))
-      {
-        spec.font_styles = parse_font_styles(opts.val("font-styles"));
-      }
-      if (opts.contains("shadow"))
-      {
-        spec.shadows = parse_shadows(ctx, opts.val("shadow"));
-      }
-      return spec;
-    }
-
     static Roo::sptr_val make_rect_map(int x, int y, int w, int h)
     {
       auto map = Roo::map({});
@@ -2839,49 +2682,11 @@ namespace Pixils::Script
 
       const std::string& text = args[0]->str();
       const Point& pos = Roo::obj<Point>(*args[1]);
-      auto opts = text_opts_schema.bind(ctx, *args[2]);
-
-      std::string font_key = "font/console";
-      if (auto fv = opts.val("font"); fv && fv->type == Roo::Value::Type::KEYWORD)
-        font_key = fv->str();
-
-      Text::Scale scale(1);
-      if (auto sv = opts.val("scale"); sv && sv->type != Roo::Value::Type::NIL)
-        scale = parse_text_scale(sv);
-
-      std::optional<Color> color;
-      if (auto cv = opts.val("color"); cv && cv->type != Roo::Value::Type::NIL)
-      {
-        color = Roo::obj<Color>(*cv);
-      }
-
-      std::vector<Text::FontStyle> font_styles;
-      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Roo::Value::Type::NIL)
-      {
-        font_styles = parse_font_styles(fsv);
-      }
-
-      std::vector<Text::Shadow> shadows;
-      if (auto sv = opts.val("shadow"); sv && sv->type != Roo::Value::Type::NIL)
-      {
-        shadows = parse_shadows(ctx, sv);
-      }
-
-      auto inline_style = parse_marked_style(ctx, opts.val("marked-style"));
-
-      auto text_op = Text::make_text_render_op(rc,
-                                               font_key,
-                                               scale,
-                                               color,
-                                               font_styles,
-                                               shadows,
-                                               inline_style);
+      auto text_op = Runtime::resolve_text_render_op(ctx, rc, args[2]);
       if (!text_op) return Roo::Constant::NIL;
 
-      Text::render_text(rc, *text_op, text, pos.round_x(), pos.round_y());
-
-      SDL_Rect size = Text::calculate_rendered_size(rc, *text_op, text);
-      return make_rect_map(pos.round_x(), pos.round_y(), size.w, size.h);
+      SDL_Rect bounds = Text::render_text(rc, *text_op, text, pos.round_x(), pos.round_y());
+      return make_rect_map(bounds.x, bounds.y, bounds.w, bounds.h);
     }
 
     /* TextSize - text-size */
@@ -2891,12 +2696,45 @@ namespace Pixils::Script
                         (FN_ARGS((&Roo::Type::STRING), (&Roo::Type::MAP)),
                          EXEC_DISPATCH(&TextSize::exec_size))));
 
-    static Roo::MapSchema text_size_opts_schema({},
-                                                {{"font", &Roo::Type::KEYWORD},
-                                                 {"scale", &Roo::Type::ANY},
-                                                 {"font-styles", &Roo::Type::ANY},
-                                                 {"shadow", &Roo::Type::ANY},
-                                                 {"marked-style", &Roo::Type::ANY}});
+    /** TextMetrics - pixils.render/text-metrics */
+    FUNC_IMPL(TextMetrics,
+              MULTI_SIG((FN_ARGS((&Roo::Type::STRING)),
+                         EXEC_DISPATCH(&TextMetrics::exec_metrics_no_opts)),
+                        (FN_ARGS((&Roo::Type::STRING), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&TextMetrics::exec_metrics))));
+
+    EXEC_BODY(TextMetrics, exec_metrics_no_opts)
+    {
+      Roo::sptr_val_v full_args = args;
+      full_args.push_back(Roo::map({}));
+      return this->exec_metrics(ctx, full_args);
+    }
+
+    EXEC_BODY(TextMetrics, exec_metrics)
+    {
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+
+      const std::string& text = args[0]->str();
+      auto text_op = Runtime::resolve_text_render_op(ctx, rc, args[1]);
+      if (!text_op) return Roo::Constant::NIL;
+
+      auto metrics = Text::measure_text(rc, *text_op, text);
+      Roo::sptr_val_v x_positions;
+      x_positions.reserve(metrics.x_positions.size());
+      for (const int x : metrics.x_positions)
+      {
+        x_positions.push_back(Roo::number(x));
+      }
+
+      auto result = Roo::map({});
+      Roo::Dict::set_property(result, Roo::keyword("w"), Roo::number(metrics.size.w));
+      Roo::Dict::set_property(result, Roo::keyword("h"), Roo::number(metrics.size.h));
+      Roo::Dict::set_property(result,
+                              Roo::keyword("line-height"),
+                              Roo::number(metrics.line_height));
+      Roo::Dict::set_property(result, Roo::keyword("x-positions"), Roo::vector(x_positions));
+      return result;
+    }
 
     EXEC_BODY(TextSize, exec_size_no_opts)
     {
@@ -2910,37 +2748,7 @@ namespace Pixils::Script
       RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const std::string& text = args[0]->str();
-      auto opts = text_size_opts_schema.bind(ctx, *args[1]);
-
-      std::string font_key = "font/console";
-      if (auto fv = opts.val("font"); fv && fv->type == Roo::Value::Type::KEYWORD)
-        font_key = fv->str();
-
-      Text::Scale scale(1);
-      if (auto sv = opts.val("scale"); sv && sv->type != Roo::Value::Type::NIL)
-        scale = parse_text_scale(sv);
-
-      std::vector<Text::FontStyle> font_styles;
-      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Roo::Value::Type::NIL)
-      {
-        font_styles = parse_font_styles(fsv);
-      }
-
-      std::vector<Text::Shadow> shadows;
-      if (auto sv = opts.val("shadow"); sv && sv->type != Roo::Value::Type::NIL)
-      {
-        shadows = parse_shadows(ctx, sv);
-      }
-
-      auto inline_style = parse_marked_style(ctx, opts.val("marked-style"));
-
-      auto text_op = Text::make_text_render_op(rc,
-                                               font_key,
-                                               scale,
-                                               std::nullopt,
-                                               font_styles,
-                                               shadows,
-                                               inline_style);
+      auto text_op = Runtime::resolve_text_render_op(ctx, rc, args[1]);
       if (!text_op) return Roo::Constant::NIL;
 
       SDL_Rect size = Text::calculate_rendered_size(rc, *text_op, text);
@@ -3066,6 +2874,7 @@ namespace Pixils::Script
     values.emplace(FN__DRAW_POLYGON_BANG, Function::DrawPolygonBang::make());
     values.emplace(FN__DRAW_RECT_BANG, Function::DrawRectBang::make());
     values.emplace(FN__RENDER_TEXT_BANG, Function::RenderTextBang::make());
+    values.emplace(FN__TEXT_METRICS, Function::TextMetrics::make());
     values.emplace(FN__TEXT_SIZE, Function::TextSize::make());
     values.emplace(FN__USE_COLOR_BANG, Function::UseColorBang::make());
     values.emplace(FN__WITH_CLIP_RECT, Function::WithClipRectForm::make());

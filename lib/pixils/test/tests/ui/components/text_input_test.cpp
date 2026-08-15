@@ -149,8 +149,10 @@ TEST_F(TextInputTest, text_input_caret_uses_text_metrics_on_first_layout)
   ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  auto cursor_y = get_keyword(inner->ui_state, "cursor-y");
-  auto cursor_h = get_keyword(inner->ui_state, "cursor-h");
+  auto layout = get_keyword(inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto cursor_y = get_keyword(layout, "cursor-y");
+  auto cursor_h = get_keyword(layout, "cursor-h");
   ASSERT_NE(cursor_y, nullptr);
   ASSERT_NE(cursor_h, nullptr);
   EXPECT_EQ(
@@ -158,6 +160,47 @@ TEST_F(TextInputTest, text_input_caret_uses_text_metrics_on_first_layout)
     inner->effective_style.content_rect(inner->bounds).y + cursor_y->num().get_int());
   EXPECT_EQ(caret->bounds.h, cursor_h->num().get_int());
   EXPECT_GT(cursor_y->num().get_int(), 0);
+}
+
+TEST_F(TextInputTest, text_input_caret_tracks_edits_in_the_same_frame)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/text-input
+                   :style {:width 80 :height 22}
+                   :state {:value "A"
+                           :auto-focus? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  auto inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
+  ASSERT_NE(inner, nullptr);
+  ASSERT_NE(caret, nullptr);
+
+  input().key_down(SDLK_BACKSPACE);
+  frame_cycle();
+
+  auto layout = get_keyword(inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto caret_x = get_keyword(layout, "caret-x");
+  ASSERT_NE(caret_x, nullptr);
+  EXPECT_EQ(caret->bounds.x,
+            inner->effective_style.content_rect(inner->bounds).x + caret_x->num().get_int());
+
+  input().key_up(SDLK_BACKSPACE);
+  input().key_down(SDLK_A);
+  frame_cycle();
+
+  layout = get_keyword(inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  caret_x = get_keyword(layout, "caret-x");
+  ASSERT_NE(caret_x, nullptr);
+  EXPECT_EQ(caret->bounds.x,
+            inner->effective_style.content_rect(inner->bounds).x + caret_x->num().get_int());
 }
 
 TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
@@ -189,8 +232,10 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
-  auto caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
+  auto layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto scroll_x = get_keyword(layout, "scroll-x");
+  auto caret_x = get_keyword(layout, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
@@ -198,9 +243,12 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
 
   input().key_down(SDLK_HOME);
   update_cycle();
+  layout_active_mode(runtime, session);
 
-  scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
-  caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
+  layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  scroll_x = get_keyword(layout, "scroll-x");
+  caret_x = get_keyword(layout, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_EQ(scroll_x->num().get_int(), 0);
@@ -208,8 +256,11 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
 
   input().key_down(SDLK_END);
   update_cycle();
+  layout_active_mode(runtime, session);
 
-  scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
+  layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  scroll_x = get_keyword(layout, "scroll-x");
   ASSERT_NE(scroll_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
 }
@@ -242,8 +293,10 @@ TEST_F(TextInputTest, text_input_scrolls_one_pixel_when_text_exactly_fills_width
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
-  auto caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
+  auto layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto scroll_x = get_keyword(layout, "scroll-x");
+  auto caret_x = get_keyword(layout, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_EQ(scroll_x->num().get_int(), 1);
@@ -281,7 +334,9 @@ TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highli
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
+  auto layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto scroll_x = get_keyword(layout, "scroll-x");
   ASSERT_NE(scroll_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
 
@@ -295,8 +350,10 @@ TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highli
   update_cycle();
   render_cycle();
 
-  auto selection_x = get_keyword(text_input_inner->ui_state, "selection-x");
-  auto selection_w = get_keyword(text_input_inner->ui_state, "selection-w");
+  layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto selection_x = get_keyword(layout, "selection-x");
+  auto selection_w = get_keyword(layout, "selection-w");
   ASSERT_NE(selection_x, nullptr);
   ASSERT_NE(selection_w, nullptr);
   EXPECT_GE(selection_x->num().get_int(), 0);
@@ -348,10 +405,12 @@ TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_
   update_cycle();
   render_cycle();
 
-  auto selection_x = get_keyword(text_input_inner->ui_state, "selection-x");
-  auto selection_y = get_keyword(text_input_inner->ui_state, "cursor-y");
-  auto selection_w = get_keyword(text_input_inner->ui_state, "selection-w");
-  auto selection_h = get_keyword(text_input_inner->ui_state, "cursor-h");
+  auto layout = get_keyword(text_input_inner->ui_state, "layout");
+  ASSERT_NE(layout, nullptr);
+  auto selection_x = get_keyword(layout, "selection-x");
+  auto selection_y = get_keyword(layout, "cursor-y");
+  auto selection_w = get_keyword(layout, "selection-w");
+  auto selection_h = get_keyword(layout, "cursor-h");
   ASSERT_NE(selection_x, nullptr);
   ASSERT_NE(selection_y, nullptr);
   ASSERT_NE(selection_w, nullptr);

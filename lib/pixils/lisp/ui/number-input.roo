@@ -86,14 +86,14 @@
 (defun number-input-text [value]
   (if (nil? value) "" (str value)))
 
-(defun normalize-number-input-state
-  [{:keys [value text-value committed-value] :as state}]
-  (if (or (nil? text-value)
-          (not= value committed-value))
-      (let [text (number-input-text value)]
-        (merge state {:text-value text
-                      :committed-value value}))
-      state))
+(defun committed-value-state-transition
+  "Returns the committed numeric value for an actual value transition."
+  [current candidate changed-keys]
+  {:committed-value
+   (cond
+     (contains? changed-keys :committed-value) (:committed-value candidate)
+     (contains? changed-keys :value) (:value candidate)
+     :default (:committed-value current))})
 
 (defun commit-number-input-value [state value ctx]
   (let [clamped (unless (nil? value)
@@ -151,10 +151,13 @@
 (defcomponent ui/number-input
   {:extend 'ui/text-input
    :ui/state-keys NUMBER-INPUT-UI-STATE-KEYS
-   :init-ui (fn [ui-state _state _ctx]
-              (normalize-number-input-state ui-state))
-   :update-ui (fn [ui-state _state _ctx]
-                (normalize-number-input-state ui-state))
+   :ui/models [{:owns [:committed-value]
+                :depends-on [:value]
+                :transition committed-value-state-transition}]
+   :init-ui (fn [{:keys [value] :as ui-state} _state _ctx]
+              (merge ui-state
+                     {:text-value (number-input-text value)
+                      :committed-value value}))
    :on {:text-input-inner/change
         (fn [state event ctx]
           (ui/stop-propagation! event)

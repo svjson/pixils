@@ -227,8 +227,10 @@ TEST_F(NumberInputTest, windows_3_text_input_caret_uses_text_metrics)
   ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  auto cursor_y = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-y"));
-  auto cursor_h = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-h"));
+  auto layout = Roo::Dict::get_property(inner->ui_state, Roo::keyword("layout"));
+  ASSERT_NE(layout, nullptr);
+  auto cursor_y = Roo::Dict::get_property(layout, Roo::keyword("cursor-y"));
+  auto cursor_h = Roo::Dict::get_property(layout, Roo::keyword("cursor-h"));
   ASSERT_NE(cursor_y, nullptr);
   ASSERT_NE(cursor_h, nullptr);
   EXPECT_EQ(
@@ -262,8 +264,10 @@ TEST_F(NumberInputTest, windows_3_number_input_caret_uses_text_metrics)
   ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  auto cursor_y = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-y"));
-  auto cursor_h = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-h"));
+  auto layout = Roo::Dict::get_property(inner->ui_state, Roo::keyword("layout"));
+  ASSERT_NE(layout, nullptr);
+  auto cursor_y = Roo::Dict::get_property(layout, Roo::keyword("cursor-y"));
+  auto cursor_h = Roo::Dict::get_property(layout, Roo::keyword("cursor-h"));
   ASSERT_NE(cursor_y, nullptr);
   ASSERT_NE(cursor_h, nullptr);
   EXPECT_EQ(

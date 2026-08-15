@@ -140,6 +140,16 @@ namespace Pixils
       Dimension size = {0, 0};
     };
 
+    /**
+     * @brief Measured dimensions and insertion-point positions for text.
+     */
+    struct TextMetrics
+    {
+      Dimension size = {0, 0};
+      int line_height = 0;
+      std::vector<int> x_positions;
+    };
+
     enum class WrapMode : uint8_t
     {
       NONE,
@@ -262,6 +272,10 @@ namespace Pixils
        * @brief Returns the rendered advance width for a single character.
        */
       int get_char_advance(char32_t chr) const;
+      /*!
+       * @brief Returns the unrounded rendered advance width for a character.
+       */
+      float get_char_advance_width(char32_t chr) const;
       /*!
        * @brief Set the alternative text color of this renderer.
        */
@@ -568,6 +582,13 @@ namespace Pixils
                                      const TextRenderOp& op,
                                      const std::string& string);
 
+    /*!
+     * @brief Measures text dimensions and every insertion-point x position.
+     */
+    TextMetrics measure_text(RenderContext& rc,
+                             const TextRenderOp& op,
+                             const std::string& text);
+
     Layout layout_text(RenderContext& rc,
                        const TextRenderOp& op,
                        const std::string& text,
@@ -575,13 +596,13 @@ namespace Pixils
                        std::optional<int> max_width = std::nullopt);
 
     /*!
-     * @brief Renders a string using a prepared text render op.
+     * @brief Renders a string and returns its bounds using one text layout.
      */
-    void render_text(RenderContext& rc,
-                     const TextRenderOp& op,
-                     const std::string& text,
-                     int x,
-                     int y);
+    SDL_Rect render_text(RenderContext& rc,
+                         const TextRenderOp& op,
+                         const std::string& text,
+                         int x,
+                         int y);
 
     /*!
      * @brief Renders an already laid out text line without re-parsing inline markers.
