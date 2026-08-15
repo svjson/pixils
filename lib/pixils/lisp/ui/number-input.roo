@@ -154,6 +154,11 @@
    :ui/models [{:owns [:committed-value]
                 :depends-on [:value]
                 :transition committed-value-state-transition}]
+   :action-map {:key/up {:action :number-input/step
+                         :payload {:direction 1}}
+                :key/down {:action :number-input/step
+                           :payload {:direction -1}}
+                :key/enter :number-input/commit}
    :init-ui (fn [{:keys [value] :as ui-state} _state _ctx]
               (merge ui-state
                      {:text-value (number-input-text value)
@@ -185,33 +190,26 @@
             (when (= :blur (:commit-on ui-state))
               (ui/set-ui-state! ctx
                                 (finalize-number-input-text ui-state ctx)))
-            state))}
-   :on-key-down (fn [state event ctx]
-                  (let [ui-state (-> ctx :view :ui-state)]
-                    (unless (:disabled? ui-state)
-                      (let [next-ui-state
-                            (cond
-                              (= :key/up (:key event))
-                              (do
-                                (ui/stop-propagation! event)
-                                (step-number-input ui-state 1 ctx))
-
-                              (= :key/down (:key event))
-                              (do
-                                (ui/stop-propagation! event)
-                                (step-number-input ui-state -1 ctx))
-
-                              (= :key/enter (:key event))
-                              (do
-                                (ui/stop-propagation! event)
-                                (case (:commit-on ui-state)
-                                  :blur (finalize-number-input-text ui-state ctx)
-                                  :default ui-state))
-
-                              :default
-                              ui-state)]
-                        (ui/set-ui-state! ctx next-ui-state)))
-                    state))})
+            state))
+        :number-input/step
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [ui-state (-> ctx :view :ui-state)]
+            (unless (:disabled? ui-state)
+              (ui/set-ui-state! ctx
+                                (step-number-input ui-state
+                                                   (-> event :payload :direction)
+                                                   ctx)))
+            state))
+        :number-input/commit
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [ui-state (-> ctx :view :ui-state)]
+            (when (and (not (:disabled? ui-state))
+                       (= :blur (:commit-on ui-state)))
+              (ui/set-ui-state! ctx
+                                (finalize-number-input-text ui-state ctx)))
+            state))}})
 
 
 
