@@ -124,9 +124,87 @@ namespace Pixils::Script
     SPECIAL_FORM_DECL(DefFontForm, def_font);
     /*! @brief Define a program/application */
     SPECIAL_FORM_DECL(DefProgramForm, def_program);
-    /*! @brief Define a game/application mode */
+    /*!
+     * @brief Declare a mode definition for application behaviour and state.
+     *
+     * A mode is a registered, reusable view definition. It may represent a
+     * screen, a layout container, or another unit of application behaviour.
+     * Its ordinary `:init` and `:update` hooks own application state; they are
+     * not responsible for preserving component-internal UI state. Rendering,
+     * layout, focus, input, children, styling, resources, and event handlers
+     * are configured in the definition map. Modes are registered in the
+     * `pixils/modes` registry and may use mode composition.
+     *
+     * Usage:
+     * @code
+     * (defmode game-mode
+     *   {:init      (fn [state ctx] initial-state)
+     *    :update    (fn [state ctx] (update-game-state state ctx))
+     *    :focusable true
+     *    :render    (fn [state ctx] nil)
+     *    :children  [{:component 'ui/button
+     *                 :state {:label "Pause"}}]})
+     *
+     * (defmode pause-mode
+     *   "Pause screen and controls."
+     *   {:focusable true
+     *    :render (fn [state ctx] nil)})
+     * @endcode
+     *
+     * All hooks are optional. An absent `:init` or `:update` leaves ordinary
+     * application state unchanged. `:focusable` defaults to false. A mode
+     * definition can inherit from another mode with `:extend`; the derived
+     * definition replaces or merges only the fields it supplies.
+     *
+     * @return `nil` after registering the mode definition.
+     * @since 0.1.0
+     */
     SPECIAL_FORM_DECL(DefModeForm, declare_mode);
-    /*! @brief Define a UI component */
+    /*!
+     * @brief Declare a reusable UI component definition.
+     *
+     * A component is a distinct runtime definition kind intended for reusable
+     * UI elements and controls. It shares the view-definition features of a
+     * mode, including application-state `:init` and `:update` hooks, rendering,
+     * layout, focus, input, children, styling, resources, and event handlers.
+     * Components are registered in the `pixils/components` registry and are
+     * not mode-stack frames; they may nevertheless participate in layout
+     * trees. Components cannot use mode composition.
+     *
+     * Component-internal state is kept in a separate `:ui-state` channel. The
+     * component lifecycle hooks `:init-ui`, `:update-ui`, and
+     * `:after-layout-ui` are provided for primitive components that own such
+     * state. They receive `[ui-state state ctx]` and return the next UI-state
+     * map, or `nil` to leave it unchanged. This keeps interaction invariants
+     * out of ordinary application `:update` hooks, so application updates do
+     * not have to preserve or accidentally purge component-internal state.
+     * The `:ui/state-keys` field declares state keys that may participate in
+     * the optional shared-state policy. The `:ui/models` field declares
+     * state-transition models with `:owns`, `:depends-on`, `:transition`, and
+     * optional `:change-event` fields. These mechanisms are for component
+     * internals; ordinary component authors generally need none of the
+     * UI-state hooks.
+     *
+     * Usage:
+     * @code
+     * (defcomponent save-button
+     *   {:focusable true
+     *    :render    (fn [state ctx] nil)
+     *    :on-click  (fn [state ctx] (save-document state))})
+     *
+     * (defcomponent toolbar-button
+     *   "A button used in toolbars."
+     *   {:extend 'save-button
+     *    :class :toolbar-button})
+     * @endcode
+     *
+     * A component can inherit from another component with `:extend`; the
+     * inherited definition and component UI-state contract are preserved and
+     * extended by fields supplied in the derived definition.
+     *
+     * @return `nil` after registering the component definition.
+     * @since 0.1.0
+     */
     SPECIAL_FORM_DECL(DefComponentForm, declare_component);
     /*! @brief Define a named theme */
     SPECIAL_FORM_DECL(DefThemeForm, declare_theme);
@@ -146,6 +224,7 @@ namespace Pixils::Script
     FUNC(MakeDisplay, make);
     /*!
      * @brief Queue a mode transition onto the Pixils mode stack.
+     * @since 0.1.0
      *
      * `push-mode!` requests that Pixils push a new root mode frame. The mode
      * reference may be a registered mode symbol or an inline mode value created
@@ -191,7 +270,7 @@ namespace Pixils::Script
      * | state     | Optional initial root state. Defaults to nil.                  |
      * | overrides | Optional per-push override and transition metadata map.        |
      *
-     * Returns the supplied mode reference.
+     * @return The supplied mode reference.
      */
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */

@@ -546,8 +546,17 @@ namespace Pixils::Script
       throw Roo::RooException("deftheme is lower-only");
     }
 
-    Roo::uptr_exec_node lower_mode_declaration(Roo::LowerContext& ctx,
-                                               const Roo::sptr_ast_node& ast_node)
+    /* DefModeForm - defmode */
+    SPECIAL_FORM_IMPL(DefModeForm,
+                      MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                                         (&HostType::MODE, &Roo::Eval::LITERAL)),
+                                 EXEC_DISPATCH(&DefModeForm::execnode_declare_mode)),
+                                (FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                                         (&Roo::Type::STRING, &Roo::Eval::LITERAL),
+                                         (&HostType::MODE, &Roo::Eval::LITERAL)),
+                                 EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
+
+    SFORM_LOWER_IMPL(DefModeForm)
     {
       auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
       auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
@@ -555,7 +564,7 @@ namespace Pixils::Script
 
       Roo::LowerContext lctx{ctx};
       auto mode_expr =
-        Roo::exec(*ctx.ctx, *Roo::lower_expr(lctx, ast_node->get_children()[2]));
+        Roo::exec(*ctx.ctx, *Roo::lower_expr(lctx, ast_node->get_children().back()));
       set_runtime_map_key_property(mode_expr, MapKey::NAME, name_str);
       auto mode_coercion = HostType::MODE.coerce(*ctx.ctx, mode_expr);
       if (!mode_coercion.success)
@@ -573,8 +582,23 @@ namespace Pixils::Script
       return std::make_unique<Roo::ExecNode>(Roo::Constant::NIL);
     }
 
-    Roo::uptr_exec_node lower_component_declaration(Roo::LowerContext& ctx,
-                                                    const Roo::sptr_ast_node& ast_node)
+    EXECNODE_BODY(DefModeForm, execnode_declare_mode)
+    {
+      throw Roo::RooException("defmode is lower-only");
+    }
+
+    /* DefComponentForm - defcomponent */
+    SPECIAL_FORM_IMPL(
+      DefComponentForm,
+      MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                         (&HostType::COMPONENT, &Roo::Eval::LITERAL)),
+                 EXEC_DISPATCH(&DefComponentForm::execnode_declare_component)),
+                (FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
+                         (&Roo::Type::STRING, &Roo::Eval::LITERAL),
+                         (&HostType::COMPONENT, &Roo::Eval::LITERAL)),
+                 EXEC_DISPATCH(&DefComponentForm::execnode_declare_component))));
+
+    SFORM_LOWER_IMPL(DefComponentForm)
     {
       auto components = ctx.ctx->lookup(ID__PIXILS__COMPONENTS);
       auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
@@ -582,7 +606,7 @@ namespace Pixils::Script
 
       Roo::LowerContext lctx{ctx};
       auto component_expr =
-        Roo::exec(*ctx.ctx, *Roo::lower_expr(lctx, ast_node->get_children()[2]));
+        Roo::exec(*ctx.ctx, *Roo::lower_expr(lctx, ast_node->get_children().back()));
       set_runtime_map_key_property(component_expr, MapKey::NAME, name_str);
       auto component_coercion = HostType::COMPONENT.coerce(*ctx.ctx, component_expr);
       if (!component_coercion.success)
@@ -599,33 +623,6 @@ namespace Pixils::Script
       rc.asset_registry->declare_bundle(name_expr->str(), component.resources);
 
       return std::make_unique<Roo::ExecNode>(Roo::Constant::NIL);
-    }
-
-    /* DefModeForm - defmode */
-    SPECIAL_FORM_IMPL(DefModeForm,
-                      SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
-                                   (&HostType::MODE, &Roo::Eval::LITERAL)),
-                           EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
-
-    SFORM_LOWER_IMPL(DefModeForm)
-    {
-      return lower_mode_declaration(ctx, ast_node);
-    }
-
-    EXECNODE_BODY(DefModeForm, execnode_declare_mode)
-    {
-      throw Roo::RooException("defmode is lower-only");
-    }
-
-    /* DefComponentForm - defcomponent */
-    SPECIAL_FORM_IMPL(DefComponentForm,
-                      SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
-                                   (&HostType::COMPONENT, &Roo::Eval::LITERAL)),
-                           EXEC_DISPATCH(&DefComponentForm::execnode_declare_component))));
-
-    SFORM_LOWER_IMPL(DefComponentForm)
-    {
-      return lower_component_declaration(ctx, ast_node);
     }
 
     EXECNODE_BODY(DefComponentForm, execnode_declare_component)

@@ -62,6 +62,22 @@ TEST_F(DefModeTest, defmode_registers_mode_only_in_mode_registry)
   EXPECT_EQ(component_val->type, Roo::Value::Type::NIL);
 }
 
+TEST_F(DefModeTest, defmode_accepts_a_docstring_before_the_definition)
+{
+  runtime.eval(R"(
+    (pixils/defmode documented-mode
+      "A mode documented for external tools."
+      {})
+  )");
+
+  auto mode_val = runtime.eval("(get pixils/modes 'documented-mode)");
+  ASSERT_NE(mode_val, nullptr);
+  ASSERT_NE(mode_val->type, Roo::Value::Type::NIL);
+  auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
+  EXPECT_EQ(mode.name, "documented-mode");
+  EXPECT_EQ(*mode.render, *Roo::Constant::NIL);
+}
+
 TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
 {
   // When
@@ -95,6 +111,19 @@ TEST_F(DefModeTest, defcomponent_creates_component_definition)
   auto mode_val = runtime.eval("(get pixils/modes 'test-button)");
   ASSERT_NE(mode_val, nullptr);
   EXPECT_EQ(mode_val->type, Roo::Value::Type::NIL);
+}
+
+TEST_F(DefModeTest, defcomponent_accepts_a_docstring_before_the_definition)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent documented-component
+      "A component documented for external tools."
+      {})
+  )");
+
+  auto& component = get_component(runtime, "documented-component");
+  EXPECT_EQ(component.name, "documented-component");
+  EXPECT_EQ(*component.render, *Roo::Constant::NIL);
 }
 
 TEST_F(DefModeTest, defcomponent_extend_adds_unique_ui_state_keys)
