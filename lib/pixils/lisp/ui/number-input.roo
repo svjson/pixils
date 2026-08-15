@@ -4,6 +4,31 @@
             [pixils.ui :as ui]
             pixils.ui.text-input))
 
+
+
+;; Component state
+
+(def NUMBER-INPUT-UI-STATE-KEYS
+  "Component-state keys accepted by `ui/number-input`."
+  [:value
+   :text-value
+   :disabled?
+   :read-only?
+   :auto-focus?
+   :emit-change?
+   :emit-blur?
+   :min
+   :max
+   :step
+   :allow-negative?
+   :allow-fractions?
+   :commit-on
+   :committed-value])
+
+
+
+;; Numeric text policy
+
 (defun allows-negative? [state]
   (or (:allow-negative? state)
       (nil? (:min state))
@@ -14,44 +39,23 @@
       (and (= text "-.") (allows-negative? state))
       (string/ends-with? text ".")))
 
-(defun text-contains? [text needle index]
-  (cond
-    (> (+ index (count needle)) (count text)) false
-    (= (substr text index (count needle)) needle) true
-    :default (text-contains? text needle (inc index))))
-
-(defun fraction-text? [text]
-  (text-contains? text "." 0))
-
 (defun number-text-digit? [text]
-  (or (= text "0")
-      (= text "1")
-      (= text "2")
-      (= text "3")
-      (= text "4")
-      (= text "5")
-      (= text "6")
-      (= text "7")
-      (= text "8")
-      (= text "9")))
+  (and (= 1 (count text))
+       (some? (int text))))
 
 (defun editable-number-character? [text state]
   (or (number-text-digit? text)
       (and (= text "-") (allows-negative? state))
       (and (= text ".") (:allow-fractions? state))))
 
-(defun editable-number-text-at? [text state index]
-  (if (>= index (count text))
-    true
-    (and (editable-number-character? (substr text index 1) state)
-         (editable-number-text-at? text state (inc index)))))
-
 (defun editable-number-text? [text state]
-  (editable-number-text-at? (or text "") state 0))
+  (not (any? (or text "")
+             (fn [char]
+               (not (editable-number-character? (str char) state))))))
 
 (defun parsed-number [text state]
   (if (and (:allow-fractions? state)
-           (fraction-text? text))
+           (contains? text '.'))
     (float text)
     (int text)))
 
@@ -82,33 +86,24 @@
 (defun number-input-text [value]
   (if (nil? value) "" (str value)))
 
-(defun normalize-number-input-state [state]
-  (let [value (:value state)
-        emit-text-change? (= (:commit-on state) :blur)
-        state (if (= emit-text-change? (:emit-text-change? state))
-                state
-                (assoc state :emit-text-change? emit-text-change?))]
-    (if (or (nil? (:text-value state))
-            (not= value (:committed-value state)))
+(defun normalize-number-input-state
+  [{:keys [value text-value committed-value] :as state}]
+  (if (or (nil? text-value)
+          (not= value committed-value))
       (let [text (number-input-text value)]
-        (-> state
-            (assoc :text-value text)
-            (assoc :last-text-value text)
-            (assoc :committed-value value)))
-      state)))
+        (merge state {:text-value text
+                      :committed-value value}))
+      state))
 
 (defun commit-number-input-value [state value ctx]
-  (let [clamped (clamp-number value state)
+  (let [clamped (unless (nil? value)
+                  (clamp-number value state))
         text (number-input-text clamped)]
     (ui/emit! (:view ctx) :number-input/change {:value clamped
                                                 :text text})
-    (-> state
-        (assoc :value clamped)
-        (assoc :committed-value clamped)
-        (assoc :text-value text)
-        (assoc :last-text-value text)
-        (assoc :invalid? false)
-        (assoc :editing? false))))
+    (merge state {:value clamped
+                  :committed-value clamped
+                  :text-value text})))
 
 (defun commit-number-input-text [state text ctx]
   (let [parsed (parsed-number text state)
@@ -116,141 +111,122 @@
         normalized-text (cond
                           (nil? value) text
                           (and (:allow-fractions? state)
-                               (fraction-text? text)
+                               (contains? text '.')
                                (= value parsed)) text
                           :default (number-input-text value))]
     (ui/emit! (:view ctx) :number-input/change {:value value
                                                 :text normalized-text})
-    (-> state
-        (assoc :value value)
-        (assoc :committed-value value)
-        (assoc :text-value normalized-text)
-        (assoc :last-text-value normalized-text)
-        (assoc :invalid? (and (not-empty? text)
-                              (nil? value))))))
-
-(defun commit-final-number-input-text [state text value ctx]
-  (let [normalized-text (if (nil? value) text (number-input-text value))]
-    (ui/emit! (:view ctx) :number-input/change {:value value
-                                                :text normalized-text})
-    (-> state
-        (assoc :value value)
-        (assoc :committed-value value)
-        (assoc :text-value normalized-text)
-        (assoc :last-text-value normalized-text)
-        (assoc :invalid? false)
-        (assoc :editing? false))))
+    (merge state {:value value
+                  :committed-value value
+                  :text-value normalized-text})))
 
 (defun revert-number-input-text [state]
   (let [value (:committed-value state)
         text (number-input-text value)]
-    (-> state
-        (assoc :value value)
-        (assoc :text-value text)
-        (assoc :last-text-value text)
-        (assoc :invalid? false)
-        (assoc :editing? false))))
+    (merge state {:value value
+                  :text-value text})))
 
 (defun finalize-number-input-text [state ctx]
   (let [text (or (:text-value state) "")
         parsed (parsed-number text state)]
     (cond
       (= text "")
-      (commit-final-number-input-text state text nil ctx)
+      (commit-number-input-value state nil ctx)
 
       (nil? parsed)
       (revert-number-input-text state)
 
       :default
-      (commit-final-number-input-text state text parsed ctx))))
-
-(defun edit-number-input-text [state text]
-  (-> state
-      (assoc :text-value text)
-      (assoc :invalid? false)
-      (assoc :editing? true)))
-
-(defun commit-number-input-text-if-changed [state ctx]
-  (let [text (or (:text-value state) "")]
-    (if (= text (:last-text-value state))
-      state
-      (commit-number-input-text state text ctx))))
+      (commit-number-input-value state parsed ctx))))
 
 (defun step-number-input [state direction ctx]
   (let [step (or (:step state) 1)
         base (or (:value state) 0)]
     (commit-number-input-value state (+ base (* direction step)) ctx)))
 
+
+
+;; Component
+
 (defcomponent ui/number-input
-  {:init (fn [state ctx]
-           (normalize-number-input-state state))
-   :update (fn [state ctx]
-             (normalize-number-input-state state))
-   :children [{:mode 'ui/text-input-inner
-               :state {:value (ui/bind-state :text-value)
-                       :disabled? (ui/bind-state :disabled?)
-                       :auto-focus? (ui/bind-state :auto-focus?)
-                       :accept-value? number-input-accepts-text?
-                       :emit-change? (ui/bind-state :emit-text-change?)
-                       :allow-negative? (ui/bind-state :allow-negative?)
-                       :allow-fractions? (ui/bind-state :allow-fractions?)
-                       :min (ui/bind-state :min)
-                       :max (ui/bind-state :max)
-                       :commit-on (ui/bind-state :commit-on)
-                       :emit-blur? true
-                       :focused? (ui/bind-state :focused?)}}]
-   :on {:text-input/change (fn [state event ctx]
-                             (ui/stop-propagation! event)
-                             (let [text (-> event :payload :value)]
-                               (case (:commit-on state)
-                                 :blur (do
-                                         (ui/emit! (:view ctx)
-                                                   :number-input/text-change
-                                                   {:value text
-                                                    :text text})
-                                         (edit-number-input-text state text))
-                                 :default (commit-number-input-text state text ctx))))
-        :text-input/blur (fn [state event ctx]
-                           (ui/stop-propagation! event)
-                           (case (:commit-on state)
-                             :blur (finalize-number-input-text state ctx)
-                             :default state))}
+  {:extend 'ui/text-input
+   :ui/state-keys NUMBER-INPUT-UI-STATE-KEYS
+   :init-ui (fn [ui-state _state _ctx]
+              (normalize-number-input-state ui-state))
+   :update-ui (fn [ui-state _state _ctx]
+                (normalize-number-input-state ui-state))
+   :on {:text-input-inner/change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [ui-state (-> ctx :view :ui-state)
+                text (-> event :payload :value)]
+            (when (number-input-accepts-text? text ui-state)
+              (ui/set-ui-state!
+               ctx
+               (case (:commit-on ui-state)
+                 :blur
+                 (do
+                   (ui/emit! (:view ctx)
+                             :number-input/text-change
+                             {:value text
+                              :text text})
+                   (assoc ui-state :text-value text))
+
+                 :default
+                 (commit-number-input-text ui-state text ctx))))
+            state))
+        :text-input-inner/blur
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [ui-state (-> ctx :view :ui-state)]
+            (when (= :blur (:commit-on ui-state))
+              (ui/set-ui-state! ctx
+                                (finalize-number-input-text ui-state ctx)))
+            state))}
    :on-key-down (fn [state event ctx]
-                  (if (:disabled? state)
-                    state
-                    (cond
-                      (= :key/up (:key event))
-                      (do
-                        (ui/stop-propagation! event)
-                        (step-number-input state 1 ctx))
+                  (let [ui-state (-> ctx :view :ui-state)]
+                    (unless (:disabled? ui-state)
+                      (let [next-ui-state
+                            (cond
+                              (= :key/up (:key event))
+                              (do
+                                (ui/stop-propagation! event)
+                                (step-number-input ui-state 1 ctx))
 
-                      (= :key/down (:key event))
-                      (do
-                        (ui/stop-propagation! event)
-                        (step-number-input state -1 ctx))
+                              (= :key/down (:key event))
+                              (do
+                                (ui/stop-propagation! event)
+                                (step-number-input ui-state -1 ctx))
 
-                      (= :key/enter (:key event))
-                      (do
-                        (ui/stop-propagation! event)
-                        (case (:commit-on state)
-                          :blur (finalize-number-input-text state ctx)
-                          :default (commit-number-input-text-if-changed state ctx)))
+                              (= :key/enter (:key event))
+                              (do
+                                (ui/stop-propagation! event)
+                                (case (:commit-on ui-state)
+                                  :blur (finalize-number-input-text ui-state ctx)
+                                  :default ui-state))
 
-                      :default
-                      (case (:commit-on state)
-                        :blur state
-                        :default (commit-number-input-text-if-changed state ctx)))))})
+                              :default
+                              ui-state)]
+                        (ui/set-ui-state! ctx next-ui-state)))
+                    state))})
 
-(defun make [{:keys [class style value min max step allow-negative? allow-fractions? disabled? auto-focus? commit-on]}]
-  (cond-> {:mode 'ui/number-input
-           :style (or style {})
-           :state {:value value
-                   :min min
-                   :max max
-                   :step step
-                   :allow-negative? allow-negative?
-                   :allow-fractions? allow-fractions?
-                   :disabled? disabled?
-                   :auto-focus? auto-focus?
-                   :commit-on commit-on}}
-    class (assoc :class class)))
+
+
+;; Make function
+
+(defun make
+  "Builds an isolated `ui/number-input` component.
+
+  Numeric behavior options are stored under `:state :component`; ordinary
+  `:state` entries remain application state. Component keys supplied directly
+  in `:state` remain accepted for migration compatibility."
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state NUMBER-INPUT-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts NUMBER-INPUT-UI-STATE-KEYS))]
+    (cond-> {:mode 'ui/number-input
+             :state (assoc state :component component)
+             :ui/state-policy (or state-policy :isolated)}
+      (contains? opts :style) (assoc :style style)
+      class (assoc :class class)
+      ui-state (assoc :ui-state ui-state))))

@@ -121,3 +121,17 @@
   (key-up! app key)
   (update! app)
   app)
+
+(defun press-modified-key!
+  "Presses and releases `key` while `modifier` is held, updating `app`
+   after each input transition, and returns `app`."
+  [app modifier key]
+  (key-down! app modifier)
+  (update! app)
+  (key-down! app key)
+  (update! app)
+  (key-up! app key)
+  (update! app)
+  (key-up! app modifier)
+  (update! app)
+  app)

@@ -1,0 +1,18 @@
+(ns pixils.test.input-userspace-state-probe
+  (:require pixils
+            [pixils.ui.number-input :as number-input]))
+
+(pixils/defmode text-input-userspace-state-mode
+  {:update (fn [_state _ctx] {})
+   :children [{:mode 'ui/text-input
+               :style {:width 80 :height 22}
+               :ui/state-policy :isolated
+               :state {:component {:value ""
+                                   :auto-focus? true}}}]})
+
+(pixils/defmode number-input-userspace-state-mode
+  {:update (fn [_state _ctx] {})
+   :children [(number-input/make {:value 1
+                                 :step 1
+                                 :auto-focus? true
+                                 :style {:width 80 :height 22}})]})

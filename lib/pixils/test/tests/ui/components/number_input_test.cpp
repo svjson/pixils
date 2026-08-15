@@ -1,5 +1,4 @@
 #include "../../render_fixture.h"
-
 #include <pixils/program.h>
 #include <pixils/ui/view_layout.h>
 
@@ -12,14 +11,13 @@ using NumberInputTest = RenderFixture;
 
 namespace
 {
-  void layout_active_mode(Roo::Runtime& runtime,
-                          Pixils::Runtime::Session& session)
+  void layout_active_mode(Roo::Runtime& runtime, Pixils::Runtime::Session& session)
   {
-    Pixils::UI::layout_view_tree(session.active_mode,
-                                 {0, 0, session.render_ctx.buffer_dim.w,
-                                  session.render_ctx.buffer_dim.h},
-                                 runtime,
-                                 session.hook_args.render_args[1]);
+    Pixils::UI::layout_view_tree(
+      session.active_mode,
+      {0, 0, session.render_ctx.buffer_dim.w, session.render_ctx.buffer_dim.h},
+      runtime,
+      session.hook_args.render_args[1]);
   }
 
   std::shared_ptr<Pixils::Runtime::View> find_first_mode(
@@ -66,8 +64,7 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
   input().key_down(SDLK_2);
   update_cycle();
 
-  auto amount =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto amount = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   auto last_change =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
 
@@ -104,8 +101,7 @@ TEST_F(NumberInputTest, blur_mode_number_input_emits_text_change)
   input().key_down(SDLK_1);
   update_cycle();
 
-  auto amount =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto amount = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   auto last_text =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-text"));
   auto last_change =
@@ -149,8 +145,7 @@ TEST_F(NumberInputTest, number_input_accepts_decimal_text_when_fractions_are_all
   input().key_down(SDLK_5);
   update_cycle();
 
-  auto amount =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto amount = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   auto last_change =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
 
@@ -187,8 +182,7 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
   input().key_up(SDLK_UP);
   update_cycle();
 
-  auto amount =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto amount = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   ASSERT_NE(amount, nullptr);
   EXPECT_EQ(amount->num().get_int(), 12);
 
@@ -208,7 +202,7 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
   EXPECT_EQ(amount->num().get_int(), 0);
 }
 
-TEST_F(NumberInputTest, windows_3_text_input_caret_aligns_with_text)
+TEST_F(NumberInputTest, windows_3_text_input_caret_uses_text_metrics)
 {
   runtime.eval(R"(
     (pixils/defprogram text-input-caret-test-program
@@ -228,16 +222,22 @@ TEST_F(NumberInputTest, windows_3_text_input_caret_aligns_with_text)
   update_cycle();
   layout_active_mode(runtime, session);
 
-  auto text = find_first_mode(session.active_mode, "ui/text");
+  auto inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
-  ASSERT_NE(text, nullptr);
+  ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  EXPECT_EQ(caret->bounds.y, text->bounds.y);
-  EXPECT_EQ(caret->bounds.h, text->bounds.h);
+  auto cursor_y = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-y"));
+  auto cursor_h = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-h"));
+  ASSERT_NE(cursor_y, nullptr);
+  ASSERT_NE(cursor_h, nullptr);
+  EXPECT_EQ(
+    caret->bounds.y,
+    inner->effective_style.content_rect(inner->bounds).y + cursor_y->num().get_int());
+  EXPECT_EQ(caret->bounds.h, cursor_h->num().get_int());
 }
 
-TEST_F(NumberInputTest, windows_3_number_input_caret_aligns_with_text)
+TEST_F(NumberInputTest, windows_3_number_input_caret_uses_text_metrics)
 {
   runtime.eval(R"(
     (pixils/defprogram number-input-caret-test-program
@@ -257,11 +257,17 @@ TEST_F(NumberInputTest, windows_3_number_input_caret_aligns_with_text)
   update_cycle();
   layout_active_mode(runtime, session);
 
-  auto text = find_first_mode(session.active_mode, "ui/text");
+  auto inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
-  ASSERT_NE(text, nullptr);
+  ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  EXPECT_EQ(caret->bounds.y, text->bounds.y);
-  EXPECT_EQ(caret->bounds.h, text->bounds.h);
+  auto cursor_y = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-y"));
+  auto cursor_h = Roo::Dict::get_property(inner->ui_state, Roo::keyword("cursor-h"));
+  ASSERT_NE(cursor_y, nullptr);
+  ASSERT_NE(cursor_h, nullptr);
+  EXPECT_EQ(
+    caret->bounds.y,
+    inner->effective_style.content_rect(inner->bounds).y + cursor_y->num().get_int());
+  EXPECT_EQ(caret->bounds.h, cursor_h->num().get_int());
 }

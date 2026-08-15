@@ -1,0 +1,223 @@
+(ns pixils.ui.text-input-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(defun text-input-interaction-app
+  "Creates and settles an app running `mode` from the text-input interaction
+   test fixture."
+  [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file! app "pixils/test/text-input-interaction-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    app))
+
+
+
+;; ui/text-input
+
+(deftest text-input/keeps-editing-state-outside-application-state
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/input-userspace-state-probe.roo")
+      (runtime/push-mode! app 'text-input-userspace-state-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :a)
+    {:application-state (runtime/active-state app)
+     :text-input (select-keys
+                  (-> (runtime/find-view app "ui/text-input") :ui-state)
+                  [:value :text-value])
+     :inner (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:value :cursor-index])})
+
+  (s/then [result]
+    (is (= {:application-state {}
+            :text-input {:value "a" :text-value "a"}
+            :inner {:value "a" :cursor-index 1}}
+           result))))
+
+(deftest text-input/edits-value-and-emits-change
+  (s/given
+    (text-input-interaction-app 'short-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-key! app :c)
+    (let [after-insert
+          {:text-input (select-keys
+                        (-> (runtime/find-view app "ui/text-input") :ui-state)
+                        [:value :text-value])
+           :last-change (:last-change (runtime/active-state app))}]
+      (runtime/press-key! app :backspace)
+      {:after-insert after-insert
+       :after-backspace
+       {:text-input (select-keys
+                     (-> (runtime/find-view app "ui/text-input") :ui-state)
+                     [:value :text-value])
+        :last-change (:last-change (runtime/active-state app))}}))
+
+  (s/then [result]
+    (is (= {:after-insert
+            {:text-input {:value "abc" :text-value "abc"}
+             :last-change {:value "abc"}}
+            :after-backspace
+            {:text-input {:value "ab" :text-value "ab"}
+             :last-change {:value "ab"}}}
+           result))))
+
+(deftest text-input/read-only-navigates-without-editing
+  (s/given
+    (text-input-interaction-app 'read-only-text-input-mode))
+
+  (s/when [app]
+    (let [focused? (-> (runtime/find-view app "ui/text-input-inner")
+                       :interaction
+                       :focused)]
+      (runtime/press-key! app :left)
+      (let [after-navigation
+            (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:cursor-index])]
+        (runtime/press-key! app :c)
+        (runtime/press-key! app :backspace)
+        (runtime/press-key! app :delete)
+        {:focused? focused?
+         :after-navigation after-navigation
+         :text-input (select-keys
+                      (-> (runtime/find-view app "ui/text-input") :ui-state)
+                      [:value :text-value])
+         :last-change (:last-change (runtime/active-state app))
+         :inner (select-keys
+                 (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                 [:cursor-index])})))
+
+  (s/then [result]
+    (is (= {:focused? true
+            :after-navigation {:cursor-index 3}
+            :text-input {:value "abcd" :text-value "abcd"}
+            :last-change nil
+            :inner {:cursor-index 3}}
+           result))))
+
+(deftest text-input/shift-navigation-extends-and-plain-navigation-collapses-selection
+  (s/given
+    (text-input-interaction-app 'editable-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-modified-key! app :left-shift :left)
+    (let [after-first-left
+          (select-keys
+           (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+           [:cursor-index :selection-start :selection-end])]
+      (runtime/press-modified-key! app :left-shift :left)
+      (let [after-second-left
+            (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:cursor-index :selection-start :selection-end])]
+        (runtime/press-key! app :right)
+        {:after-first-left after-first-left
+         :after-second-left after-second-left
+         :after-right
+         (select-keys
+          (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+          [:cursor-index :selection-start :selection-end])})))
+
+  (s/then [result]
+    (is (= {:after-first-left
+            {:cursor-index 3 :selection-start 3 :selection-end 4}
+            :after-second-left
+            {:cursor-index 2 :selection-start 2 :selection-end 4}
+            :after-right
+            {:cursor-index 4}}
+           result))))
+
+(deftest text-input/typing-replaces-selected-text
+  (s/given
+    (text-input-interaction-app 'editable-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-modified-key! app :left-shift :left)
+    (runtime/press-modified-key! app :left-shift :left)
+    (runtime/press-key! app :x)
+    {:text-input (select-keys
+                  (-> (runtime/find-view app "ui/text-input") :ui-state)
+                  [:value :text-value])
+     :last-change (:last-change (runtime/active-state app))
+     :inner (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:cursor-index :selection-start :selection-end])})
+
+  (s/then [result]
+    (is (= {:text-input {:value "abx" :text-value "abx"}
+            :last-change {:value "abx"}
+            :inner {:cursor-index 3}}
+           result))))
+
+(deftest text-input/backspace-deletes-selected-text
+  (s/given
+    (text-input-interaction-app 'editable-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-modified-key! app :left-shift :left)
+    (runtime/press-modified-key! app :left-shift :left)
+    (runtime/press-key! app :backspace)
+    {:text-input (select-keys
+                  (-> (runtime/find-view app "ui/text-input") :ui-state)
+                  [:value :text-value])
+     :last-change (:last-change (runtime/active-state app))
+     :inner (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:cursor-index :selection-start :selection-end])})
+
+  (s/then [result]
+    (is (= {:text-input {:value "ab" :text-value "ab"}
+            :last-change {:value "ab"}
+            :inner {:cursor-index 2}}
+           result))))
+
+(deftest text-input/shift-home-and-end-extend-selection-and-delete-removes-it
+  (s/given
+    (text-input-interaction-app 'editable-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-modified-key! app :left-shift :home)
+    (let [after-shift-home
+          (select-keys
+           (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+           [:cursor-index :selection-start :selection-end])]
+      (runtime/press-key! app :home)
+      (runtime/press-modified-key! app :left-shift :end)
+      (let [after-shift-end
+            (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:cursor-index :selection-start :selection-end])]
+        (runtime/press-key! app :delete)
+        {:after-shift-home after-shift-home
+         :after-shift-end after-shift-end
+         :text-input (select-keys
+                      (-> (runtime/find-view app "ui/text-input") :ui-state)
+                      [:value :text-value])
+         :last-change (:last-change (runtime/active-state app))
+         :inner (select-keys
+                 (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                 [:cursor-index :selection-start :selection-end])})))
+
+  (s/then [result]
+    (is (= {:after-shift-home
+            {:cursor-index 0 :selection-start 0 :selection-end 4}
+            :after-shift-end
+            {:cursor-index 4 :selection-start 0 :selection-end 4}
+            :text-input {:value "" :text-value ""}
+            :last-change {:value ""}
+            :inner {:cursor-index 0}}
+           result))))

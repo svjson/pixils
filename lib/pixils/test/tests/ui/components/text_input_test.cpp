@@ -1,28 +1,26 @@
 #include "../../render_fixture.h"
-
 #include <pixils/clipboard.h>
 #include <pixils/program.h>
 #include <pixils/ui/view_layout.h>
 
 #include <SDL3/SDL_keycode.h>
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <algorithm>
 #include <set>
 
 using TextInputTest = RenderFixture;
 
 namespace
 {
-  void layout_active_mode(Roo::Runtime& runtime,
-                          Pixils::Runtime::Session& session)
+  void layout_active_mode(Roo::Runtime& runtime, Pixils::Runtime::Session& session)
   {
-    Pixils::UI::layout_view_tree(session.active_mode,
-                                 {0, 0, session.render_ctx.buffer_dim.w,
-                                  session.render_ctx.buffer_dim.h},
-                                 runtime,
-                                 session.hook_args.render_args[1]);
+    Pixils::UI::layout_view_tree(
+      session.active_mode,
+      {0, 0, session.render_ctx.buffer_dim.w, session.render_ctx.buffer_dim.h},
+      runtime,
+      session.hook_args.render_args[1]);
   }
 
   std::shared_ptr<Pixils::Runtime::View> find_first_mode(
@@ -46,17 +44,19 @@ namespace
 
   bool has_fill_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
   {
-    return std::any_of(ops.begin(), ops.end(), [&](const auto& op) {
-      return op.type == RenderOpType::FILL_RECT && op.rendered_rect.x == rect.x &&
-             op.rendered_rect.y == rect.y && op.rendered_rect.w == rect.w &&
-             op.rendered_rect.h == rect.h;
-    });
+    return std::any_of(ops.begin(),
+                       ops.end(),
+                       [&](const auto& op)
+                       {
+                         return op.type == RenderOpType::FILL_RECT &&
+                                op.rendered_rect.x == rect.x &&
+                                op.rendered_rect.y == rect.y &&
+                                op.rendered_rect.w == rect.w && op.rendered_rect.h == rect.h;
+                       });
   }
 
   template <typename UpdateCycle>
-  void press_ctrl_shortcut(InputSimulator& input,
-                           UpdateCycle update_cycle,
-                           SDL_Keycode key)
+  void press_ctrl_shortcut(InputSimulator& input, UpdateCycle update_cycle, SDL_Keycode key)
   {
     input.key_down(SDLK_LCTRL);
     update_cycle();
@@ -98,47 +98,6 @@ namespace
   };
 } // namespace
 
-TEST_F(TextInputTest, text_input_edits_bound_value_and_emits_change)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "ab"
-                              :last-change nil})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :auto-focus? true}}]
-       :on {:text-input/change (fn [state event ctx]
-                                 (-> state
-                                     (assoc :text (-> event :payload :value))
-                                     (assoc :last-change (:payload event))))}})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  input().key_down(SDLK_C);
-  update_cycle();
-
-  auto text = get_keyword(session.active_mode->state, "text");
-  auto last_change = get_keyword(session.active_mode->state, "last-change");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  EXPECT_EQ(text->to_string(), "\"abc\"");
-  EXPECT_EQ(last_change->to_string(), "{:value \"abc\"}");
-
-  input().key_down(SDLK_BACKSPACE);
-  update_cycle();
-
-  text = get_keyword(session.active_mode->state, "text");
-  last_change = get_keyword(session.active_mode->state, "last-change");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  EXPECT_EQ(text->to_string(), "\"ab\"");
-  EXPECT_EQ(last_change->to_string(), "{:value \"ab\"}");
-}
-
 TEST_F(TextInputTest, natural_height_uses_default_ttf_font_metrics)
 {
   runtime.eval(R"(
@@ -169,7 +128,7 @@ TEST_F(TextInputTest, natural_height_uses_default_ttf_font_metrics)
   EXPECT_EQ(inner->bounds.h, input_view->effective_style.content_rect(input_view->bounds).h);
 }
 
-TEST_F(TextInputTest, text_input_text_and_caret_are_positioned_on_first_render)
+TEST_F(TextInputTest, text_input_caret_uses_text_metrics_on_first_layout)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -182,66 +141,23 @@ TEST_F(TextInputTest, text_input_text_and_caret_are_positioned_on_first_render)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
   layout_active_mode(runtime, session);
+  update_cycle();
+  layout_active_mode(runtime, session);
 
-  auto text = find_first_mode(session.active_mode, "ui/text");
+  auto inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
-  ASSERT_NE(text, nullptr);
+  ASSERT_NE(inner, nullptr);
   ASSERT_NE(caret, nullptr);
 
-  EXPECT_EQ(caret->bounds.y, text->bounds.y);
-  EXPECT_EQ(caret->bounds.h, text->bounds.h);
-  EXPECT_GT(text->bounds.y, 0);
-}
-
-TEST_F(TextInputTest, read_only_text_input_focuses_and_navigates_without_mutating)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "abcd"
-                              :last-change nil})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :read-only? true
-                           :auto-focus? true}}]
-       :on {:text-input/change (fn [state event ctx]
-                                 (-> state
-                                     (assoc :text (-> event :payload :value))
-                                     (assoc :last-change (:payload event))))}})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
-  ASSERT_NE(text_input_inner, nullptr);
-  ASSERT_TRUE(session.focus_state.has_focus());
-  EXPECT_EQ(session.focus_state.focused.lock().get(), text_input_inner.get());
-
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  ASSERT_NE(cursor_index, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 3);
-
-  input().key_down(SDLK_C);
-  update_cycle();
-  input().key_down(SDLK_BACKSPACE);
-  update_cycle();
-  input().key_down(SDLK_DELETE);
-  update_cycle();
-
-  auto text = get_keyword(session.active_mode->state, "text");
-  auto last_change = get_keyword(session.active_mode->state, "last-change");
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  ASSERT_NE(cursor_index, nullptr);
-  EXPECT_EQ(text->to_string(), "\"abcd\"");
-  EXPECT_EQ(last_change->type, Roo::Value::Type::NIL);
-  EXPECT_EQ(cursor_index->num().get_int(), 3);
+  auto cursor_y = get_keyword(inner->ui_state, "cursor-y");
+  auto cursor_h = get_keyword(inner->ui_state, "cursor-h");
+  ASSERT_NE(cursor_y, nullptr);
+  ASSERT_NE(cursor_h, nullptr);
+  EXPECT_EQ(
+    caret->bounds.y,
+    inner->effective_style.content_rect(inner->bounds).y + cursor_y->num().get_int());
+  EXPECT_EQ(caret->bounds.h, cursor_h->num().get_int());
+  EXPECT_GT(cursor_y->num().get_int(), 0);
 }
 
 TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
@@ -273,8 +189,8 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->state, "scroll-x");
-  auto caret_x = get_keyword(text_input_inner->state, "caret-x");
+  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
+  auto caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
@@ -283,8 +199,8 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
   input().key_down(SDLK_HOME);
   update_cycle();
 
-  scroll_x = get_keyword(text_input_inner->state, "scroll-x");
-  caret_x = get_keyword(text_input_inner->state, "caret-x");
+  scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
+  caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_EQ(scroll_x->num().get_int(), 0);
@@ -293,7 +209,7 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
   input().key_down(SDLK_END);
   update_cycle();
 
-  scroll_x = get_keyword(text_input_inner->state, "scroll-x");
+  scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
   ASSERT_NE(scroll_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
 }
@@ -326,264 +242,12 @@ TEST_F(TextInputTest, text_input_scrolls_one_pixel_when_text_exactly_fills_width
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->state, "scroll-x");
-  auto caret_x = get_keyword(text_input_inner->state, "caret-x");
+  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
+  auto caret_x = get_keyword(text_input_inner->ui_state, "caret-x");
   ASSERT_NE(scroll_x, nullptr);
   ASSERT_NE(caret_x, nullptr);
   EXPECT_EQ(scroll_x->num().get_int(), 1);
   EXPECT_EQ(caret_x->num().get_int(), 39);
-}
-
-TEST_F(TextInputTest, text_input_shift_navigation_extends_and_plain_navigation_collapses_selection)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "abcd"})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :auto-focus? true}}]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
-  ASSERT_NE(text_input_inner, nullptr);
-
-  input().key_down(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  ASSERT_NE(selection_end, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 3);
-  EXPECT_EQ(selection_start->num().get_int(), 3);
-  EXPECT_EQ(selection_end->num().get_int(), 4);
-
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  selection_start = get_keyword(text_input_inner->state, "selection-start");
-  selection_end = get_keyword(text_input_inner->state, "selection-end");
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  ASSERT_NE(selection_end, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 2);
-  EXPECT_EQ(selection_start->num().get_int(), 2);
-  EXPECT_EQ(selection_end->num().get_int(), 4);
-
-  input().key_up(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_RIGHT);
-  update_cycle();
-
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  selection_start = get_keyword(text_input_inner->state, "selection-start");
-  selection_end = get_keyword(text_input_inner->state, "selection-end");
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  ASSERT_NE(selection_end, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 4);
-  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
-  EXPECT_EQ(selection_end->type, Roo::Value::Type::NIL);
-}
-
-TEST_F(TextInputTest, text_input_typing_replaces_selected_text)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "abcd"
-                              :last-change nil})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :auto-focus? true}}]
-       :on {:text-input/change (fn [state event ctx]
-                                 (-> state
-                                     (assoc :text (-> event :payload :value))
-                                     (assoc :last-change (:payload event))))}})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
-  ASSERT_NE(text_input_inner, nullptr);
-
-  input().key_down(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_X);
-  update_cycle();
-
-  auto text = get_keyword(session.active_mode->state, "text");
-  auto last_change = get_keyword(session.active_mode->state, "last-change");
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  EXPECT_EQ(text->to_string(), "\"abx\"");
-  EXPECT_EQ(last_change->to_string(), "{:value \"abx\"}");
-  EXPECT_EQ(cursor_index->num().get_int(), 3);
-  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
-}
-
-TEST_F(TextInputTest, text_input_backspace_deletes_selected_text)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "abcd"
-                              :last-change nil})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :auto-focus? true}}]
-       :on {:text-input/change (fn [state event ctx]
-                                 (-> state
-                                     (assoc :text (-> event :payload :value))
-                                     (assoc :last-change (:payload event))))}})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
-  ASSERT_NE(text_input_inner, nullptr);
-
-  input().key_down(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-  input().key_down(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LEFT);
-  update_cycle();
-  input().key_up(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_BACKSPACE);
-  update_cycle();
-
-  auto text = get_keyword(session.active_mode->state, "text");
-  auto last_change = get_keyword(session.active_mode->state, "last-change");
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  EXPECT_EQ(text->to_string(), "\"ab\"");
-  EXPECT_EQ(last_change->to_string(), "{:value \"ab\"}");
-  EXPECT_EQ(cursor_index->num().get_int(), 2);
-  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
-}
-
-TEST_F(TextInputTest, text_input_shift_home_end_extend_selection_and_delete_removes_it)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx] {:text "abcd"
-                              :last-change nil})
-       :children [{:mode 'ui/text-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :text)
-                           :auto-focus? true}}]
-       :on {:text-input/change (fn [state event ctx]
-                                 (-> state
-                                     (assoc :text (-> event :payload :value))
-                                     (assoc :last-change (:payload event))))}})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  update_cycle();
-  render_cycle();
-
-  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
-  ASSERT_NE(text_input_inner, nullptr);
-
-  input().key_down(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_HOME);
-  update_cycle();
-  input().key_up(SDLK_HOME);
-  update_cycle();
-
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  ASSERT_NE(selection_end, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 0);
-  EXPECT_EQ(selection_start->num().get_int(), 0);
-  EXPECT_EQ(selection_end->num().get_int(), 4);
-
-  input().key_up(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_HOME);
-  update_cycle();
-  input().key_up(SDLK_HOME);
-  update_cycle();
-  input().key_down(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_END);
-  update_cycle();
-  input().key_up(SDLK_END);
-  update_cycle();
-
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  selection_start = get_keyword(text_input_inner->state, "selection-start");
-  selection_end = get_keyword(text_input_inner->state, "selection-end");
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  ASSERT_NE(selection_end, nullptr);
-  EXPECT_EQ(cursor_index->num().get_int(), 4);
-  EXPECT_EQ(selection_start->num().get_int(), 0);
-  EXPECT_EQ(selection_end->num().get_int(), 4);
-
-  input().key_up(SDLK_LSHIFT);
-  update_cycle();
-  input().key_down(SDLK_DELETE);
-  update_cycle();
-
-  auto text = get_keyword(session.active_mode->state, "text");
-  auto last_change = get_keyword(session.active_mode->state, "last-change");
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  selection_start = get_keyword(text_input_inner->state, "selection-start");
-  ASSERT_NE(text, nullptr);
-  ASSERT_NE(last_change, nullptr);
-  ASSERT_NE(cursor_index, nullptr);
-  ASSERT_NE(selection_start, nullptr);
-  EXPECT_EQ(text->to_string(), "\"\"");
-  EXPECT_EQ(last_change->to_string(), "{:value \"\"}");
-  EXPECT_EQ(cursor_index->num().get_int(), 0);
-  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
 }
 
 TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highlight)
@@ -617,7 +281,7 @@ TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highli
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  auto scroll_x = get_keyword(text_input_inner->state, "scroll-x");
+  auto scroll_x = get_keyword(text_input_inner->ui_state, "scroll-x");
   ASSERT_NE(scroll_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
 
@@ -631,8 +295,8 @@ TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highli
   update_cycle();
   render_cycle();
 
-  auto selection_x = get_keyword(text_input_inner->state, "selection-x");
-  auto selection_w = get_keyword(text_input_inner->state, "selection-w");
+  auto selection_x = get_keyword(text_input_inner->ui_state, "selection-x");
+  auto selection_w = get_keyword(text_input_inner->ui_state, "selection-w");
   ASSERT_NE(selection_x, nullptr);
   ASSERT_NE(selection_w, nullptr);
   EXPECT_GE(selection_x->num().get_int(), 0);
@@ -642,8 +306,7 @@ TEST_F(TextInputTest, text_input_shift_home_copy_clips_scrolled_selection_highli
 
   press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_C);
 
-  EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(),
-            "\"AAAAAAAAAAAA\"");
+  EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(), "\"AAAAAAAAAAAA\"");
 }
 
 TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_layer)
@@ -685,10 +348,10 @@ TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_
   update_cycle();
   render_cycle();
 
-  auto selection_x = get_keyword(text_input_inner->state, "selection-x");
-  auto selection_y = get_keyword(text_input_inner->state, "selection-y");
-  auto selection_w = get_keyword(text_input_inner->state, "selection-w");
-  auto selection_h = get_keyword(text_input_inner->state, "selection-h");
+  auto selection_x = get_keyword(text_input_inner->ui_state, "selection-x");
+  auto selection_y = get_keyword(text_input_inner->ui_state, "cursor-y");
+  auto selection_w = get_keyword(text_input_inner->ui_state, "selection-w");
+  auto selection_h = get_keyword(text_input_inner->ui_state, "cursor-h");
   ASSERT_NE(selection_x, nullptr);
   ASSERT_NE(selection_y, nullptr);
   ASSERT_NE(selection_w, nullptr);
@@ -702,7 +365,8 @@ TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_
 
   auto selection_op = std::find_if(render_target()->render_ops.begin(),
                                    render_target()->render_ops.end(),
-                                   [&](const auto& op) {
+                                   [&](const auto& op)
+                                   {
                                      return op.type == RenderOpType::FILL_RECT &&
                                             op.rendered_rect.x == selection_rect.x &&
                                             op.rendered_rect.y == selection_rect.y &&
@@ -714,9 +378,7 @@ TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_
   auto copy_ops_after_selection =
     std::count_if(selection_op,
                   render_target()->render_ops.end(),
-                  [](const auto& op) {
-                    return op.type == RenderOpType::RENDER_COPY;
-                  });
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_EQ(copy_ops_after_selection, 4);
 }
 
@@ -784,9 +446,9 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
 
   press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_A);
 
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->ui_state, "selection-end");
   ASSERT_NE(cursor_index, nullptr);
   ASSERT_NE(selection_start, nullptr);
   ASSERT_NE(selection_end, nullptr);
@@ -801,7 +463,7 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
 
   auto text = get_keyword(session.active_mode->state, "text");
   auto last_change = get_keyword(session.active_mode->state, "last-change");
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
   ASSERT_NE(text, nullptr);
   ASSERT_NE(last_change, nullptr);
   ASSERT_NE(cursor_index, nullptr);
@@ -815,7 +477,7 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
 
   text = get_keyword(session.active_mode->state, "text");
   last_change = get_keyword(session.active_mode->state, "last-change");
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
   ASSERT_NE(text, nullptr);
   ASSERT_NE(last_change, nullptr);
   ASSERT_NE(cursor_index, nullptr);
@@ -857,9 +519,9 @@ TEST_F(TextInputTest, text_input_cut_does_not_delete_when_clipboard_write_fails)
 
   auto text = get_keyword(session.active_mode->state, "text");
   auto last_change = get_keyword(session.active_mode->state, "last-change");
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->ui_state, "selection-end");
   ASSERT_NE(text, nullptr);
   ASSERT_NE(last_change, nullptr);
   ASSERT_NE(cursor_index, nullptr);
@@ -909,9 +571,9 @@ TEST_F(TextInputTest, read_only_text_input_shortcuts_copy_without_cutting_or_pas
 
   auto text = get_keyword(session.active_mode->state, "text");
   auto last_change = get_keyword(session.active_mode->state, "last-change");
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->ui_state, "selection-end");
   ASSERT_NE(text, nullptr);
   ASSERT_NE(last_change, nullptr);
   ASSERT_NE(cursor_index, nullptr);
@@ -968,8 +630,8 @@ TEST_F(TextInputTest, text_input_mouse_down_focuses_and_places_caret)
   input().mouse_up({text_input_inner->bounds.x + 1, click_y});
   update_cycle();
 
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
   ASSERT_NE(cursor_index, nullptr);
   ASSERT_NE(selection_start, nullptr);
   ASSERT_TRUE(session.focus_state.has_focus());
@@ -977,15 +639,13 @@ TEST_F(TextInputTest, text_input_mouse_down_focuses_and_places_caret)
   EXPECT_EQ(cursor_index->num().get_int(), 0);
   EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
 
-  input().mouse_down({text_input_inner->bounds.x + text_input_inner->bounds.w - 1,
-                      click_y});
+  input().mouse_down({text_input_inner->bounds.x + text_input_inner->bounds.w - 1, click_y});
   update_cycle();
-  input().mouse_up({text_input_inner->bounds.x + text_input_inner->bounds.w - 1,
-                    click_y});
+  input().mouse_up({text_input_inner->bounds.x + text_input_inner->bounds.w - 1, click_y});
   update_cycle();
 
-  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  selection_start = get_keyword(text_input_inner->state, "selection-start");
+  cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
   ASSERT_NE(cursor_index, nullptr);
   ASSERT_NE(selection_start, nullptr);
   EXPECT_EQ(cursor_index->num().get_int(), 4);
@@ -1035,9 +695,9 @@ TEST_F(TextInputTest, text_input_shift_click_extends_selection)
   input().key_up(SDLK_LSHIFT);
   update_cycle();
 
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->ui_state, "selection-end");
   ASSERT_NE(cursor_index, nullptr);
   ASSERT_NE(selection_start, nullptr);
   ASSERT_NE(selection_end, nullptr);
@@ -1082,9 +742,9 @@ TEST_F(TextInputTest, text_input_mouse_drag_updates_selection_cursor)
   input().mouse_up({end_x, drag_y});
   update_cycle();
 
-  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
-  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
-  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  auto cursor_index = get_keyword(text_input_inner->ui_state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->ui_state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->ui_state, "selection-end");
   ASSERT_NE(cursor_index, nullptr);
   ASSERT_NE(selection_start, nullptr);
   ASSERT_NE(selection_end, nullptr);

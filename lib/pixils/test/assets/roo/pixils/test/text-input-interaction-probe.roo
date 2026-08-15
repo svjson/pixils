@@ -1,0 +1,39 @@
+(ns pixils.test.text-input-interaction-probe
+  (:require pixils))
+
+(pixils/defmode editable-text-input-mode
+  {:init (fn [_state _ctx]
+           {:last-change nil})
+   :children [{:mode 'ui/text-input
+               :style {:width 80 :height 22}
+               :ui/state-policy :isolated
+               :state {:component {:value "abcd"
+                                   :auto-focus? true}}}]
+   :on {:text-input/change
+        (fn [state event _ctx]
+          (assoc state :last-change (:payload event)))}})
+
+(pixils/defmode short-text-input-mode
+  {:init (fn [_state _ctx]
+           {:last-change nil})
+   :children [{:mode 'ui/text-input
+               :style {:width 80 :height 22}
+               :ui/state-policy :isolated
+               :state {:component {:value "ab"
+                                   :auto-focus? true}}}]
+   :on {:text-input/change
+        (fn [state event _ctx]
+          (assoc state :last-change (:payload event)))}})
+
+(pixils/defmode read-only-text-input-mode
+  {:init (fn [_state _ctx]
+           {:last-change nil})
+   :children [{:mode 'ui/text-input
+               :style {:width 80 :height 22}
+               :ui/state-policy :isolated
+               :state {:component {:value "abcd"
+                                   :read-only? true
+                                   :auto-focus? true}}}]
+   :on {:text-input/change
+        (fn [state event _ctx]
+          (assoc state :last-change (:payload event)))}})

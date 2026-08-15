@@ -1,24 +1,25 @@
 (ns pixils.ui.number-input-test
   (:require proof.core
-            [pixils.ui.number-input :as number-input]))
+            [proof.syntax :as s]
+            [pixils.ui.number-input :as number-input]
+            [pixils.test.runtime :as runtime]))
 
-(deftest number-input-make-preserves-commit-mode
+
+
+;; pixils.ui.number-input/make
+
+(deftest make/preserves-commit-mode
   (is (= :blur
          (-> (number-input/make {:commit-on :blur})
              :state
+             :component
              :commit-on))))
 
-(deftest number-input-blur-mode-emits-text-changes
-  (is (= true
-         (-> {:commit-on :blur}
-             number-input/normalize-number-input-state
-             :emit-text-change?)))
-  (is (= false
-         (-> {}
-             number-input/normalize-number-input-state
-             :emit-text-change?))))
 
-(deftest number-input-blur-mode-accepts-editable-number-characters
+
+;; pixils.ui.number-input/number-input-accepts-text?
+
+(deftest number-input-accepts-text?/accepts-editable-blur-mode-characters
   (let [state {:commit-on :blur
                :allow-negative? true
                :allow-fractions? true}]
@@ -29,13 +30,33 @@
     (is (= false
            (number-input/number-input-accepts-text? "1a" state)))))
 
-(deftest number-input-blur-mode-edit-keeps-committed-value
-  (let [state {:value 50
-               :committed-value 50
-               :text-value "50"
-               :last-text-value "50"}
-        edited (number-input/edit-number-input-text state "0")]
-    (is (= 50 (:value edited)))
-    (is (= 50 (:committed-value edited)))
-    (is (= "0" (:text-value edited)))
-    (is (= true (:editing? edited)))))
+
+
+;; ui/number-input
+
+(deftest number-input/keeps-editing-state-outside-application-state
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/input-userspace-state-probe.roo")
+      (runtime/push-mode! app 'number-input-userspace-state-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :up)
+    {:application-state (runtime/active-state app)
+     :number-input (select-keys
+                    (-> (runtime/find-view app "ui/number-input") :ui-state)
+                    [:value :text-value])
+     :inner (select-keys
+             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+             [:value])})
+
+  (s/then [result]
+    (is (= {:application-state {}
+            :number-input {:value 2 :text-value "2"}
+            :inner {:value "2"}}
+           result))))
