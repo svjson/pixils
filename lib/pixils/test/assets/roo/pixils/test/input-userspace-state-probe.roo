@@ -16,3 +16,10 @@
                                  :step 1
                                  :auto-focus? true
                                  :style {:width 80 :height 22}})]})
+
+(pixils/defmode blur-number-input-userspace-state-mode
+  {:update (fn [_state _ctx] {})
+   :children [(number-input/make {:value 1
+                                 :commit-on :blur
+                                 :auto-focus? true
+                                 :style {:width 80 :height 22}})]})

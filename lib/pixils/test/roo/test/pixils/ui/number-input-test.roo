@@ -17,18 +17,22 @@
 
 
 
-;; pixils.ui.number-input/number-input-accepts-text?
+;; pixils.ui.number-input/accepts-text?
 
-(deftest number-input-accepts-text?/accepts-editable-blur-mode-characters
+(deftest accepts-text?/accepts-complete-and-incomplete-numbers
   (let [state {:commit-on :blur
                :allow-negative? true
                :allow-fractions? true}]
     (is (= true
-           (number-input/number-input-accepts-text? "" state)))
+           (number-input/accepts-text? "" state)))
     (is (= true
-           (number-input/number-input-accepts-text? "--1.." state)))
+           (number-input/accepts-text? "-." state)))
+    (is (= true
+           (number-input/accepts-text? "12.5" state)))
     (is (= false
-           (number-input/number-input-accepts-text? "1a" state)))))
+           (number-input/accepts-text? "--1.." state)))
+    (is (= false
+           (number-input/accepts-text? "1a" state)))))
 
 
 
@@ -59,4 +63,72 @@
     (is (= {:application-state {}
             :number-input {:value 2 :text-value "2"}
             :inner {:value "2"}}
+           result))))
+
+(deftest number-input/applies-numeric-content-policy
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/input-userspace-state-probe.roo")
+      (runtime/push-mode! app 'number-input-userspace-state-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :backspace)
+    (let [after-delete
+          {:number-input (select-keys
+                          (-> (runtime/find-view app "ui/number-input") :ui-state)
+                          [:value :text-value])
+           :inner (select-keys
+                   (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                   [:value])}]
+      (runtime/press-key! app :a)
+      {:after-delete after-delete
+       :after-rejected-edit
+       {:number-input (select-keys
+                       (-> (runtime/find-view app "ui/number-input") :ui-state)
+                       [:value :text-value])
+        :inner (select-keys
+                (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                [:value])}}))
+
+  (s/then [result]
+    (is (= {:after-delete
+            {:number-input {:text-value ""}
+             :inner {:value ""}}
+            :after-rejected-edit
+            {:number-input {:text-value ""}
+             :inner {:value ""}}}
+           result))))
+
+(deftest number-input/commits-deferred-content-on-enter
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/input-userspace-state-probe.roo")
+      (runtime/push-mode! app 'blur-number-input-userspace-state-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :backspace)
+    (let [after-edit
+          (select-keys
+           (-> (runtime/find-view app "ui/number-input") :ui-state)
+           [:value :text-value])]
+      (runtime/press-key! app :enter)
+      {:after-edit after-edit
+       :after-commit
+       (select-keys
+        (-> (runtime/find-view app "ui/number-input") :ui-state)
+        [:value :text-value])}))
+
+  (s/then [result]
+    (is (= {:after-edit {:value 1 :text-value ""}
+            :after-commit {:text-value ""}}
            result))))

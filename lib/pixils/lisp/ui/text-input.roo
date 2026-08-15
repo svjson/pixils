@@ -71,10 +71,28 @@
        text
        (substr value end-index)))
 
-(defun text-input-accepts-value? [state value]
-  (if-let [accept-value? (:accept-value? state)]
-    (apply accept-value? [value state])
-    true))
+(defun text-input-content-policy
+  "Applies an editor content operation to text-input UI state.
+
+  `operation` is `:edit` for a candidate string or `:commit` when editing
+  finishes. Returns the next UI state, or `nil` when an edit is rejected."
+  [state operation value ctx]
+  (case operation
+    :edit
+    (when (if-let [accept-value? (:accept-value? state)]
+            (apply accept-value? [value state])
+            true)
+      (when (not= (:emit-change? state) false)
+        (ui/emit! (:view ctx) :text-input/change {:value value}))
+      (assoc state :value value :text-value value))
+
+    :commit
+    (do
+      (when (not= (:emit-blur? state) false)
+        (ui/emit! (:view ctx) :text-input/blur {:value (:value state)}))
+      state)
+
+    :default state))
 
 (defun text-input-change [state value cursor-index]
   (if (:read-only? state)
@@ -645,7 +663,11 @@
                 :transition text-value-state-transition}]
    :init-ui (fn [ui-state _state _ctx]
               (let [value (or (:value ui-state) "")]
-                (assoc ui-state :value value :text-value value)))
+                (assoc ui-state
+                       :value value
+                       :text-value value
+                       :content-policy (or (:content-policy ui-state)
+                                           text-input-content-policy))))
    :children [{:mode 'ui/text-input-inner
                :ui/state-policy :isolated
                :ui-state {:value (ui/project-state :text-value)
@@ -654,23 +676,22 @@
                           :auto-focus? (ui/project-state :auto-focus?)}}]
    :on {:text-input-inner/change
         (fn [state event ctx]
+          (ui/stop-propagation! event)
           (let [ui-state (-> ctx :view :ui-state)
-                value (-> event :payload :value)]
-            (if (text-input-accepts-value? ui-state value)
-              (do
-                (ui/set-ui-state! ctx (assoc ui-state
-                                             :value value
-                                             :text-value value))
-                (when (not= (:emit-change? ui-state) false)
-                  (ui/emit! (:view ctx) :text-input/change {:value value})))
-              (ui/stop-propagation! event))
+                next-ui-state (apply (:content-policy ui-state)
+                                     [ui-state
+                                      :edit
+                                      (-> event :payload :value)
+                                      ctx])]
+            (unless (nil? next-ui-state)
+              (ui/set-ui-state! ctx next-ui-state))
             state))
         :text-input-inner/blur
         (fn [state event ctx]
           (ui/stop-propagation! event)
-          (let [ui-state (-> ctx :view :ui-state)]
-            (when (not= (:emit-blur? ui-state) false)
-              (ui/emit! (:view ctx)
-                        :text-input/blur
-                        {:value (:value ui-state)}))
+          (let [ui-state (-> ctx :view :ui-state)
+                next-ui-state (apply (:content-policy ui-state)
+                                     [ui-state :commit nil ctx])]
+            (unless (nil? next-ui-state)
+              (ui/set-ui-state! ctx next-ui-state))
             state))}})
