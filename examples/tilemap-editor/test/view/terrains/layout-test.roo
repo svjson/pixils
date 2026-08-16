@@ -20,6 +20,9 @@
 (deftest make/groups-view-inputs-by-ownership
   (let [state (-> (layout/make) head :state)]
     (is (= {:terrain-sets (ui/project-state :terrain-sets)
+            :selected-terrain-set (ui/project-state :selected-terrain-set)
+            :selected-terrain-rules (ui/project-state
+                                     :selected-terrain-rules)
             :rulesets (ui/project-state :rulesets)
             :transitions (ui/project-state :terrain-transitions)}
            (:subject state)))
@@ -67,6 +70,9 @@
            (:interaction state)))
     (is (= {:rule-exclusive?
             (ui/project-state :selected-terrain-rule-exclusive?)
+            :rule-index (ui/project-state :selected-terrain-rule-index)
+            :rule-list-disabled? (ui/project-state
+                                  :terrain-rule-list-disabled?)
             :standard-role-cache-opposing
             (ui/project-state :terrain-standard-role-cache-opposing)
             :standard-role-slots

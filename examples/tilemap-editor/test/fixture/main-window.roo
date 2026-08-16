@@ -13,24 +13,24 @@
   (make-app-with-buffer 800 600))
 
 (defun open-project-app! [app project-id]
-  (do
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state! app
-                               (assoc (runtime/active-state app)
-                                      :project-history-path (project/history-path project-id)
-                                      :recent-projects []))
-    (runtime/push-mode-with-overrides!
-     app
-     'ui/tab-panel-empty
-     nil
-     {:origin {:view (runtime/active-mode app)
-               :event :project/file-dialog-result}})
-    (runtime/pop-mode! app (project/file-dialog-payload project-id :file-dialog/open))
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
-    app))
+  (runtime/push-mode! app 'main-mode)
+  (runtime/update! app)
+  (runtime/set-active-state! app
+                             (assoc (runtime/active-state app)
+                                    :project-history-path (project/history-path project-id)
+                                    :recent-projects []))
+  (runtime/push-mode-with-overrides!
+   app
+   'ui/tab-panel-empty
+   nil
+   {:origin {:view (runtime/active-mode app)
+             :event :project/file-dialog-result}})
+  (runtime/pop-mode! app (project/file-dialog-payload project-id
+                                                      :file-dialog/open))
+  (runtime/update! app)
+  (runtime/update! app)
+  (runtime/render! app)
+  app)
 
 (defun open-project! [project-id]
   (open-project-app! (make-app) project-id))
@@ -59,9 +59,8 @@
 (defun switch-to! [app target opts]
   (let [id (tab-id target)]
     (tab-panel/switch-to! app id opts)
-    (if (not= false (:verify-result opts))
-      (is (= id (:workspace-tab (runtime/active-state app))))
-      nil)
+    (when (not= false (:verify-result opts))
+      (is (= id (:workspace-tab (runtime/active-state app)))))
     app))
 
 (defun menu-command [item]
@@ -74,10 +73,13 @@
 
 (defun choose-menu-item! [app item opts]
   (let [command (menu-command item)
-        menu-item (runtime/find-view-containing app
-                                                "ui/popup-menu-item"
-                                                (str ":command " command))]
-    (is (not (nil? menu-item)))
+        menu-item (or (runtime/find-view-containing app
+                                                    "ui/popup-menu-item"
+                                                    (str ":action " command))
+                      (runtime/find-view-containing app
+                                                    "ui/popup-menu-item"
+                                                    (str ":command " command)))]
+    (is (some? menu-item))
     (case (:by opts)
       :mouse/click (runtime/click! app menu-item)
       :default (runtime/click! app menu-item))

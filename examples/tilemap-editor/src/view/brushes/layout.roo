@@ -32,7 +32,6 @@
 
 (defcomponent brush-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height brush-list-row-height
            :padding [3 6]
@@ -85,7 +84,6 @@
                       :height :fill}
               :row-height brush-list-row-height
               :visible-rows (max 1 (count options))
-              :content-width 220
               :disabled? (empty? options)
               :selected-indices (model/selected-brush-indices brushes selected-index)
               :force-selection? true

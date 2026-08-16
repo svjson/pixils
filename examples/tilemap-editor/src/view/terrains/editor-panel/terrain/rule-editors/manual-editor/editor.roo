@@ -190,6 +190,12 @@
                                      :selected-terrain-rule-id (ui/project-state :workspace
                                                                                 :selection
                                                                                 :rule-id)
+                                     :rule-options (ui/project-state :subject
+                                                                     :selected-terrain-rules)
+                                     :selected-rule-index (ui/project-state :derived
+                                                                            :rule-index)
+                                     :rule-list-disabled? (ui/project-state :derived
+                                                                             :rule-list-disabled?)
                                      :terrain-rule-list-offset (ui/bind-state :workspace
                                                                               :scroll
                                                                               :rule-list-offset)}}]}]}

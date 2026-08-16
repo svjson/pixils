@@ -15,7 +15,6 @@
 ;; Tile palette
 
 (def tile-palette-row-height 22)
-(def tile-palette-content-width 160)
 (def tile-palette-scrollbar-size 14)
 
 (defun selected-layer [state]
@@ -104,8 +103,8 @@
   (let [tileset (selected-layer-tileset state)
         terrain-set (selected-layer-terrain-set state)
         data-kind (selected-layer-data-kind state)
-        source-state (assoc (assoc state
-                                   :palette-tileset tileset)
+        source-state (assoc state
+                            :palette-tileset tileset
                             :palette-terrain-set terrain-set
                             :palette-data-kind data-kind)
         options (source-options source-state)
@@ -181,15 +180,12 @@
                                 :tile-select/change
                                 {:index index
                                  :value (:value (nth options index))}))
-                    (if (and (not (:disabled? state))
-                             (= (:button event) :left)
-                             (some? index))
-                      (assoc (assoc state
-                                    :selected-tile
-                                    (:value (nth options index)))
-                             :selected-indices
-                             [index])
-                      state)))
+                    (cond-> state
+                      (and (not (:disabled? state))
+                           (= (:button event) :left)
+                           (some? index))
+                      (assoc :selected-tile (:value (nth options index))
+                             :selected-indices [index]))))
    :on-key-down (fn [state event ctx]
                   (let [options (or (:options state) [])
                         columns (tile-grid/tile-grid-columns (-> ctx :view :bounds))
@@ -202,23 +198,19 @@
                                 :default nil)]
                     (if (or (:disabled? state) (nil? delta))
                       state
-                        (let [index (tile-grid/move-tile-grid-index current
-                                                                  (count options)
-                                                                  columns
-                                                                  delta)]
+                      (let [index (tile-grid/move-tile-grid-index current
+                                                                (count options)
+                                                                columns
+                                                                delta)]
                         (ui/stop-propagation! event)
                         (when index
                           (ui/emit! (:view ctx)
                                     :tile-select/change
                                     {:index index
                                      :value (:value (nth options index))}))
-                        (if index
-                          (assoc (assoc state
-                                        :selected-tile
-                                        (:value (nth options index)))
-                                 :selected-indices
-                                 [index])
-                          state)))))
+                        (cond-> state
+                          index (assoc :selected-tile (:value (nth options index))
+                                       :selected-indices [index]))))))
    :render (fn [state ctx]
              (let [options (or (:options state) [])
                    columns (tile-grid/tile-grid-columns (-> ctx :view :bounds))]
@@ -328,7 +320,6 @@
                       :height :fill}
               :row-height tile-palette-row-height
               :visible-rows (count options)
-              :content-width tile-palette-content-width
               :disabled? (if (or disabled? (empty? options))
                             true
                             false)

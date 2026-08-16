@@ -20,6 +20,20 @@
     (is (= false (:terrain-list-panel-disabled? state)))
     (is (= false (:terrain-detail-panel-disabled? state)))))
 
+(deftest terrain-workspace-projects-selected-rule-list
+  (let [rule {:id :grass-rule
+              :label "Grass Rule"
+              :terrain :grass}
+        state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [rule]}]})]
+    (is (= [rule] (:selected-terrain-rules state)))
+    (is (= 0 (:selected-terrain-rule-index state)))
+    (is (= false (:terrain-rule-list-disabled? state)))))
+
 (deftest terrain-workspace-selects-first-transition-for-selected-set
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
@@ -1078,25 +1092,6 @@
                :other-terrain)]
     (is (= :other-terrain
            (get-in state [:rulesets 0 :rules 0 :match :n])))))
-
-(deftest terrain-rule-options-show-only-selected-terrain-rules
-  (let [state {:terrain-sets [{:id :overworld
-                               :terrains [{:id :grass}
-                                          {:id :water}]}]
-               :selected-terrain-set-index 0
-               :selected-terrain-index 0
-               :rulesets [{:id :overworld-rules
-                           :terrain-set :overworld
-                           :rules [{:id :grass-n
-                                    :label "Grass N"
-                                    :terrain :grass}
-                                   {:id :water-n
-                                    :label "Water N"
-                                    :terrain :water}]}]
-               :selected-terrain-ruleset-id :overworld-rules}]
-    (is (= [{:value :grass-n
-             :label "Grass N"}]
-           (model/terrain-rule-options state)))))
 
 (deftest terrain-rule-label-change-renames-selected-rule
   (let [state (model/set-selected-terrain-rule-label

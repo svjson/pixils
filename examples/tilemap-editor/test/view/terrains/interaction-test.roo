@@ -8,6 +8,60 @@
             [tilemap-editor.fixture.view.terrains.terrains-tab :as terrains-tab]
             [tilemap-editor.model.workbook :as editor-workbook]))
 
+(deftest interaction/terrain-lists-render-select-and-open-context-menu
+  (s/given
+    (project/write! :terrain-selection-lists
+                    {:terrain-sets [{:id :overworld
+                                     :label "Overworld"
+                                     :terrains [{:id :grass
+                                                 :label "Grass"}
+                                                {:id :water
+                                                 :label "Water"}]}]})
+    (main-window/open-project! :terrain-selection-lists))
+
+  (s/when [app]
+    (main-window/switch-to! app :tab/terrains {:by :mouse/click})
+    (runtime/render! app)
+    (let [rows (runtime/find-views app "ui/list-box-item")
+          overworld (find-first rows
+                                (fn [row]
+                                  (= "Overworld" (-> row :ui-state :label))))
+          grass (find-first rows
+                            (fn [row]
+                              (= "Grass" (-> row :ui-state :label))))
+          water (find-first rows
+                            (fn [row]
+                              (= "Water" (-> row :ui-state :label))))]
+      (is (some? overworld))
+      (is (some? grass))
+      (is (some? water))
+      (runtime/click! app water)
+      (runtime/update! app)
+      (is (= 1 (:selected-terrain-index (runtime/active-state app))))
+      (runtime/mouse-click-in! app water 5 5 :right)
+      (runtime/update! app)
+      (runtime/render! app)
+      (is (= "ui/context-menu" (runtime/active-mode-name app)))
+      (let [rename-item (runtime/find-view-containing app
+                                                      "ui/popup-menu-item"
+                                                      "Rename Terrain")]
+        (is (some? rename-item))
+        (runtime/click! app rename-item)
+        (runtime/update! app)
+        (runtime/render! app))
+      {:dialog-mode (runtime/active-mode-name app)
+       :dialog-identity (:identity (runtime/active-state app))
+       :dialog-context (:context (runtime/active-state app))}))
+
+  (s/then [result]
+    (is (= {:dialog-mode "identity-dialog-modal"
+            :dialog-identity {:id "water"
+                              :name "Water"}
+            :dialog-context {:operation :rename
+                             :terrain-index 1}}
+           result))
+    (project/cleanup! :terrain-selection-lists)))
+
 (deftest interaction/terrain-rule-add-button-creates-visible-rule
   (s/given
     (project/write! :terrain-rule

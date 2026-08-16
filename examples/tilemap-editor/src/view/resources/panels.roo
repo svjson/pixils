@@ -105,7 +105,6 @@
 
 (defcomponent image-resource-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height resource-list-row-height
            :padding [3 6]
@@ -168,7 +167,6 @@
 
 (defcomponent resource-bundle-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height resource-list-row-height
            :padding [3 6]
@@ -220,7 +218,6 @@
                       :height :fill}
               :row-height resource-list-row-height
               :visible-rows (max 1 (count bundles))
-              :content-width 180
               :disabled? (empty? bundles)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
@@ -283,7 +280,6 @@
                       :height :fill}
               :row-height resource-list-row-height
               :visible-rows (max 1 (count resources))
-              :content-width 360
               :disabled? (empty? resources)
               :selected-indices (ui/bind-state :selected-indices)
               :multi-select? true
@@ -328,7 +324,7 @@
                      (image-resource-list-child []))]})
 
 (defcomponent image-resource-drag-preview
-  {:class [:ui/list-item :ui/list-box-item :ui/list-item-hover]
+  {:class [:ui/list-item :ui/list-box-item]
    :style {:position :absolute
            :width resource-drag-preview-width
            :height resource-list-row-height

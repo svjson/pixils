@@ -21,6 +21,32 @@
                                 :thickness 1}
                        :text {:color text-main}}
 
+            'ui/header-panel {:width :fill}
+
+            'ui/list-box {:width :fill}
+
+            'ui/header-panel-header
+            {:layout {:direction :row
+                      :align-items :center
+                      :gap 4}}
+
+            'ui/header-panel-body {:padding 8}
+
+            :terrain/selection-column
+            {:width :fill
+             :height :fill
+             :layout {:direction :column
+                      :gap 8}}
+
+            :tilemap-editor/header-panel
+            {:height :fill}
+
+            [:tilemap-editor/header-panel 'ui/header-panel-body]
+            {:height :fill}
+
+            [:tilemap-editor/header-panel 'ui/list-box]
+            {:height :fill}
+
             :ui/title {:text {:color accent}}
 
             :ui/muted {:text {:color text-muted}}

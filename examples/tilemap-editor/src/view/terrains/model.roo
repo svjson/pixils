@@ -259,16 +259,6 @@
       (transition-id-label (mask-ref-mask mask-ref))
       "")))
 
-(defun selected-terrain-set-indices [terrain-sets index]
-  (if-let [index (selected-terrain-set-index terrain-sets index)]
-    [index]
-    []))
-
-(defun selected-terrain-indices [terrain-set index]
-  (if-let [index (selected-terrain-index terrain-set index)]
-    [index]
-    []))
-
 (defun id-exists? [items id]
   (not-empty? (filter (or items [])
                     (fn [item]
@@ -1690,11 +1680,6 @@
     (if (and tile-ref tileset)
       [(data/tile-index (:tilesets state) tileset tile-ref)]
       [])))
-
-(defun terrain-rule-options [state]
-  (for-indexed [index rule (terrain-rules-for-selected-terrain state)]
-    {:value (:id rule)
-     :label (or (:label rule) (str (:id rule)))}))
 
 (defun selected-terrain-rule-index [state]
   (let [rule-id (selected-terrain-rule-id state)]
@@ -3928,12 +3913,18 @@
                               :selected-terrain-ruleset-id ruleset-id
                               :selected-terrain-rule-id rule-id
                               :selected-terrain-transition-id transition-id)
+        selected-rules (terrain-rules-for-selected-terrain selected-state)
         selected-rule (selected-terrain-rule selected-state)
         opposing (selected-terrain-standard-opposing selected-state)
         standard-cache (terrain-standard-role-slot-cache-for-state
                         selected-state
                         opposing)]
     (assoc selected-state
+           :selected-terrain-set terrain-set
+           :selected-terrain-rules selected-rules
+           :selected-terrain-rule-index
+           (selected-terrain-rule-index selected-state)
+           :terrain-rule-list-disabled? (empty? selected-rules)
            :selected-terrain-rule-exclusive? (= (:exclusive? selected-rule)
                                                 true)
            :selected-terrain-rule-output-position

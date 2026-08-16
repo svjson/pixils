@@ -60,8 +60,7 @@
             :payload {:command :delete}}]})
 
 (defcomponent layer-visibility-toggle
-  {:class :ui/list-item-hover
-   :style {:width 24
+  {:style {:width 24
            :height 22
            :layout {:direction :row
                     :align-items :center}}
@@ -81,7 +80,6 @@
 
 (defcomponent layer-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height 26
            :padding [3 6]
@@ -163,7 +161,6 @@
                       :height (layer-list-height layers)}
               :row-height layer-list-row-height
               :visible-rows (count layers)
-              :content-width 200
               :disabled? (empty? layers)
               :state {:layers (ui/bind-state :layers)
                       :tilesets (ui/bind-state :tilesets)

@@ -16,7 +16,6 @@
 
 (defcomponent mask-workspace-set-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height row-height
            :padding [3 6]

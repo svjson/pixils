@@ -18,6 +18,8 @@
      :min-second 220
      :state
      {:subject {:terrain-sets (ui/project-state :terrain-sets)
+                :selected-terrain-set (ui/project-state :selected-terrain-set)
+                :selected-terrain-rules (ui/project-state :selected-terrain-rules)
                 :rulesets (ui/project-state :rulesets)
                 :transitions (ui/project-state :terrain-transitions)}
       :reference-data {:tilesets (ui/project-state :tilesets)
@@ -35,39 +37,29 @@
                               :mask-index (ui/project-state :selected-mask-index)}
                   :tabs  {:detail (ui/bind-state :terrain-detail-tab)
                           :rule-editor (ui/bind-state :terrain-rule-editor-tab)
-                          :standard-output-picker
-                          (ui/bind-state :terrain-standard-output-picker-tab)}
-                  :rule-editor {:match-direction
-                                (ui/project-state :selected-terrain-rule-match-direction)
-                                :output-position
-                                (ui/project-state :selected-terrain-rule-output-position)
+                          :standard-output-picker (ui/bind-state :terrain-standard-output-picker-tab)}
+                  :rule-editor {:match-direction (ui/project-state :selected-terrain-rule-match-direction)
+                                :output-position (ui/project-state :selected-terrain-rule-output-position)
                                 :opposing (ui/project-state :terrain-standard-opposing)}
                   :scroll
                   {:rule-list-offset (ui/bind-state :terrain-rule-list-offset)}}
-      :interaction {:rule-editor
-                    {:selected-tile (ui/project-state :terrain-rule-selected-tile)
-                     :selected-tile-output-tab
-                     (ui/project-state :terrain-rule-selected-tile-output-tab)
-                     :selected-mask (ui/project-state :terrain-rule-selected-mask)
-                     :mask-polarity (ui/project-state :terrain-rule-mask-polarity)}
-                    :stamp-tile-drag-preview
-                    (ui/project-state :terrain-stamp-tile-drag-preview)}
-      :derived {:rule-exclusive?
-                (ui/project-state :selected-terrain-rule-exclusive?)
-                :standard-role-cache-opposing
-                (ui/project-state :terrain-standard-role-cache-opposing)
-                :standard-role-slots
-                (ui/project-state :terrain-standard-role-slots)
-                :list-panel-disabled?
-                (ui/project-state :terrain-list-panel-disabled?)
-                :detail-panel-disabled?
-                (ui/project-state :terrain-detail-panel-disabled?)}}
+      :interaction {:rule-editor {:selected-tile (ui/project-state :terrain-rule-selected-tile)
+                                  :selected-tile-output-tab (ui/project-state :terrain-rule-selected-tile-output-tab)
+                                  :selected-mask (ui/project-state :terrain-rule-selected-mask)
+                                  :mask-polarity (ui/project-state :terrain-rule-mask-polarity)}
+                    :stamp-tile-drag-preview (ui/project-state :terrain-stamp-tile-drag-preview)}
+      :derived {:rule-exclusive? (ui/project-state :selected-terrain-rule-exclusive?)
+                :rule-index (ui/project-state :selected-terrain-rule-index)
+                :rule-list-disabled? (ui/project-state :terrain-rule-list-disabled?)
+                :standard-role-cache-opposing (ui/project-state :terrain-standard-role-cache-opposing)
+                :standard-role-slots (ui/project-state :terrain-standard-role-slots)
+                :list-panel-disabled? (ui/project-state :terrain-list-panel-disabled?)
+                :detail-panel-disabled? (ui/project-state :terrain-detail-panel-disabled?)}}
      :children [{:mode 'terrain-definition-selector-column
                  :state {:subject (ui/project-state :subject)
                          :workspace (ui/project-state :workspace)
                          :derived (ui/project-state :derived)}}
                 (editor-panel/make)]})
    {:mode 'terrain-stamp-tile-drag-preview
-    :state {:drag-preview
-            (ui/project-state :interaction :stamp-tile-drag-preview)
+    :state {:drag-preview (ui/project-state :interaction :stamp-tile-drag-preview)
             :tilesets (ui/project-state :reference-data :tilesets)}}])

@@ -14,7 +14,7 @@
   The running test application."
   [app rule-id opts]
   (let [row (runtime/find-view-containing app
-                                          "terrain-rule-row"
+                                          "ui/list-box-item"
                                           (str ":value " rule-id))]
     (is (some? row))
     (case (:by opts)

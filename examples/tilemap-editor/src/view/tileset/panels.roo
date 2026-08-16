@@ -109,7 +109,6 @@
 
 (defcomponent tileset-definition-row
   {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
    :style {:width :fill
            :height tileset-list-row-height
            :padding [3 6]
@@ -166,7 +165,6 @@
                       :height (tileset-list-height tilesets)}
               :row-height tileset-list-row-height
               :visible-rows (tileset-list-visible-rows tilesets)
-              :content-width 220
               :disabled? (empty? tilesets)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true

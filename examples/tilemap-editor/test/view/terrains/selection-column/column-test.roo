@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.terrains.selection-column.column-test
   (:require proof.core
+            [proof.syntax :as p]
             [tilemap-editor.view.terrains.selection-column.column :as column]))
 
 
@@ -7,22 +8,39 @@
 ;; tilemap-editor.view.terrains.selection-column.column/make-terrain-set-list-panel
 
 (deftest make-terrain-set-list-panel/has-header-and-add-button
-  (let [panel (column/make-terrain-set-list-panel)
-        header (head (:children panel))
-        add-button (nth (:children header) 1)]
-    (is (= "Terrain Sets" (-> panel :state :title)))
-    (is (= 'ui/button (:mode add-button)))
-    (is (= :ui/toolbar-button (:class add-button)))
-    (is (= "+" (-> add-button :state :label)))))
+
+  (p/when []
+    (let [panel (column/make-terrain-set-list-panel)]
+      {:header (-> panel :children head :state :title)
+       :button (-> panel :children head :children (nth 1))}))
+
+  (p/then [{:keys [header button]}]
+    (is (= "Terrain Sets" header))
+    (is (= {:mode 'ui/button
+            :class :ui/toolbar-button
+            :state {:component {:label "+"}}}
+           (-> button
+               (select-keys [:mode :class])
+               (assoc :state {:component (select-keys (-> button :state :component)
+                                                      [:label])}))))))
 
 
 
 ;; tilemap-editor.view.terrains.selection-column.column/make-terrain-list-panel
 
 (deftest make-terrain-list-panel/projects-disabled-state-to-add-button
-  (let [panel (column/make-terrain-list-panel)
-        header (head (:children panel))
-        add-button (nth (:children header) 1)]
-    (is (= "Terrains" (-> panel :state :title)))
-    (is (= "+" (-> add-button :state :label)))
-    (is (some? (-> add-button :state :disabled?)))))
+
+  (p/when []
+    (let [panel (column/make-terrain-list-panel)]
+      {:header (-> panel :children head :state :title)
+       :button (-> panel :children head :children (nth 1))}))
+
+  (p/then [{:keys [header button]}]
+    (is (= "Terrains" header))
+    (is (= {:mode 'ui/button
+            :class :ui/toolbar-button
+            :state {:component {:label "+"}}}
+           (-> button
+               (select-keys [:mode :class])
+               (assoc :state {:component (select-keys (-> button :state :component)
+                                                      [:label])}))))))

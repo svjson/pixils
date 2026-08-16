@@ -156,7 +156,7 @@
                                              "terrain-rule-visual-editor"
                                              (str rule-id))))
     (is (some? (runtime/find-view-containing app
-                                             "terrain-rule-row"
+                                             "ui/list-box-item"
                                              (str rule-id))))
     true))
 
