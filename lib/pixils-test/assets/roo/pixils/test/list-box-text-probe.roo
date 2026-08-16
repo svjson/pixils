@@ -13,8 +13,8 @@
                {:options [{:value :alpha
                            :label "Alpha"}]
                 :selected-indices [0]
-                :item-child (fn [index option]
-                              {:mode 'labelled-list-row
+                :item=> (fn [index option]
+                              {:component 'labelled-list-row
                                :state {:index index
                                        :value (:value option)
                                        :label (:label option)

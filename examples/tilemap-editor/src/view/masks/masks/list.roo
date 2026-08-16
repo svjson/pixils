@@ -12,7 +12,7 @@
                                  mask-set
                                  selected-index)
               :force-selection? true
-              :item-child row/make
+              :item=> row/make
               :style {:width :fill
                       :height :fill}
               :row-height row/row-height

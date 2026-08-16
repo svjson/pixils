@@ -532,7 +532,7 @@
             :item-state-keys [:layers :hidden-layer-indices]
             :selected-indices (ui/bind-state :selected-indices)
             :force-selection? true
-            :item-child layer-row-child}))
+            :item=> layer-row-child}))
 
 (defcomponent layer-list
   {:style {:width :fill

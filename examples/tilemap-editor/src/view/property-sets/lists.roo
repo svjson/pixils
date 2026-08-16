@@ -60,7 +60,7 @@
             :disabled? (empty? property-sets)
             :selected-indices (ui/bind-state :selected-indices)
             :force-selection? true
-            :item-child property-set-row-child}))
+            :item=> property-set-row-child}))
 
 (defcomponent property-set-list
   {:style {:width :fill
@@ -128,7 +128,7 @@
               :disabled? (empty? properties)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
-              :item-child property-definition-row-child})))
+              :item=> property-definition-row-child})))
 
 (defcomponent property-definition-list
   {:style {:width :fill

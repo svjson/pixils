@@ -329,7 +329,7 @@
                                    brushes
                                    selected-index))
               :force-selection? true
-              :item-child brush-palette-row-child})))
+              :item=> brush-palette-row-child})))
 
 (defcomponent brush-palette-list
   {:style {:width :fill

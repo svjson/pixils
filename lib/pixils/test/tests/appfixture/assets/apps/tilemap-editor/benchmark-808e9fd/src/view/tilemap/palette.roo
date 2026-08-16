@@ -102,7 +102,7 @@
               :item-state-keys [:tileset :tilesets]
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
-              :item-child tile-swatch-child})))
+              :item=> tile-swatch-child})))
 
 (defcomponent tile-palette-list
   {:style {:width :fill

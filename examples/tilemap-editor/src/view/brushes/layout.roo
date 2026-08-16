@@ -87,7 +87,7 @@
               :disabled? (empty? options)
               :selected-indices (model/selected-brush-indices brushes selected-index)
               :force-selection? true
-              :item-child brush-row-child})))
+              :item=> brush-row-child})))
 
 (defcomponent brush-list
   {:style {:width :fill

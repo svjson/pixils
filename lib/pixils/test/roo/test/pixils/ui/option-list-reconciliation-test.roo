@@ -29,7 +29,7 @@
           rows (runtime/find-views app "preserved-option-row")]
       (is (= 3 (count rows)))
       (is (= :scroll-pane (-> scroll-pane :ui-state :sentinel)))
-      (is (= :first-row (-> (head rows) :ui-state :sentinel)))
-      (is (= "Updated Alpha" (-> (head rows) :ui-state :label)))
+      (is (= :first-row (-> (nth rows 1) :ui-state :sentinel)))
+      (is (= "Updated Alpha" (-> (nth rows 1) :ui-state :label)))
       (is (= false (-> (head rows) :ui-state :selected)))
       (is (= true (-> (nth rows 1) :ui-state :selected))))))

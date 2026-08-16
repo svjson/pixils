@@ -47,5 +47,5 @@
                 :multi-select? true
                 :toggle-selected? true
                 :selected-indices (ui/project-state :selected)
-                :item-child (fn [index item]
-                              {:mode 'activating-item})})]})
+                :item=> (fn [index item]
+                              {:component 'activating-item})})]})

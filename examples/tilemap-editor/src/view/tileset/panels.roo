@@ -168,7 +168,7 @@
               :disabled? (empty? tilesets)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
-              :item-child tileset-definition-row-child})))
+              :item=> tileset-definition-row-child})))
 
 (defcomponent tileset-definition-list
   {:style {:width :fill

@@ -45,8 +45,8 @@
                 :content-width 100
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
-                :item-child (fn [index option]
-                              {:mode 'inherited-list-item
+                :item=> (fn [index option]
+                              {:component 'inherited-list-item
                                :state {:custom-label
                                        (str "Custom " (:label option))}})})]})
 
@@ -71,8 +71,8 @@
                 :content-width 100
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
-                :item-child (fn [index option]
-                              {:mode 'overridden-list-item
+                :item=> (fn [index option]
+                              {:component 'overridden-list-item
                                :state {:custom-label
                                        (str "Custom " (:label option))}})})]})
 

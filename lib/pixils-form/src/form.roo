@@ -2338,8 +2338,8 @@
           (form-selection/actions-for-presentation selection :toolbar)
           context-menu-actions
           (form-selection/actions-for-presentation selection :context-menu)
-          item-child (when (not (empty? context-menu-actions))
-                       (form-selection/list-item context-menu-actions))
+          item=> (when (not (empty? context-menu-actions))
+                   (form-selection/list-item context-menu-actions))
           list-box-view
           (list-box/make
            {:options (ui/bind-state :options)
@@ -2349,7 +2349,7 @@
             :visible-rows (:visible-rows selection)
             :fixed-visible-rows? (:fixed-visible-rows? selection)
             :reorderable? (ui/bind-state :reorderable?)
-            :item-child item-child
+            :item=> item=>
             :style (if (contains? selection :list-style)
                      (:list-style selection)
                      (form-layout/style-option

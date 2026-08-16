@@ -257,6 +257,31 @@
                    :component
                    (merge (:component state) item-state)))))
 
+(defun resolve-item [item=> index option]
+  "Resolves an item provider for an option.
+
+  Functions receive `index` and `option`. A function result is resolved again
+  until it produces a component symbol or view declaration."
+  (cond
+    (fn? item=>)
+    (resolve-item (item=> index option) index option)
+
+    :default
+    item=>))
+
+(defun item-view [item=> index option]
+  "Returns the view declaration provided for an option.
+
+  A component symbol becomes a component declaration. When a declaration does
+  not provide ordinary `:state`, the complete option becomes its state."
+  (let [provided (resolve-item item=> index option)
+        child (case (type-of provided)
+                "symbol" {:component provided}
+                :default provided)]
+    (if (contains? child :state)
+      child
+      (assoc child :state option))))
+
 (defun make-item-child [{:keys [decorate-item
                                 disabled?
                                 selected-indices] :as state}
@@ -273,16 +298,7 @@
                     :selected selected?}
         item-height (or (:computed-row-height state)
                         (:row-height state))
-        child (if-let [item-child (:item-child state)]
-                (item-child index item)
-                {:mode (or (:item-mode state) 'ui/option-item)
-                 :state {:component {:index index
-                                      :value (option/value item)
-                                      :label (option/label item)
-                                      :disabled? disabled?
-                                      :selected selected?
-                                      :selected-indices
-                                      (ui/bind-state :selected-indices)}}})]
+        child (item-view (:item=> state) index item)]
     (let [child (-> child
                     (merge-item-state item-state)
                     (cond-> decorate-item (decorate-item state index item))
@@ -302,10 +318,11 @@
                                                                    key))))]
       (assoc child
              :id (or (:id child)
+                     (:id item)
                      (str "option-"
                           index
                           "-"
-                          (or (:mode child) (:component child))))
+                          (or (:component child) (:mode child))))
              :ui-state (assoc projected-ui-state
                               :selected-indices
                               (ui/project-state :content-ui-state
@@ -324,8 +341,7 @@
                        :computed-content-width
                        :stretch-items?
                        :disabled?
-                       :item-mode
-                       :item-child
+                       :item=>
                        :decorate-item])
          (select-keys state (:render-state-keys state))))
 
@@ -407,8 +423,7 @@
    :managed-height?
    :stretch-items?
    :disabled?
-   :item-mode
-   :item-child
+   :item=>
    :decorate-item
    :render-state-keys
    :selected-indices
@@ -454,8 +469,7 @@
                           :auto-content-width? (nil? (:content-width supplied-component))
                           :managed-height? (not (and style
                                                      (contains? style :height)))
-                          :stretch-items? (stretches-items? style)
-                          :item-mode 'ui/option-item})]
+                          :stretch-items? (stretches-items? style)})]
     (assoc component
            :scroll-content-size
            (scroll-content-size component))))
@@ -464,7 +478,8 @@
   "Builds a neutral, scrollable ui/option-list component. Item interaction is
   emitted by ui/option-item; selection policy belongs to the parent control."
   [{:keys [class style state ui-state state-policy] :as opts}]
-  (let [component (component-state opts)]
+  (let [component (component-state opts)
+        component (update component :item=> [or 'ui/option-item])]
     (cond-> {:mode 'ui/option-list
              :state (assoc state :component component)
              :children [(scroll-pane-for-state component)]}

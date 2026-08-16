@@ -941,7 +941,8 @@
         toolbar (nth (:children selection-view) 1)]
     (is (= 2 (count (:children selection-view))))
     (is (= 'ui/list-box (:mode list-box)))
-    (is (nil? (-> list-box :state :component :item-child)))
+    (is (= 'ui/list-box-item
+           (-> list-box :state :component :item=>)))
     (is (= :pixils/form-selection-toolbar (:class toolbar)))
     (is (= [:form/new
             :form/save-new
@@ -976,13 +977,13 @@
         selection-view (head (:children row-view))
         list-box (head (:children selection-view))
         toolbar (nth (:children selection-view) 1)
-        item-child (-> list-box :state :component :item-child)
-        item-view (item-child 0 {:value 0
-                                 :label "Ada"})]
+        item=> (-> list-box :state :component :item=>)
+        item-view (item=> 0 {:value 0
+                             :label "Ada"})]
     (is (= [:form/new]
            (for [action (:children toolbar)]
              (-> action :state :event))))
-    (is (some? item-child))
+    (is (some? item=>))
     (is (= 'pixils/form-selection-list-item (:mode item-view)))
     (is (= [:delete]
            (map (-> item-view :state :context-menu-actions) :key)))))

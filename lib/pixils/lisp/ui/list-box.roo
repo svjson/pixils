@@ -527,6 +527,7 @@
    :visible-rows 5
    :max-height 120
    :content-width 100
+   :item=> 'app/person-list-item
    :item-context-menu {:items [{:label \"Rename\"
                                 :action :rename}]}
    :reorderable? false
@@ -539,6 +540,10 @@
 
   `:selected-index` is a scalar input for single-selection callers;
   `:selected-indices` remains the canonical component state.
+
+  `:item=>` accepts a component symbol, a view declaration, or a function of
+  item index and option. Functions are resolved repeatedly until they return a
+  component symbol or view declaration. The default is `ui/list-box-item`.
 
   `:item-context-menu` accepts a menu definition or a function receiving an
   item index and option and returning a menu definition. Selecting an
@@ -563,8 +568,7 @@
   (let [component (merge (option-list/component-state opts)
                          (select-keys state LIST-BOX-UI-STATE-KEYS)
                          (select-keys opts LIST-BOX-UI-STATE-KEYS)
-                         {:item-mode 'ui/list-box-item
-                          :decorate-item (fn [child
+                         {:decorate-item (fn [child
                                               {:keys [reorder-drag-threshold
                                                       reorderable?]}
                                               index
@@ -583,7 +587,8 @@
                                                                     (reorder-drag-policy
                                                                      reorder-drag-threshold)]))))
                           :render-state-keys [:reorderable?
-                                              :reorder-drag-threshold]})]
+                                              :reorder-drag-threshold]})
+        component (update component :item=> [or 'ui/list-box-item])]
     (cond-> {:mode 'ui/list-box
              :state (assoc state :component component)
              :ui/state-policy (or state-policy :isolated)

@@ -111,4 +111,4 @@
                                  :item-state-keys [:tileset]
                                  :selected-indices (ui/bind-state :selected-indices)
                                  :force-selection? true
-                                 :item-child tile-swatch-child})]}))
+                                 :item=> tile-swatch-child})]}))

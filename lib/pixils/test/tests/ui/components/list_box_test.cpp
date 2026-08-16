@@ -145,7 +145,7 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_sc
                     :row-height 10
                     :visible-rows 2
                     :content-width 80
-                    :item-child (fn [index option]
+                    :item=> (fn [index option]
                                   {:mode 'natural-row})})]})
   )");
 
@@ -380,7 +380,7 @@ TEST_F(ListBoxTest, selected_custom_item_is_marked_on_first_render)
                     :row-height 10
                     :visible-rows 2
                     :content-width 80
-                    :item-child (fn [index option]
+                    :item=> (fn [index option]
                                   {:mode 'custom-item})})]})
   )");
 
@@ -730,7 +730,7 @@ TEST_F(ListBoxTest,
                     :row-height 10
                     :max-height 20
                     :content-width 80
-                    :item-child (fn [index option]
+                    :item=> (fn [index option]
                                   {:mode 'natural-row})})]})
   )");
 
@@ -1248,7 +1248,7 @@ TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
                     :row-height 10
                     :visible-rows 2
                     :content-width 80
-                    :item-child (fn [index option]
+                    :item=> (fn [index option]
                                   {:mode 'custom-fixed-row
                                    :state {:index index
                                            :value (:value option)
@@ -1531,7 +1531,7 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_row_emits_reorder_drop_even
                     :content-width 100
                     :selected-indices (pixils.ui/bind-state :selected)
                     :reorderable? true
-                    :item-child custom-row-child})]})
+                    :item=> custom-row-child})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);

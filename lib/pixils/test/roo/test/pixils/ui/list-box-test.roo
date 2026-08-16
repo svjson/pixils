@@ -2,6 +2,7 @@
   (:require proof.core
             [proof.syntax :as s]
             [pixils.ui.list-box :as list-box]
+            [pixils.ui.option-list :as option-list]
             [pixils.test.runtime :as runtime]))
 
 (deftest list-box-keyboard-target-skips-disabled-options
@@ -408,7 +409,69 @@
 
 
 
+;; pixils.ui.option-list/item-view
+
+(deftest item-view/component-provider-uses-complete-option-state
+  (is (= {:component 'app/person-row
+          :state {:id :ada
+                  :name "Ada"}}
+         (option-list/item-view 'app/person-row
+                                0
+                                {:id :ada
+                                 :name "Ada"}))))
+
+(deftest item-view/recursively-resolves-function-providers
+  (is (= {:component 'app/person-row
+          :state {:name "Ada"}}
+         (option-list/item-view
+          (fn [_index _option]
+            (fn [_index _option]
+              'app/person-row))
+          0
+          {:name "Ada"}))))
+
+(deftest item-view/preserves-explicit-declaration-state
+  (is (= {:component 'app/person-row
+          :class :compact
+          :state {:name "Grace"}}
+         (option-list/item-view
+          {:component 'app/person-row
+           :class :compact
+           :state {:name "Grace"}}
+          0
+          {:name "Ada"}))))
+
+(deftest make-item-child/uses-option-identity
+  (is (= :ada
+         (:id (option-list/make-item-child
+               {:item=> 'app/person-row}
+               3
+               {:id :ada
+                :name "Ada"})))))
+
+(deftest make-item-child/prefers-declaration-identity
+  (is (= :row-ada
+         (:id (option-list/make-item-child
+               {:item=> {:id :row-ada
+                         :component 'app/person-row}}
+               3
+               {:id :ada
+                :name "Ada"})))))
+
+
 ;; pixils.ui.list-box/make
+
+(deftest make/uses-item-provider
+  (is (= ['app/person-row 'app/person-row]
+         (for [child
+               (option-list/item-children
+                (-> (list-box/make
+                     {:options [{:name "Ada"}
+                                {:name "Grace"}]
+                      :item=> 'app/person-row})
+                    :state
+                    :component))]
+           (:component child)))))
 
 (deftest make/custom-item-inherits-stock-selection
   (s/given

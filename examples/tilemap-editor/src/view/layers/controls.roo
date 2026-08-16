@@ -171,7 +171,7 @@
               :reorderable? true
               :reorder-visual-strategy :placeholder
               :force-selection? true
-              :item-child layer-row-child})))
+              :item=> layer-row-child})))
 
 (defcomponent layer-list
   {:style {:width :fill

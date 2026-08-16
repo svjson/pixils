@@ -10,18 +10,17 @@
   {:init (fn [state ctx]
            {:expanded? false
             :selected [0]
-            :items [{:value :a :label "Alpha"}
-                    {:value :b :label "Beta"}]})
+            :items [{:id :a :value :a :label "Alpha"}
+                    {:id :b :value :b :label "Beta"}]})
    :update (fn [state ctx]
              (cond-> state
                (:expanded? state)
-               (assoc :items [{:value :a :label "Updated Alpha"}
-                              {:value :b :label "Beta"}
-                              {:value :c :label "Gamma"}])))
+               (assoc :items [{:id :c :value :c :label "Gamma"}
+                              {:id :a :value :a :label "Updated Alpha"}
+                              {:id :b :value :b :label "Beta"}])))
    :children [(option-list/make
                {:options (ui/bind-state :items)
                 :selected-indices (ui/bind-state :selected)
                 :row-height 16
                 :visible-rows 2
-                :item-child (fn [index option]
-                              {:mode 'preserved-option-row})})]})
+                :item=> 'preserved-option-row})]})
