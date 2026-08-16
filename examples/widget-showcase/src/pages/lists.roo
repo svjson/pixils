@@ -24,14 +24,13 @@
                  :children [(list-box/make {:options showcase-state/list-options
                                              :selected-indices (ui/bind-state :list-selected)
                                              :multi-select? true
-                                             :visible-rows 5
-                                             :content-width 180})
+                                             :visible-rows 5})
                             (list-box/make {:options (ui/bind-state :list-reorder-options)
                                             :selected-indices [0]
                                             :reorderable? true
                                             :visible-rows 5
-                                            :content-width 180
-                                            :item-child list-item-child})]}])
+                                            :item=> {:component 'ui/list-box-item
+                                                     :style {:height 22}}})]}])
               (style/state-section
                "Tree View"
                [{:style {:width :fill
