@@ -7,6 +7,37 @@
 (pixils/defcomponent reconciled-child
   {:ui/state-keys [:value]})
 
+(pixils/defcomponent rebound-child
+  {:ui/state-keys [:value :sentinel]})
+
+(pixils/defcomponent child-binding-reconciliation-owner
+  {:ui/state-keys [:items :reconcile? :reconciled?]
+   :init-ui (fn [ui-state state ctx]
+              {:items [{:value :first}
+                       {:value :second}]
+               :reconcile? false
+               :reconciled? false})
+   :update-ui (fn [ui-state state ctx]
+                (if (and (:reconcile? ui-state)
+                         (not (:reconciled? ui-state)))
+                  (do
+                    (ui/reconcile-children!
+                     (:view ctx)
+                     [{:component 'rebound-child
+                       :id "second"
+                       :ui-state {:value (ui/project-state :items 0 :value)}}
+                      {:component 'rebound-child
+                       :id "first"
+                       :ui-state {:value (ui/project-state :items 1 :value)}}])
+                    (assoc ui-state :reconciled? true))
+                  ui-state))
+   :children [{:component 'rebound-child
+               :id "first"
+               :ui-state {:value (ui/project-state :items 0 :value)}}
+              {:component 'rebound-child
+               :id "second"
+               :ui-state {:value (ui/project-state :items 1 :value)}}]})
+
 (pixils/defmode child-removal-root
   {:init (fn [state ctx]
            {:remove? false
@@ -54,3 +85,7 @@
               {:mode 'reconciled-child
                :id "second"
                :ui-state {:value 20}}]})
+
+(pixils/defmode child-binding-reconciliation-root
+  {:children [{:component 'child-binding-reconciliation-owner
+               :id "owner"}]})

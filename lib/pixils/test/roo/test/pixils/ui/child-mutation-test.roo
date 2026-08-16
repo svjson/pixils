@@ -46,3 +46,33 @@
       (is (= 20 (-> (head children) :ui-state :value)))
       (is (= 42 (-> (nth children 1) :ui-state :value)))
       (is (= 3 (-> (nth children 2) :ui-state :value))))))
+
+(deftest reconcile-children-refreshes-retained-ui-state-bindings
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "pixils/test/child-mutation-probe.roo")
+    (runtime/push-mode! app 'child-binding-reconciliation-root)
+    (let [owner (runtime/find-view app "child-binding-reconciliation-owner")
+          first-child (head (ui/children owner))]
+      (ui/set-ui-state! first-child
+                        (assoc (:ui-state first-child) :sentinel :retained))
+      (ui/set-ui-state! owner
+                        (assoc (:ui-state owner)
+                               :items [{:value :second-updated}
+                                       {:value :first-updated}]
+                               :reconcile? true)))
+    (runtime/update! app)
+    (let [children (ui/children
+                    (runtime/find-view app "child-binding-reconciliation-owner"))]
+      (is (= ["second" "first"]
+             [(:id (head children))
+              (:id (nth children 1))]))
+      (is (= :second-updated (-> (head children) :ui-state :value)))
+      (is (= {:value :first-updated
+              :sentinel :retained}
+             (select-keys (:ui-state (nth children 1))
+                          [:value :sentinel]))))))

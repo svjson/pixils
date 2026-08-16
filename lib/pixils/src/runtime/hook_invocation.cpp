@@ -56,6 +56,30 @@ namespace Pixils::Runtime
              child.source_component_name == slot.component_name;
     }
 
+    bool state_values_equal(const Roo::sptr_val& lhs, const Roo::sptr_val& rhs)
+    {
+      if (lhs == rhs) return true;
+      if (!lhs || !rhs || lhs->type != rhs->type) return false;
+      return *lhs == *rhs;
+    }
+
+    void apply_child_state_declaration(View& child, const ChildSlot& slot)
+    {
+      auto initial_state_changed =
+        !state_values_equal(child.initial_state, slot.initial_state);
+
+      child.state_binding = slot.state_binding;
+      child.component_state_binding = slot.component_state_binding;
+      child.ui_state_binding = slot.ui_state_binding;
+      child.initial_state = slot.initial_state;
+      child.state_policy = slot.state_policy.value_or("shared");
+
+      if (initial_state_changed)
+      {
+        child.set_state_if_changed(slot.initial_state);
+      }
+    }
+
     bool same_children(const std::vector<std::shared_ptr<View>>& current,
                        const std::vector<std::shared_ptr<View>>& desired)
     {
@@ -103,6 +127,7 @@ namespace Pixils::Runtime
             slot.id + "'; use ui/replace-child! explicitly");
         }
 
+        apply_child_state_declaration(*existing->second, slot);
         desired.push_back(existing->second);
         current.erase(existing);
       }
