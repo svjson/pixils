@@ -485,11 +485,6 @@
              (:property-id payload)
              (:value payload))
 
-            :terrain
-            (actions/change-selected-terrain-property-value state
-                                                            (:property-id payload)
-                                                            (:value payload))
-
             :default state))
         :terrain/ruleset-select
         (fn [state event ctx]

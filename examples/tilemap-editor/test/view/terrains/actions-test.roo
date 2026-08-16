@@ -65,17 +65,6 @@
            (editor-workbook/undo-label state)))
     (is (nil? (get-in undone [:terrain-sets 0 :properties])))))
 
-(deftest terrain-property-value-records-workbook-history
-  (let [state (actions/change-selected-terrain-property-value
-               (terrain-state)
-               :walkable
-               :no)
-        undone (editor-workbook/undo state)]
-    (is (= :no
-           (get-in state [:terrain-sets 0 :terrains 0 :properties :walkable])))
-    (is (= "Change terrain property" (editor-workbook/undo-label state)))
-    (is (= {} (get-in undone [:terrain-sets 0 :terrains 0 :properties])))))
-
 (deftest mask-set-actions-record-workbook-history
   (let [state (actions/add-mask-set (mask-state) "hard-edge" "Hard Edge")
         undone (editor-workbook/undo state)]

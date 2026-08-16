@@ -78,6 +78,57 @@
       (runtime/render! app)
       app)))
 
+(defun select-enum-property-value!
+  "Selects an enum property value in the terrain property editor.
+
+  Args:
+  - `app`: Running tilemap-editor test application.
+  - `property-id`: Identity of the terrain property to edit.
+  - `value`: Enum value to select.
+  - `opts`: Interaction options containing the requested `:by` mechanism.
+
+  Returns:
+  The running test application."
+  [app property-id value opts]
+  (let [control (runtime/find-view-containing
+                 app
+                 "property-value-enum-control"
+                 (str ":property-id " property-id))
+        option-index (when control
+                       (find-index (:options (runtime/view-state control))
+                                   (fn [option]
+                                     (= (:value option) value))))]
+    (is (some? control))
+    (is (some? option-index))
+    (case (:by opts)
+      :mouse/click (runtime/click! app control)
+      :default (runtime/click! app control))
+    (runtime/update! app)
+    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
+    (runtime/pop-mode! app {:selected-indices [option-index]})
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    app))
+
+(defun terrain-by-id
+  "Finds a terrain in the active project.
+
+  Args:
+  - `app`: Running tilemap-editor test application.
+  - `terrain-set-id`: Identity of the terrain set to inspect.
+  - `terrain-id`: Identity of the terrain to find.
+
+  Returns:
+  The matching terrain, or nil when it does not exist."
+  [app terrain-set-id terrain-id]
+  (let [terrain-set (find-first (:terrain-sets (runtime/active-state app))
+                                (fn [candidate]
+                                  (= (:id candidate) terrain-set-id)))]
+    (find-first (:terrains terrain-set)
+                (fn [candidate]
+                  (= (:id candidate) terrain-id)))))
+
 (defun terrain-base-tile-is?
   "Asserts the stored base tile for a terrain.
 
@@ -90,12 +141,7 @@
   Returns:
   The stored base-tile identity."
   [app terrain-set-id terrain-id expected]
-  (let [terrain-set (find-first (:terrain-sets (runtime/active-state app))
-                                (fn [candidate]
-                                  (= (:id candidate) terrain-set-id)))
-        terrain (find-first (:terrains terrain-set)
-                            (fn [candidate]
-                              (= (:id candidate) terrain-id)))
+  (let [terrain (terrain-by-id app terrain-set-id terrain-id)
         actual (:tile terrain)]
     (is (= expected actual))
     actual))

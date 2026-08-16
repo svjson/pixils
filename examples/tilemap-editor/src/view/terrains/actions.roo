@@ -194,11 +194,3 @@
     state
     property-id
     value)))
-
-(defun change-selected-terrain-property-value
-  "Updates a selected terrain property override and records the document edit in workbook history."
-  [state property-id value]
-  (editor-workbook/change-to
-   state
-   "Change terrain property"
-   (property-model/set-selected-terrain-property-value state property-id value)))

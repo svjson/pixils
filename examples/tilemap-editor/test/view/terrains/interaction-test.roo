@@ -1,10 +1,12 @@
 (ns tilemap-editor.view.terrains.interaction-test
   (:require proof.core
             [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
             [tilemap-editor.fixture.io.project :as project]
             [tilemap-editor.fixture.main-window :as main-window]
             [tilemap-editor.fixture.view.terrains.rule-list :as rule-list]
-            [tilemap-editor.fixture.view.terrains.terrains-tab :as terrains-tab]))
+            [tilemap-editor.fixture.view.terrains.terrains-tab :as terrains-tab]
+            [tilemap-editor.model.workbook :as editor-workbook]))
 
 (deftest interaction/terrain-rule-add-button-creates-visible-rule
   (s/given
@@ -167,6 +169,71 @@
                                         :grass
                                         :water-fill)
     (project/cleanup! :terrain-base-tile)))
+
+(deftest interaction/terrain-property-editor-records-sparse-overrides
+  (s/given
+    (project/write! :terrain-property
+                    {:property-sets
+                     [{:id :movement
+                       :label "Movement"
+                       :properties [{:id :walkable
+                                     :label "Walkable"
+                                     :type :enum
+                                     :values [:yes :no]
+                                     :default :yes}]}]
+                     :tilesets [{:id :terrain
+                                 :label "Terrain"
+                                 :tile-size 16
+                                 :tiles [{:id :grass-fill
+                                          :name "Grass Fill"
+                                          :type :color
+                                          :color {:r 0 :g 255 :b 0}}]}]
+                     :terrain-sets [{:id :overworld
+                                     :label "Overworld"
+                                     :tileset :terrain
+                                     :property-sets [:movement]
+                                     :properties {:walkable :yes}
+                                     :terrains [{:id :grass
+                                                 :label "Grass"
+                                                 :tile :grass-fill}]}]})
+    (main-window/open-project! :terrain-property))
+
+  (s/when [app]
+    (main-window/switch-to! app :tab/terrains {:by :mouse/click})
+    (terrains-tab/switch-detail-to! app :detail/terrain {:by :mouse/click})
+    (terrains-tab/select-enum-property-value! app
+                                               :walkable
+                                               :no
+                                               {:by :mouse/click})
+    (let [changed-terrain (terrains-tab/terrain-by-id app
+                                                      :overworld
+                                                      :grass)
+          undo-label (editor-workbook/undo-label (runtime/active-state app))
+          app (terrains-tab/select-enum-property-value! app
+                                                        :walkable
+                                                        :yes
+                                                        {:by :mouse/click})
+          inherited-terrain (terrains-tab/terrain-by-id app
+                                                        :overworld
+                                                        :grass)
+          app (runtime/press-modified-key! app :left-ctrl :z)
+          undone-terrain (terrains-tab/terrain-by-id app
+                                                     :overworld
+                                                     :grass)]
+      {:changed-terrain changed-terrain
+       :undo-label undo-label
+       :inherited-terrain inherited-terrain
+       :undone-terrain undone-terrain}))
+
+  (s/then [{:keys [changed-terrain
+                   undo-label
+                   inherited-terrain
+                   undone-terrain]}]
+    (is (= {:walkable :no} (:properties changed-terrain)))
+    (is (= "Change terrain property" undo-label))
+    (is (= false (contains? inherited-terrain :properties)))
+    (is (= {:walkable :no} (:properties undone-terrain)))
+    (project/cleanup! :terrain-property)))
 
 (deftest terrain-standard-setup-slot-creates-visible-rule
   (s/given

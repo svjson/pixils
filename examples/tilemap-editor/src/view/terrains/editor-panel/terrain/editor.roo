@@ -4,8 +4,8 @@
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.tilemap.project.model :as data]
-            tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tilemap.renderer :as tr]
+            tilemap-editor.view.terrains.editor-panel.terrain.properties
             tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.tabs
             [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
              :as manual-editor]
@@ -199,9 +199,8 @@
                                                                           :transition-mask-set)
                                    :terrain-disabled? (ui/project-state :detail
                                                                         :terrain-disabled?)}}]}
-              {:mode 'property-value-list
-               :state {:title "Terrain Properties"
-                       :kind :terrain
+              {:mode 'terrain-properties-editor
+               :state {:terrain (ui/project-state :detail :terrain)
                        :property-sets (ui/project-state :reference-data :property-sets)
                        :property-set-ids (ui/project-state :derived
                                                            :terrain
@@ -209,9 +208,6 @@
                        :default-values (ui/project-state :derived
                                                          :terrain
                                                          :property-default-values)
-                       :override-values (ui/project-state :derived
-                                                          :terrain
-                                                          :property-override-values)
                        :disabled? (ui/project-state :detail :terrain-disabled?)}}]})
 
 (defcomponent terrain-value-detail-editor

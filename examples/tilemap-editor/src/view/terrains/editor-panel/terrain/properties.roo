@@ -1,0 +1,50 @@
+(ns tilemap-editor.view.terrains.editor-panel.terrain.properties
+  (:require pixils
+            [pixils.tilemap.project.model :as data]
+            [pixils.ui :as ui]
+            tilemap-editor.view.property-sets.layout))
+
+(defcomponent terrain-properties-editor
+  {:style {:width :fill
+           :height :shrink}
+   :on {:property-value/change
+        (fn [state {:keys [payload] :as event} ctx]
+          (let [property-sets (:property-sets state)
+                property-set-ids (:property-set-ids state)
+                property (data/property-definition-by-id
+                          property-sets
+                          property-set-ids
+                          (:property-id payload))
+                value (data/normalize-property-value (:value payload)
+                                                     property)
+                baseline (data/effective-property-values
+                          property-sets
+                          property-set-ids
+                          (:default-values state)
+                          {})
+                values (assoc (or (-> state :terrain :properties) {})
+                              (:property-id payload)
+                              value)
+                sparse (data/sparse-property-values property-sets
+                                                    property-set-ids
+                                                    baseline
+                                                    values)
+                terrain (if (empty? sparse)
+                          (dissoc (:terrain state) :properties)
+                          (assoc (:terrain state) :properties sparse))]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :action/mutate!
+                      {:label "Change terrain property"
+                       :op :value/set
+                       :target {:path []}
+                       :args {:value terrain}})
+            state))}
+   :children [{:mode 'property-value-list
+               :state {:title "Terrain Properties"
+                       :kind :terrain
+                       :property-sets (ui/project-state :property-sets)
+                       :property-set-ids (ui/project-state :property-set-ids)
+                       :default-values (ui/project-state :default-values)
+                       :override-values (ui/project-state :terrain :properties)
+                       :disabled? (ui/project-state :disabled?)}}]})
