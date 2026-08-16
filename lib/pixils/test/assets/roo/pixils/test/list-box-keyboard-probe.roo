@@ -31,6 +31,5 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :force-selection? true
                 :selected-indices (ui/project-state :selected)})]})

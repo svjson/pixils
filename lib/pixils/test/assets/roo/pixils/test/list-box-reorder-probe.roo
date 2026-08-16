@@ -18,7 +18,6 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 3
-                :content-width 100
                 :reorderable? true})
               {:mode 'drop-surface
                :id "drop-surface"

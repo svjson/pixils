@@ -124,14 +124,6 @@
                   24))
      :h (max 1 (+ line-height vertical-padding))}))
 
-(defun popup-list-content-width [options ctx]
-  (let [text-opts (text-args (-> ctx :view :effective-style))
-        padding (ui/theme-var ctx :list-box-item-padding nil)
-        label-width (options-label-width options text-opts)]
-    (max 1 (+ label-width
-              (padding-side padding :left)
-              (padding-side padding :right)))))
-
 (defun popup-anchor-geometry [ctx]
   (let [anchor-view (:view ctx)
         scale (or (:visual-scale anchor-view) 1)]
@@ -151,10 +143,7 @@
         options (or (:options state) [])
         row-height (:row-height state)
         max-height (:max-height state)
-        anchor (popup-anchor-geometry ctx)
-        content-width (max 1
-                           (- (:width anchor) 2)
-                           (popup-list-content-width options ctx))]
+        anchor (popup-anchor-geometry ctx)]
     (when (and (not (:disabled? state))
                (not-empty? options))
       (push-mode!
@@ -184,10 +173,14 @@
                                     (assoc :max-height max-height))
                      :children [(option-list/make
                                  (cond-> {:options options
-                                          :style {:width :fill
+                                          :style {:width :shrink
+                                                  :min-width (- (:width anchor) 2)
                                                   :height :fill
-                                                  :border {:thickness 0}}
-                                          :content-width content-width
+                                                  :border {:thickness 0}
+                                                  :text (-> ctx
+                                                            :view
+                                                            :effective-style
+                                                            :text)}
                                           :selected-indices []}
 
                                          max-height

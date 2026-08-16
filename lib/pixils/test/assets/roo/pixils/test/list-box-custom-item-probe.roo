@@ -42,7 +42,6 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
                 :item=> (fn [index option]
@@ -68,7 +67,6 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
                 :item=> (fn [index option]
@@ -87,7 +85,6 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :selected-indices [0]
                 :force-selection? true
                 :item-context-menu

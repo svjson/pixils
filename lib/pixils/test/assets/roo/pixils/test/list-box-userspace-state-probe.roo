@@ -10,5 +10,4 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :selected-indices [0]})]})

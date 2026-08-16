@@ -72,7 +72,7 @@
 (defun option-label-width [item text-opts]
   (or (:w (r/text-size (option/label item) text-opts)) 0))
 
-(defun measured-content-width [state ctx]
+(defun measured-options-width [state ctx]
   (let [text-opts (text-args (style ctx))
         padding (item-padding ctx)
         label-width (reduce (:options state)
@@ -94,12 +94,6 @@
       (when ctx (theme-visible-rows ctx))
       (:computed-visible-rows state)))
 
-(defun content-width [state ctx]
-  (or (:content-width state)
-      (when ctx (measured-content-width state ctx))
-      (:computed-content-width state)
-      1))
-
 (defun preferred-height [state ctx]
   (visible-height (:options state)
                   (row-height state ctx)
@@ -118,7 +112,7 @@
 
 (defun component-content-size [state ctx]
   (let [state (get-in ctx [:view :ui-state] state)]
-    {:w (content-width state ctx)
+    {:w (measured-options-width state ctx)
      :h (preferred-height state ctx)}))
 
 (defun scroll-content-size [state]
@@ -326,8 +320,6 @@
                       [:options
                        :row-height
                        :computed-row-height
-                       :content-width
-                       :computed-content-width
                        :disabled?
                        :item=>
                        :decorate-item])
@@ -349,13 +341,9 @@
   (let [computed-row-height (if (:auto-row-height? state)
                               (measured-row-height ctx)
                               (:row-height state))
-        computed-content-width (if (:auto-content-width? state)
-                                 (measured-content-width state ctx)
-                                 (:content-width state))
         computed-visible-rows (or (:visible-rows state)
                                   (theme-visible-rows ctx))
         state (assoc state :computed-row-height computed-row-height)
-        state (assoc state :computed-content-width computed-content-width)
         state (assoc state :computed-visible-rows computed-visible-rows)
         state (assoc state :scroll-content-size (scroll-content-size state))]
     (when (and (:managed-height? state)
@@ -405,9 +393,6 @@
    :computed-visible-rows
    :max-height
    :fixed-visible-rows?
-   :content-width
-   :computed-content-width
-   :auto-content-width?
    :managed-height?
    :disabled?
    :item=>
@@ -452,8 +437,6 @@
                           :computed-row-height (:row-height supplied-component)
                           :auto-row-height? (nil? (:row-height supplied-component))
                           :computed-visible-rows (:visible-rows supplied-component)
-                          :computed-content-width (or (:content-width supplied-component) 1)
-                          :auto-content-width? (nil? (:content-width supplied-component))
                           :managed-height? (not (and style
                                                      (contains? style :height)))})]
     (assoc component

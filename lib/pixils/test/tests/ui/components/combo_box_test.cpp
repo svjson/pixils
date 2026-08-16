@@ -1,9 +1,8 @@
 #include "../../render_fixture.h"
-
 #include <pixils/program.h>
 
-#include <gtest/gtest.h>
 #include <SDL3/SDL_keycode.h>
+#include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <string>
@@ -12,12 +11,12 @@
 class ComboBoxTest : public RenderFixture
 {
  protected:
-  std::shared_ptr<Pixils::Runtime::View> render_combo_for_theme(
-    const std::string& theme)
+  std::shared_ptr<Pixils::Runtime::View> render_combo_for_theme(const std::string& theme)
   {
     runtime.eval(std::string(R"(
       (pixils/defprogram combo-box-test-program
-        {:theme ')") + theme + R"(
+        {:theme ')") +
+                 theme + R"(
          :initial-mode 'root-mode})
 
       (pixils/defmode root-mode
@@ -52,7 +51,7 @@ namespace
   }
 
   Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                 const std::string& key)
+                              const std::string& key)
   {
     return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
@@ -522,7 +521,8 @@ TEST_F(ComboBoxTest, combo_box_component_state_survives_custom_update)
   ASSERT_NE(ui_selected_index, nullptr);
   EXPECT_EQ(ui_selected_index->num().get_int(), 1);
 
-  auto selected_index = Roo::Dict::get_property(combo->state, Roo::keyword("selected-index"));
+  auto selected_index =
+    Roo::Dict::get_property(combo->state, Roo::keyword("selected-index"));
   ASSERT_NE(selected_index, nullptr);
   EXPECT_EQ(selected_index->num().get_int(), 1);
 }
@@ -625,10 +625,9 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
 
   update_cycle();
 
-  auto selected_index = Roo::Dict::get_property(session.active_mode->state,
-                                                   Roo::keyword("selected-index"));
-  auto value =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("value"));
+  auto selected_index =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected-index"));
+  auto value = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("value"));
   auto payload =
     Roo::Dict::get_property(session.active_mode->state, Roo::keyword("payload"));
   ASSERT_NE(selected_index, nullptr);
@@ -773,16 +772,16 @@ TEST_F(ComboBoxTest, combo_box_popup_scrollbar_stays_visible_across_cycles)
   const auto expected_scrollbar = snapshot_bounds(scrollbar);
   const auto expected_handle = snapshot_bounds(handle);
   expect_popup_scrollbar_visible_and_stable(session.active_mode,
-                                           expected_scrollbar,
-                                           expected_handle);
+                                            expected_scrollbar,
+                                            expected_handle);
 
   for (int i = 0; i < 6; i++)
   {
     SCOPED_TRACE(i);
     frame_cycle();
     expect_popup_scrollbar_visible_and_stable(session.active_mode,
-                                             expected_scrollbar,
-                                             expected_handle);
+                                              expected_scrollbar,
+                                              expected_handle);
   }
 }
 
@@ -825,16 +824,16 @@ TEST_F(ComboBoxTest, combo_box_popup_scrollbar_stays_visible_and_stable_when_hov
   const auto expected_scrollbar = snapshot_bounds(scrollbar);
   const auto expected_handle = snapshot_bounds(handle);
 
-  input().mouse_move({scrollbar->bounds.x + 2,
-                      scrollbar->bounds.y + (scrollbar->bounds.h / 2)});
+  input().mouse_move(
+    {scrollbar->bounds.x + 2, scrollbar->bounds.y + (scrollbar->bounds.h / 2)});
 
   for (int i = 0; i < 6; i++)
   {
     SCOPED_TRACE(i);
     frame_cycle();
     expect_popup_scrollbar_visible_and_stable(session.active_mode,
-                                             expected_scrollbar,
-                                             expected_handle);
+                                              expected_scrollbar,
+                                              expected_handle);
   }
 }
 
@@ -933,10 +932,6 @@ TEST_F(ComboBoxTest, combo_box_popup_expands_to_wide_option_label)
 
   ASSERT_EQ(popup_panel->children.size(), 1u);
   auto list_box = popup_panel->children[0];
-  auto content_width = get_state_key(list_box, "content-width");
-  ASSERT_NE(content_width, nullptr);
-  EXPECT_GT(content_width->num().get_int(), combo->bounds.w - 2);
-  EXPECT_LT(content_width->num().get_int(), 150);
   EXPECT_GT(list_box->bounds.w, combo->bounds.w - 2);
 }
 
@@ -1000,8 +995,7 @@ TEST_F(ComboBoxTest, combo_box_natural_width_uses_widest_option_label)
   auto label = trigger->children[0];
   ASSERT_TRUE(label->effective_style.text.has_value());
   ASSERT_TRUE(label->effective_style.text->wrap.has_value());
-  EXPECT_EQ(*label->effective_style.text->wrap,
-            Pixils::UI::Style::Text::Wrap::NONE);
+  EXPECT_EQ(*label->effective_style.text->wrap, Pixils::UI::Style::Text::Wrap::NONE);
 }
 
 TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicked)
@@ -1265,10 +1259,9 @@ TEST_F(ComboBoxTest, scaled_parent_combo_box_popup_aligns_and_reports_selection)
   EXPECT_EQ(second_popup_item->visual_bounds.w, 196);
   EXPECT_EQ(second_popup_item->visual_bounds.h, 20);
 
-  auto item_center = std::make_pair(second_popup_item->visual_bounds.x +
-                                      (second_popup_item->visual_bounds.w / 2),
-                                    second_popup_item->visual_bounds.y +
-                                      (second_popup_item->visual_bounds.h / 2));
+  auto item_center = std::make_pair(
+    second_popup_item->visual_bounds.x + (second_popup_item->visual_bounds.w / 2),
+    second_popup_item->visual_bounds.y + (second_popup_item->visual_bounds.h / 2));
   input().mouse_move(item_center);
   update_cycle();
   input().mouse_down(item_center);

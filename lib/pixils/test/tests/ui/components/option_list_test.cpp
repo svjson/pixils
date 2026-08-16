@@ -134,7 +134,6 @@ TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
                               {:value :b :label "Beta"}]
                     :row-height 10
                     :visible-rows 2
-                    :content-width 80
                     :item=> 'fixed-width-option})]})
   )");
 
@@ -150,7 +149,7 @@ TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
   auto content = option_list_content(option_list);
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 2u);
-  EXPECT_GT(content->bounds.w, 80);
+  EXPECT_GT(content->bounds.w, 30);
   EXPECT_EQ(content->children[0]->bounds.w, content->bounds.w);
   EXPECT_EQ(content->children[1]->bounds.w, content->bounds.w);
 }

@@ -526,7 +526,6 @@
    :row-height 20
    :visible-rows 5
    :max-height 120
-   :content-width 100
    :item=> 'app/person-list-item
    :item-context-menu {:items [{:label \"Rename\"
                                 :action :rename}]}

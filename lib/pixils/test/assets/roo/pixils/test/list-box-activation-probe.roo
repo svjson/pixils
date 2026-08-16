@@ -43,7 +43,6 @@
                 :style {:width 100}
                 :row-height 10
                 :visible-rows 2
-                :content-width 100
                 :multi-select? true
                 :toggle-selected? true
                 :selected-indices (ui/project-state :selected)
