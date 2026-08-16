@@ -115,3 +115,42 @@ TEST_F(OptionListTest, option_list_uses_theme_row_height_and_visible_rows)
   EXPECT_EQ(get_key(option_list->ui_state, "computed-visible-rows")->num().get_int(), 2);
   EXPECT_EQ(option_list->bounds.h, 76);
 }
+
+TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
+{
+  runtime.eval(R"(
+    (pixils/deftheme wide-option-list-theme
+      {:styles {'ui/option-list {:width 200}}})
+
+    (pixils/defcomponent fixed-width-option
+      {:extend 'ui/option-item
+       :style {:width 30
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/base-theme 'wide-option-list-theme]
+       :children [(pixils.ui.option-list/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80
+                    :item=> 'fixed-width-option})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+  frame_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto option_list = session.active_mode->children[0];
+  ASSERT_NE(option_list, nullptr);
+  EXPECT_EQ(option_list->bounds.w, 200);
+
+  auto content = option_list_content(option_list);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+  EXPECT_GT(content->bounds.w, 80);
+  EXPECT_EQ(content->children[0]->bounds.w, content->bounds.w);
+  EXPECT_EQ(content->children[1]->bounds.w, content->bounds.w);
+}

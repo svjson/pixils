@@ -121,21 +121,13 @@
     {:w (content-width state ctx)
      :h (preferred-height state ctx)}))
 
-(defun stretches-items? [{:keys [width]}]
-  (and (some? width)
-       (not= width :shrink)
-       (not= width :auto)))
-
 (defun scroll-content-size [state]
   (let [row-height (or (:computed-row-height state)
                        (:row-height state))
         height (if row-height
                  (content-height (:options state) row-height)
                  0)]
-    (if (:stretch-items? state)
-      {:h height}
-      {:w (content-width state nil)
-       :h height})))
+    {:h height}))
 
 (defun style-padding-side [style side]
   (get (:padding style) side 0))
@@ -237,11 +229,6 @@
              :step row-height
              :children children}))))
 
-(defun stretch-item [child]
-  (update child :style
-          (fn [style]
-            (assoc style :width :fill))))
-
 (defun apply-item-height [child height]
   (if (or (nil? height)
           (contains? (:style child) :height))
@@ -303,7 +290,9 @@
                     (merge-item-state item-state)
                     (cond-> decorate-item (decorate-item state index item))
                     (apply-item-height item-height)
-                    (cond-> (:stretch-items? state) stretch-item))
+                    (update :style
+                            (fn [style]
+                              (assoc style :width :fill))))
           item-ui-state (-> (get-in child [:state :component])
                             (dissoc :selected)
                             (dissoc :selected-indices))
@@ -339,7 +328,6 @@
                        :computed-row-height
                        :content-width
                        :computed-content-width
-                       :stretch-items?
                        :disabled?
                        :item=>
                        :decorate-item])
@@ -421,7 +409,6 @@
    :computed-content-width
    :auto-content-width?
    :managed-height?
-   :stretch-items?
    :disabled?
    :item=>
    :decorate-item
@@ -468,8 +455,7 @@
                           :computed-content-width (or (:content-width supplied-component) 1)
                           :auto-content-width? (nil? (:content-width supplied-component))
                           :managed-height? (not (and style
-                                                     (contains? style :height)))
-                          :stretch-items? (stretches-items? style)})]
+                                                     (contains? style :height)))})]
     (assoc component
            :scroll-content-size
            (scroll-content-size component))))
