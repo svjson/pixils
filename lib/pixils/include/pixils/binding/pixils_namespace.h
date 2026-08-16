@@ -312,7 +312,13 @@ namespace Pixils::Script
   NATIVE_ADAPTER(InteractionStateAdapter,
                  UI::InteractionState,
                  (hovered, focused, focus_within, pressed));
-  /*! @brief Roo HostObject Adapter for View */
+  /**
+   * @brief Roo HostObject Adapter for View.
+   *
+   * `content_bounds` exposes the logical content rectangle produced by the
+   * effective style's border and padding, in the same coordinate space as
+   * `bounds`.
+   */
   NATIVE_ADAPTER(ViewAdapter,
                  Runtime::View,
                  (id,
@@ -320,6 +326,7 @@ namespace Pixils::Script
                   ui_state,
                   state_policy,
                   bounds,
+                  content_bounds,
                   external_bounds,
                   visual_bounds,
                   visual_scale,

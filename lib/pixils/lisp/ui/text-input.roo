@@ -19,36 +19,6 @@
                  arg-map
                  (merge arg-map {k v})))))
 
-(defun style-padding-side [style side]
-  (get (:padding style) side 0))
-
-(defun style-border-side-thickness [style side]
-  (let [border (:border style)
-        side-style (get border side)]
-    (or (:thickness side-style)
-        (:thickness border)
-        0)))
-
-(defun style-content-height [bounds style]
-  (max 0
-       (- (or (:h bounds) 0)
-          (style-padding-side style :top)
-          (style-padding-side style :bottom)
-          (style-border-side-thickness style :top)
-          (style-border-side-thickness style :bottom))))
-
-(defun style-content-width [bounds style]
-  (max 0
-       (- (or (:w bounds) 0)
-          (style-padding-side style :left)
-          (style-padding-side style :right)
-          (style-border-side-thickness style :left)
-          (style-border-side-thickness style :right))))
-
-(defun style-content-left [style]
-  (+ (style-border-side-thickness style :left)
-     (style-padding-side style :left)))
-
 (defun insert-text-at [value cursor-index text]
   (str (substr value 0 cursor-index)
        text
@@ -367,17 +337,18 @@
         index
         (text-index-at-x-loop x-positions target-x (inc index))))))
 
-(defun text-index-at-x [x-positions local-x scroll-x style]
+(defun text-index-at-x [x-positions local-x scroll-x content-offset-x]
   (let [target-x (max 0 (+ (- (or local-x 0)
-                              (style-content-left style))
+                              content-offset-x)
                            (or scroll-x 0)))]
     (text-index-at-x-loop (or x-positions [0]) target-x 0)))
 
-(defun text-index-at-event [state event ctx]
+(defun text-index-at-event [state event {:keys [view]}]
   (text-index-at-x (-> state :layout :metrics :x-positions)
                    (-> event :position :x)
                    (-> state :layout :scroll-x)
-                   (-> ctx :view :effective-style)))
+                   (- (-> view :content-bounds :x)
+                      (-> view :bounds :x))))
 
 (defun text-input-mouse-move-cursor [state event ctx extend?]
   (let [cursor-index (text-index-at-event state event ctx)]
@@ -420,12 +391,12 @@
 (defun layout-text-input
   "Measures changed text and stores the geometry consumed by rendering and input."
   [state ctx]
-  (let [style (-> ctx :view :effective-style)
+  (let [content-bounds (-> ctx :view :content-bounds)
         metrics-source (text-metrics-source state ctx)
         previous-layout (:layout state)
         metrics (text-metrics-for state metrics-source)
-        content-width (style-content-width (-> ctx :view :bounds) style)
-        content-height (style-content-height (-> ctx :view :bounds) style)
+        content-width (:w content-bounds)
+        content-height (:h content-bounds)
         geometry-source {:metrics-source metrics-source
                          :content-width content-width
                          :content-height content-height

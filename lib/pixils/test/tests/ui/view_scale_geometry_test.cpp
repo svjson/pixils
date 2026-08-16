@@ -345,13 +345,19 @@ TEST_F(ViewScaleGeometryTest, scaled_clipped_parent_rejects_hits_outside_visual_
   EXPECT_EQ(hit->to_string(), "false");
 }
 
-TEST_F(ViewScaleGeometryTest, view_adapter_bounds_and_external_bounds_keep_existing_meanings)
+TEST_F(ViewScaleGeometryTest,
+       view_adapter_exposes_logical_content_external_and_visual_bounds)
 {
   runtime.eval(R"(
     (pixils/defmode scaled-child
-      {:style {:width 100 :height 50 :scale 2}
+      {:style {:width 100
+               :height 50
+               :scale 2
+               :border {:thickness 2}
+               :padding {:l 3 :t 5 :r 7 :b 9}}
        :on-mouse-down (fn [state event ctx]
                         {:bounds (:bounds (:view ctx))
+                         :content-bounds (:content-bounds (:view ctx))
                          :external-bounds (:external-bounds (:view ctx))
                          :visual-bounds (:visual-bounds (:view ctx))
                          :visual-scale (:visual-scale (:view ctx))})})
@@ -368,10 +374,12 @@ TEST_F(ViewScaleGeometryTest, view_adapter_bounds_and_external_bounds_keep_exist
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   auto bounds = state_key(child, "bounds");
+  auto content_bounds = state_key(child, "content-bounds");
   auto external_bounds = state_key(child, "external-bounds");
   auto visual_bounds = state_key(child, "visual-bounds");
   auto visual_scale = state_key(child, "visual-scale");
   ASSERT_NE(bounds, nullptr);
+  ASSERT_NE(content_bounds, nullptr);
   ASSERT_NE(external_bounds, nullptr);
   ASSERT_NE(visual_bounds, nullptr);
   ASSERT_NE(visual_scale, nullptr);
@@ -380,6 +388,11 @@ TEST_F(ViewScaleGeometryTest, view_adapter_bounds_and_external_bounds_keep_exist
   EXPECT_EQ(map_int(bounds, "y"), 0);
   EXPECT_EQ(map_int(bounds, "w"), 100);
   EXPECT_EQ(map_int(bounds, "h"), 50);
+
+  EXPECT_EQ(map_int(content_bounds, "x"), 5);
+  EXPECT_EQ(map_int(content_bounds, "y"), 7);
+  EXPECT_EQ(map_int(content_bounds, "w"), 86);
+  EXPECT_EQ(map_int(content_bounds, "h"), 32);
 
   EXPECT_EQ(map_int(external_bounds, "x"), 0);
   EXPECT_EQ(map_int(external_bounds, "y"), 0);

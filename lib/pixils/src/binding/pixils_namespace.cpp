@@ -1153,6 +1153,7 @@ namespace Pixils::Script
                       ("ui-state", ui_state),
                       ("state-policy", state_policy),
                       (bounds),
+                      ("content-bounds", content_bounds),
                       ("external-bounds", external_bounds),
                       ("visual-bounds", visual_bounds),
                       ("visual-scale", visual_scale),
@@ -1184,6 +1185,13 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ViewAdapter, bounds)
   {
     const Rect& b = object->get_object().bounds;
+    return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, content_bounds)
+  {
+    const auto& view = object->get_object();
+    Rect b = view.effective_style.content_rect(view.bounds);
     return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
   }
 
