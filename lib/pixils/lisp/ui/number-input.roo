@@ -1,29 +1,7 @@
 (ns pixils.ui.number-input
   (:require pixils
-            [roo.string :as string]
             [pixils.ui :as ui]
             pixils.ui.text-input))
-
-
-
-;; Component state
-
-(def NUMBER-INPUT-UI-STATE-KEYS
-  "Component-state keys accepted by `ui/number-input`."
-  [:value
-   :text-value
-   :disabled?
-   :read-only?
-   :auto-focus?
-   :emit-change?
-   :emit-blur?
-   :min
-   :max
-   :step
-   :allow-negative?
-   :allow-fractions?
-   :commit-on
-   :committed-value])
 
 
 
@@ -147,6 +125,16 @@
 
 ;; Component
 
+(def NUMBER-INPUT-UI-STATE-KEYS
+  "Numeric component-state keys added by `ui/number-input`."
+  [:min
+   :max
+   :step
+   :allow-negative?
+   :allow-fractions?
+   :commit-on
+   :committed-value])
+
 (defcomponent ui/number-input
   {:extend 'ui/text-input
    :ui/state-keys NUMBER-INPUT-UI-STATE-KEYS
@@ -179,10 +167,8 @@
           (ui/stop-propagation! event)
           (let [ui-state (-> ctx :view :ui-state)]
             (unless (:disabled? ui-state)
-              (ui/set-ui-state!
-               ctx
-               (apply (:content-policy ui-state)
-                      [ui-state :commit nil ctx])))
+              (ui/set-ui-state! ctx (apply (:content-policy ui-state)
+                                           [ui-state :commit nil ctx])))
             state))}})
 
 
@@ -196,9 +182,11 @@
   `:state` entries remain application state. Component keys supplied directly
   in `:state` remain accepted for migration compatibility."
   [{:keys [class style state ui-state state-policy] :as opts}]
-  (let [component (merge (select-keys state NUMBER-INPUT-UI-STATE-KEYS)
+  (let [component-keys (concat pixils.ui.text-input/TEXT-INPUT-UI-STATE-KEYS
+                               NUMBER-INPUT-UI-STATE-KEYS)
+        component (merge (select-keys state component-keys)
                          (:component state)
-                         (select-keys opts NUMBER-INPUT-UI-STATE-KEYS))]
+                         (select-keys opts component-keys))]
     (cond-> {:mode 'ui/number-input
              :state (assoc state :component component)
              :ui/state-policy (or state-policy :isolated)}
