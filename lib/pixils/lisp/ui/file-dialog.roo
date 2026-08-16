@@ -129,7 +129,6 @@
      :content-width 360
      :selected-indices (or selected-indices [])
      :multi-select? multi-select?
-     :hover-highlight? true
      :toggle-selected? false})))
 
 (defun navigate-to [state path]

@@ -1276,7 +1276,7 @@ TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
   EXPECT_EQ(first_item->bounds.w, viewport->bounds.w);
 }
 
-TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
+TEST_F(ListBoxTest, list_box_item_uses_theme_hover_style)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -1307,7 +1307,7 @@ TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
   session.render_mode();
 
   EXPECT_TRUE(first_item->interaction.hovered);
-  EXPECT_FALSE(first_item->effective_style.background.has_value());
+  EXPECT_TRUE(first_item->effective_style.background.has_value());
 }
 
 TEST_F(ListBoxTest, list_box_reorder_drag_is_off_by_default)

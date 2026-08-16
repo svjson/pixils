@@ -491,11 +491,11 @@
                            :text {:color (var :field-text)
                                   :wrap :none}}
 
-            :ui/list-item-hover:hover
+            :ui/list-item:hover
             {:background (var :focus-bg)
              :text {:color (var :focus-text)}}
 
-            [:ui/list-item-hover:hover 'ui/tree-view-disclosure]
+            [:ui/list-item:hover 'ui/tree-view-disclosure]
             {:text {:color (var :focus-text)}}
 
             '(:ui/list-item {:selected true})

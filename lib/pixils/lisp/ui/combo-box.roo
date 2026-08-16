@@ -188,8 +188,7 @@
                                                   :height :fill
                                                   :border {:thickness 0}}
                                           :content-width content-width
-                                          :selected-indices []
-                                          :hover-highlight? true}
+                                          :selected-indices []}
 
                                          max-height
                                          (assoc :max-height max-height)

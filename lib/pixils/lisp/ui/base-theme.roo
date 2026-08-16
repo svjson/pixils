@@ -283,11 +283,11 @@
                    :text {:color (var :text)
                           :wrap :none}}
 
-    :ui/list-item-hover:hover
+    :ui/list-item:hover
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    [:ui/list-item-hover:hover 'ui/tree-view-disclosure]
+    [:ui/list-item:hover 'ui/tree-view-disclosure]
     {:text {:color (var :selection-text)}}
 
     '(:ui/list-item {:selected true})

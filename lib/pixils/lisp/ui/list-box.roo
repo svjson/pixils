@@ -527,7 +527,6 @@
    :visible-rows 5
    :max-height 120
    :content-width 100
-   :hover-highlight? true
    :item-context-menu {:items [{:label \"Rename\"
                                 :action :rename}]}
    :reorderable? false

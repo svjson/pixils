@@ -276,9 +276,6 @@
         child (if-let [item-child (:item-child state)]
                 (item-child index item)
                 {:mode (or (:item-mode state) 'ui/option-item)
-                 :class (if (:hover-highlight? state)
-                          :ui/list-item-hover
-                          [])
                  :state {:component {:index index
                                       :value (option/value item)
                                       :label (option/label item)
@@ -329,8 +326,7 @@
                        :disabled?
                        :item-mode
                        :item-child
-                       :decorate-item
-                       :hover-highlight?])
+                       :decorate-item])
          (select-keys state (:render-state-keys state))))
 
 (defun scroll-pane-for-state [state]
@@ -415,7 +411,6 @@
    :item-child
    :decorate-item
    :render-state-keys
-   :hover-highlight?
    :selected-indices
    :active-index
    :content-state

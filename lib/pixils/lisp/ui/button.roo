@@ -228,28 +228,27 @@
   keys visible in ordinary state."
   [{:keys [label image disabled? value class style state ui-state state-policy
            init update on on-click]}]
-  (let [state (or state {})]
-    (cond-> {:mode 'ui/button
-             :style (or style {})
-             :state (assoc state
-                           :component
-                           (merge (select-keys state
-                                               [:label
-                                                :image
-                                                :disabled?
-                                                :value
-                                                :force-pressed?
-                                                :inhibit-pressed?
-                                                :pressed])
-                                  (:component state)
-                                  {:label label
-                                   :image image
-                                   :disabled? disabled?
-                                   :value value}))}
-            class (assoc :class class)
-            ui-state (assoc :ui-state ui-state)
-            state-policy (assoc :ui/state-policy state-policy)
-            init (assoc :init init)
-            update (assoc :update update)
-            on (assoc :on on)
-            on-click (assoc :on-click on-click))))
+  (cond-> {:mode 'ui/button
+           :style (or style {})
+           :state (assoc state
+                         :component
+                         (merge (select-keys state
+                                             [:label
+                                              :image
+                                              :disabled?
+                                              :value
+                                              :force-pressed?
+                                              :inhibit-pressed?
+                                              :pressed])
+                                (:component state)
+                                {:label label
+                                 :image image
+                                 :disabled? disabled?
+                                 :value value}))}
+          class (assoc :class class)
+          ui-state (assoc :ui-state ui-state)
+          state-policy (assoc :ui/state-policy state-policy)
+          init (assoc :init init)
+          update (assoc :update update)
+          on (assoc :on on)
+          on-click (assoc :on-click on-click)))
