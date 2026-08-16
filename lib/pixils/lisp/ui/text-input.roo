@@ -646,3 +646,24 @@
             (unless (nil? next-ui-state)
               (ui/set-ui-state! ctx next-ui-state))
             state))}})
+
+
+
+;; Make function
+
+(defun make
+  "Builds an isolated `ui/text-input` component.
+
+  Text behavior options are stored under `:state :component`; ordinary
+  `:state` entries remain application state. Component keys supplied directly
+  in `:state` remain accepted for migration compatibility."
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state TEXT-INPUT-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts TEXT-INPUT-UI-STATE-KEYS))]
+    (cond-> {:mode 'ui/text-input
+             :state (assoc state :component component)
+             :ui/state-policy (or state-policy :isolated)}
+      (contains? opts :style) (assoc :style style)
+      class (assoc :class class)
+      ui-state (assoc :ui-state ui-state))))
