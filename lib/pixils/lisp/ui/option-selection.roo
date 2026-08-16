@@ -72,10 +72,17 @@
   [current candidate changed-keys]
   (let [options (or (:options candidate) [])
         current-selected (or (:selected-indices current) [])
-        selected (if (contains? changed-keys :selected-indices)
+        selected-proposed? (or (contains? changed-keys :selected-indices)
+                               (contains? changed-keys :selected-index))
+        proposed (if (contains? changed-keys :selected-index)
+                   (if-let [index (:selected-index candidate)]
+                     [index]
+                     [])
+                   (or (:selected-indices candidate) []))
+        selected (if selected-proposed?
                    (accept options
                            current-selected
-                           (or (:selected-indices candidate) [])
+                           proposed
                            candidate)
                    current-selected)
         constraints-changed? (or (contains? changed-keys :options)
@@ -91,12 +98,16 @@
   "Returns the stock UI-state model for index-based option selection.
 
   The model owns `:selected-indices` and its `:selected-values` derivative. It
-  depends on `:options`, `:multi-select?`, and `:force-selection?`. When
-  `change-event` is non-nil, actual changes to either owned field emit that
-  event with both fields as its payload."
+  also accepts `:selected-index` as a scalar selection proposal. It depends on
+  `:options`, `:selected-index`, `:multi-select?`, and `:force-selection?`.
+  When `change-event` is non-nil, actual changes to either owned field emit
+  that event with both fields as its payload."
   [change-event]
   (cond-> {:owns [:selected-indices :selected-values]
-           :depends-on [:options :multi-select? :force-selection?]
+           :depends-on [:options
+                        :selected-index
+                        :multi-select?
+                        :force-selection?]
            :transition state-transition}
     change-event (assoc :change-event change-event)))
 

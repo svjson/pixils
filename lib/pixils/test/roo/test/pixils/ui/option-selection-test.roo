@@ -92,6 +92,26 @@
                                       :force-selection? true}
                                      [:options]))))
 
+(deftest state-transition/accepts-a-scalar-selection-proposal
+  (is (= {:selected-indices [1]
+          :selected-values [:b]}
+         (selection/state-transition {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]}
+                                     {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]
+                                      :selected-index 1}
+                                     [:selected-index]))))
+
+(deftest state-transition/rejects-an-invalid-scalar-selection-proposal
+  (is (= {:selected-indices [0]
+          :selected-values [:a]}
+         (selection/state-transition {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]}
+                                     {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]
+                                      :selected-index 3}
+                                     [:selected-index]))))
+
 (deftest single-state-transition/preserves-an-optional-selection
   (is (= {:selected-index nil
           :selected-value nil}

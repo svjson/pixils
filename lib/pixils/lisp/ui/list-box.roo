@@ -3,6 +3,7 @@
             [pixils.point :as pt]
             [pixils.ui :as ui]
             [pixils.ui.internal.option-navigation :as navigation]
+            [pixils.ui.menu :as menu]
             [pixils.ui.option-item :as option]
             [pixils.ui.option-list :as option-list]
             [pixils.ui.option-selection :as selection]))
@@ -14,9 +15,14 @@
 (defun click-selection [{:keys [multi-select?
                                 selected-indices
                                 toggle-selected?] :as state}
-                        {:keys [index shift? ctrl?]}]
+                        {:keys [button index shift? ctrl?]}]
   (let [selected? (contains? selected-indices index)]
     (cond
+      (= button :right)
+      (if selected?
+        selected-indices
+        (selection/select (:options state) selected-indices index state))
+
       (and multi-select? shift?)
       (let [anchor (or (:anchor-index state) index)]
         (selection/span (:options state) anchor index))
@@ -118,7 +124,6 @@
              :offset
              (option-list/scroll-offset-for-index next-state ctx index)))
     state))
-
 
 
 ;; Reorder support
@@ -299,6 +304,9 @@
    :multi-select?
    :force-selection?
    :toggle-selected?
+   :selected-index
+   :item-context-menu
+   :context-target
    :anchor-index
    :reorder])
 
@@ -406,16 +414,60 @@
                 state)
 
               :default
-              (let [selected (click-selection ui-state payload)
-                    next-ui-state (cond-> (assoc ui-state
-                                                 :selected-indices selected
-                                                 :active-index (:index payload))
-                                          (not (and (:multi-select? ui-state)
-                                                    (:shift? payload)))
-                                          (assoc :anchor-index (:index payload)))]
+              (let [button (or (:button payload) :left)
+                    index (:index payload)
+                    option (nth (:options ui-state) index)
+                    menu-source (:item-context-menu ui-state)
+                    context-menu (when (and (= button :right)
+                                            menu-source)
+                                   (if (fn? menu-source)
+                                     (menu-source index option)
+                                     menu-source))
+                    context-menu (when (not-empty? (:items context-menu))
+                                   context-menu)]
                 (ui/stop-propagation! event)
-                (ui/set-ui-state! ctx next-ui-state)
-                state))))
+                (if (or (= button :left) context-menu)
+                  (let [selected (click-selection ui-state
+                                                  (assoc payload
+                                                         :button button))
+                        next-ui-state
+                        (cond-> (assoc ui-state
+                                       :selected-indices selected
+                                       :active-index index)
+                                (not (and (:multi-select? ui-state)
+                                          (:shift? payload)))
+                                (assoc :anchor-index index)
+                                context-menu
+                                (assoc :context-target
+                                       {:index index
+                                        :value (option/value option)
+                                        :option option}))]
+                    (ui/set-ui-state! ctx next-ui-state)
+                    (when context-menu
+                      (menu/open-context-menu! context-menu
+                                               (:global-position payload)
+                                               state
+                                               ctx))
+                    state)
+                  state)))))
+        :menu/select
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                context-target (:context-target ui-state)]
+            (when context-target
+              (ui/stop-propagation! event)
+              (ui/set-ui-state! ctx (assoc ui-state :context-target nil))
+              (when (= :action (:type payload))
+                (ui/emit! (:view ctx)
+                          :list-box/context-action
+                          (merge context-target
+                                 {:action (:action payload)
+                                  :payload (:payload payload)}
+                                 (select-keys ui-state
+                                              [:selected-indices
+                                               :selected-values])))))
+            state))
         :option-item/activate
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
@@ -467,6 +519,7 @@
   ```roo
   {:options [{:value :a :label \"Alpha\"}]
    :selected-indices [0]
+   :selected-index 0
    :multi-select? false
    :force-selection? false
    :toggle-selected? false
@@ -475,6 +528,8 @@
    :max-height 120
    :content-width 100
    :hover-highlight? true
+   :item-context-menu {:items [{:label \"Rename\"
+                                :action :rename}]}
    :reorderable? false
    :class :settings/list
    :style {...}
@@ -483,13 +538,28 @@
    :state-policy :isolated}
   ```
 
+  `:selected-index` is a scalar input for single-selection callers;
+  `:selected-indices` remains the canonical component state.
+
+  `:item-context-menu` accepts a menu definition or a function receiving an
+  item index and option and returning a menu definition. Selecting an
+  item-menu action emits
+  `:list-box/context-action` with the item identity, action, menu payload, and
+  current selection.
+
   Stock list-box behavior values are written under `:state :component`.
   Static values, `ui/bind-state`, and `ui/project-state` are accepted for
   component entries. Ordinary :state entries remain available for caller
   application state. During migration, component keys supplied directly in
   :state are also copied into :component. List boxes use isolated component
   state by default; pass `:state-policy :shared` only for compatibility with
-  code that reads component keys from ordinary state."
+  code that reads component keys from ordinary state.
+
+  Args:
+  - `opts`: List-box behavior, state, and styling.
+
+  Returns:
+  A `ui/list-box` child definition."
   [{:keys [class style state ui-state state-policy] :as opts}]
   (let [component (merge (option-list/component-state opts)
                          (select-keys state LIST-BOX-UI-STATE-KEYS)
@@ -497,15 +567,16 @@
                          {:item-mode 'ui/list-box-item
                           :decorate-item (fn [child
                                               {:keys [reorder-drag-threshold
-                                                      reorderable?] :as state}
+                                                      reorderable?]}
                                               index
                                               item]
-                                           (let [child (option-list/merge-item-state
-                                                        child
-                                                        {:reorderable? reorderable?
-                                                         :reorder-index index
-                                                         :reorder-value (option/value item)
-                                                         :reorder-option item})]
+                                           (let [child
+                                                 (option-list/merge-item-state
+                                                  child
+                                                  {:reorderable? reorderable?
+                                                   :reorder-index index
+                                                   :reorder-value (option/value item)
+                                                   :reorder-option item})]
                                              (cond-> child
                                                      reorderable? (update
                                                                    :drag

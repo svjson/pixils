@@ -58,7 +58,10 @@
                  (unless (:disabled? ui-state)
                    (ui/emit! (:view ctx)
                              :option-item/click
-                             (event-payload ui-state ctx))))
+                             (assoc (event-payload ui-state ctx)
+                                    :button (:button event)
+                                    :global-position
+                                    (:global-position event)))))
                state)
    :on-double-click (fn [state event ctx]
                       (let [ui-state (-> ctx :view :ui-state)]

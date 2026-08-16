@@ -128,6 +128,24 @@
            :shift? true
            :ctrl? false}))))
 
+(deftest click-selection/context-click-selects-an-unselected-item
+  (is (= [1]
+         (list-box/click-selection
+          {:options [{:value :a} {:value :b}]
+           :multi-select? true
+           :selected-indices [0]}
+          {:button :right
+           :index 1}))))
+
+(deftest click-selection/context-click-preserves-the-current-selection
+  (is (= [0 1]
+         (list-box/click-selection
+          {:options [{:value :a} {:value :b}]
+           :multi-select? true
+           :selected-indices [0 1]}
+          {:button :right
+           :index 1}))))
+
 
 (deftest list-box-initializes-selected-values-from-selected-indices
   (let [app (runtime/make-app {:package-root "../.."
@@ -448,3 +466,39 @@
              :custom-click {:index 1
                             :value :b}}}
            result))))
+
+(deftest make/item-context-menu-emits-option-context
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "pixils/test/list-box-custom-item-probe.roo")
+      (runtime/push-mode! app 'item-context-menu-mode)
+      (runtime/settle-layout! app)))
+
+  (s/when [app]
+    (let [items (runtime/find-views app "ui/list-box-item")]
+      (runtime/mouse-click-in! app (nth items 1) 5 5 :right)
+      (runtime/update! app)
+      (runtime/render! app)
+      (is (= "ui/context-menu" (runtime/active-mode-name app)))
+      (let [menu-item (runtime/find-view-containing app
+                                                    "ui/popup-menu-item"
+                                                    "Inspect Beta")]
+        (is (some? menu-item))
+        (runtime/click! app menu-item)
+        (runtime/update! app)
+        (:context-action (runtime/active-state app)))))
+
+  (s/then [payload]
+    (is (= {:index 1
+            :value :b
+            :option {:value :b :label "Beta"}
+            :action :inspect
+            :payload {:provided-index 1}
+            :selected-indices [1]
+            :selected-values [:b]}
+           payload))))

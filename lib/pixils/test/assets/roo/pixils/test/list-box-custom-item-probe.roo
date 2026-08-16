@@ -75,3 +75,23 @@
                               {:mode 'overridden-list-item
                                :state {:custom-label
                                        (str "Custom " (:label option))}})})]})
+
+(pixils/defmode item-context-menu-mode
+  {:init (fn [state ctx]
+           {:context-action nil})
+   :on {:list-box/context-action
+        (fn [state event ctx]
+          (assoc state :context-action (:payload event)))}
+   :children [(list-box/make
+               {:options options
+                :style {:width 100}
+                :row-height 10
+                :visible-rows 2
+                :content-width 100
+                :selected-indices [0]
+                :force-selection? true
+                :item-context-menu
+                (fn [index option]
+                  {:items [{:label (str "Inspect " (:label option))
+                            :action :inspect
+                            :payload {:provided-index index}}]})})]})
