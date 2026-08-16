@@ -277,7 +277,19 @@
 
 
 
-;; Components
+;; Inner Components
+
+(defcomponent ui/list-box-item
+  {:extend 'ui/option-item
+   :class [:ui/list-item :ui/list-box-item]
+   :ui/state-keys [:reorderable?
+                   :reorder-index
+                   :reorder-value
+                   :reorder-option]})
+
+
+
+;; Main Component
 
 (def LIST-BOX-UI-STATE-KEYS
   [:reorderable?
@@ -289,15 +301,6 @@
    :toggle-selected?
    :anchor-index
    :reorder])
-
-
-(defcomponent ui/list-box-item
-  {:extend 'ui/option-item
-   :class [:ui/list-item :ui/list-box-item]
-   :ui/state-keys [:reorderable?
-                   :reorder-index
-                   :reorder-value
-                   :reorder-option]})
 
 (defcomponent ui/list-box
   {:extend 'ui/option-list
@@ -407,9 +410,9 @@
                     next-ui-state (cond-> (assoc ui-state
                                                  :selected-indices selected
                                                  :active-index (:index payload))
-                                    (not (and (:multi-select? ui-state)
-                                              (:shift? payload)))
-                                    (assoc :anchor-index (:index payload)))]
+                                          (not (and (:multi-select? ui-state)
+                                                    (:shift? payload)))
+                                          (assoc :anchor-index (:index payload)))]
                 (ui/stop-propagation! event)
                 (ui/set-ui-state! ctx next-ui-state)
                 state))))
@@ -423,12 +426,12 @@
                                     (:index payload))))]
             (ui/stop-propagation! event)
             (unless disabled?
-              (ui/emit! (:view ctx)
-                        :list-box/activate
-                        (merge payload
-                               (select-keys ui-state
-                                            [:selected-indices
-                                             :selected-values]))))
+            (ui/emit! (:view ctx)
+                      :list-box/activate
+                      (merge payload
+                             (select-keys ui-state
+                                          [:selected-indices
+                                           :selected-values]))))
             state))}
    :on-drop (fn [state event ctx]
               (let [ui-state (-> ctx :view :ui-state)

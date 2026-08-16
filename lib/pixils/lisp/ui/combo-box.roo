@@ -14,9 +14,8 @@
 ;; Internal selection management functions
 
 (defun selected-option [options selected-index]
-  (nth options (clamp (or selected-index 0)
-                      0
-                      (dec (count options)))))
+  (when selected-index
+    (nth options selected-index)))
 
 (defun selected-label [options selected-index]
   (if-let [option (selected-option options selected-index)]
@@ -27,45 +26,39 @@
   (when-let [option (selected-option options selected-index)]
     (option/value option)))
 
-(defun state-with-selection [state index]
-  (let [index (or index 0)]
-    (assoc state
-           :selected-index index
-           :selected-value (selected-value (:options state) index)
-           :selected-label (selected-label (:options state) index))))
+(defun selected-label-state-transition [_current candidate _changed-keys]
+  {:selected-label (selected-label (:options candidate)
+                                   (:selected-index candidate))})
 
 (defun select-index [state index ctx]
   (if (nil? index)
     state
     (let [ui-state (-> ctx :view :ui-state)
-          current [(:selected-index ui-state)]
+          current-index (:selected-index ui-state)
+          current (if (nil? current-index) [] [current-index])
           selected (selection/select (:options ui-state)
                                      current
                                      index
-                                     {:force-selection? true})]
+                                     ui-state)]
       (if (= current selected)
         state
         (let [index (head selected)
-              value (selected-value (:options ui-state) index)
-              next-ui-state (state-with-selection ui-state index)]
-          (ui/set-ui-state! ctx next-ui-state)
+              value (selected-value (:options ui-state) index)]
+          (ui/set-ui-state! ctx (assoc ui-state :selected-index index))
           (ui/emit! (:view ctx)
                     :combo-box/change
                     {:selected-index index
                      :value value})
-          (assoc state
-                 :selected-index index
-                 :selected-value value
-                 :selected-label (selected-label (:options ui-state) index)))))))
+          state)))))
 
 (defun step-selection [state direction ctx]
   (let [ui-state (-> ctx :view :ui-state)]
     (if (:disabled? ui-state)
       state
-      (let [index (navigation/next-enabled-index-from
-                   (:options ui-state)
-                   (get ui-state :selected-index 0)
-                   direction)]
+      (let [options (:options ui-state)
+            base (or (:selected-index ui-state)
+                     (if (> direction 0) -1 (count options)))
+            index (navigation/next-enabled-index-from options base direction)]
         (select-index state index ctx)))))
 
 
@@ -149,7 +142,9 @@
 ;; Popup/Expanded Mode
 
 (defun popup-selected-indices [state]
-  [(or (:selected-index state) 0)])
+  (if (:selected-index state)
+    [(:selected-index state)]
+    []))
 
 (defun open-popup! [ctx]
   (let [state (-> ctx :view :ui-state)
@@ -271,6 +266,7 @@
    :selected-index
    :selected-value
    :selected-label
+   :force-selection?
    :row-height
    :max-height
    :disabled?])
@@ -280,10 +276,10 @@
    :class :ui/combo-box
    :content-size combo-box-content-size
    :ui/state-keys COMBO-BOX-UI-STATE-KEYS
-   :init-ui (fn [ui-state state ctx]
-              (state-with-selection ui-state (:selected-index ui-state)))
-   :update-ui (fn [ui-state state ctx]
-                (state-with-selection ui-state (:selected-index ui-state)))
+   :ui/models [(selection/single-model nil)
+               {:owns [:selected-label]
+                :depends-on [:options :selected-index]
+                :transition selected-label-state-transition}]
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     (unless (-> ctx :view :ui-state :disabled?)
@@ -327,7 +323,8 @@
 
   ```roo
   {:options [{:value :small :label \"Small\"}]
-   :selected-index 0
+   :selected-index nil
+   :force-selection? false
    :disabled? false
    :row-height 20
    :max-height 160

@@ -1,0 +1,27 @@
+(ns pixils.ui.file-dialog-test
+  (:require proof.core
+            [pixils.ui.file-dialog :as file-dialog]))
+
+
+
+;; Domain-valued options
+
+(deftest entry-options/carry-file-entries-as-values
+  (let [entry {:type :file
+               :name "map.edn"
+               :path "/maps/map.edn"}]
+    (is (= entry
+           (-> (file-dialog/entry-options [entry]) head :value)))))
+
+(deftest filter-options/carry-filters-as-values
+  (let [filter {:label "Maps"
+                :extensions [".edn"]}]
+    (is (= filter
+           (-> (file-dialog/filter-options [filter]) head :value)))))
+
+(deftest selected-file-entries/use-selected-domain-values
+  (let [file {:type :file :name "map.edn"}
+        directory {:type :directory :name "maps"}]
+    (is (= [file]
+           (file-dialog/selected-file-entries
+            {:selected-entries [directory file]})))))

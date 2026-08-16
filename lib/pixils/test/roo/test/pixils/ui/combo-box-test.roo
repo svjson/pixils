@@ -1,0 +1,15 @@
+(ns pixils.ui.combo-box-test
+  (:require proof.core
+            [pixils.ui.combo-box :as combo-box]))
+
+
+
+;; Selection queries
+
+(deftest selected-option/preserves-no-selection
+  (is (nil? (combo-box/selected-option [{:value :a :label "Alpha"}]
+                                       nil))))
+
+(deftest popup-selected-indices/preserves-no-selection
+  (is (= []
+         (combo-box/popup-selected-indices {:selected-index nil}))))

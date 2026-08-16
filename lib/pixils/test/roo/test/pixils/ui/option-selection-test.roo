@@ -74,25 +74,50 @@
 (deftest state-transition/rejects-an-invalid-explicit-selection
   (is (= {:selected-indices [0]
           :selected-values [:a]}
-         (selection/state-transition
-          {:options [{:value :a} {:value :b}]
-           :selected-indices [0]}
-          {:options [{:value :a} {:value :b}]
-           :selected-indices [0 1]
-           :multi-select? false}
-          [:selected-indices]))))
+         (selection/state-transition {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]}
+                                     {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0 1]
+                                      :multi-select? false}
+                                     [:selected-indices]))))
 
 (deftest state-transition/reconciles-selection-after-options-change
   (is (= {:selected-indices [1]
           :selected-values [:b]}
-         (selection/state-transition
-          {:options [{:value :a} {:value :b}]
-           :selected-indices [0]}
-          {:options [{:value :a :disabled? true}
-                     {:value :b}]
-           :selected-indices [0]
-           :force-selection? true}
-          [:options]))))
+         (selection/state-transition {:options [{:value :a} {:value :b}]
+                                      :selected-indices [0]}
+                                     {:options [{:value :a :disabled? true}
+                                                {:value :b}]
+                                      :selected-indices [0]
+                                      :force-selection? true}
+                                     [:options]))))
+
+(deftest single-state-transition/preserves-an-optional-selection
+  (is (= {:selected-index nil
+          :selected-value nil}
+         (selection/single-state-transition {:selected-index nil}
+                                            {:options [{:value :a} {:value :b}]
+                                             :selected-index nil}
+                                            [:options]))))
+
+(deftest single-state-transition/rejects-an-invalid-selection
+  (is (= {:selected-index 1
+          :selected-value :b}
+         (selection/single-state-transition {:options [{:value :a} {:value :b}]
+                                             :selected-index 1}
+                                            {:options [{:value :a} {:value :b}]
+                                             :selected-index 4}
+                                            [:selected-index]))))
+
+(deftest single-state-transition/forces-selection-only-when-requested
+  (is (= {:selected-index 1
+          :selected-value :b}
+         (selection/single-state-transition {:selected-index nil}
+                                            {:options [{:value :a :disabled? true}
+                                                       {:value :b}]
+                                             :selected-index nil
+                                             :force-selection? true}
+                                            [:options :force-selection?]))))
 
 
 

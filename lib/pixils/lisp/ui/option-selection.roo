@@ -100,6 +100,43 @@
            :transition state-transition}
     change-event (assoc :change-event change-event)))
 
+(defun single-state-transition
+  "Returns canonical scalar selection fields for a proposed UI-state
+  transition.
+
+  `:selected-index` is accepted and reconciled through the same constraints as
+  vector selection. `:selected-value` is maintained as its derivative."
+  [current candidate changed-keys]
+  (let [options (or (:options candidate) [])
+        current-index (:selected-index current)
+        current-selected (if (nil? current-index) [] [current-index])
+        proposed-index (:selected-index candidate)
+        proposed (if (nil? proposed-index) [] [proposed-index])
+        selected (if (contains? changed-keys :selected-index)
+                   (accept options current-selected proposed candidate)
+                   current-selected)
+        constraints-changed? (or (contains? changed-keys :options)
+                                 (contains? changed-keys :force-selection?))
+        selected (if constraints-changed?
+                   (reconcile options selected candidate)
+                   selected)
+        index (head selected)]
+    {:selected-index index
+     :selected-value (head (option-list/values-at-indices options selected))}))
+
+(defun single-model
+  "Returns the stock UI-state model for scalar option selection.
+
+  The model owns `:selected-index` and its `:selected-value` derivative. It
+  depends on `:options` and `:force-selection?`. When `change-event` is
+  non-nil, actual changes to either owned field emit that event with both
+  fields as its payload."
+  [change-event]
+  (cond-> {:owns [:selected-index :selected-value]
+           :depends-on [:options :force-selection?]
+           :transition single-state-transition}
+    change-event (assoc :change-event change-event)))
+
 
 
 ;; Selection operations

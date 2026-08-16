@@ -81,25 +81,14 @@
        (:name entry)))
 
 (defun entry-options [entries]
-  (for-indexed [index entry (or entries [])]
+  (for [entry entries]
     (merge entry
-           {:value index
+           {:value entry
             :label (entry-label entry)})))
 
-(defun entry-at [entries index]
-  (when (and (some? index)
-             (>= index 0)
-             (< index (count entries)))
-    (nth entries index)))
-
-(defun filter-at [filters index]
-  (let [items (or filters default-filters)
-        selected-index (clamp (or index 0) 0 (dec (count items)))]
-    (nth items selected-index)))
-
 (defun filter-options [filters]
-  (for-indexed [index filter (or filters default-filters)]
-    {:value index
+  (for [filter (or filters default-filters)]
+    {:value filter
      :label (:label filter)}))
 
 (defun multi-select-dialog? [opts mode]
@@ -111,20 +100,22 @@
   (let [path (or (:path opts) default-path)
         mode (normalize-dialog-mode (:mode opts))
         filters (or (:filters opts) default-filters)
-        filter-index (or (:filter-index opts) 0)]
+        filter-index (or (:filter-index opts) 0)
+        selected-filter (nth filters filter-index)]
     {:dialog-mode mode
      :path path
      :pending-path path
      :path-error nil
      :entry-path path
-     :entries (safe-list-directory path (filter-at filters filter-index))
-     :selected-index nil
+     :entries (safe-list-directory path selected-filter)
      :selected-indices []
+     :selected-entries []
      :selected-entry nil
      :multi-select? (multi-select-dialog? opts mode)
      :filename (or (:filename opts) "")
      :filters filters
      :filter-index filter-index
+     :selected-filter selected-filter
      :filter-options (filter-options filters)}))
 
 (defun entry-list-child [entries selected-indices multi-select?]
@@ -148,11 +139,9 @@
            :pending-path path
            :path-error nil
            :entry-path nil
-           :entries (safe-list-directory path
-                                         (filter-at (:filters state)
-                                                    (:filter-index state)))
-           :selected-index nil
+           :entries (safe-list-directory path (:selected-filter state))
            :selected-indices []
+           :selected-entries []
            :selected-entry nil
            :filename "")
     (assoc state
@@ -160,11 +149,7 @@
            :path-error "Folder not found")))
 
 (defun selected-file-entries [state]
-  (filter (for [index (or (:selected-indices state) [])]
-            (entry-at (:entries state) index))
-          (fn [entry]
-            (and entry
-                 (file-entry? entry)))))
+  (filter (:selected-entries state) file-entry?))
 
 (defun selected-file-paths [state]
   (let [entries (selected-file-entries state)
@@ -206,8 +191,7 @@
    :directory (:path state)
    :filename (selected-file-name state)
    :filenames (selected-file-names state)
-   :filter (filter-at (:filters state)
-                      (:filter-index state))})
+   :filter (:selected-filter state)})
 
 (defun cancel-result [state]
   {:type :cancel
@@ -224,11 +208,11 @@
       (ui/emit! view :file-dialog/confirm (confirm-result state))
       state)))
 
-(defun activate-entry [state index ctx]
-  (let [entry (entry-at (:entries state) index)
+(defun activate-entry [state {:keys [index value]} ctx]
+  (let [entry value
         next-state (assoc state
-                          :selected-index index
                           :selected-indices [index]
+                          :selected-entries [entry]
                           :selected-entry entry
                           :filename (if (file-entry? entry)
                                       (:name entry)
@@ -301,12 +285,10 @@
            :ui/file-dialog-button-row]
    :state {:dialog-mode (ui/bind-state :dialog-mode)
            :path (ui/bind-state :path)
-           :entries (ui/bind-state :entries)
            :selected-entry (ui/bind-state :selected-entry)
-           :selected-indices (ui/bind-state :selected-indices)
+           :selected-entries (ui/bind-state :selected-entries)
            :filename (ui/bind-state :filename)
-           :filters (ui/bind-state :filters)
-           :filter-index (ui/bind-state :filter-index)}
+           :selected-filter (ui/bind-state :selected-filter)}
    :children [{:mode 'ui/button
                :class [:ui/dialog-button
                        :ui/dialog-button-cancel
@@ -315,9 +297,7 @@
                :state {:label "Cancel"
                        :dialog-mode (ui/bind-state :dialog-mode)
                        :path (ui/bind-state :path)
-                       :filename (ui/bind-state :filename)
-                       :filters (ui/bind-state :filters)
-                       :filter-index (ui/bind-state :filter-index)}
+                       :filename (ui/bind-state :filename)}
                :on-mouse-up (fn [state event ctx]
                                (ui/stop-propagation! event)
                                (ui/emit! (:view ctx)
@@ -332,12 +312,10 @@
                :state {:label (confirm-label (:dialog-mode state))
                        :dialog-mode (ui/bind-state :dialog-mode)
                        :path (ui/bind-state :path)
-                       :entries (ui/bind-state :entries)
                        :selected-entry (ui/bind-state :selected-entry)
-                       :selected-indices (ui/bind-state :selected-indices)
+                       :selected-entries (ui/bind-state :selected-entries)
                        :filename (ui/bind-state :filename)
-                       :filters (ui/bind-state :filters)
-                       :filter-index (ui/bind-state :filter-index)}
+                       :selected-filter (ui/bind-state :selected-filter)}
                :on-mouse-up (fn [state event ctx]
                                (ui/stop-propagation! event)
                                (confirm-or-navigate state ctx))}]})
@@ -348,20 +326,22 @@
            :ui/file-dialog-body]
    :init (fn [state ctx]
            (let [path (or (:path state) default-path)
-                 filters (or (:filters state) default-filters)]
+                 filters (or (:filters state) default-filters)
+                 filter-index (or (:filter-index state) 0)]
              (assoc state
                     :path path
                     :pending-path (or (:pending-path state) path)
                     :filters filters
-                    :filter-index (or (:filter-index state) 0)
+                    :filter-index filter-index
+                    :selected-filter (or (:selected-filter state)
+                                         (nth filters filter-index))
                     :filter-options (filter-options filters))))
    :update (fn [state ctx]
              (let [path (or (:path state) default-path)]
                (if (= path (:entry-path state))
                  state
                  (let [entries (safe-list-directory path
-                                                    (filter-at (:filters state)
-                                                               (:filter-index state)))]
+                                                    (:selected-filter state))]
                    (ui/replace-child! (:view ctx)
                                       "entry-list"
                                       (entry-list-child entries
@@ -373,23 +353,19 @@
                           :path-error nil
                           :entry-path path
                           :entries entries
-                          :selected-index nil
                           :selected-indices []
+                          :selected-entries []
                           :selected-entry nil
                           :filename "")))))
    :on {:list-box/selection-change (fn [state {:keys [payload] :as event} ctx]
                            (let [indices (or (:selected-indices payload) [])
-                                 index (head indices)
-                                 entry (entry-at (:entries state) index)
-                                 file-entries (filter
-                                               (for [selected-index indices]
-                                                 (entry-at (:entries state)
-                                                           selected-index))
-                                               file-entry?)]
+                                 entries (or (:selected-values payload) [])
+                                 entry (head entries)
+                                 file-entries (filter entries file-entry?)]
                              (ui/stop-propagation! event)
                              (assoc state
-                                    :selected-index index
                                     :selected-indices indices
+                                    :selected-entries entries
                                     :selected-entry entry
                                     :filename (case (count file-entries)
                                                 1 (:name (head file-entries))
@@ -403,9 +379,9 @@
                                                 (-> event :payload :path)))
         :combo-box/change (fn [state event ctx]
                             (let [filter-index (-> event :payload :selected-index)
+                                  selected-filter (-> event :payload :value)
                                   entries (safe-list-directory (:path state)
-                                                               (filter-at (:filters state)
-                                                                          filter-index))]
+                                                               selected-filter)]
                               (ui/stop-propagation! event)
                               (ui/replace-child! (:view ctx)
                                                  "entry-list"
@@ -414,15 +390,16 @@
                                                                    (:multi-select? state)))
                               (assoc state
                                      :filter-index filter-index
+                                     :selected-filter selected-filter
                                      :entries entries
-                                     :selected-index nil
                                      :selected-indices []
+                                     :selected-entries []
                                      :selected-entry nil
                                      :filename "")))
         :list-box/activate (fn [state event ctx]
                              (ui/stop-propagation! event)
                              (activate-entry state
-                                             (-> event :payload :index)
+                                             (:payload event)
                                              ctx))}})
 
 (defun make-body [opts]
