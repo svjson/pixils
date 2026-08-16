@@ -41,10 +41,10 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:amount nil
                               :last-change nil})
-       :children [{:mode 'ui/number-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :amount)
-                           :auto-focus? true}}]
+       :children [(pixils.ui.number-input/make
+                   {:style {:width 80 :height 22}
+                    :value (pixils.ui/bind-state :amount)
+                    :auto-focus? true})]
        :on {:number-input/change (fn [state event ctx]
                                    (assoc state :last-change (:payload event)))}})
   )");
@@ -81,11 +81,11 @@ TEST_F(NumberInputTest, blur_mode_number_input_emits_text_change)
       {:init (fn [state ctx] {:amount nil
                               :last-text nil
                               :last-change nil})
-       :children [{:mode 'ui/number-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :amount)
-                           :commit-on :blur
-                           :auto-focus? true}}]
+       :children [(pixils.ui.number-input/make
+                   {:style {:width 80 :height 22}
+                    :value (pixils.ui/bind-state :amount)
+                    :commit-on :blur
+                    :auto-focus? true})]
        :on {:number-input/text-change
             (fn [state event ctx]
               (assoc state :last-text (:payload event)))
@@ -121,11 +121,11 @@ TEST_F(NumberInputTest, number_input_accepts_decimal_text_when_fractions_are_all
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:amount nil
                               :last-change nil})
-       :children [{:mode 'ui/number-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :amount)
-                           :allow-fractions? true
-                           :auto-focus? true}}]
+       :children [(pixils.ui.number-input/make
+                   {:style {:width 80 :height 22}
+                    :value (pixils.ui/bind-state :amount)
+                    :allow-fractions? true
+                    :auto-focus? true})]
        :on {:number-input/change (fn [state event ctx]
                                    (assoc state :last-change (:payload event)))}})
   )");
@@ -164,13 +164,13 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
   runtime.eval(R"(
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:amount 10})
-       :children [{:mode 'ui/number-input
-                   :style {:width 80 :height 22}
-                   :state {:value (pixils.ui/bind-state :amount)
-                           :min 0
-                           :max 12
-                           :step 5
-                           :auto-focus? true}}]})
+       :children [(pixils.ui.number-input/make
+                   {:style {:width 80 :height 22}
+                    :value (pixils.ui/bind-state :amount)
+                    :min 0
+                    :max 12
+                    :step 5
+                    :auto-focus? true})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);

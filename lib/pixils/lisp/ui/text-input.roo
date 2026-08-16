@@ -246,8 +246,8 @@
     (if-let [shortcut-state (when (text-input-ctrl? event ctx)
                               (text-input-handle-shortcut state event))]
       shortcut-state
-      (cond
-        (= :key/backspace (:key event))
+      (case (:key event)
+        :key/backspace
         (cond
           (text-input-has-selection? state)
           (text-input-delete-selection state)
@@ -259,7 +259,7 @@
 
           :default state)
 
-        (= :key/delete (:key event))
+        :key/delete
         (cond
           (text-input-has-selection? state)
           (text-input-delete-selection state)
@@ -271,24 +271,24 @@
 
           :default state)
 
-        (= :key/left (:key event))
+        :key/left
         (text-input-move-cursor state
                                 (if extend?
                                   (dec cursor-index)
                                   (text-input-collapse-left state))
                                 extend?)
 
-        (= :key/right (:key event))
+        :key/right
         (text-input-move-cursor state
                                 (if extend?
                                   (+ cursor-index 1)
                                   (text-input-collapse-right state))
                                 extend?)
 
-        (= :key/home (:key event))
+        :key/home
         (text-input-move-cursor state 0 extend?)
 
-        (= :key/end (:key event))
+        :key/end
         (text-input-move-cursor state (count value) extend?)
 
         :default
@@ -403,48 +403,19 @@
       (clamp-scroll-x (- cursor-right content-width) scrollable-width content-width)
       :default scroll-x)))
 
-(defun text-input-style-matches? [view style]
-  (and (if (contains? style :position)
-         (= (-> view :style :position) (:position style))
-         true)
-       (if (contains? style :left)
-         (= (-> view :style :left) (:left style))
-         true)
-       (if (contains? style :top)
-         (= (-> view :style :top) (:top style))
-         true)
-       (if (contains? style :height)
-         (= (-> view :style :height) (:height style))
-         true)
-       (if (contains? style :visibility)
-         (= (-> view :style :visibility) (:visibility style))
-         true)))
-
-(defun text-input-style-if-changed! [view style]
-  (unless (text-input-style-matches? view style)
-    (ui/style! view style)))
-
-(defun text-input-sync-caret-style! [state ctx]
-  (text-input-style-if-changed! (:view ctx)
-                                {:position :absolute
-                                 :left (or (:x state) 0)
-                                 :top (or (:y state) 0)
-                                 :height (or (:h state) 0)
-                                 :visibility (if (:visible? state)
-                                               :visible
-                                               :none)}))
-
-(defun sync-text-input-interaction
-  "Updates focus-derived editor state and emits a blur transition once."
-  [state ctx]
-  (let [focused? (and (not (:disabled? state))
-                      (or (-> ctx :view :interaction :focused)
-                          (-> ctx :view :interaction :focus-within)))]
-    (when (and (:focused? state) (not focused?))
-      (ui/emit! (:view ctx)
-                :text-input-inner/blur
-                {:value (:value state)}))
-    (assoc state :show-caret? focused? :focused? focused?)))
+(defun apply-caret-style! [state ctx]
+  (let [view (:view ctx)
+        style {:position :absolute
+               :left (or (:x state) 0)
+               :top (or (:y state) 0)
+               :height (or (:h state) 0)
+               :visibility (if (:visible? state)
+                             :visible
+                             :none)}]
+    (unless (= style
+               (select-keys (:style view)
+                            [:position :left :top :height :visibility]))
+      (ui/style! view style))))
 
 (defun layout-text-input
   "Measures changed text and stores the geometry consumed by rendering and input."
@@ -510,10 +481,10 @@
   {:style {:width 1}
    :ui/state-keys TEXT-INPUT-CARET-UI-STATE-KEYS
    :init-ui (fn [ui-state _state ctx]
-              (text-input-sync-caret-style! ui-state ctx)
+              (apply-caret-style! ui-state ctx)
               ui-state)
    :after-layout-ui (fn [ui-state _state ctx]
-                      (text-input-sync-caret-style! ui-state ctx)
+                      (apply-caret-style! ui-state ctx)
                       ui-state)
    :render (fn [_state ctx]
              (let [ui-state (-> ctx :view :ui-state)]
@@ -570,7 +541,16 @@
                 (ui/focus! ctx))
               ui-state)
    :update-ui (fn [ui-state _state ctx]
-                (sync-text-input-interaction ui-state ctx))
+                (let [focused? (and (not (:disabled? ui-state))
+                                    (or (-> ctx :view :interaction :focused)
+                                        (-> ctx :view :interaction :focus-within)))]
+                  (when (and (:focused? ui-state) (not focused?))
+                    (ui/emit! (:view ctx)
+                              :text-input-inner/blur
+                              {:value (:value ui-state)}))
+                  (assoc ui-state
+                         :show-caret? focused?
+                         :focused? focused?)))
    :after-layout-ui (fn [ui-state _state ctx]
                       (layout-text-input ui-state ctx))
    :render (fn [_state ctx]
