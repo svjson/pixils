@@ -1,7 +1,8 @@
 (ns pixils.test.text-input-interaction-probe
-  (:require pixils))
+  (:require pixils
+            [pixils.ui :as ui]))
 
-(pixils/defmode editable-text-input-mode
+(defmode editable-text-input-mode
   {:init (fn [_state _ctx]
            {:last-change nil})
    :children [{:mode 'ui/text-input
@@ -13,7 +14,7 @@
         (fn [state event _ctx]
           (assoc state :last-change (:payload event)))}})
 
-(pixils/defmode short-text-input-mode
+(defmode short-text-input-mode
   {:init (fn [_state _ctx]
            {:last-change nil})
    :children [{:mode 'ui/text-input
@@ -25,7 +26,15 @@
         (fn [state event _ctx]
           (assoc state :last-change (:payload event)))}})
 
-(pixils/defmode read-only-text-input-mode
+(defmode shared-text-input-mode
+  {:init (fn [_state _ctx]
+           {:value "Ada"})
+   :children [{:mode 'ui/text-input
+               :style {:width 80 :height 22}
+               :state {:value (ui/bind-state :value)
+                       :auto-focus? true}}]})
+
+(defmode read-only-text-input-mode
   {:init (fn [_state _ctx]
            {:last-change nil})
    :children [{:mode 'ui/text-input

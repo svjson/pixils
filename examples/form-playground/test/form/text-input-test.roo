@@ -1,0 +1,45 @@
+(ns form-playground.form.text-input-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(deftest text-field/remains-editable
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 300
+                                 :buffer-height 100
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/push-mode! app 'text-input-form-probe)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :end)
+    (runtime/press-key! app :x)
+    (-> (runtime/find-view app "ui/text-input-inner")
+        :ui-state
+        :value))
+
+  (s/then [value]
+    (is (= "Adax" value))))
+
+(deftest keyword-field/remains-editable
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 300
+                                 :buffer-height 100
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/push-mode! app 'keyword-input-form-probe)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :x)
+    (-> (runtime/find-view app "ui/text-input-inner")
+        :ui-state
+        :value))
+
+  (s/then [value]
+    (is (= "x" value))))

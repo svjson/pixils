@@ -76,6 +76,7 @@ namespace Pixils::UI
           }
         }
       }
+      receiver.sync_state_from_shared_ui_state_policy();
       if (parent_state)
       {
         auto merged = merge_view_state(*parent_state, receiver);

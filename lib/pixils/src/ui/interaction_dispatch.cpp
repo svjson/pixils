@@ -216,6 +216,7 @@ namespace Pixils::UI
           }
         }
       }
+      view->sync_state_from_shared_ui_state_policy();
     }
 
     void merge_child_state_into_parent(const std::shared_ptr<Runtime::View>& child,

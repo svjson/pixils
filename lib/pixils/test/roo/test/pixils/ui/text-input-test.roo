@@ -75,6 +75,23 @@
              :last-change {:value "ab"}}}
            result))))
 
+(deftest text-input/shared-state-commits-event-driven-edits
+  (s/given
+    (text-input-interaction-app 'shared-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-key! app :end)
+    (runtime/press-key! app :x)
+    {:application-value (:value (runtime/active-state app))
+     :component-value (-> (runtime/find-view app "ui/text-input")
+                          :ui-state
+                          :value)})
+
+  (s/then [result]
+    (is (= {:application-value "Adax"
+            :component-value "Adax"}
+           result))))
+
 (deftest text-input/read-only-navigates-without-editing
   (s/given
     (text-input-interaction-app 'read-only-text-input-mode))
