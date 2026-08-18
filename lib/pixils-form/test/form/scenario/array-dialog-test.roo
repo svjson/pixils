@@ -1,11 +1,12 @@
 (ns pixils.form.scenario.array-dialog-test
   (:require proof.core
+            [pixils.form.controls.array-editor :as array-editor-control]
             [pixils.form.scenario.person :as person]
             [pixils.form :as form]))
 
 
 
-;; pixils.form/array-item-dialog-body
+;; pixils.form.controls.array-editor/array-item-dialog-body
 
 (deftest array-item-dialog-body/renders-form-and-buttons
   (let [body (form/array-item-dialog-body
@@ -39,7 +40,7 @@
               {:theme-styles? true})
         item-form (head (:children body))]
     (is (= {:class [:pixils/form :pixils/form-array-item-form]
-            :style form/default-array-dialog-form-style}
+            :style array-editor-control/default-array-dialog-form-style}
            (select-keys item-form [:class :style])))))
 
 (deftest array-item-dialog-body/uses-configured-layout
@@ -144,10 +145,10 @@
             :distance-field distance-view}))))
 
 (deftest array-item-dialog-body/preserves-custom-controls
-  (let [custom-control (fn [field-id field-schema field-label opts]
+  (let [custom-control (fn [{:keys [id label]}]
                          {:mode 'test/custom-control
-                          :state {:field-id field-id
-                                  :label field-label}})
+                          :state {:field-id id
+                                  :label label}})
         body (form/array-item-dialog-body
               {:type :object
                :fields {:group {:type :group-membership}}}

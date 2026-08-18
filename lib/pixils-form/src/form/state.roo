@@ -1,0 +1,252 @@
+(ns pixils.form.state
+  (:require [zoology.canonical :as model-canonical]
+            [zoology.validation :as model-validation]))
+
+(defun validated-state [state]
+  (let [validation (model-validation/validate-with-context (:schema state)
+                                                       (:value state)
+                                                       (:context state))]
+    (assoc state
+           :valid? (:valid? validation)
+           :errors (:errors validation))))
+
+(defun selected-item [items index]
+  (when (and (some? index)
+             (>= index 0)
+             (< index (count items)))
+    (nth items index)))
+
+(defun default-item-label [item index]
+  (or (:label item)
+      (:name item)
+      (:id item)
+      (str "Item " (inc index))))
+
+(defun path-value [item path]
+  (cond
+    (nil? path) item
+    (= (type-of path) "vector") (get-in item path)
+    :default (get item path)))
+
+(defun value-text [value empty-text]
+  (if (or (nil? value)
+          (and (string? value) (empty? value)))
+    (or empty-text "")
+    (str value)))
+
+(defun configured-item-label [item index item-label]
+  (cond
+    (nil? item-label)
+    (default-item-label item index)
+
+    (= (type-of item-label) "vector")
+    (value-text (path-value item item-label)
+                (default-item-label item index))
+
+    (map? item-label)
+    (value-text (path-value item (:path item-label))
+                (or (:empty item-label)
+                    (default-item-label item index)))
+
+    :default
+    (item-label item index)))
+
+(defun selection-option [item index item-label]
+  {:value index
+   :label (configured-item-label item index item-label)})
+
+(defun selection-options [items item-label]
+  (for-indexed [index item items]
+    (selection-option item index item-label)))
+
+(defun selected-indices [index]
+  (if (nil? index) [] [index]))
+
+(defun selection-derived-state [state item-label]
+  (let [options (selection-options (:items state) item-label)]
+    (assoc state
+           :options options
+           :selection-options options
+           :selected-indices (selected-indices (:selected-index state)))))
+
+(defun update-selected-item [items index value]
+  (cond-> items
+    (and (some? index)
+         (>= index 0)
+         (< index (count items))) (assoc index value)))
+
+(defun new-form-value [{:keys [new-value-fn items new-template]}]
+  (cond
+    new-value-fn
+    (apply new-value-fn [(count items)])
+
+    (nil? new-template) {}
+
+    :default new-template))
+
+(defun begin-new-state [state]
+  (let [value (new-form-value state)]
+    (assoc state
+           :new? true
+           :new-value value
+           :value value
+           :previous-selected-index (:selected-index state)
+           :selected-index nil
+           :projected-new? true
+           :projected-index nil
+           :projected-item value)))
+
+(defun save-new-state [state]
+  (let [items (or (:items state) [])
+        index (count items)
+        value (model-canonical/canonical-value
+               (:schema state)
+               (or (:projected-item state)
+                   (:value state)))
+        validated (validated-state (assoc state :value value))]
+    (cond-> state
+      (and (:new? state) (:valid? validated))
+      (assoc :items (append items value)
+             :selected-index index
+             :value value
+             :new? false
+             :new-value nil
+             :previous-selected-index nil
+             :projected-new? false
+             :projected-index index
+             :projected-item value))))
+
+(defun remove-item-at-index [items index]
+  (cond-> items
+    (not (empty? items)) (remove-nth index)))
+
+(defun delete-state [state]
+  (let [items (:items state)
+        selected-index (:selected-index state)]
+    (if (and (some? selected-index)
+             (>= selected-index 0)
+             (< selected-index (count items)))
+      (let [next-items (remove-item-at-index items selected-index)
+            next-index (cond
+                         (empty? next-items) nil
+                         (< selected-index (count next-items)) selected-index
+                         :default (dec (count next-items)))]
+        (assoc state
+               :items next-items
+               :selected-index next-index
+               :new? false
+               :new-value nil
+               :previous-selected-index nil
+               :projected-new? false
+               :projected-index nil
+               :projected-item nil))
+      state)))
+
+(defun swap-item-indexes [items left-index right-index]
+  (let [left-item (nth items left-index)
+        right-item (nth items right-index)
+        items-with-left-moved (assoc items left-index right-item)]
+    (assoc items-with-left-moved right-index left-item)))
+
+(defun move-selected-state [state offset]
+  (let [items (:items state)
+        selected-index (:selected-index state)
+        next-index (when selected-index
+                     (+ selected-index offset))]
+    (cond-> state
+      (and (not (:new? state))
+           selected-index
+           (>= selected-index 0)
+           (< selected-index (count items))
+           (>= next-index 0)
+           (< next-index (count items)))
+      (assoc :items (swap-item-indexes items selected-index next-index)
+             :selected-index next-index
+             :projected-index nil
+             :projected-item nil))))
+
+(defun move-up-state [state]
+  (move-selected-state state -1))
+
+(defun move-down-state [state]
+  (move-selected-state state 1))
+
+(defun insert-item-at-index [items index item]
+  (let [item-count (count items)
+        index (clamp index 0 item-count)]
+    (if (= index item-count)
+      (append items item)
+      (reduce (range 0 (dec item-count))
+              []
+              (fn [result item-index]
+                (let [result (cond-> result
+                               (= item-index index) (append item))]
+                  (append result (nth items item-index))))))))
+
+(defun move-item-state [state from-index to-index]
+  (let [items (:items state)
+        item-count (count items)]
+    (if (and (>= from-index 0)
+             (< from-index item-count)
+             (>= to-index 0)
+             (< to-index item-count)
+             (not= from-index to-index))
+      (let [item (nth items from-index)
+            next-items (insert-item-at-index
+                        (remove-item-at-index items from-index)
+                        to-index
+                        item)]
+        (assoc state
+               :items next-items
+               :selected-index to-index
+               :projected-index nil
+               :projected-item nil))
+      state)))
+
+(defun cancel-new-state [state]
+  (assoc state
+         :selected-index (:previous-selected-index state)
+         :new? false
+         :new-value nil
+         :previous-selected-index nil
+         :projected-new? false
+         :projected-index nil
+         :projected-item nil))
+
+(defun projection-state [state]
+  (let [items (:items state)
+        selected-index (:selected-index state)
+        selected (selected-item items selected-index)
+        value (:value state)]
+    (cond
+      (nil? items)
+      state
+
+      (:new? state)
+      (if (:projected-new? state)
+        (let [selected (selected-item items selected-index)]
+          (if (and (some? selected)
+                   (= value selected)
+                   (not= value (:projected-item state)))
+            (assoc state :value (:projected-item state))
+            (assoc state :projected-item value)))
+        (assoc state
+               :value (:new-value state)
+               :projected-new? true
+               :projected-index nil
+               :projected-item (:new-value state)))
+
+      (or (not= selected-index (:projected-index state))
+          (not= selected (:projected-item state)))
+      (assoc state
+             :value selected
+             :projected-new? false
+             :projected-index selected-index
+             :projected-item selected)
+
+      (not= value selected)
+      (assoc state
+             :items (update-selected-item items selected-index value)
+             :projected-item value)
+
+      :default state)))

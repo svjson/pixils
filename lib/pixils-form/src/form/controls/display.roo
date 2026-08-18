@@ -1,0 +1,15 @@
+(ns pixils.form.controls.display
+  (:require [pixils.form.layout :as form-layout]))
+
+(def default-style
+  "Default dimensions for a form display-text control."
+  {:width :fill
+   :height 18})
+
+(defun for-field
+  "Builds display text for a resolved form-field context."
+  [{:keys [value options]}]
+  {:mode 'ui/text
+   :class [:pixils/form-control :pixils/form-display-control]
+   :style (or (form-layout/style-option options :display-style default-style) {})
+   :state {:value value}})

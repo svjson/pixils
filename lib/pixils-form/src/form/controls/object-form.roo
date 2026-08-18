@@ -1,0 +1,304 @@
+(ns pixils.form.controls.object-form
+  (:require pixils
+            [pixils.form.field :as form-field]
+            [pixils.form.layout :as form-layout]
+            [pixils.form.valid-values :as valid-values]
+            [pixils.ui :as ui]
+            [zoology.schema :as model-schema]))
+
+(def default-style
+  "Default layout for nested object fields."
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
+(def default-control-style
+  "Default dimensions for an object-form control."
+  {:width :fill
+   :height :shrink})
+
+(def default-nested-label-width
+  "Maximum default width of labels nested in an object control."
+  64)
+
+(def body-id
+  "Stable child identifier for an object control's rendered fields."
+  "form-object-body")
+
+(defun path-prefix-matches-at? [path prefix index]
+  "Returns whether `path` contains `prefix` starting at `index`."
+  (cond
+    (>= index (count prefix)) true
+    (>= index (count path)) false
+    (= (nth path index) (nth prefix index))
+    (path-prefix-matches-at? path prefix (inc index))
+    :default false))
+
+(defun path-prefix-matches?
+  "Returns whether `path` begins with `prefix`."
+  [path prefix]
+  (path-prefix-matches-at? path prefix 0))
+
+(defun path-tail [path index]
+  "Returns the portion of `path` beginning at `index`."
+  (if (>= index (count path))
+    []
+    (concat [(nth path index)] (path-tail path (inc index)))))
+
+(defun path-without-prefix
+  "Returns `path` without a matching leading `prefix`."
+  [path prefix]
+  (cond-> path
+    (path-prefix-matches? path prefix) (path-tail (count prefix))))
+
+(defun path-pattern-matches-at? [path pattern index]
+  "Returns whether `path` matches `pattern` starting at `index`."
+  (cond
+    (>= index (count pattern)) true
+    (>= index (count path)) false
+    (or (= (nth pattern index) :*) (= (nth pattern index) (nth path index)))
+    (path-pattern-matches-at? path pattern (inc index))
+    :default false))
+
+(defun path-pattern-matches?
+  "Returns whether a complete path matches a wildcard pattern."
+  [path pattern]
+  (and (= (count path) (count pattern))
+       (path-pattern-matches-at? path pattern 0)))
+
+(defun path-under-pattern?
+  "Returns whether a path lies at or beneath a wildcard pattern."
+  [path pattern]
+  (and (>= (count path) (count pattern))
+       (path-pattern-matches-at? path pattern 0)))
+
+(defun selector-items
+  "Returns a selector declaration as a sequence."
+  [where]
+  (cond
+    (nil? where) []
+    (map? where) [where]
+    :default where))
+
+(defun selector-matches?
+  "Returns whether a fragment context matches a selector."
+  [ctx selector]
+  (and
+   (or (not (contains? selector :path))
+       (path-pattern-matches? (:path ctx) (:path selector)))
+   (or (not (contains? selector :under))
+       (path-under-pattern? (:path ctx) (:under selector)))
+   (or (not (contains? selector :ref))
+       (= (:ref selector) (:ref ctx))
+       (= (:ref selector) (:variant-ref ctx)))
+   (or (not (contains? selector :type))
+       (= (:type selector) (:type ctx))
+       (= (:type selector) (:variant-type ctx)))
+   (or (not (contains? selector :variant)) (= (:variant selector) (:variant ctx)))
+   (or (not (contains? selector :field)) (= (:field selector) (:field-id ctx)))))
+
+(defun fragment-case-where [case]
+  "Returns the selectors declared by a fragment case."
+  (or (:where case)
+      (let [selector (dissoc case :layout)]
+        (unless (empty? selector)
+          [selector]))))
+
+(defun fragment-case-matches?
+  "Returns whether any selector of a fragment case matches its context."
+  [ctx case]
+  (any? (selector-items (fragment-case-where case))
+        (fn [selector]
+          (selector-matches? ctx selector))))
+
+(defun matching-fragment-case
+  "Returns the first matching fragment case."
+  [ctx cases]
+  (find-first cases
+              (fn [case]
+                (fragment-case-matches? ctx case))))
+
+(defun configured-fragment-layout [entry ctx]
+  "Returns the layout selected by a fragment entry and context."
+  (cond
+    (sequential? entry) entry
+    (map? entry) (let [case (matching-fragment-case ctx (:cases entry))]
+                   (or (:layout case) (:default entry)))
+    :default nil))
+
+(defun active-variant-schema [root value]
+  "Returns the active union variant schema, when applicable."
+  (when (= (:type root) :union)
+    (model-schema/union-variant-schema root value)))
+
+(defun schema-ref [schema]
+  "Returns a prepared schema document's reference."
+  (:zoology/ref (model-schema/resolved-root-schema schema)))
+
+(defun schema-type [schema]
+  "Returns a prepared schema document's root type."
+  (:type (model-schema/resolved-root-schema schema)))
+
+(defun fragment-id-candidates [schema options]
+  "Returns fragment identifiers in lookup priority order."
+  (let [root (model-schema/resolved-root-schema schema)
+        variant (active-variant-schema root (:value options))
+        variant-schema (when variant
+                         (model-schema/schema-document-with-root schema variant))]
+    (filter [(:fragment options)
+             (when variant-schema (schema-ref variant-schema))
+             (when variant-schema (schema-type variant-schema))
+             (schema-ref schema)
+             (:fragment-field-id options)
+             (:type root)]
+            some?)))
+
+(defun fragment-context [schema options]
+  "Returns selector context for a prepared schema branch."
+  (let [root (model-schema/resolved-root-schema schema)
+        variant (active-variant-schema root (:value options))
+        variant-schema (when variant
+                         (model-schema/schema-document-with-root schema variant))]
+    {:path (or (:fragment-path options) [])
+     :ref (schema-ref schema)
+     :type (:type root)
+     :variant-ref (when variant-schema (schema-ref variant-schema))
+     :variant-type (when variant-schema (schema-type variant-schema))
+     :variant (when (= (:type root) :union)
+                (model-schema/union-discriminator-value root (:value options)))
+     :field-id (:fragment-field-id options)}))
+
+(defun fragment-layout-for-ids [fragments ids ctx]
+  "Returns the first configured layout matching candidate fragment identifiers."
+  (reduce ids
+          nil
+          (fn [layout id]
+            (or layout (configured-fragment-layout (get fragments id) ctx)))))
+
+(defun fragment-layout
+  "Returns the configured fragment layout for a schema branch."
+  [schema options]
+  (when-let [fragments (:layout/fragments options)]
+    (fragment-layout-for-ids fragments
+                             (fragment-id-candidates schema options)
+                             (fragment-context schema options))))
+
+(defun branch-render-key
+  "Returns the structural inputs that determine a rendered object branch."
+  [schema value context options]
+  (let [schema (model-schema/prepare-schema schema)]
+    {:fields (model-schema/active-schema-field-ids schema value)
+     :layout (fragment-layout schema
+                              (assoc options :schema schema :value value :context context))
+     :valid-value-options-cache
+     (valid-values/direct-options-cache-for-schema {} schema context value)}))
+
+(defun nested-field-label-style [options]
+  "Returns the label style used by fields nested in an object control."
+  (let [style (:field-label-style options)
+        width (:width style)]
+    (or (:nested-field-label-style options)
+        (cond-> style
+          (number? width) (assoc :width (min width default-nested-label-width))))))
+
+(defun render-options [state value]
+  "Returns form-rendering options for an object control's current value."
+  (let [nested? (some? (:field-path-prefix state))
+        options (cond-> (:render-options state)
+                  nested? form-layout/section-child-opts)]
+    (valid-values/with-options-cache
+     (assoc options
+            :schema (:schema state)
+            :value value
+            :context (:context state)
+            :field-path-prefix (:field-path-prefix state)
+            :field-label-style
+            (if nested?
+              (nested-field-label-style (:render-options state))
+              (:field-label-style (:render-options state)))))))
+
+(defun body-view [state value]
+  "Builds the current nested fields of an object control."
+  (let [options (render-options state value)
+        layout (or (:layout state)
+                   (fragment-layout (:schema state) options)
+                   (model-schema/active-schema-field-ids (:schema state) value))]
+    {:id body-id
+     :class :pixils/form-object-body
+     :style (:object-style state)
+     :state {:value (ui/project-state :value)}
+     :children (apply (:fields=> options) [layout options])}))
+
+(defun replace-body! [state ctx]
+  "Replaces an object control's rendered branch after structural change."
+  (ui/replace-child! (:view ctx) body-id (body-view state (:value state)))
+  state)
+
+(defun next-value [state payload]
+  "Returns an object value containing a nested form edit."
+  (if-let [path (:field-path payload)]
+    (assoc-in (or (:value state) {})
+              (path-without-prefix path (:field-path-prefix state))
+              (:value payload))
+    (:form-value payload)))
+
+(defcomponent pixils/form-object-control
+  {:on {:form/edit
+        (fn [state {:keys [payload]} ctx]
+          (let [next-state (assoc state :value (next-value state payload))]
+            (when (not= (branch-render-key (:schema state)
+                                           (:value state)
+                                           (:context state)
+                                           (:render-options state))
+                        (branch-render-key (:schema next-state)
+                                           (:value next-state)
+                                           (:context next-state)
+                                           (:render-options next-state)))
+              (replace-body! next-state ctx))
+            next-state))}})
+
+(defun for-field
+  "Builds an object-form control for a resolved form-field context."
+  [{:keys [id schema value options]}]
+  (let [object-schema (model-schema/schema-document-with-root (:schema options) schema)
+        object-options (assoc options
+                              :schema object-schema
+                              :value (form-field/value (:value options) id schema)
+                              :field-path-prefix (form-field/event-path options id schema)
+                              :fragment-field-id id
+                              :fragment-path (form-field/event-path options id schema))
+        state {:value value
+               :schema object-schema
+               :context (:context options)
+               :field-path-prefix (:field-path-prefix object-options)
+               :layout nil
+               :render-options object-options
+               :object-style (form-layout/style-option options :object-style default-style)}]
+    {:mode 'pixils/form-object-control
+     :class [:pixils/form-control :pixils/form-object-control]
+     :style (or (form-layout/style-option options
+                                          :object-control-style
+                                          default-control-style)
+                {})
+     :state state
+     :children [(body-view state (:value object-options))]}))
+
+(defun root-view
+  "Builds an object-form control for a root union schema."
+  [schema options layout]
+  (let [state {:value (ui/bind-state :value)
+               :schema schema
+               :context (:context options)
+               :field-path-prefix nil
+               :layout layout
+               :render-options options
+               :object-style (form-layout/style-option options :object-style default-style)}]
+    {:mode 'pixils/form-object-control
+     :class [:pixils/form-control :pixils/form-object-control]
+     :style (or (form-layout/style-option options
+                                          :object-control-style
+                                          default-control-style)
+                {})
+     :state state
+     :children [(body-view state (:value options))]}))

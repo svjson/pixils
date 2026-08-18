@@ -1,0 +1,129 @@
+(ns pixils.form.valid-values
+  (:require [pixils.form.field :as form-field]
+            [pixils.form.layout :as form-layout]
+            [zoology.schema :as model-schema]
+            [zoology.valid-values :as model-valid-values]))
+
+(defun cache-source-key
+  "Returns the cache identity of a valid-values source for a parent value."
+  [context parent-value source]
+  (cond
+    (= (type-of source) "vector") {:source-path source}
+    (map? source)
+    (let [source-key (model-schema/path-value parent-value
+                                              (or (:field source) (:path source)))]
+      {:source-key source-key
+       :source-path (get (:sources source) source-key)})
+    :default nil))
+
+(defun options-cache-key
+  "Returns the cache identity for a resolved field's valid values."
+  [context field-schema parent-value]
+  (when-let [valid-values (:valid-values field-schema)]
+    {:valid-values valid-values
+     :source (if (and (map? valid-values) (contains? valid-values :from))
+               (cache-source-key context parent-value (:from valid-values))
+               {:values valid-values})}))
+
+(defun option-value
+  "Returns an option value according to a valid-values declaration."
+  [item valid-values]
+  (if-let [value-path (:value-path valid-values)]
+    (get-in item value-path)
+    (if (map? item)
+      (if (contains? item :value) (:value item) (:id item))
+      item)))
+
+(defun option-label
+  "Returns an option label according to a valid-values declaration."
+  [item valid-values value]
+  (if-let [label-path (:label-path valid-values)]
+    (str (get-in item label-path))
+    (if (map? item)
+      (str (or (:label item) (:name item) (:id item) (:value item) value))
+      (form-layout/keyword-label value))))
+
+(defun option
+  "Returns a normalized option for one valid value."
+  [valid-values item]
+  (let [value (option-value item valid-values)]
+    {:value value
+     :label (option-label item valid-values value)}))
+
+(defun options-for-value
+  "Returns normalized valid-value options for a parent value."
+  [context {:keys [valid-values]} value]
+  (for [item (model-valid-values/valid-values-items context valid-values value)]
+    (option valid-values item)))
+
+(defun options
+  "Returns normalized context-independent options for a resolved field."
+  [context field-schema]
+  (options-for-value context field-schema nil))
+
+(defun cache-field-options
+  "Returns a cache containing a resolved field's valid-value options."
+  [cache context field-schema parent-value]
+  (if-let [key (options-cache-key context field-schema parent-value)]
+    (if (contains? cache key)
+      cache
+      (assoc cache key (options-for-value context field-schema parent-value)))
+    cache))
+
+(defun cache-schema-field-options
+  "Returns a cache containing a field and its active nested object fields."
+  [cache schema context value field-id]
+  (let [field-schema (model-schema/resolved-field-schema schema field-id)
+        field-value (form-field/value value field-id field-schema)
+        cache (cache-field-options cache context field-schema value)]
+    (case (:type field-schema)
+      :object (options-cache-for-schema
+               cache
+               (model-schema/schema-document-with-root schema field-schema)
+               context
+               field-value)
+      :union (options-cache-for-schema
+              cache
+              (model-schema/schema-document-with-root schema field-schema)
+              context
+              field-value)
+      :default cache)))
+
+(defun options-cache-for-schema
+  "Returns valid-value options cached across an active schema branch."
+  [cache schema context value]
+  (let [root (model-schema/resolved-root-schema schema)]
+    (case (:type root)
+      :array cache
+      :default
+      (reduce (model-schema/active-schema-field-ids schema value)
+              cache
+              (fn [field-cache field-id]
+                (cache-schema-field-options field-cache schema context value field-id))))))
+
+(defun direct-options-cache-for-schema
+  "Returns cached options for only the direct active fields of a schema."
+  [cache schema context value]
+  (reduce (model-schema/active-schema-field-ids schema value)
+          cache
+          (fn [field-cache field-id]
+            (cache-field-options field-cache
+                                 context
+                                 (model-schema/resolved-field-schema schema field-id)
+                                 value))))
+
+(defun options-cache
+  "Returns the complete valid-value options cache for a form value."
+  [schema value context]
+  (options-cache-for-schema {} (model-schema/prepare-schema schema) context value))
+
+(defun with-options-cache
+  "Returns form options containing their derived valid-value options cache."
+  [options]
+  (let [schema (model-schema/prepare-schema (:schema options))
+        options (assoc options :schema schema)]
+    (if (:valid-value-options-cache options)
+      options
+      (assoc options
+             :valid-value-options-cache
+             (options-cache-for-schema {} schema (:context options) (:value options))))))

@@ -100,11 +100,12 @@
         place-view (head object-children)
         place-control (nth (:children place-view) 1)
         anchor-view (nth object-children 1)
-        anchor-control (nth (:children anchor-view) 1)]
+        anchor-control (nth (:children anchor-view) 1)
+        anchor-editor (nth (:children anchor-control) 1)]
     (is (= {:mode 'pixils/form-object-control
             :child-control-modes ['pixils/form-select-control 'pixils/form-keyword-input]}
            {:mode (:mode object-control)
-            :child-control-modes [(:mode place-control) (:mode anchor-control)]}))))
+            :child-control-modes [(:mode place-control) (:mode anchor-editor)]}))))
 
 (deftest make/uses-compact-fixed-label-width
   (let [view (form/make {:schema {:shape {:type :object

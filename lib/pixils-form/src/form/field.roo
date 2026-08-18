@@ -1,0 +1,61 @@
+(ns pixils.form.field
+  (:require [pixils.ui :as ui]
+            [zoology.canonical :as model-canonical]
+            [zoology.schema :as model-schema]))
+
+(defun path
+  "Returns the value path for a resolved schema field."
+  [field-id field-schema]
+  (model-schema/field-path field-id field-schema))
+
+(defun value
+  "Returns a resolved field's value from its containing form value."
+  [form-value field-id field-schema]
+  (model-schema/field-value form-value field-id field-schema))
+
+(defun projection
+  "Returns the parent-state projection for a resolved field value."
+  [field-id field-schema]
+  (apply ui/project-state (concat [:value] (path field-id field-schema))))
+
+(defun event-path
+  "Returns a resolved field path beneath the current nested-field prefix."
+  [options field-id field-schema]
+  (concat (or (:field-path-prefix options) [])
+          (path field-id field-schema)))
+
+(defun assoc-value
+  "Returns form state containing a changed resolved field value."
+  [state value]
+  (if (:field-path state)
+    (assoc-in (or (:form-value state) {}) (:field-path state) value)
+    value))
+
+(defun change-value
+  "Returns the schema-canonical field value for the requested commit phase."
+  [field-schema value commit?]
+  (case (:type field-schema)
+    :keyword (model-canonical/canonical-value field-schema value)
+    :number (if commit? (model-canonical/canonical-value field-schema value) value)
+    :integer (if commit? (model-canonical/canonical-value field-schema value) value)
+    :default value))
+
+(defun change-payload-with-commit
+  "Returns a form-field change payload for a value and commit phase."
+  [state value commit?]
+  (let [value (change-value (:field-schema state) value commit?)
+        old-value-path (or (:local-field-path state) (:field-path state))]
+    {:field-id (:field-id state)
+     :field-path (:field-path state)
+     :local-field-path (:local-field-path state)
+     :field-schema (:field-schema state)
+     :old-value (if old-value-path
+                  (get-in (or (:form-value state) {}) old-value-path)
+                  (:form-value state))
+     :value value
+     :form-value (assoc-value state value)}))
+
+(defun change-payload
+  "Returns an uncommitted form-field change payload for a value."
+  [state value]
+  (change-payload-with-commit state value false))

@@ -1,5 +1,11 @@
 (ns pixils.form-test
   (:require proof.core
+            [pixils.form.controls.combo-box :as combo-box-control]
+            [pixils.form.controls.array-editor :as array-editor-control]
+            [pixils.form.controls.object-form :as object-form-control]
+            [pixils.form.field :as form-field]
+            [pixils.form.state :as form-state]
+            [pixils.form.valid-values :as form-valid-values]
             [pixils.form :as form]))
 
 (def person-schema
@@ -42,7 +48,7 @@
 
 
 
-;; pixils.form/field-change-payload
+;; pixils.form-field/change-payload
 
 (deftest field-change-payload/reports-field-and-next-form-value
   (is (= {:field-id :terrain-rule-exclusive
@@ -54,7 +60,7 @@
           :value true
           :form-value {:exclusive? true
                        :label "Grass edge"}}
-         (form/field-change-payload
+         (form-field/change-payload
           {:field-id :terrain-rule-exclusive
            :field-path [:exclusive?]
            :local-field-path [:exclusive?]
@@ -72,7 +78,7 @@
           :old-value :terrain/old
           :value :terrain/new
           :form-value {:id :terrain/new}}
-         (form/field-change-payload
+         (form-field/change-payload
           {:field-id :terrain-id
            :field-path [:id]
            :local-field-path [:id]
@@ -83,7 +89,7 @@
 (deftest field-change-payload/accepts-leading-colon-for-keywords
   (is (= :terrain/new
          (:value
-          (form/field-change-payload
+          (form-field/change-payload
            {:field-id :terrain-id
             :field-path [:id]
             :local-field-path [:id]
@@ -99,7 +105,7 @@
           :old-value :terrain/old
           :value nil
           :form-value {:id nil}}
-         (form/field-change-payload
+         (form-field/change-payload
           {:field-id :terrain-id
            :field-path [:id]
            :local-field-path [:id]
@@ -115,7 +121,7 @@
           :old-value 50
           :value "5"
           :form-value {:duration "5"}}
-         (form/field-change-payload
+         (form-field/change-payload
           {:field-id :duration
            :field-path [:duration]
            :local-field-path [:duration]
@@ -131,13 +137,13 @@
           :old-value [{:id :terrain/dirt}]
           :value [{:id :terrain/grass}]
           :form-value [{:id :terrain/grass}]}
-         (form/field-change-payload
+         (form-field/change-payload
          {:form-value [{:id :terrain/dirt}]}
           [{:id :terrain/grass}]))))
 
 
 
-;; pixils.form/field-change-payload-with-commit
+;; pixils.form-field/change-payload-with-commit
 
 (deftest field-change-payload-with-commit/accepts-color-values
   (is (= {:field-id :accent
@@ -147,7 +153,7 @@
           :old-value {:r 0 :g 0 :b 0 :a 255}
           :value {:r 10 :g 20 :b 30 :a 255}
           :form-value {:accent {:r 10 :g 20 :b 30 :a 255}}}
-         (form/field-change-payload-with-commit
+         (form-field/change-payload-with-commit
           {:field-id :accent
            :field-path [:accent]
            :local-field-path [:accent]
@@ -164,7 +170,7 @@
           :old-value 50
           :value 5
           :form-value {:duration 5}}
-         (form/field-change-payload-with-commit
+         (form-field/change-payload-with-commit
           {:field-id :duration
            :field-path [:duration]
            :local-field-path [:duration]
@@ -175,7 +181,7 @@
 
 
 
-;; pixils.form/valid-value-options
+;; pixils.form-valid-values/options
 
 (deftest valid-value-options/resolve-labels-and-values
   (let [field-schema {:type :keyword
@@ -188,7 +194,7 @@
                             :label "Dawnkeep Stables"}]}}]
     (is (= [{:value :place/dawnkeep-stables
              :label "Dawnkeep Stables"}]
-           (form/valid-value-options context field-schema)))))
+           (form-valid-values/options context field-schema)))))
 
 (deftest valid-value-options/can-depend-on-sibling-field-values
   (let [field-schema {:type :keyword
@@ -204,14 +210,14 @@
                             :label "Blackmere"}]}]
     (is (= [{:value :blackmere
              :label "Blackmere"}]
-           (form/valid-value-options-for-value
+           (form-valid-values/options-for-value
             context
             field-schema
             {:source :terrain})))))
 
 
 
-;; pixils.form/validated-state
+;; pixils.form-state/validated-state
 
 (deftest validated-state/validates-current-value
   (is (= {:schema person-schema
@@ -223,7 +229,7 @@
                    :field/age [{:rule :min
                                 :min 0
                                 :actual -1}]}}
-         (form/validated-state
+         (form-state/validated-state
           {:schema person-schema
            :value {:field/name ""
                    :field/age -1}
@@ -376,17 +382,17 @@
                              :base {:ref :effect-base}
                              :variants {:move {:ref :move-effect}
                                         :wait {:ref :wait-effect}}}}
-        move-key (form/branch-render-key schema-doc
+        move-key (object-form-control/branch-render-key schema-doc
                                          {:kind :move
                                           :distance 1}
                                          {}
                                          {})
-        edited-move-key (form/branch-render-key schema-doc
+        edited-move-key (object-form-control/branch-render-key schema-doc
                                                 {:kind :move
                                                  :distance 2}
                                                 {}
                                                 {})
-        wait-key (form/branch-render-key schema-doc
+        wait-key (object-form-control/branch-render-key schema-doc
                                          {:kind :wait
                                           :duration 5}
                                          {}
@@ -396,7 +402,7 @@
 
 
 
-;; pixils.form/select-control-state
+;; pixils.combo-box-control/control-state
 
 (deftest select-control-state/preselects-current-value
   (is (= {:options [{:value nil
@@ -410,7 +416,7 @@
                                :valid-values nil
                                :source {:valid-values nil}}
           :selected-index 2}
-         (form/select-control-state
+         (combo-box-control/control-state
           {:options [{:value nil
                       :label ""}
                      {:value :sit
@@ -420,13 +426,13 @@
            :value :stand}))))
 
 (deftest select-control-state/reuses-options-when-inputs-match
-  (let [state (form/select-control-state
+  (let [state (combo-box-control/control-state
                {:options [{:value nil
                            :label ""}
                           {:value :sit
                            :label "sit"}]
                 :value :sit})
-        reused (form/select-control-state
+        reused (combo-box-control/control-state
                 (assoc state
                        :options :cached
                        :selected-index :cached))]
@@ -442,7 +448,7 @@
                                         :terrain [:terrain]}}
                        :value-path [:value]
                        :label-path [:label]}}
-        state (form/select-control-state
+        state (combo-box-control/control-state
                {:field-schema field-schema
                 :context {:landmarks [{:value :dawnkeep
                                        :label "Dawnkeep"}]
@@ -450,7 +456,7 @@
                                      :label "Blackmere"}]}
                 :form-value {:source :landmarks}
                 :value :dawnkeep})
-        changed (form/select-control-state
+        changed (combo-box-control/control-state
                  (assoc state
                         :options :cached
                         :selected-index :cached
@@ -462,7 +468,7 @@
 
 
 
-;; pixils.form/valid-value-options-cache
+;; pixils.form-valid-values/options-cache
 
 (deftest valid-value-options-cache/deduplicates-repeated-context-sources
   (let [valid-values {:from [:vocabularies :places]
@@ -476,8 +482,8 @@
         context {:vocabularies
                  {:places [{:id :dawnkeep
                             :label "Dawnkeep"}]}}
-        cache (form/valid-value-options-cache schema-doc {} context)
-        key (form/valid-value-options-cache-key context field-schema {})]
+        cache (form-valid-values/options-cache schema-doc {} context)
+        key (form-valid-values/options-cache-key context field-schema {})]
     (is (= 1 (count (keys cache))))
     (is (= [{:value :dawnkeep
              :label "Dawnkeep"}]
@@ -500,7 +506,7 @@
                               :label "Dawnkeep"}]
                  :terrain [{:value :blackmere
                             :label "Blackmere"}]}
-        cache (form/valid-value-options-cache
+        cache (form-valid-values/options-cache
                schema-doc
                {:a {:source :landmarks}
                 :b {:source :terrain}}
@@ -509,12 +515,12 @@
 
 
 
-;; pixils.form/form-value-with-field-value
+;; pixils.form-field/assoc-value
 
 (deftest form-value-with-field-value/updates-nested-field-path
   (is (= {:target {:source :terrain
                    :id :dawnkeep}}
-         (form/form-value-with-field-value
+         (form-field/assoc-value
           {:form-value {:target {:source :landmarks
                                  :id :dawnkeep}}
            :field-path [:target :source]}
@@ -522,7 +528,7 @@
 
 (deftest form-value-with-field-value/uses-root-value-without-field-path
   (is (= [{:id :terrain/grass}]
-         (form/form-value-with-field-value
+         (form-field/assoc-value
           {:form-value [{:id :terrain/dirt}]}
           [{:id :terrain/grass}]))))
 
@@ -588,10 +594,10 @@
 
 
 
-;; pixils.form/projection-state
+;; pixils.form-state/projection-state
 
 (deftest projection-state/selects-current-collection-item
-  (let [state (form/projection-state
+  (let [state (form-state/projection-state
                {:items [{:name "Ada"}
                         {:name "Grace"}]
                 :selected-index 1})]
@@ -600,7 +606,7 @@
     (is (= {:name "Grace"} (:projected-item state)))))
 
 (deftest projection-state/writes-edited-value-back-to-collection
-  (let [state (form/projection-state
+  (let [state (form-state/projection-state
                {:items [{:name "Ada"}
                         {:name "Grace"}]
                 :selected-index 1
@@ -613,7 +619,7 @@
     (is (= {:name "Grace Hopper"} (:projected-item state)))))
 
 (deftest projection-state/uses-transient-new-value-without-collection-write
-  (let [state (form/projection-state
+  (let [state (form-state/projection-state
                {:items [{:name "Ada"}]
                 :selected-index nil
                 :new? true
@@ -624,7 +630,7 @@
     (is (= [{:name "Ada"}] (:items state)))))
 
 (deftest projection-state/keeps-transient-edits-out-of-collection
-  (let [state (form/projection-state
+  (let [state (form-state/projection-state
                {:items [{:name "Ada"}]
                 :new? true
                 :projected-new? true
@@ -635,10 +641,10 @@
 
 
 
-;; pixils.form/begin-new-state
+;; pixils.form-state/begin-new-state
 
 (deftest begin-new-state/uses-projection-factory
-  (let [state (form/begin-new-state
+  (let [state (form-state/begin-new-state
                {:items [{:field/name "Ada"
                          :field/age 36}]
                 :selected-index 0
@@ -654,10 +660,10 @@
 
 
 
-;; pixils.form/save-new-state
+;; pixils.form-state/save-new-state
 
 (deftest save-new-state/appends-and-selects-created-item
-  (let [state (form/save-new-state
+  (let [state (form-state/save-new-state
                {:items [{:field/name "Ada"
                          :field/age 36}]
                 :selected-index nil
@@ -675,7 +681,7 @@
     (is (nil? (:new-value state)))))
 
 (deftest save-new-state/canonicalizes-submitted-number-drafts
-  (let [state (form/save-new-state
+  (let [state (form-state/save-new-state
                {:schema {:type :object
                          :fields {:name {:type :text}
                                   :count {:type :integer}
@@ -698,10 +704,10 @@
 
 
 
-;; pixils.form/delete-state
+;; pixils.form-state/delete-state
 
 (deftest delete-state/removes-selected-item-and-selects-next
-  (let [state (form/delete-state
+  (let [state (form-state/delete-state
                {:items [{:name "Ada"}
                         {:name "Grace"}
                         {:name "Katherine"}]
@@ -717,7 +723,7 @@
     (is (nil? (:projected-item state)))))
 
 (deftest delete-state/selects-previous-when-last-item-is-removed
-  (let [state (form/delete-state
+  (let [state (form-state/delete-state
                {:items [{:name "Ada"}
                         {:name "Grace"}]
                 :selected-index 1})]
@@ -727,7 +733,7 @@
            (:selected-index state)))))
 
 (deftest delete-state/clears-selection-when-collection-becomes-empty
-  (let [state (form/delete-state
+  (let [state (form-state/delete-state
                {:items [{:name "Ada"}]
                 :selected-index 0})]
     (is (= []
@@ -737,23 +743,23 @@
 (deftest delete-state/is-a-no-op-without-a-selection
   (is (= {:items [{:name "Ada"}]
           :selected-index nil}
-         (form/delete-state
+         (form-state/delete-state
           {:items [{:name "Ada"}]
            :selected-index nil}))))
 
 (deftest delete-state/is-a-no-op-with-an-out-of-range-selection
   (is (= {:items [{:name "Ada"}]
           :selected-index 2}
-         (form/delete-state
+         (form-state/delete-state
           {:items [{:name "Ada"}]
            :selected-index 2}))))
 
 
 
-;; pixils.form/move-up-state
+;; pixils.form-state/move-up-state
 
 (deftest move-up-state/swaps-selected-item-with-previous
-  (let [state (form/move-up-state
+  (let [state (form-state/move-up-state
                {:items [{:name "Ada"}
                         {:name "Grace"}
                         {:name "Katherine"}]
@@ -772,17 +778,17 @@
   (is (= {:items [{:name "Ada"}
                   {:name "Grace"}]
           :selected-index 0}
-         (form/move-up-state
+         (form-state/move-up-state
           {:items [{:name "Ada"}
                    {:name "Grace"}]
            :selected-index 0}))))
 
 
 
-;; pixils.form/move-down-state
+;; pixils.form-state/move-down-state
 
 (deftest move-down-state/swaps-selected-item-with-next
-  (let [state (form/move-down-state
+  (let [state (form-state/move-down-state
                {:items [{:name "Ada"}
                         {:name "Grace"}
                         {:name "Katherine"}]
@@ -798,7 +804,7 @@
   (is (= {:items [{:name "Ada"}
                   {:name "Grace"}]
           :selected-index 1}
-         (form/move-down-state
+         (form-state/move-down-state
           {:items [{:name "Ada"}
                    {:name "Grace"}]
            :selected-index 1}))))
@@ -806,7 +812,7 @@
 (deftest move-down-state/is-a-no-op-without-a-selection
   (is (= {:items [{:name "Ada"}]
           :selected-index nil}
-         (form/move-down-state
+         (form-state/move-down-state
           {:items [{:name "Ada"}]
            :selected-index nil}))))
 
@@ -814,17 +820,17 @@
   (is (= {:items [{:name "Ada"}]
           :selected-index 0
           :new? true}
-         (form/move-down-state
+         (form-state/move-down-state
           {:items [{:name "Ada"}]
            :selected-index 0
            :new? true}))))
 
 
 
-;; pixils.form/cancel-new-state
+;; pixils.form-state/cancel-new-state
 
 (deftest cancel-new-state/restores-previous-selection
-  (let [state (form/cancel-new-state
+  (let [state (form-state/cancel-new-state
                {:selected-index nil
                 :previous-selected-index 2
                 :new? true
@@ -835,10 +841,10 @@
 
 
 
-;; pixils.form/selection-options
+;; pixils.form-state/selection-options
 
 (deftest selection-options/support-data-driven-item-labels
-  (let [options (form/selection-options
+  (let [options (form-state/selection-options
                  [{:place-id :place/dawnkeep-stables}
                   {:place-id :place/dawnkeep-smithy}]
                  {:path [:place-id]})]
@@ -850,11 +856,11 @@
 
 
 
-;; pixils.form/selection-add-dialog-config
+;; pixils.array-editor-control/selection-add-dialog-config
 
 (deftest selection-add-dialog-config/infers-default-dialog-for-add-only-actions
   (is (= {}
-         (form/selection-add-dialog-config
+         (array-editor-control/selection-add-dialog-config
           {:form/actions [{:key :add
                            :id :form/new}
                           {:key :delete
@@ -864,7 +870,7 @@
 
 (deftest selection-add-dialog-config/keeps-editable-selection-inline
   (is (nil?
-       (form/selection-add-dialog-config
+       (array-editor-control/selection-add-dialog-config
         {:form/actions [{:key :add
                          :id :form/new}
                         {:key :save
@@ -877,7 +883,7 @@
 (deftest selection-add-dialog-config/returns-custom-dialog-configuration
   (is (= {:title "Add Person"
           :layout [:field/name]}
-         (form/selection-add-dialog-config
+         (array-editor-control/selection-add-dialog-config
           {:form/actions []}
           {:key :add
            :id :form/new
@@ -886,7 +892,7 @@
 
 (deftest selection-add-dialog-config/respects-disabled-dialog-configuration
   (is (nil?
-       (form/selection-add-dialog-config
+       (array-editor-control/selection-add-dialog-config
         {:form/actions []}
         {:key :add
          :id :form/new
@@ -894,7 +900,7 @@
 
 
 
-;; pixils.form/array-dialog-result-state
+;; pixils.array-editor-control/array-dialog-result-state
 
 (deftest array-dialog-result-state/appends-confirmed-new-item
   (is (= {:items [{:name "Ada"}
@@ -903,7 +909,7 @@
           :selected-index 2
           :projected-index nil
           :projected-item nil}
-         (form/array-dialog-result-state
+         (array-editor-control/array-dialog-result-state
           {:items [{:name "Ada"}
                    {:name "Grace"}]
            :selected-index 0}
@@ -917,7 +923,7 @@
           :selected-index 1
           :projected-index nil
           :projected-item nil}
-         (form/array-dialog-result-state
+         (array-editor-control/array-dialog-result-state
           {:items [{:name "Ada"}
                    {:name "Grace"}]
            :selected-index 0}
@@ -934,7 +940,7 @@
         state {:item-schema schema
                :items []
                :selected-index nil}
-        next-state (form/array-dialog-result-state
+        next-state (array-editor-control/array-dialog-result-state
                     state
                     {:type :confirm
                      :new? true
@@ -948,10 +954,10 @@
 
 
 
-;; pixils.form/array-item-dialog-result
+;; pixils.array-editor-control/array-item-dialog-result
 
 (deftest array-item-dialog-result/canonicalizes-submitted-number-drafts
-  (let [result (form/array-item-dialog-result
+  (let [result (array-editor-control/array-item-dialog-result
                 {:schema {:type :object
                           :fields {:count {:type :integer}
                                    :weight {:type :number}}}
@@ -970,7 +976,7 @@
 
 
 
-;; pixils.form/array-items-change-payload
+;; pixils.array-editor-control/array-items-change-payload
 
 (deftest array-items-change-payload/reports-root-array-value
   (is (= {:field-id nil
@@ -983,14 +989,14 @@
           :form-value [{:id :terrain/dirt}
                        {:id :terrain/grass}]
           :commit? true}
-         (form/array-items-change-payload
+         (array-editor-control/array-items-change-payload
           {:items [{:id :terrain/dirt}]}
           {:items [{:id :terrain/dirt}
                    {:id :terrain/grass}]}))))
 
 (deftest array-items-change-payload/returns-nil-when-items-are-unchanged
   (is (nil?
-       (form/array-items-change-payload
+       (array-editor-control/array-items-change-payload
         {:items [{:id :terrain/grass}
                  {:id :terrain/dirt}]}
         {:items [{:id :terrain/grass}
@@ -998,10 +1004,10 @@
 
 
 
-;; pixils.form/move-item-state
+;; pixils.form-state/move-item-state
 
 (deftest move-item-state/reorders-items-and-selected-index
-  (let [state (form/move-item-state
+  (let [state (form-state/move-item-state
                {:items [:a :b :c]
                 :selected-index 0}
                0

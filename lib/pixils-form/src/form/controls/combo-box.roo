@@ -1,0 +1,130 @@
+(ns pixils.form.controls.combo-box
+  (:require pixils
+            [pixils.form.field :as form-field]
+            [pixils.form.layout :as form-layout]
+            [pixils.form.valid-values :as valid-values]
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as combo-box]
+            [zoology.schema :as model-schema]))
+
+(def default-style
+  "Default dimensions for a form combo-box control."
+  {:width :fill
+   :height 24})
+
+(defun option-index-from [options value index]
+  "Returns the matching option index at or after `index`."
+  (cond
+    (>= index (count options)) nil
+    (= (:value (nth options index)) value) index
+    :default (option-index-from options value (inc index))))
+
+(defun option-index
+  "Returns the index of `value` in normalized options."
+  [options value]
+  (option-index-from (or options []) value 0))
+
+(defun source-key
+  "Returns the current identity of a context-backed option source."
+  [state source]
+  (cond
+    (= (type-of source) "vector") {:source-path source}
+    (map? source)
+    (let [source-key (model-schema/path-value (:form-value state)
+                                              (or (:field source) (:path source)))]
+      {:source-key source-key
+       :source-path (get (:sources source) source-key)})
+    :default nil))
+
+(defun options-key
+  "Returns the inputs that determine a combo-box's current options."
+  [state]
+  (let [valid-values (-> state :field-schema :valid-values)]
+    {:value (:value state)
+     :valid-values valid-values
+     :source (if (and (map? valid-values) (contains? valid-values :from))
+               (source-key state (:from valid-values))
+               {:valid-values valid-values})}))
+
+(defun raw-options-for-value
+  "Returns cached or derived normalized options for a parent value."
+  [field-schema options value]
+  (let [key (valid-values/options-cache-key (:context options) field-schema value)
+        cache (:valid-value-options-cache options)]
+    (if (and key (contains? cache key))
+      (get cache key)
+      (valid-values/options-for-value (:context options) field-schema value))))
+
+(defun options-for-value
+  "Returns selectable options for a resolved field and parent value."
+  [field-schema options value]
+  (let [items (raw-options-for-value field-schema options value)]
+    (if (= true (:required field-schema))
+      items
+      (concat [{:value nil :label ""}] items))))
+
+(defun selectable-options
+  "Returns selectable options for a resolved field."
+  [field-schema form-options]
+  (options-for-value field-schema form-options (:value form-options)))
+
+(defun control-options
+  "Returns the options derived from a combo-box component's state."
+  [state]
+  (if (:field-schema state)
+    (options-for-value (:field-schema state)
+                       {:context (:context state)}
+                       (:form-value state))
+    (:options state)))
+
+(defun control-state
+  "Returns combo-box state with current options and selection derived."
+  [state]
+  (let [key (options-key state)]
+    (if (= key (:select-options-key state))
+      state
+      (let [items (control-options state)]
+        (assoc state
+               :select-options-key key
+               :options items
+               :selected-index (option-index items (:value state)))))))
+
+(defcomponent pixils/form-select-control
+  {:init (fn [state ctx]
+           (control-state state))
+   :on {:combo-box/change
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx)
+                    :form/edit
+                    (assoc (form-field/change-payload state (:value payload))
+                           :commit? true))
+          (assoc state
+                 :value (:value payload)
+                 :form-value (form-field/assoc-value state (:value payload))
+                 :selected-index (:selected-index payload)))}
+   :children [(combo-box/make {:options (ui/bind-state :options)
+                               :selected-index (ui/bind-state :selected-index)
+                               :style {:width :fill :height :fill}
+                               :row-height (ui/bind-state :row-height)
+                               :max-height (ui/bind-state :max-height)
+                               :disabled? (ui/bind-state :disabled?)})]})
+
+(defun for-field
+  "Builds a combo-box for a resolved form-field context."
+  [{:keys [id schema value options]}]
+  {:mode 'pixils/form-select-control
+   :class [:pixils/form-control :pixils/form-select-control]
+   :style (or (form-layout/style-option options :control-style default-style) {})
+   :state {:value value
+           :form-value (ui/bind-state :form-value)
+           :options (selectable-options schema options)
+           :field-id id
+           :field-path (form-field/event-path options id schema)
+           :local-field-path (form-field/path id schema)
+           :field-schema schema
+           :context (:context options)
+           :valid-value-options-cache (:valid-value-options-cache options)
+           :row-height (:row-height schema)
+           :max-height (:max-height schema)
+           :disabled? (:read-only? schema)}})

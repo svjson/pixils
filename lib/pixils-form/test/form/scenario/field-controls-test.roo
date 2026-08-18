@@ -26,12 +26,17 @@
                          :layout [:field/id]
                          :value {:field/id :scene/ground}})
         field-view (-> view :children head :children head)
-        control (nth (:children field-view) 1)]
-    (is (= {:mode 'pixils/form-keyword-input
-            :class [:pixils/form-control :pixils/form-keyword-control]
+        control (nth (:children field-view) 1)
+        prefix (head (:children control))
+        editor (nth (:children control) 1)]
+    (is (= {:class [:pixils/form-control :pixils/form-keyword-control]
+            :prefix ":"
+            :editor-mode 'pixils/form-keyword-input
             :auto-focus? true}
-           {:mode (:mode control) :class (:class control)
-            :auto-focus? (get-in control [:state :component :auto-focus?])}))))
+           {:class (:class control)
+            :prefix (get-in prefix [:state :value])
+            :editor-mode (:mode editor)
+            :auto-focus? (get-in editor [:state :component :auto-focus?])}))))
 
 (deftest make/renders-valid-values-fields-with-select-control
   (let [view (form/make {:schema {:field/role {:type :keyword

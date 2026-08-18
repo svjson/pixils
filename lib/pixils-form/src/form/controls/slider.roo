@@ -1,14 +1,34 @@
 (ns pixils.form.controls.slider
   (:require pixils
+            [pixils.form.layout :as form-layout]
             [pixils.ui :as ui]
             [pixils.ui.slider :as slider]))
 
+(def default-control-style
+  "Default layout for a form slider and its value."
+  {:width :fill
+   :height 22
+   :layout {:direction :row
+            :gap 8
+            :align-items :center}})
+
+(def default-slider-style
+  "Default dimensions for the slider within a form slider control."
+  {:width :fill
+   :min-width 220
+   :height 18})
+
+(def default-value-style
+  "Default dimensions for a form slider's displayed value."
+  {:width 64
+   :height 18})
+
 (defcomponent pixils/form-slider-control
   {:on {:slider/change
-        (fn [state event ctx]
-          (let [value (:payload event)]
+        (fn [state {:keys [payload] :as event} ctx]
+          (let [value payload]
             (ui/stop-propagation! event)
-            (when (not (:read-only? state))
+            (unless (:read-only? state)
               (ui/emit! (:view ctx)
                         :form/control-change
                         {:value value
@@ -27,3 +47,20 @@
                :class [:ui/muted :pixils/form-slider-value]
                :style (ui/bind-state :value-style)
                :state {:value (ui/bind-state :value)}}]})
+
+(defun for-field
+  "Builds a slider for a resolved form-field context."
+  [{:keys [schema value options]}]
+  {:mode 'pixils/form-slider-control
+   :class [:pixils/form-control :pixils/form-slider-control]
+   :style (or (:slider-control-style options)
+              (:control-style options)
+              default-control-style)
+   :state {:value value
+           :min (:min schema)
+           :max (:max schema)
+           :step (:step schema)
+           :axis (or (:axis schema) :x)
+           :read-only? (:read-only? schema)
+           :slider-style (or (:slider-style options) default-slider-style)
+           :value-style (or (:slider-value-style options) default-value-style)}})

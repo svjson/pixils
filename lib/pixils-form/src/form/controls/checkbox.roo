@@ -1,0 +1,18 @@
+(ns pixils.form.controls.checkbox
+  (:require [pixils.form.layout :as form-layout]
+            [pixils.ui.checkbox :as checkbox]))
+
+(def default-style
+  "Default dimensions for a form checkbox control."
+  {:width :fill
+   :height 24})
+
+(defun for-field
+  "Builds a checkbox for a resolved form-field context."
+  [{:keys [id value options]}]
+  (assoc (checkbox/make
+          {:style (or (form-layout/style-option options :checkbox-style default-style) {})
+           :label ""
+           :checked? value
+           :value id})
+         :class [:pixils/form-control :pixils/form-checkbox-control]))

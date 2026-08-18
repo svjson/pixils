@@ -44,3 +44,12 @@
           :style (if (contains? opts :style)
                    style
                    default-style))))
+
+(defun for-field
+  "Builds the text-input presentation for a resolved form-field context."
+  [{:keys [schema value options]}]
+  (make {:style (or (form-layout/style-option options :control-style default-style) {})
+         :value value
+         :auto-focus? (:auto-focus? schema)
+         :emit-blur? true
+         :read-only? (:read-only? schema)}))

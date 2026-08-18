@@ -1,10 +1,11 @@
 (ns pixils.form.scenario.array-change-test
   (:require proof.core
+            [pixils.form.controls.array-editor :as array-editor-control]
             [pixils.form :as form]))
 
 
 
-;; pixils.form/array-items-change-payload
+;; pixils.form.controls.array-editor/array-items-change-payload
 
 (deftest array-items-change-payload/updates-nested-form-state
   (let [view (form/array-control-view
@@ -22,7 +23,7 @@
         state (assoc (:state view)
                      :items [{:id :base}]
                      :form-value {:shape {:parts [{:id :base}]}})
-        payload (form/array-items-change-payload
+        payload (array-editor-control/array-items-change-payload
                  state
                  (assoc state
                         :items [{:id :base}

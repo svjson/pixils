@@ -1,5 +1,6 @@
 (ns pixils.form.scenario.construction-test
   (:require proof.core
+            [pixils.form.controls.slider :as slider-control]
             [pixils.form.scenario.person :as person]
             [pixils.form :as form]))
 
@@ -71,9 +72,9 @@
                          :theme-styles? true})
         field (-> view :children head :children head)
         control (nth (:children field) 1)]
-    (is (= {:style form/default-slider-control-style
-            :state {:slider-style form/default-slider-style
-                    :value-style form/default-slider-value-style}}
+    (is (= {:style slider-control/default-control-style
+            :state {:slider-style slider-control/default-slider-style
+                    :value-style slider-control/default-value-style}}
            {:style (:style control)
             :state (select-keys (:state control) [:slider-style :value-style])}))))
 
