@@ -10,59 +10,57 @@
 
 (defun switch-tab! [app tab-id]
   (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
-    (is (not (nil? tab)))
+    (is (some? tab))
     (runtime/click! app tab)
     (runtime/settle-layout! app)))
 
 (defun input-with-value [app value]
-  (head (filter (runtime/find-views app "ui/text-input")
-                (fn [view]
-                  (= value (:value (runtime/view-state view)))))))
+  (find-first (runtime/find-views app "ui/text-input")
+              (fn [view]
+                (= value (:value (:ui-state view))))))
 
 (defun text-input-inner-with-value [app value]
-  (head (filter (runtime/find-views app "ui/text-input-inner")
-                (fn [view]
-                  (= value (:value (runtime/view-state view)))))))
+  (find-first (runtime/find-views app "ui/text-input-inner")
+              (fn [view]
+                (= value (:value (:ui-state view))))))
 
 (defun combo-with-selected-label [app label]
-  (head (filter (runtime/find-views app "ui/combo-box")
-                (fn [view]
-                  (= label (:selected-label (runtime/view-state view)))))))
+  (find-first (runtime/find-views app "ui/combo-box")
+              (fn [view]
+                (= label (:selected-label (runtime/view-state view))))))
 
 (defun number-input-with-text [app value]
-  (head (filter (runtime/find-views app "ui/number-input")
-                (fn [view]
-                  (= value (:text-value (runtime/view-state view)))))))
+  (find-first (runtime/find-views app "ui/number-input")
+              (fn [view]
+                (= value (:text-value (:ui-state view))))))
 
 (defun number-input-texts [app]
-  (map (runtime/find-views app "ui/number-input")
-       (fn [view]
-         (:text-value (runtime/view-state view)))))
+  (for [view (runtime/find-views app "ui/number-input")]
+    (:text-value (:ui-state view))))
 
-(defun visible-view? [view]
-  (let [bounds (:bounds view)]
-    (and (not (nil? bounds))
+(defun visible-view? [{:keys [bounds] :as view}]
+  (and (some? bounds)
          (> (:w bounds) 0)
          (or (> (:h bounds) 0)
-             (= "ui/text" (runtime/view-mode-name view))))))
+             (= "ui/text" (runtime/view-mode-name view)))))
 
 (defun visible-views [app mode-name]
   (filter (runtime/find-views app mode-name)
           visible-view?))
 
 (defun visible-view-containing [app mode-name text]
-  (head (filter (runtime/find-views-containing app mode-name text)
-                visible-view?)))
+  (find-first (runtime/find-views-containing app mode-name text)
+              visible-view?))
 
 (defun visible-input-with-value [app value]
-  (head (filter (visible-views app "ui/text-input")
-                (fn [view]
-                  (= value (:value (runtime/view-state view)))))))
+  (find-first (visible-views app "ui/text-input")
+              (fn [view]
+                (= value (:value (:ui-state view))))))
 
 (defun visible-number-input-with-text [app value]
-  (head (filter (visible-views app "ui/number-input")
-                (fn [view]
-                  (= value (:text-value (runtime/view-state view)))))))
+  (find-first (visible-views app "ui/number-input")
+              (fn [view]
+                (= value (:text-value (:ui-state view))))))
 
 (defun active-person [app]
   (:selected-person (runtime/active-state app)))
@@ -191,13 +189,13 @@
 
 (defun click-button! [app label]
   (let [button (runtime/find-view-containing app "ui/button" label)]
-    (is (not (nil? button)))
+    (is (some? button))
     (runtime/click! app button)
     (runtime/settle-layout! app)))
 
 (defun type-number-input! [app current-value keys]
   (let [input (number-input-with-text app current-value)]
-    (is (not (nil? input)))
+    (is (some? input))
     (runtime/click! app input)
     (type-keys! app keys)
     (runtime/settle-layout! app)))
@@ -223,10 +221,10 @@
 (deftest person-register-selects-and-edits-person-through-form
   (let [app (make-form-playground-app)]
     (switch-tab! app :people)
-    (is (not (nil? (runtime/find-view-containing
-                    app
-                    "ui/text"
-                    "Pixils Form Playground"))))
+    (is (some? (runtime/find-view-containing
+                app
+                "ui/text"
+                "Pixils Form Playground")))
     (is (= "Ada"
            (:field/first-name (active-person app))))
     (let [grace-row (runtime/find-view-containing
@@ -240,8 +238,8 @@
            (:field/first-name (active-person app))))
     (let [first-name-input (input-with-value app "Grace")
           first-name-inner (text-input-inner-with-value app "Grace")]
-      (is (not (nil? first-name-input)))
-      (is (not (nil? first-name-inner)))
+      (is (some? first-name-input))
+      (is (some? first-name-inner))
       (runtime/click! app first-name-input)
       (runtime/press-key! app :end)
       (type-keys! app [:backspace
@@ -260,7 +258,7 @@
                              app
                              "ui/button"
                              "New Person")]
-      (is (not (nil? new-person-button)))
+      (is (some? new-person-button))
       (runtime/mouse-down-in! app new-person-button 2 2)
       (runtime/settle-layout! app)
       (runtime/mouse-up-at! app 2 2))
@@ -269,33 +267,33 @@
            (:field/first-name (active-person app))))
     (is (= "mary"
            (:field/first-name (active-person-at app 1))))
-    (is (not (nil? (runtime/find-view-containing
-                    app
-                    "ui/list-box-item"
-                    "mary Hopper"))))))
+    (is (some? (runtime/find-view-containing
+                app
+                "ui/list-box-item"
+                "mary Hopper")))))
 
 (deftest person-register-renders-selected-person-age
   (let [app (make-form-playground-app)]
     (switch-tab! app :people)
-    (is (not (nil? (visible-number-input-with-text app "36"))))
+    (is (some? (visible-number-input-with-text app "36")))
     (let [grace-row (runtime/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Grace Hopper")]
-      (is (not (nil? grace-row)))
+      (is (some? grace-row))
       (runtime/click! app grace-row)
       (runtime/settle-layout! app))
     (is (= 1 (:selected-person-index (runtime/active-state app))))
     (is (= 85 (:field/age (active-person app))))
-    (is (not (nil? (visible-number-input-with-text app "85"))))
+    (is (some? (visible-number-input-with-text app "85")))
     (let [katherine-row (runtime/find-view-containing app
                                                       "ui/list-box-item"
                                                       "Katherine Johnson")]
-      (is (not (nil? katherine-row)))
+      (is (some? katherine-row))
       (runtime/click! app katherine-row)
       (runtime/settle-layout! app))
     (is (= 2 (:selected-person-index (runtime/active-state app))))
     (is (= 101 (:field/age (active-person app))))
-    (is (not (nil? (visible-number-input-with-text app "101"))))))
+    (is (some? (visible-number-input-with-text app "101")))))
 
 (deftest person-register-renders-initial-selected-person-fields
   (let [app (make-form-playground-app)]
@@ -308,24 +306,24 @@
             :field/birth-place "London"
             :field/newsletter? true}
            (active-person app)))
-    (is (not (nil? (visible-input-with-value app "Ada"))))
-    (is (not (nil? (visible-input-with-value app "Lovelace"))))
-    (is (not (nil? (visible-input-with-value app "London"))))
-    (is (not (nil? (visible-number-input-with-text app "36"))))))
+    (is (some? (visible-input-with-value app "Ada")))
+    (is (some? (visible-input-with-value app "Lovelace")))
+    (is (some? (visible-input-with-value app "London")))
+    (is (some? (visible-number-input-with-text app "36")))))
 
 (deftest person-summary-renders-selected-person-data
   (let [app (make-form-playground-app)]
     (switch-tab! app :people)
-    (is (not (nil? (visible-view-containing app "ui/text" "London"))))
-    (is (not (nil? (visible-view-containing app "ui/text" "true"))))
+    (is (some? (visible-view-containing app "ui/text" "London")))
+    (is (some? (visible-view-containing app "ui/text" "true")))
     (let [grace-row (runtime/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Grace Hopper")]
-      (is (not (nil? grace-row)))
+      (is (some? grace-row))
       (runtime/click! app grace-row)
       (runtime/settle-layout! app))
-    (is (not (nil? (visible-view-containing app "ui/text" "New York"))))
-    (is (not (nil? (visible-view-containing app "ui/text" "false"))))))
+    (is (some? (visible-view-containing app "ui/text" "New York")))
+    (is (some? (visible-view-containing app "ui/text" "false")))))
 
 (deftest program-tab-renders-selected-program-form
   (let [app (make-form-playground-app)]
@@ -333,9 +331,9 @@
     (is (= :program (:selected-form-tab (runtime/active-state app))))
     (is (= "Summer Conference"
            (:program/name (active-conference app))))
-    (is (not (nil? (visible-input-with-value app "Summer Conference"))))
-    (is (not (nil? (visible-view-containing app "ui/text" "Agenda entries"))))
-    (is (not (nil? (visible-view-containing app "ui/button" "Add"))))))
+    (is (some? (visible-input-with-value app "Summer Conference")))
+    (is (some? (visible-view-containing app "ui/text" "Agenda entries")))
+    (is (some? (visible-view-containing app "ui/button" "Add")))))
 
 (deftest program-entry-edit-keeps-entry-list-visible-after-confirm
   (let [app (make-form-playground-app)]
@@ -343,14 +341,14 @@
     (let [autumn-row (runtime/find-view-containing app
                                                    "ui/list-box-item"
                                                    "Autumn Workshop")]
-      (is (not (nil? autumn-row)))
+      (is (some? autumn-row))
       (runtime/click! app autumn-row)
       (runtime/settle-layout! app))
     (is (= 1 (count (:program/entries (active-conference app)))))
     (let [arrival-row (runtime/find-view-containing app
                                                     "ui/list-box-item"
                                                     "Untitled entry")]
-      (is (not (nil? arrival-row)))
+      (is (some? arrival-row))
       (runtime/click! app arrival-row)
       (runtime/settle-layout! app))
     (click-button! app "Edit")
@@ -358,9 +356,9 @@
     (click-button! app "OK")
     (is (= "main-mode" (runtime/active-mode-name app)))
     (is (= 1 (count (:program/entries (active-conference app)))))
-    (is (not (nil? (visible-view-containing app
-                                            "ui/list-box-item"
-                                            "Untitled entry"))))))
+    (is (some? (visible-view-containing app
+                                        "ui/list-box-item"
+                                        "Untitled entry")))))
 
 (deftest program-planner-creates-union-entry-referencing-person-data
   (let [app (make-form-playground-app)]
@@ -379,7 +377,7 @@
     (is (= "Autumn Workshop"
            (:program/name (active-conference app))))
     (let [name-input (input-with-value app "Autumn Workshop")]
-      (is (not (nil? name-input)))
+      (is (some? name-input))
       (runtime/click! app name-input)
       (runtime/press-key! app :end)
       (type-keys! app [:space
@@ -393,7 +391,7 @@
                                  app
                                  "ui/button"
                                  "New Conference")]
-      (is (not (nil? new-conference-button)))
+      (is (some? new-conference-button))
       (runtime/mouse-down-in! app new-conference-button 2 2)
       (runtime/settle-layout! app)
       (runtime/mouse-up-at! app 2 2))
@@ -417,25 +415,25 @@
       (runtime/click! app add-button)
       (runtime/settle-layout! app))
     (is (= "ui/dialog-frame" (runtime/active-mode-name app)))
-    (is (not (nil? (head (runtime/find-views app "ui/color-picker")))))
+    (is (some? (head (runtime/find-views app "ui/color-picker"))))
     (let [title-input (input-with-value app "")]
-      (is (not (nil? title-input)))
+      (is (some? title-input))
       (runtime/click! app title-input)
       (type-keys! app [:k :e :y :n :o :t :e])
       (runtime/settle-layout! app))
     (let [speaker-combo (combo-with-selected-label app "Lovelace")]
-      (is (not (nil? speaker-combo)))
+      (is (some? speaker-combo))
       (runtime/click! app speaker-combo)
       (runtime/settle-layout! app)
       (let [hopper-option (runtime/find-view-containing
                            app
                            "ui/list-box-item"
                            "Hopper")]
-        (is (not (nil? hopper-option)))
+        (is (some? hopper-option))
         (runtime/click! app hopper-option)
         (runtime/settle-layout! app)))
     (let [ok-button (runtime/find-view-containing app "ui/button" "OK")]
-      (is (not (nil? ok-button)))
+      (is (some? ok-button))
       (runtime/click! app ok-button)
       (runtime/settle-layout! app))
     (is (= "main-mode" (runtime/active-mode-name app)))
@@ -450,19 +448,19 @@
                          :title
                          :speaker
                          :duration])))
-    (is (not (nil? (runtime/find-view-containing
-                    app
-                    "ui/list-box-item"
-                    "keynote"))))
+    (is (some? (runtime/find-view-containing
+                app
+                "ui/list-box-item"
+                "keynote")))
     (let [new-conference (runtime/find-view-containing
                           app
                           "ui/button"
                           "New Conference")]
-      (is (not (nil? new-conference)))
+      (is (some? new-conference))
       (runtime/click! app new-conference)
       (runtime/settle-layout! app))
     (let [name-input (input-with-value app "New Conference")]
-      (is (not (nil? name-input)))
+      (is (some? name-input))
       (runtime/click! app name-input)
       (runtime/press-key! app :end)
       (type-keys! app [:space
@@ -472,7 +470,7 @@
                        "7"])
       (runtime/settle-layout! app))
     (let [save-button (runtime/find-view-containing app "ui/button" "Save")]
-      (is (not (nil? save-button)))
+      (is (some? save-button))
       (runtime/click! app save-button)
       (runtime/settle-layout! app))
     (is (= 3 (count (:conferences (runtime/active-state app)))))
@@ -481,7 +479,7 @@
            (:program/name (active-conference app))))
     (is (= "New Conference 2027"
            (:program/name (active-conference-at app 2))))
-    (is (not (nil? (runtime/find-view-containing
-                    app
-                    "ui/list-box-item"
-                    "New Conference 2027"))))))
+    (is (some? (runtime/find-view-containing
+                app
+                "ui/list-box-item"
+                "New Conference 2027")))))

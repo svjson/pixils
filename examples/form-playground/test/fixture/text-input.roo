@@ -4,15 +4,11 @@
             [pixils.ui :as ui]))
 
 (defmode text-input-form-probe
-  {:init (fn [_state _ctx]
-           {:form-value {:name "Ada"}})
-   :children [(form/make {:schema {:name {:type :text
-                                          :auto-focus? true}}
+  {:init (fn [_state _ctx] {:form-value {:name "Ada"}})
+   :children [(form/make {:schema {:name {:type :text :auto-focus? true}}
                          :value (ui/bind-state :form-value)})]})
 
 (defmode keyword-input-form-probe
-  {:init (fn [_state _ctx]
-           {:form-value {:name nil}})
-   :children [(form/make {:schema {:name {:type :keyword
-                                          :auto-focus? true}}
+  {:init (fn [_state _ctx] {:form-value {:name :ada}})
+   :children [(form/make {:schema {:name {:type :keyword :auto-focus? true}}
                          :value (ui/bind-state :form-value)})]})

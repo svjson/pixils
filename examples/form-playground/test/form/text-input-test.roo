@@ -6,8 +6,7 @@
 (deftest text-field/remains-editable
   (s/given
     (let [app (runtime/make-app {:package-root "."
-                                 :buffer-width 300
-                                 :buffer-height 100
+                                 :buffer-width 300 :buffer-height 100
                                  :render-backend false})]
       (runtime/eval-file! app "test/fixture/text-input.roo")
       (runtime/push-mode! app 'text-input-form-probe)
@@ -17,18 +16,15 @@
   (s/when [app]
     (runtime/press-key! app :end)
     (runtime/press-key! app :x)
-    (-> (runtime/find-view app "ui/text-input-inner")
-        :ui-state
-        :value))
+    (select-keys (:ui-state (runtime/find-view app "ui/text-input-inner")) [:value]))
 
-  (s/then [value]
-    (is (= "Adax" value))))
+  (s/then [ui-state]
+    (is (= {:value "Adax"} ui-state))))
 
 (deftest keyword-field/remains-editable
   (s/given
     (let [app (runtime/make-app {:package-root "."
-                                 :buffer-width 300
-                                 :buffer-height 100
+                                 :buffer-width 300 :buffer-height 100
                                  :render-backend false})]
       (runtime/eval-file! app "test/fixture/text-input.roo")
       (runtime/push-mode! app 'keyword-input-form-probe)
@@ -36,10 +32,27 @@
       app))
 
   (s/when [app]
+    (runtime/press-key! app :end)
     (runtime/press-key! app :x)
-    (-> (runtime/find-view app "ui/text-input-inner")
-        :ui-state
-        :value))
+    (select-keys (:ui-state (runtime/find-view app "ui/text-input-inner")) [:value]))
 
-  (s/then [value]
-    (is (= "x" value))))
+  (s/then [ui-state]
+    (is (= {:value "adax"} ui-state))))
+
+(deftest keyword-field/accepts-an-external-value-change
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 300 :buffer-height 100
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/push-mode! app 'keyword-input-form-probe)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/set-active-state! app {:form-value {:name :bea}})
+    (runtime/settle-layout! app)
+    (select-keys (:ui-state (runtime/find-view app "ui/text-input-inner")) [:value]))
+
+  (s/then [ui-state]
+    (is (= {:value "bea"} ui-state))))
