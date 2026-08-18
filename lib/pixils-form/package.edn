@@ -2,6 +2,7 @@
  :version "0.1.0"
  :description "Declarative form rendering library for Pixils UI."
  :dependencies {pixils "0.1.0"
+                pixils-test "0.1.0"
                 zoology "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src"]

@@ -1,0 +1,17 @@
+(ns form-playground.schema.people-domain)
+
+(def person {:type :object
+             :fields {:person/id {:type :keyword
+                                   :required true}
+                      :field/first-name {:type :text
+                                         :required true}
+                      :field/last-name {:type :text
+                                        :required true}
+                      :field/age {:type :integer
+                                  :required true
+                                  :min 0
+                                  :max 130}
+                      :field/birth-place {:type :text}
+                      :field/newsletter? {:type :boolean}}})
+
+(def definitions {:person person})

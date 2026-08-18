@@ -1,6 +1,7 @@
 (ns pixils.form.scenario.array-controls-test
   (:require proof.core
-            [pixils.form :as form]))
+            [pixils.form :as form]
+            [pixils.form.controls.array-editor :as array-editor]))
 
 
 
@@ -55,7 +56,7 @@
                          :value {:field/relations
                                  [{:place-id :place/dawnkeep-stables
                                    :anchor :stable/aisle}]}})
-        relations-view (-> view :children head :children head)
+        relations-view (-> view :children head :children head :children head)
         array-control (nth (:children relations-view) 1)
         content-row (head (:children array-control))
         selection-view (head (:children content-row))
@@ -72,3 +73,127 @@
                         :activate-event (-> selection-view :state :activate-event)}
             :summary {:mode (:mode summary-view) :specs (-> summary-view :state :specs)}
             :action-count (count (:children action-row))}))))
+
+(deftest make/places-an-array-item-editor-at-its-layout-reference
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people [{:name "Ada"} {:name "Grace"}]}
+               :layout [[:row
+                         [:group
+                          [:field :people
+                           {:item-editor {:layout-ref :selected-person}}]]
+                         {:id :selected-person :class :details}]]
+               :text {:people "People"}})
+        row (-> view :children head :children head :children head)
+        group (head (:children row))
+        field (head (:children group))
+        array-control (nth (:children field) 1)
+        content (head (:children array-control))
+        toolbar (nth (:children array-control) 1)
+        item-editor (nth (:children row) 1)]
+    (is (= {:form-editor-state {:selected-person {:phase :selected
+                                                   :selected-index 0}}
+            :array {:content-child-count 1
+                    :item-editor-id :selected-person
+                    :action-events [:form/add-item
+                                    :form/save-new
+                                    :form/cancel-new
+                                    :form/delete]}
+            :item-editor {:mode 'pixils/form-layout-item-editor
+                          :class [:pixils/form-layout-item-editor :details]
+                          :field-path [:people]
+                          :selected-name "Ada"}}
+           {:form-editor-state (-> view :state :form/item-editor-state)
+            :array {:content-child-count (count (:children content))
+                    :item-editor-id (-> array-control :state :item-editor-id)
+                    :action-events (for [action (:children toolbar)]
+                                     (-> action :state :event))}
+            :item-editor {:mode (:mode item-editor)
+                          :class (:class item-editor)
+                          :field-path (-> item-editor :state :field-path)
+                          :selected-name (-> item-editor
+                                             :children head
+                                             :state :form/render-opts
+                                             :value :name)}}))))
+
+(deftest make/disables-a-referenced-item-editor-without-a-selection-by-default
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people []}
+               :layout [[:field :people
+                         {:item-editor {:layout-ref :selected-person}}]
+                        {:id :selected-person}]})
+        editor-state (-> view :state :form/item-editor-state :selected-person)]
+    (is (= {:selection-state {:phase :empty}
+            :editor-state {:disabled? true}}
+           {:selection-state editor-state
+            :editor-state (select-keys
+                           (array-editor/layout-item-editor-state
+                            {:editor-state editor-state
+                             :form-value {:people []}
+                             :field-path [:people]
+                             :no-selection :disabled})
+                           [:value :disabled?])}))))
+
+(deftest make/starts-a-transient-item-when-configured-without-a-selection
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people []}
+               :layout [[:field :people
+                         {:new-value=> (fn [index] {:name (str "Person " index)})
+                          :item-editor {:layout-ref :selected-person
+                                        :no-selection :new}}]
+                        {:id :selected-person}]})]
+    (is (= {:phase :new
+            :value {:name "Person 0"}}
+           (-> view :state :form/item-editor-state :selected-person)))))
+
+(deftest make/can-omit-all-array-actions
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people [{:name "Ada"}]}
+               :layout [[:field :people {:actions false}]]})
+        array-control (-> view :children head :children head :children head
+                          :children (nth 1))]
+    (is (= 1 (count (:children array-control))))))
+
+(deftest make/can-omit-individual-array-actions
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people [{:name "Ada"}]}
+               :layout [[:field :people
+                         {:actions {:add false
+                                    :delete false}}]]})
+        array-control (-> view :children head :children head :children head
+                          :children (nth 1))
+        toolbar (nth (:children array-control) 1)]
+    (is (= [:form/edit-item]
+           (for [action (:children toolbar)]
+             (-> action :state :event))))))
+
+
+
+;; pixils.form.controls.array-editor/referenced-item-change-payload
+
+(deftest referenced-item-change-payload/ignores-an-edit-without-a-form-value
+  (is (nil? (array-editor/referenced-item-change-payload
+             {:editor-state {:selected-index nil}
+              :form-value nil
+              :field-path [:people]}
+             {:name "Ada"}
+             true))))

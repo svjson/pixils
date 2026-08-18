@@ -1,0 +1,74 @@
+(ns pixils.form.scenario.array-dialog-interaction-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(deftest nested-array-dialog/preserves-blurred-number-drafts
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "assets/roo/pixils/form/fixture/nested-array-dialog.roo")
+      (runtime/push-mode! app 'nested-array-dialog-probe)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view-containing app "ui/button" "Edit"))
+    (runtime/settle-layout! app)
+    (let [outer-dialog? (= "ui/dialog-frame" (runtime/active-mode-name app))]
+      (runtime/click! app (runtime/find-view-containing app "ui/button" "Edit"))
+      (runtime/settle-layout! app)
+      (let [nested-dialog? (= "ui/dialog-frame" (runtime/active-mode-name app))
+            initial-texts (for [view (runtime/find-views app "ui/number-input")]
+                            (:text-value (:ui-state view)))
+            first-input (find-first (runtime/find-views app "ui/number-input")
+                                    (fn [view]
+                                      (= "" (:text-value (:ui-state view)))))]
+        (runtime/click! app first-input)
+        (reduce ["1" "8" "0" "0"] app
+                (fn [app key]
+                  (runtime/press-key! app key)))
+        (runtime/settle-layout! app)
+        (let [first-draft (for [view (runtime/find-views app "ui/number-input")]
+                            (:text-value (:ui-state view)))
+              second-input (find-first (runtime/find-views app "ui/number-input")
+                                       (fn [view]
+                                         (= "" (:text-value (:ui-state view)))))]
+          (runtime/click! app second-input)
+          (reduce ["2" "2" "0" "0"] app
+                  (fn [app key]
+                    (runtime/press-key! app key)))
+          (runtime/settle-layout! app)
+          (let [second-draft (for [view (runtime/find-views app "ui/number-input")]
+                               (:text-value (:ui-state view)))]
+            (runtime/click! app (runtime/find-view-containing app "ui/button" "OK"))
+            (runtime/settle-layout! app)
+            (runtime/click! app (runtime/find-view-containing app "ui/button" "Edit"))
+            (runtime/settle-layout! app)
+            (let [reopened-draft
+                  (for [view (runtime/find-views app "ui/number-input")]
+                    (:text-value (:ui-state view)))]
+              (runtime/click! app (runtime/find-view-containing app "ui/button" "OK"))
+              (runtime/settle-layout! app)
+              (runtime/click! app (runtime/find-view-containing app "ui/button" "OK"))
+              (runtime/settle-layout! app)
+              {:outer-dialog? outer-dialog?
+               :nested-dialog? nested-dialog?
+               :initial-texts initial-texts
+               :first-draft first-draft
+               :second-draft second-draft
+               :reopened-draft reopened-draft
+               :active-mode (runtime/active-mode-name app)}))))))
+
+  (s/then [result]
+    (is (= {:outer-dialog? true
+            :nested-dialog? true
+            :initial-texts ["" "" "" ""]
+            :first-draft ["1800" "" "" ""]
+            :second-draft ["1800" "2200" "" ""]
+            :reopened-draft ["1800" "2200" "" ""]
+            :active-mode "nested-array-dialog-probe"}
+           result))))

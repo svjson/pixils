@@ -51,7 +51,7 @@
                        :field/age 36}})
         item-form (head (:children body))]
     (is (= [:field/name]
-           (for [field (-> item-form :children head :children)]
+           (for [field (-> item-form :children head :children head :children)]
              (-> field :state :field-id))))))
 
 (deftest array-item-dialog-body/uses-global-fragment-layout
@@ -65,7 +65,7 @@
                        :field/age 36}})
         item-form (head (:children body))]
     (is (= [:field/age :field/name]
-           (for [field (-> item-form :children head :children)]
+           (for [field (-> item-form :children head :children head :children)]
              (-> field :state :field-id))))))
 
 (deftest array-item-dialog-body/renders-fragment-sections-as-top-level-sections
@@ -78,7 +78,7 @@
                                    :layout [:field/name]}]}}
                :value {:field/name "Ada"}})
         item-form (head (:children body))
-        section (-> item-form :children head :children head)]
+        section (-> item-form :children head :children head :children head)]
     (is (= {:mode 'ui/group-box :class :pixils/form-section :title "Identity"}
            (merge (select-keys section [:mode :class])
                   (select-keys (:state section) [:title]))))))
@@ -109,7 +109,7 @@
                :value {:type :preferred-position
                        :point 3}})
         item-form (head (:children body))
-        union-control (-> item-form :children head :children head)]
+        union-control (-> item-form :children head :children head :children head)]
     (is (= [:point :type]
            (for [field (-> union-control :children head :children)]
              (-> field :state :field-id))))))
@@ -134,7 +134,7 @@
               {:value {:type :preferred-position
                        :point 3}})
         item-form (head (:children body))
-        union-control (-> item-form :children head :children head)
+        union-control (-> item-form :children head :children head :children head)
         union-children (-> union-control :children head :children)
         point-view (nth union-children 1)
         distance-view (nth union-children 2)]
@@ -155,7 +155,7 @@
               {:controls {:group-membership custom-control}
                :text {:group "Group"}})
         item-form (head (:children body))
-        field-view (-> item-form :children head :children head)
+        field-view (-> item-form :children head :children head :children head)
         control (nth (:children field-view) 1)]
     (is (= {:mode 'test/custom-control :state {:field-id :group :label "Group"}}
            {:mode (:mode control)

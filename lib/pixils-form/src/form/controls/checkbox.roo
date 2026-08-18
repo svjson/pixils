@@ -9,10 +9,11 @@
 
 (defun for-field
   "Builds a checkbox for a resolved form-field context."
-  [{:keys [id value options]}]
+  [{:keys [id value disabled? options]}]
   (assoc (checkbox/make
           {:style (or (form-layout/style-option options :checkbox-style default-style) {})
            :label ""
            :checked? value
+           :disabled? disabled?
            :value id})
          :class [:pixils/form-control :pixils/form-checkbox-control]))

@@ -1,0 +1,12 @@
+(ns form-playground.schema
+  (:require [form-playground.schema.people-domain :as people]
+            [form-playground.schema.conference-domain :as conference]))
+
+(def full-schema {:definitions (merge people/definitions
+                                      conference/definitions)
+
+                  :schema {:type :object
+                           :fields {:people {:type :array
+                                             :items {:ref :person}}
+                                    :conferences {:type :array
+                                                  :items {:ref :conference/program}}}}})

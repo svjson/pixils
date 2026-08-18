@@ -22,7 +22,7 @@
                                     :preferred-position {:ref :preferred-position-rule}
                                     :edge {:ref :edge-rule}}}}
                          :value {:type :preferred-position :point 3}})
-        union-control (-> view :children head :children head)
+        union-control (-> view :children head :children head :children head)
         union-children (-> union-control :children head :children)
         type-view (head union-children)
         point-view (nth union-children 1)
@@ -57,7 +57,7 @@
                          :layout [:field/effect]
                          :value {:field/effect {:kind :move
                                                 :distance 1.5}}})
-        effect-view (-> view :children head :children head)
+        effect-view (-> view :children head :children head :children head)
         union-control (nth (:children effect-view) 1)
         union-children (-> union-control :children head :children)
         kind-view (head union-children)
@@ -110,7 +110,7 @@
                                       :layout [:duration :kind]}]}}}
                          :value {:field/effect {:kind :move
                                                 :distance 1.5}}})
-        effect-view (-> view :children head :children head)
+        effect-view (-> view :children head :children head :children head)
         union-control (nth (:children effect-view) 1)]
     (is (= [:distance :kind]
            (for [field (-> union-control :children head :children)]
@@ -138,9 +138,9 @@
                                            :distance 1.5}
                                  :secondary {:kind :move
                                              :distance 2.5}}})
-        primary-view (-> view :children head :children head)
+        primary-view (-> view :children head :children head :children head)
         primary-control (nth (:children primary-view) 1)
-        secondary-view (nth (-> view :children head :children) 1)
+        secondary-view (nth (-> view :children head :children head :children) 1)
         secondary-control (nth (:children secondary-view) 1)]
     (is (= [[:kind] [:distance :kind]]
            (for [control [primary-control secondary-control]]
@@ -164,7 +164,7 @@
                           :schema {:field/rule {:ref :rule}}}
                          :layout [:field/rule]
                          :value {:field/rule {:type :distance-range}}})
-        rule-view (-> view :children head :children head)
+        rule-view (-> view :children head :children head :children head)
         rule-control (nth (:children rule-view) 1)
         rule-children (-> rule-control :children head :children)
         distance-view (nth rule-children 1)

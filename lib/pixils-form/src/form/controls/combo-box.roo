@@ -112,7 +112,7 @@
 
 (defun for-field
   "Builds a combo-box for a resolved form-field context."
-  [{:keys [id schema value options]}]
+  [{:keys [id schema value disabled? options]}]
   {:mode 'pixils/form-select-control
    :class [:pixils/form-control :pixils/form-select-control]
    :style (or (form-layout/style-option options :control-style default-style) {})
@@ -127,4 +127,4 @@
            :valid-value-options-cache (:valid-value-options-cache options)
            :row-height (:row-height schema)
            :max-height (:max-height schema)
-           :disabled? (:read-only? schema)}})
+           :disabled? disabled?}})

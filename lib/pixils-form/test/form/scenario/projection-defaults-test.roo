@@ -29,7 +29,7 @@
                          {:type :form
                           :layout [:field/name]}]]})
         state (:state view)
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         selection-view (head (:children row-view))
         toolbar (nth (:children selection-view) 1)]
     (is (= {:selection {:visible-rows 4

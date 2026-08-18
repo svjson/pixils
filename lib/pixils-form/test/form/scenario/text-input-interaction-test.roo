@@ -1,4 +1,4 @@
-(ns form-playground.form.text-input-test
+(ns pixils.form.scenario.text-input-interaction-test
   (:require proof.core
             [proof.syntax :as s]
             [pixils.test.runtime :as runtime]))
@@ -8,7 +8,7 @@
     (let [app (runtime/make-app {:package-root "."
                                  :buffer-width 300 :buffer-height 100
                                  :render-backend false})]
-      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/text-input.roo")
       (runtime/push-mode! app 'text-input-form-probe)
       (runtime/settle-layout! app)
       app))
@@ -26,7 +26,7 @@
     (let [app (runtime/make-app {:package-root "."
                                  :buffer-width 300 :buffer-height 100
                                  :render-backend false})]
-      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/text-input.roo")
       (runtime/push-mode! app 'keyword-input-form-probe)
       (runtime/settle-layout! app)
       app))
@@ -44,13 +44,15 @@
     (let [app (runtime/make-app {:package-root "."
                                  :buffer-width 300 :buffer-height 100
                                  :render-backend false})]
-      (runtime/eval-file! app "test/fixture/text-input.roo")
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/text-input.roo")
       (runtime/push-mode! app 'keyword-input-form-probe)
       (runtime/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/set-active-state! app {:form-value {:name :bea}})
+    (runtime/set-active-state! app
+                               (assoc (runtime/active-state app)
+                                      :next-form-value {:name :bea}))
     (runtime/settle-layout! app)
     (select-keys (:ui-state (runtime/find-view app "ui/text-input-inner")) [:value]))
 

@@ -211,6 +211,7 @@
      (assoc options
             :schema (:schema state)
             :value value
+            :disabled? (ui/project-state :disabled?)
             :context (:context state)
             :field-path-prefix (:field-path-prefix state)
             :field-label-style
@@ -227,7 +228,8 @@
     {:id body-id
      :class :pixils/form-object-body
      :style (:object-style state)
-     :state {:value (ui/project-state :value)}
+     :state {:value (ui/project-state :value)
+             :disabled? (ui/project-state :disabled?)}
      :children (apply (:fields=> options) [layout options])}))
 
 (defun replace-body! [state ctx]
@@ -246,21 +248,23 @@
 (defcomponent pixils/form-object-control
   {:on {:form/edit
         (fn [state {:keys [payload]} ctx]
-          (let [next-state (assoc state :value (next-value state payload))]
-            (when (not= (branch-render-key (:schema state)
-                                           (:value state)
-                                           (:context state)
-                                           (:render-options state))
-                        (branch-render-key (:schema next-state)
-                                           (:value next-state)
-                                           (:context next-state)
-                                           (:render-options next-state)))
-              (replace-body! next-state ctx))
-            next-state))}})
+          (if (:disabled? state)
+            state
+            (let [next-state (assoc state :value (next-value state payload))]
+              (when (not= (branch-render-key (:schema state)
+                                             (:value state)
+                                             (:context state)
+                                             (:render-options state))
+                          (branch-render-key (:schema next-state)
+                                             (:value next-state)
+                                             (:context next-state)
+                                             (:render-options next-state)))
+                (replace-body! next-state ctx))
+              next-state)))}})
 
 (defun for-field
   "Builds an object-form control for a resolved form-field context."
-  [{:keys [id schema value options]}]
+  [{:keys [id schema value disabled? options]}]
   (let [object-schema (model-schema/schema-document-with-root (:schema options) schema)
         object-options (assoc options
                               :schema object-schema
@@ -269,6 +273,7 @@
                               :fragment-field-id id
                               :fragment-path (form-field/event-path options id schema))
         state {:value value
+               :disabled? disabled?
                :schema object-schema
                :context (:context options)
                :field-path-prefix (:field-path-prefix object-options)
@@ -288,6 +293,7 @@
   "Builds an object-form control for a root union schema."
   [schema options layout]
   (let [state {:value (ui/bind-state :value)
+               :disabled? (ui/project-state :disabled?)
                :schema schema
                :context (:context options)
                :field-path-prefix nil

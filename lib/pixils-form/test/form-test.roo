@@ -544,10 +544,7 @@
           :value {:id :terrain/forest
                   :count 12
                   :weight 0.5
-                  :parts [{:offset 1.25}]}
-          :items nil
-          :selected-index nil
-          :new? nil}
+                  :parts [{:offset 1.25}]}}
          (form/form-state-change-payload
           {:schema {:type :object
                     :fields {:id {:type :keyword}
@@ -574,10 +571,7 @@
           :value {:id "terrain/forest"
                   :count "12"
                   :weight "0.5"
-                  :parts [{:offset "1.25"}]}
-          :items nil
-          :selected-index nil
-          :new? nil}
+                  :parts [{:offset "1.25"}]}}
          (form/form-state-draft-change-payload
           {:schema {:type :object
                     :fields {:id {:type :keyword}

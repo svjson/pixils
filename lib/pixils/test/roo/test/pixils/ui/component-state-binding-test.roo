@@ -128,6 +128,18 @@
      app
      "pixils/test/component-state-binding-probe.roo")
     (runtime/push-mode! app 'projected-state-root-mode)
+    (is (= {:parent 1
+            :middle 1
+            :leaf 1
+            :leaf-initialized-value 1}
+           {:parent (-> (runtime/find-view app "projected-state-parent")
+                        :ui-state :value)
+            :middle (-> (runtime/find-view app "projected-state-middle")
+                        :ui-state :value)
+            :leaf (-> (runtime/find-view app "projected-state-leaf")
+                      :ui-state :value)
+            :leaf-initialized-value (-> (runtime/find-view app "projected-state-leaf")
+                                        :ui-state :initialized-value)}))
     (runtime/set-active-state! app {:advance? true})
     (runtime/update! app)
     (is (= 2
@@ -142,3 +154,27 @@
            (:value
             (:ui-state
              (runtime/find-view app "projected-state-leaf")))))))
+
+(deftest parent-component-state-projection-is-visible-during-descendant-init
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file!
+     app
+     "pixils/test/component-state-binding-probe.roo")
+    (runtime/push-mode! app 'projected-component-state-root-mode)
+    (is (= {:parent 1
+            :middle 1
+            :leaf 1
+            :leaf-initialized-value 1}
+           {:parent (-> (runtime/find-view app "projected-component-state-parent")
+                        :state :value)
+            :middle (-> (runtime/find-view app "projected-component-state-middle")
+                        :state :value)
+            :leaf (-> (runtime/find-view app "projected-component-state-leaf")
+                      :state :value)
+            :leaf-initialized-value (-> (runtime/find-view
+                                         app
+                                         "projected-component-state-leaf")
+                                        :state :initialized-value)}))))

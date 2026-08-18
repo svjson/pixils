@@ -1,0 +1,13 @@
+(ns form-playground.view.tabs.people
+  (:require [pixils.ui :as ui]
+            [form-playground.view.tabs.people.summary :as people-summary]
+            [form-playground.view.tabs.people.form :as people-form]))
+
+(defun make []
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 12}}
+   :state (ui/bind-state)
+   :children [(people-form/make)
+              (people-summary/make)]})

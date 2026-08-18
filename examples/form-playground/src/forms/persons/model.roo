@@ -43,17 +43,6 @@
    :field/newsletter? false
    :label (str "New Person " (inc index))})
 
-(defun person-label [person index]
-  (let [first-name (:field/first-name person)
-        last-name (:field/last-name person)
-        fallback (or (:label person) (str "Person " (inc index)))]
-    (if (and (not (nil? first-name))
-             (not-empty? first-name)
-             (not (nil? last-name))
-             (not-empty? last-name))
-      (str first-name " " last-name)
-      fallback)))
-
 (defun initial-state []
   {:people people
    :selected-person-index 0

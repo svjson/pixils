@@ -1,0 +1,104 @@
+(ns form-playground.schema.conference-domain)
+
+(def person-options
+  {:from []
+   :value-path [:person/id]
+   :label-path [:field/last-name]})
+
+
+(def entry-base {:type :object
+                 :fields {:kind {:type :keyword
+                                 :required true
+                                 :valid-values [:talk
+                                                :workshop
+                                                :panel
+                                                :break]}
+                          :color {:type :color
+                                  :allow-alpha? false}}})
+
+
+(def talk-entry {:extends :program-entry/base
+                 :fields {:title {:type :text
+                                  :required true
+                                  :auto-focus? true}
+                          :speaker {:type :keyword
+                                    :required true
+                                    :valid-values person-options}
+                          :duration {:type :integer
+                                     :required true
+                                     :min 5
+                                     :max 240}}})
+
+(def workshop-entry {:extends :program-entry/base
+                     :fields {:title {:type :text
+                                      :required true
+                                      :auto-focus? true}
+                              :facilitator {:type :keyword
+                                            :required true
+                                            :valid-values person-options}
+                              :capacity {:type :integer
+                                         :required true
+                                         :min 1
+                                         :max 500}
+                              :hands-on? {:type :boolean}}})
+
+
+(def panel-entry {:extends :program-entry/base
+                  :fields {:topic {:type :text
+                                   :required true
+                                   :auto-focus? true}
+                           :moderator {:type :keyword
+                                       :required true
+                                       :valid-values person-options}
+                           :panelist {:type :keyword
+                                      :valid-values person-options}}})
+
+
+(def break-entry {:extends :program-entry/base
+                  :fields {:label {:type :text
+                                   :required true
+                                   :auto-focus? true}
+                           :duration {:type :integer
+                                      :required true
+                                      :min 5
+                                      :max 120}}})
+
+
+(def program-entry {:type :union
+                    :discriminator :kind
+                    :base {:ref :program-entry/base}
+                    :variants {:talk {:ref :program-entry/talk}
+                               :workshop {:ref :program-entry/workshop}
+                               :panel {:ref :program-entry/panel}
+                               :break {:ref :program-entry/break}}})
+
+(def conference-program
+  {:type :object
+   :fields {:conference/id {:type :keyword
+                            :required true}
+            :program/name {:type :text
+                           :required true}
+            :program/entries {:type :array
+                              :new-template {:kind :talk
+                                             :color {:r 0x4f :g 0x83 :b 0xcc :a 255}
+                                             :title ""
+                                             :speaker :person/ada
+                                             :duration 30}
+                              :item-label {:path [:title]
+                                           :empty "Untitled entry"}
+                              :item-summary [{:label "Type"
+                                              :path [:kind]}
+                                             {:label "Title"
+                                              :path [:title]}
+                                             {:label "Person"
+                                              :path [:speaker]}]
+                              :items {:ref :program-entry/program}}}})
+
+
+(def definitions {:program-entry/base entry-base
+                  :program-entry/talk talk-entry
+                  :program-entry/workshop workshop-entry
+                  :program-entry/panel panel-entry
+                  :program-entry/break break-entry
+                  :program-entry/program program-entry
+                  :conference/program conference-program})

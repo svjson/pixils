@@ -1,0 +1,266 @@
+(ns form-playground.scenario.people-list-test
+  (:require proof.core
+            form-playground.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [pixils.ui :as ui]))
+
+(deftest people-list/renders-and-selects-the-people-array
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [list-box (runtime/find-view app "ui/list-box")]
+      (ui/set-ui-state! list-box (assoc (:ui-state list-box) :sentinel :retained))
+      (runtime/click! app
+                      (runtime/find-view-containing app
+                                                    "ui/list-box-item"
+                                                    "Grace Hopper"))
+      (runtime/settle-layout! app)
+      {:list-box-sentinel (:sentinel (:ui-state (runtime/find-view app "ui/list-box")))
+       :selection (select-keys (:state (runtime/find-view app
+                                                          "pixils/form-array-control"))
+                               [:selected-index :value])}))
+
+  (s/then [result]
+    (is (= {:list-box-sentinel :retained
+            :selection {:selected-index 1
+                        :value {:person/id :person/grace
+                                :field/first-name "Grace"
+                                :field/last-name "Hopper"
+                                :field/age 85
+                                :field/birth-place "New York"
+                                :field/newsletter? false}}}
+           result))))
+
+(deftest people-list/uses-the-person-layout-at-the-referenced-editor-location
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [fields (runtime/find-views app "pixils/form-field")
+          first-name-field
+          (find-first fields
+                      (fn [field]
+                        (= :field/first-name (-> field :state :field-id))))]
+      {:editor-present? (some? (runtime/find-view app
+                                                  "pixils/form-layout-item-editor"))
+       :first-name (-> (nth (ui/children first-name-field) 1) :ui-state :value)
+       :field-ids (for [field fields]
+                    (-> field :state :field-id))}))
+
+  (s/then [result]
+    (is (= {:editor-present? true
+            :first-name "Ada"
+            :field-ids [:field/first-name
+                        :field/last-name
+                        :field/age
+                        :field/birth-place
+                        :field/newsletter?
+                        :people]}
+           result))))
+
+(deftest people-list/disables-the-item-form-when-the-array-has-no-selection
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/set-active-state! app (assoc (runtime/active-state app) :people []))
+    (runtime/settle-layout! app)
+    (let [first-name-field
+          (find-first (runtime/find-views app "pixils/form-field")
+                      (fn [field]
+                        (= :field/first-name (-> field :state :field-id))))]
+      (runtime/click! app (nth (ui/children first-name-field) 1))
+      (runtime/press-key! app :x)
+      (runtime/settle-layout! app)
+      {:editor-disabled? (-> (runtime/find-view app "pixils/form-layout-item-editor")
+                             :state :disabled?)
+       :field-disabled? (-> first-name-field :state :disabled?)
+       :people (:people (runtime/active-state app))}))
+
+  (s/then [result]
+    (is (= {:editor-disabled? true
+            :field-disabled? true
+            :people []}
+           result))))
+
+(deftest people-list/preserves-and-reorders-people-after-a-drag
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [items (runtime/find-views app "ui/list-box-item")
+          first-item (head items)
+          last-item (nth items 2)]
+      (runtime/mouse-down-in! app first-item 5 5)
+      (runtime/update! app)
+      (runtime/mouse-move-in! app last-item 5 (dec (-> last-item :bounds :h)))
+      (runtime/update! app)
+      (runtime/mouse-up-in! app last-item 5 (dec (-> last-item :bounds :h)))
+      (runtime/settle-layout! app)
+      {:people (for [person (:people (runtime/active-state app))]
+                 (:person/id person))
+       :rendered-items (count (runtime/find-views app "ui/list-box-item"))}))
+
+  (s/then [result]
+    (is (= {:people [:person/grace :person/katherine :person/ada]
+            :rendered-items 3}
+           result))))
+
+(deftest people-list/edits-the-selected-person-at-the-referenced-location
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app
+                    (runtime/find-view-containing app
+                                                  "ui/list-box-item"
+                                                  "Grace Hopper"))
+    (runtime/settle-layout! app)
+    (let [first-name-input
+          (find-first (runtime/find-views app "ui/text-input")
+                      (fn [view] (= "Grace" (:value (:ui-state view)))))]
+      (runtime/click! app first-name-input)
+      (runtime/press-key! app :end)
+      (runtime/press-key! app :x)
+      (runtime/settle-layout! app))
+    (runtime/click! app
+                    (runtime/find-view-containing app
+                                                  "ui/text"
+                                                  "Pixils Form Playground"))
+    (runtime/settle-layout! app)
+    {:people (for [person (:people (runtime/active-state app))]
+               (:field/first-name person))
+     :rendered-items (count (runtime/find-views app "ui/list-box-item"))})
+
+  (s/then [result]
+    (is (= {:people ["Ada" "Gracex" "Katherine"]
+            :rendered-items 3}
+           result))))
+
+(deftest people-list/starts-and-cancels-a-new-item-at-the-referenced-location
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view-containing app "ui/button" "New"))
+    (runtime/settle-layout! app)
+    (let [new-state
+          (select-keys (:state (runtime/find-view app "pixils/form-array-control"))
+                       [:new? :value])]
+      (runtime/click! app (runtime/find-view-containing app "ui/button" "Cancel"))
+      (runtime/settle-layout! app)
+      {:new-state new-state
+       :cancelled-state (select-keys (:state (runtime/find-view app "pixils/form-array-control"))
+                                     [:new? :selected-index :value])
+       :people-count (count (:people (runtime/active-state app)))}))
+
+  (s/then [result]
+    (is (= {:new-state {:new? true
+                        :value {:person/id :person/new-4
+                                :field/first-name ""
+                                :field/last-name ""
+                                :field/age 0
+                                :field/birth-place ""
+                                :field/newsletter? false
+                                :label "New Person 4"}}
+            :cancelled-state {:new? false
+                              :selected-index 0
+                              :value {:person/id :person/ada
+                                      :field/first-name "Ada"
+                                      :field/last-name "Lovelace"
+                                      :field/age 36
+                                      :field/birth-place "London"
+                                      :field/newsletter? true}}
+            :people-count 3}
+           result))))
+
+(deftest people-list/saves-a-new-item-from-the-referenced-location
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800 :buffer-height 600
+                                 :render-backend false})]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view-containing app "ui/button" "New"))
+    (runtime/settle-layout! app)
+    (let [first-name-field
+          (find-first (runtime/find-views app "pixils/form-field")
+                      (fn [field]
+                        (= :field/first-name (-> field :state :field-id))))
+          last-name-field
+          (find-first (runtime/find-views app "pixils/form-field")
+                      (fn [field]
+                        (= :field/last-name (-> field :state :field-id))))]
+      (runtime/click! app (nth (ui/children first-name-field) 1))
+      (runtime/press-key! app :n)
+      (runtime/press-key! app :e)
+      (runtime/press-key! app :w)
+      (runtime/click! app (nth (ui/children last-name-field) 1))
+      (runtime/press-key! app :p)
+      (runtime/press-key! app :e)
+      (runtime/press-key! app :r)
+      (runtime/press-key! app :s)
+      (runtime/press-key! app :o)
+      (runtime/press-key! app :n)
+      (runtime/click! app
+                      (runtime/find-view-containing app
+                                                    "ui/text"
+                                                    "Pixils Form Playground"))
+      (runtime/settle-layout! app))
+    (runtime/click! app (runtime/find-view-containing app "ui/button" "Save"))
+    (runtime/settle-layout! app)
+    {:people (for [person (:people (runtime/active-state app))]
+               (select-keys person
+                            [:person/id :field/first-name :field/last-name]))
+     :rendered-items (count (runtime/find-views app "ui/list-box-item"))})
+
+  (s/then [result]
+    (is (= {:people [{:person/id :person/ada
+                      :field/first-name "Ada"
+                      :field/last-name "Lovelace"}
+                     {:person/id :person/grace
+                      :field/first-name "Grace"
+                      :field/last-name "Hopper"}
+                     {:person/id :person/katherine
+                      :field/first-name "Katherine"
+                      :field/last-name "Johnson"}
+                     {:person/id :person/new-4
+                      :field/first-name "new"
+                      :field/last-name "person"}]
+            :rendered-items 4}
+           result))))

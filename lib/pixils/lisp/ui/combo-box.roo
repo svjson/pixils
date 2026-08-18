@@ -181,6 +181,7 @@
                                                             :view
                                                             :effective-style
                                                             :text)}
+                                          :item=> 'ui/combo-box-item
                                           :selected-indices []}
 
                                          max-height
@@ -212,6 +213,10 @@
 
 
 ;; Internal components
+
+(defcomponent ui/combo-box-item
+  {:extend 'ui/option-item
+   :class [:ui/combo-box-item :ui/hover-highlight]})
 
 
 (defcomponent ui/combo-box-button

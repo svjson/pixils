@@ -1,0 +1,60 @@
+(ns form-playground.view.root
+  (:require pixils
+            [form-playground.forms.persons.model :as persons-model]
+            [form-playground.forms.program.model :as program-model]
+            [form-playground.view.tabs.people :as people-tab]
+            [form-playground.view.tabs.program :as program]
+            [pixils.ui :as ui]
+            [pixils.ui.tab-panel :as tabs]))
+
+
+(defun initial-form-state []
+  (merge (persons-model/initial-state)
+         {:conferences program-model/conferences
+          :selected-form-tab :people}))
+
+(defun apply-form-change [state {:keys [form-value]}]
+  (merge state form-value))
+
+(defmode main-mode
+  {:class :ui/app
+   :style {:width :fill
+           :height :fill
+           :padding 16
+           :background {:r 0xeb :g 0xeb :b 0xe4}
+           :layout {:direction :column
+                    :gap 12}}
+   :init (fn [state ctx]
+           (initial-form-state))
+   :children [{:mode 'ui/text
+               :style {:width :fill
+                       :height 22
+                       :text {:font :font/default
+                              :scale 1.2}}
+               :state {:value "Pixils Form Playground"}}
+              (tabs/make
+               {:selected-tab (ui/bind-state :selected-form-tab)
+                :body-state (ui/bind-state)
+                :style {:width :fill
+                        :height :shrink}
+                :tabs [{:id :people
+                        :label "People"
+                        :body (people-tab/make)}
+                       {:id :program
+                        :label "Program"
+                        :body {:style {:width :fill
+                                       :height :shrink}
+                               :state (ui/bind-state)
+                               :children [(program/make)]}}]})]
+   :on {:tab-panel/change
+        (fn [state event ctx]
+
+          (ui/stop-propagation! event)
+          (assoc state
+                 :selected-form-tab
+                 (-> event :payload :tab)))
+        :form/change
+        (fn [state event ctx]
+
+          (ui/stop-propagation! event)
+          (apply-form-change state (:payload event)))}})

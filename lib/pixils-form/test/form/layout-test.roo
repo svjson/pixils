@@ -14,6 +14,18 @@
          (layout/normalize-layout-item
           [:section.identity "Identity" :field/name :field/age]))))
 
+(deftest normalize-layout-item/normalizes-field-shorthand-and-preserves-generic-targets
+  (is (= [{:id :people
+           :type :field
+           :class :people
+           :item-editor {:layout-ref :selected-person}}
+          {:id :selected-person
+           :class :details}]
+         [(layout/normalize-layout-item
+           [:field.people :people {:item-editor {:layout-ref :selected-person}}])
+          (layout/normalize-layout-item
+           {:id :selected-person :class :details})])))
+
 
 
 ;; pixils.form.layout/layout-projection

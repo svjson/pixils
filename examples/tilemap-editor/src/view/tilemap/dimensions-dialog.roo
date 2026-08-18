@@ -62,14 +62,14 @@
                         :style {:width :fill
                                 :height 22}})]})
 
-(defun dimension-number-control [field-id field-schema field-label opts]
+(defun dimension-number-control [{:keys [id schema value options]}]
   {:mode 'map-dimension-number-control
-   :style (or (:control-style opts) form-control-style)
-   :state {:dimension (get (:dimension-fields opts) field-id)
-           :value (form/field-binding field-id field-schema)
-           :min (:min field-schema)
-           :max (:max field-schema)
-           :step (or (:step field-schema) 1)}})
+   :style (or (:control-style options) form-control-style)
+   :state {:dimension (get (:dimension-fields options) id)
+           :value value
+           :min (:min schema)
+           :max (:max schema)
+           :step (or (:step schema) 1)}})
 
 (def dimension-controls
   {:integer dimension-number-control})
@@ -101,40 +101,40 @@
   (let [tile-size (data/map-tile-dim tile-size)
         value (data/map-dimension value data/tile-size)
         proportion (data/map-tile-dim (or proportion tile-size))]
-    (if lock?
-      (if (= dimension :tile-width)
-        {:w value
-         :h (rounded-proportion-dimension value
-                                          (:w proportion)
-                                          (:h proportion))}
-        {:w (rounded-proportion-dimension value
-                                          (:h proportion)
-                                          (:w proportion))
-         :h value})
-      (if (= dimension :tile-width)
-        (assoc tile-size :w value)
-        (assoc tile-size :h value)))))
+    (cond
+      (and lock? (= dimension :tile-width))
+      {:w value
+       :h (rounded-proportion-dimension value (:w proportion) (:h proportion))}
+
+      lock?
+      {:w (rounded-proportion-dimension value (:h proportion) (:w proportion))
+       :h value}
+
+      (= dimension :tile-width) (assoc tile-size :w value)
+      :default (assoc tile-size :h value))))
 
 (defun apply-map-dimension-change [state dimension value]
   (case dimension
     :width (assoc state :width value)
     :height (assoc state :height value)
-    :tile-width (assoc state
-                       :tile-size
-                       (resize-tile-dim-with-lock
-                        (:tile-size state)
-                        dimension
-                        value
-                        (:lock-tile-proportion? state)
-                        (:tile-proportion state)))
-    :tile-height (assoc state
+    :tile-width (update state
                         :tile-size
-                        (resize-tile-dim-with-lock
-                         (:tile-size state)
-                         dimension
-                         value
-                         (:lock-tile-proportion? state)
-                         (:tile-proportion state)))
+                        (fn [tile-size]
+                          (resize-tile-dim-with-lock
+                           tile-size
+                           dimension
+                           value
+                           (:lock-tile-proportion? state)
+                           (:tile-proportion state))))
+    :tile-height (update state
+                         :tile-size
+                         (fn [tile-size]
+                           (resize-tile-dim-with-lock
+                            tile-size
+                            dimension
+                            value
+                            (:lock-tile-proportion? state)
+                            (:tile-proportion state))))
     :default state))
 
 (defun apply-dimension-form-change [state dimension value]
@@ -154,9 +154,7 @@
                    (let [dimensions (dimensions-value (:dimensions state))]
                      (ui/emit! (:view ctx)
                                :map-dimensions/confirm
-                               {:width (:width dimensions)
-                                :height (:height dimensions)
-                                :tile-size (:tile-size dimensions)})))
+                               (select-keys dimensions [:width :height :tile-size]))))
                  state)})
 
 (defun map-dimensions-confirm-button-child []
@@ -198,22 +196,21 @@
                        :valid? (ui/bind-state :valid?)}}]})
 
 (defmode map-dimensions-dialog-modal
-  {:on {:map-dimensions/change (fn [state event ctx]
-                                 (let [payload (:payload event)]
-                                   (apply-dimension-form-change
-                                    state
-                                    (:dimension payload)
-                                    (:value payload))))
-        :checkbox/change (fn [state event ctx]
-                           (let [payload (:payload event)]
-                             (if (= (:value payload) :lock-tile-proportion?)
-                               (assoc state
-                                      :lock-tile-proportion?
-                                      (:checked? payload)
-                                      :tile-proportion
-                                      (data/map-tile-dim
-                                       (:tile-size (:dimensions state))))
-                               state)))
+  {:on {:map-dimensions/change (fn [state {:keys [payload]} ctx]
+                                 (apply-dimension-form-change
+                                  state
+                                  (:dimension payload)
+                                  (:value payload)))
+        :checkbox/change (fn [state {:keys [payload]} ctx]
+                           (case (:value payload)
+                             :lock-tile-proportion?
+                             (assoc state
+                                    :lock-tile-proportion?
+                                    (:checked? payload)
+                                    :tile-proportion
+                                    (data/map-tile-dim
+                                     (:tile-size (:dimensions state))))
+                             :default state))
         :map-dimensions/cancel (fn [state event ctx]
 
                                    (ui/stop-propagation! event)

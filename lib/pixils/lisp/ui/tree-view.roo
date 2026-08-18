@@ -317,7 +317,7 @@
             disclosure-width))))
 
 (defcomponent ui/tree-view-item
-  {:class [:ui/list-item :ui/tree-view-item]
+  {:class [:ui/list-item :ui/tree-view-item :ui/hover-highlight]
    :style {:width :fill
            :height default-row-height
            :clip true
@@ -390,24 +390,23 @@
                          :expandable? (:expandable? row)
                          :expanded? (:expanded? row)
                          :disclosure-glyph (row-disclosure-glyph row)}})
-        child (assoc child
-                     :state
-                     (merge (or (:state child) {})
-                            {:index index
-                             :row row
-                             :id (:id row)
-                             :value (:value row)
-                             :disabled? parent-disabled?
-                             :selected (selected-row? selected-id row)
-                             :expandable? (:expandable? row)
-                             :expanded? (:expanded? row)
-                             :indent indent
-                             :disclosure-width default-disclosure-width
-                             :disclosure-glyph (row-disclosure-glyph row)}))]
+        child (update child
+                      :state
+                      (fn [state]
+                        (merge state
+                               {:index index
+                                :row row
+                                :id (:id row)
+                                :value (:value row)
+                                :disabled? parent-disabled?
+                                :selected (selected-row? selected-id row)
+                                :expandable? (:expandable? row)
+                                :expanded? (:expanded? row)
+                                :indent indent
+                                :disclosure-width default-disclosure-width
+                                :disclosure-glyph (row-disclosure-glyph row)})))]
     (cond-> child
-      stretch-items? (assoc :style
-                            (merge (or (:style child) {})
-                                   {:width :fill})))))
+      stretch-items? (update :style (fn [style] (assoc style :width :fill))))))
 
 (defun tree-node-synced-state [state]
   (let [row (head (rows-with-disclosure-glyphs
@@ -465,7 +464,7 @@
                                    (:disabled? state))
         row-child (assoc row-child
                          :id "item"
-                         :state (merge (or (:state row-child) {})
+                         :state (merge (:state row-child)
                                        {:index nil
                                         :row (ui/bind-state :row)
                                         :id (ui/bind-state :id)
@@ -788,7 +787,7 @@
         computed-row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         computed-content-width (or content-width 1)
-        managed-height? (not (contains? (or style {}) :height))
+        managed-height? (not (contains? style :height))
         height (tree-view-visible-height rows
                                          computed-row-height
                                          visible-rows
@@ -798,7 +797,7 @@
                                       :shrink
                                       height)
                             :width :shrink}
-                           (or style {}))
+                           style)
         stretch-items? (tree-view-stretches-items? final-style)
         base-state {:roots roots
                     :adapter adapter
@@ -833,7 +832,7 @@
                           (tree-view-content-state base-state))]
     (cond-> {:mode 'ui/tree-view
             :style final-style
-            :state (merge (or state {})
+            :state (merge state
                           base-state)
             :children [(tree-view-scroll-pane-child
                         base-state

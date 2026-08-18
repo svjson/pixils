@@ -164,6 +164,8 @@
                  :button-disabled-border-style (var :disabled-inset-border-style)
                  :selection-bg {:r 0x00 :g 0x00 :b 0x00}
                  :selection-text {:r 0xff :g 0xff :b 0xff}
+                 :hover-highlight-bg (var :selection-bg)
+                 :hover-highlight-text (var :selection-text)
                  :desktop-icon-label-padding 1
                  :list-box-row-height 20
                  :list-box-visible-rows 5
@@ -283,12 +285,12 @@
                    :text {:color (var :text)
                           :wrap :none}}
 
-    :ui/list-item:hover
-    {:background (var :selection-bg)
-     :text {:color (var :selection-text)}}
+    :ui/hover-highlight:hover
+    {:background (var :hover-highlight-bg)
+     :text {:color (var :hover-highlight-text)}}
 
-    [:ui/list-item:hover 'ui/tree-view-disclosure]
-    {:text {:color (var :selection-text)}}
+    [:ui/hover-highlight:hover 'ui/tree-view-disclosure]
+    {:text {:color (var :hover-highlight-text)}}
 
     '(:ui/list-item {:selected true})
     {:background (var :selection-bg)

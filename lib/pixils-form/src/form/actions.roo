@@ -24,12 +24,11 @@
       :default condition)
     :default condition))
 
-(defun action-disabled? [state]
-  (let [form-state (:form-state state)]
-    (or (condition-value form-state (:disabled-when state))
-        (and (not (nil? (:enabled-when state)))
-             (not (condition-value form-state
-                                   (:enabled-when state)))))))
+(defun action-disabled? [{:keys [form-state disabled-when enabled-when]}]
+  (or (:disabled? form-state)
+      (condition-value form-state disabled-when)
+      (and (some? enabled-when)
+           (not (condition-value form-state enabled-when)))))
 
 (defun action-event-id [action]
   (or (:event action)
@@ -42,7 +41,7 @@
    :disabled-when (:disabled-when action)})
 
 (defun disabled-action-map [form-state actions]
-  (reduce (or actions [])
+  (reduce actions
           {}
           (fn [result action]
             (if-let [event-id (action-event-id action)]
@@ -63,11 +62,11 @@
              state
              (assoc state :disabled? (action-disabled? state))))
    :on-click (fn [state event ctx]
-               (let [emitted (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         (:event state)
-                                         (:payload state)))]
-                 state))
+               (unless (:disabled? state)
+                 (ui/emit! (:view ctx)
+                           (:event state)
+                           (:payload state)))
+               state)
    :children [{:mode 'ui/button
                :style {:width :fill
                        :height :fill}

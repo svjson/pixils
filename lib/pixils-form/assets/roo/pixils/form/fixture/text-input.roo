@@ -1,4 +1,4 @@
-(ns form-playground.fixture.text-input
+(ns pixils.form.fixture.text-input
   (:require pixils
             [pixils.form :as form]
             [pixils.ui :as ui]))
@@ -10,5 +10,10 @@
 
 (defmode keyword-input-form-probe
   {:init (fn [_state _ctx] {:form-value {:name :ada}})
+   :update (fn [state _ctx]
+             (let [next-value? (contains? state :next-form-value)]
+               (cond-> state
+                 next-value? (assoc :form-value (:next-form-value state))
+                 next-value? (dissoc :next-form-value))))
    :children [(form/make {:schema {:name {:type :keyword :auto-focus? true}}
                          :value (ui/bind-state :form-value)})]})

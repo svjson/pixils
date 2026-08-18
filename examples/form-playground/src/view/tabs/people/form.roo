@@ -1,0 +1,32 @@
+(ns form-playground.view.tabs.people.form
+  (:require [pixils.form :as form]
+            [pixils.ui :as ui]
+            [form-playground.forms.persons.model :as model]
+            [form-playground.schema :as schema]))
+
+(defun person-label
+  "Returns the display label for a person in the people list."
+  [person index]
+  (apply join (concat [" "] (filter [(:field/first-name person)
+                                     (:field/last-name person)]
+                                    some?))))
+
+(defun make []
+  {:class :app/person-register
+   :state (ui/bind-state)
+   :children
+   [(form/make {:schema schema/full-schema
+                :value (ui/bind-state)
+                :layout {:root [[:row.app/person-main-row
+                                 {:id :selected-person}
+                                 [:group.app/person-list-column
+                                  [:field :people
+                                   {:item-label person-label
+                                    :new-value=> model/empty-person
+                                    :item-editor {:layout-ref :selected-person}}]]]]
+                         :fragments {:person model/person-layout}}
+                :text model/person-text
+                :class :app/person-register-form
+                :array-list-style {:width :fill
+                                   :height 100}
+                :mode :live})]})

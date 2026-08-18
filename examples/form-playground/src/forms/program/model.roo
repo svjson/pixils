@@ -57,10 +57,3 @@
   {:conference/id (keyword (str "conference/new-" (inc index)))
    :program/name "New Conference"
    :program/entries []})
-
-(defun conference-label [conference index]
-  (let [name (:program/name conference)]
-    (if (and (not (nil? name))
-             (not-empty? name))
-      name
-      (str "Conference " (inc index)))))

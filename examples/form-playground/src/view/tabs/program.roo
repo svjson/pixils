@@ -1,0 +1,29 @@
+(ns form-playground.view.tabs.program
+  (:require [form-playground.forms.persons.model :as persons-model]
+            [form-playground.forms.program.model :as model]
+            [form-playground.schema :as schema]
+            [pixils.form :as form]
+            [pixils.ui :as ui]))
+
+(defun make []
+  {:class :app/program-planner
+   :state (ui/bind-state)
+   :children
+   [(form/make {:schema schema/full-schema
+                :value (ui/bind-state)
+                :context persons-model/people
+                :layout {:root [[:row.app/program-main-row
+                                 {:id :selected-conference}
+                                 [:group.app/program-list-column
+                                  [:field :conferences
+                                   {:item-label {:path [:program/name]}
+                                    :new-value=> model/empty-conference
+                                    :item-editor {:layout-ref :selected-conference}}]]]]
+                         :fragments (assoc model/program-layout-fragments
+                                           :conference/program
+                                           model/program-layout)}
+                :text model/program-text
+                :class :app/program-planner-form
+                :array-list-style {:width :fill
+                                   :height 100}
+                :mode :live})]})

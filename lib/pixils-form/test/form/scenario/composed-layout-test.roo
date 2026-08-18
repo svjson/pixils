@@ -30,7 +30,7 @@
                                      :layout [:field/name]}
                                     {:type :selection
                                      :projection [:register :current-person]}]}]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         form-view (head (:children row-view))
         selection-view (nth (:children row-view) 1)]
     (is (= {:state {:schema person/schema
@@ -69,7 +69,7 @@
                                     {:type :selection
                                      :class :person-list
                                      :item-label [:field/name]}]}]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         form-view (head (:children row-view))
         selection-view (nth (:children row-view) 1)]
     (is (= {:state {:schema person/schema
@@ -101,7 +101,7 @@
                           :actions [:add :save :cancel :delete]}
                          {:type :form
                           :layout [:field/name]}]]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         selection-view (head (:children row-view))
         list-box (head (:children selection-view))
         toolbar (nth (:children selection-view) 1)]
@@ -134,7 +134,7 @@
                           :action-presentation {:delete :context-menu}}
                          {:type :form
                           :layout [:field/name]}]]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         selection-view (head (:children row-view))
         list-box (head (:children selection-view))
         toolbar (nth (:children selection-view) 1)
@@ -177,7 +177,7 @@
                                      :id :person/save
                                      :label "Save"
                                      :enabled-when [:and :new? :valid?]}]}]})
-        action-row (nth (-> view :children head :children) 1)
+        action-row (nth (-> view :children head :children head :children) 1)
         new-action (head (:children action-row))
         save-action (nth (:children action-row) 1)]
     (is (= {:new {:mode 'pixils/form-action :event :person/new :label "New"
@@ -197,7 +197,7 @@
                                      :layout [:field/name]}
                                     {:type :group
                                      :layout [:field/age]}]}]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         left-group (head (:children row-view))
         right-group (nth (:children row-view) 1)]
     (is (= [:field/name :field/age]
@@ -227,7 +227,7 @@
                       :person/new
                       {:label "New"
                        :disabled-when :new?}]]]]})
-        row-view (-> view :children head :children head)
+        row-view (-> view :children head :children head :children head)
         fields-view (head (:children row-view))
         group-view (nth (:children row-view) 1)
         selection-view (head (:children group-view))

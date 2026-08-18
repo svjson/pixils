@@ -9,7 +9,7 @@
 
 (defun for-field
   "Builds a number-input for a resolved form-field context."
-  [{:keys [schema value options]}]
+  [{:keys [schema value disabled? options]}]
   (assoc (number-input/make
           {:style (or (form-layout/style-option options :control-style default-style) {})
            :value value
@@ -20,7 +20,7 @@
            :allow-fractions? (if (contains? schema :allow-fractions?)
                                (:allow-fractions? schema)
                                (= (:type schema) :number))
-           :disabled? (:read-only? schema)
+           :disabled? disabled?
            :auto-focus? (:auto-focus? schema)
            :commit-on (if (contains? schema :commit-on) (:commit-on schema) :blur)})
          :class [:pixils/form-control :pixils/form-number-control]))

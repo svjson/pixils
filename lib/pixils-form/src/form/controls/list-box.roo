@@ -1,0 +1,183 @@
+(ns pixils.form.controls.list-box
+  (:require pixils
+            [pixils.form.actions :as form-actions]
+            [pixils.form.layout :as form-layout]
+            [pixils.form.selection :as selection]
+            [pixils.form.state :as form-state]
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]
+            [pixils.ui.menu :as menu]
+            [pixils.ui.option-item :as option]))
+
+(def default-style
+  "Default layout for a form list-box control."
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def default-list-style
+  "Default dimensions for the list box within a form list-box control."
+  {:width :fill})
+
+(def default-toolbar-style
+  "Default layout for list-box actions presented as a toolbar."
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :center
+            :gap 6}})
+
+(defun menu-item
+  "Builds a context-menu item for a form selection action."
+  [action]
+  {:label (:label action)
+   :action (form-actions/action-event-id action)
+   :payload (:payload action)})
+
+(defun context-menu
+  "Builds a context menu for form selection actions."
+  [actions]
+  {:items (for [action actions]
+            (menu-item action))})
+
+(defun open-context-menu!
+  "Opens the configured item context menu for a right-button event."
+  [state event ctx]
+  (when (and (= (:button event) :right)
+             (not (:disabled? state))
+             (not-empty? (:context-menu-actions state)))
+    (menu/open-context-menu!
+     (context-menu (:context-menu-actions state))
+     (:global-position event)
+     state
+     ctx)))
+
+(defcomponent pixils/form-selection-list-item
+  {:extend 'ui/option-item
+   :class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
+   :style {:width :fill
+           :clip true
+           :layout {:direction :row
+                    :align-items :center}}
+   :on-mouse-up (fn [state event ctx]
+                  (ui/stop-propagation! event)
+                  (open-context-menu! state event ctx)
+                  state)
+   :on {:menu/select (fn [state {:keys [payload] :as event} ctx]
+                       (ui/stop-propagation! event)
+                       (when (= (:type payload) :action)
+                         (ui/emit! (:view ctx)
+                                   (:action payload)
+                                   (:payload payload)))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun item=>
+  "Returns an item provider carrying the configured context-menu actions."
+  [context-menu-actions]
+  (fn [index option]
+    {:mode 'pixils/form-selection-list-item
+     :state {:index index
+             :value (option/value option)
+             :label (option/label option)
+             :selected-indices (ui/bind-state :selected-indices)
+             :context-menu-actions context-menu-actions}}))
+
+(defun toolbar-view
+  "Builds the toolbar presented alongside a form list box."
+  [selection opts actions]
+  {:class :pixils/form-selection-toolbar
+   :style (or (form-layout/style-option opts
+                                        :selection-toolbar-style
+                                        default-toolbar-style)
+              {})
+   :state {:form/action-disabled (ui/project-state :form/action-disabled)}
+   :children (for [action actions]
+               (form-actions/action-view action opts))})
+
+(defcomponent pixils/form-selection
+  {:init (fn [state ctx]
+           (if (:selection-options state)
+             (assoc state :options (:selection-options state))
+             (form-state/selection-derived-state state (:item-label state))))
+   :on {:list-box/selection-change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (if (:disabled? state)
+            state
+            (let [index (head (-> event :payload :selected-indices))]
+              (ui/emit! (:view ctx) :form/select {:index index})
+              (assoc state
+                     :new? false
+                     :selected-index index))))
+        :list-box/activate
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (when-let [activate-event (:activate-event state)]
+            (ui/emit! (:view ctx) activate-event (:payload event)))
+          state)
+        :list-box/reorder
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx) :form/reorder (:payload event))
+          state)
+        :form/activate-selection
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (when-let [activate-event (:activate-event state)]
+            (ui/emit! (:view ctx)
+                      activate-event
+                      {:index (:selected-index state)
+                       :value (:selected-index state)}))
+          state)}})
+
+(defun for-selection
+  "Builds a form list-box control for a normalized selection declaration."
+  [selection opts]
+  (when selection
+    (let [toolbar-actions (selection/actions-for-presentation selection :toolbar)
+        context-menu-actions
+        (selection/actions-for-presentation selection :context-menu)
+        item-provider (unless (empty? context-menu-actions)
+                        (item=> context-menu-actions))
+        list-box-view
+        (list-box/make
+         {:options (ui/bind-state :options)
+          :selected-indices (ui/bind-state :selected-indices)
+          :disabled? (ui/project-state :disabled?)
+          :force-selection? false
+          :visible-rows (:visible-rows selection)
+          :fixed-visible-rows? (:fixed-visible-rows? selection)
+          :reorderable? (ui/bind-state :reorderable?)
+          :item=> item-provider
+          :style (if (contains? selection :list-style)
+                   (:list-style selection)
+                   (form-layout/style-option opts
+                                             :selection-list-style
+                                             default-list-style))})
+        children (if (empty? toolbar-actions)
+                   [list-box-view]
+                   [list-box-view (toolbar-view selection opts toolbar-actions)])]
+    (merge {:mode 'pixils/form-selection
+            :state {:options (ui/project-state :selection-options)
+                    :selection-options (ui/project-state :selection-options)
+                    :selected-indices (ui/project-state :selected-indices)
+                    :disabled? (:disabled? selection)
+                    :form/action-disabled
+                    (ui/project-state :form/action-disabled)
+                    :item-label (:item-label selection)
+                    :reorderable? (:reorderable? selection)
+                    :activate-event (:activate-event selection)}
+            :children children}
+           (form-layout/style-map
+            (form-layout/defaultable-style (:style selection)
+                                           (:class selection)
+                                           (form-layout/style-option
+                                            opts
+                                            :selection-style
+                                            default-style)))
+           {:class (form-layout/classes :pixils/form-selection
+                                        (:class selection))}))))

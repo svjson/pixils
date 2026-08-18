@@ -78,6 +78,10 @@
    :layout {:direction :row
             :gap :space-between}})
 
+(def default-layout-item-editor-style
+  {:width :fill
+   :height :shrink})
+
 (defun array-schema [field-schema opts]
   (model-schema/schema-document-with-root (:schema opts) field-schema))
 
@@ -99,10 +103,18 @@
        (< selected-index (dec (count items)))))
 
 (defun ensure-array-selection-state [state]
-  (cond-> state
-    (and (not (:new? state))
-         (nil? (:selected-index state))
-         (not-empty? (:items state))) (assoc :selected-index 0)))
+  (cond
+    (:new? state) state
+
+    (and (nil? (:selected-index state))
+         (not-empty? (:items state)))
+    (assoc state :selected-index 0)
+
+    (and (empty? (:items state))
+         (= :new (:no-selection state)))
+    (form-state/begin-new-state state)
+
+    :default state))
 
 (defun array-editor-option [editor key default-value]
   (if (contains? (or editor {}) key)
@@ -112,21 +124,33 @@
 (defun array-editor-mode [editor]
   (or (:edit-mode editor) :dialog))
 
-(defun array-editor-dialog? [editor]
-  (= (array-editor-mode editor) :dialog))
+(defun item-editor-presentation [{:keys [item-editor array-editor]}]
+  (cond
+    (keyword? item-editor) item-editor
+    (:layout-ref item-editor) :layout
+    :default (array-editor-mode array-editor)))
+
+(defun no-selection-policy [item-editor]
+  "Returns the configured behavior when a layout item editor has no selection."
+  (if (map? item-editor)
+    (get item-editor :no-selection :disabled)
+    :disabled))
+
+(defun array-editor-dialog? [state]
+  (= (item-editor-presentation state) :dialog))
 
 (defun array-actions-state [state]
   (let [editor (:array-editor state)
         read-only? (:read-only? state)
         can-select? (selected-array-index? state)
-        dialog? (array-editor-dialog? editor)
+        dialog? (array-editor-dialog? state)
         allow-add? (array-editor-option editor :allow-add? true)
         allow-edit? (array-editor-option editor :allow-edit? true)
         allow-delete? (array-editor-option editor :allow-delete? true)
         allow-reorder? (array-editor-option editor :allow-reorder? true)]
     (assoc state
            :can-add? (and (not read-only?)
-                          dialog?
+                          (not (:new? state))
                           allow-add?)
            :can-edit? (and (not read-only?)
                            dialog?
@@ -139,15 +163,45 @@
                               allow-reorder?))))
 
 (def array-toolbar-actions
-  [{:id :form/add-item
+  [{:key :add
+    :id :form/add-item
     :label "Add"
     :enabled-when :can-add?}
-   {:id :form/edit-item
+   {:key :edit
+    :id :form/edit-item
     :label "Edit"
     :enabled-when :can-edit?}
-   {:id :form/delete
+   {:key :delete
+    :id :form/delete
     :label "Delete"
     :enabled-when :can-delete?}])
+
+(def referenced-array-toolbar-actions
+  [{:key :add
+    :id :form/add-item
+    :label "New"
+    :enabled-when :can-add?}
+   {:key :save
+    :id :form/save-new
+    :label "Save"
+    :enabled-when [:and :new? :valid?]}
+   {:key :cancel
+    :id :form/cancel-new
+    :label "Cancel"
+    :enabled-when :new?}
+   {:key :delete
+    :id :form/delete
+    :label "Delete"
+    :enabled-when :can-delete?}])
+
+(defun presented-array-actions [actions presentation]
+  (cond
+    (= false presentation) []
+    (map? presentation)
+    (filter actions
+            (fn [action]
+              (not= false (get presentation (:key action) true))))
+    :default actions))
 
 (defun summary-spec-path [item-schema field-id]
   (model-schema/field-path field-id
@@ -199,7 +253,7 @@
       (assoc :summary
              (selected-summary-values (:value state)
                                       (:summary-specs state)))
-      (form-actions/derived-state array-toolbar-actions)))
+      (form-actions/derived-state (:toolbar-actions state))))
 
 (defun summary-row-view [opts index]
   {:class :pixils/form-array-summary-row
@@ -246,20 +300,45 @@
    :children (for [index (range 0 (dec (max 1 (count summary-specs))))]
                (summary-row-view opts index))})
 
+(defun apply-referenced-editor-state [state]
+  (if (and (:item-editor-id state)
+           (:referenced-editor-state state))
+    (let [editor-state (:referenced-editor-state state)]
+      (case (:phase editor-state)
+        :new (assoc state
+                    :new? true
+                    :new-value (:value editor-state)
+                    :value (:value editor-state)
+                    :selected-index nil
+                    :projected-new? true
+                    :projected-index nil
+                    :projected-item (:value editor-state))
+        :selected (assoc state
+                         :new? false
+                         :new-value nil
+                         :selected-index (:selected-index editor-state))
+        :empty (assoc state
+                      :new? false
+                      :new-value nil
+                      :selected-index nil)
+        :default state))
+    state))
+
 (defun array-control-state [state]
-  (let [state (ensure-array-selection-state state)
+  (let [state (apply-referenced-editor-state state)
+        state (ensure-array-selection-state state)
         state (form-state/projection-state state)
         state (form-state/validated-state state)]
     (array-derived-state (array-actions-state state))))
 
-(defun array-toolbar [opts]
+(defun array-toolbar [opts actions]
   {:class :pixils/form-array-toolbar
    :style (or (form-layout/style-option opts
                                          :array-toolbar-style
                                          default-array-toolbar-style)
               {})
    :state {:form/action-disabled (ui/project-state :form/action-disabled)}
-   :children (for [action array-toolbar-actions]
+   :children (for [action actions]
                (form-actions/action-view action opts))})
 
 (defun array-item-form-view [item-schema opts]
@@ -275,11 +354,14 @@
      :class [:pixils/form :pixils/form-array-item-form]
      :style (or (:array-dialog-form-style opts)
                 default-array-dialog-form-style)
-     :state {:value (ui/bind-state :value)
+     :state {:value (or (:value-binding opts)
+                        (ui/bind-state :value))
              :schema item-schema
              :context (:context opts)
+             :disabled? (:disabled? opts)
              :valid? (ui/bind-state :valid?)
              :errors (ui/bind-state :errors)
+             :form/mode (or (:form/mode opts) :transient)
              :form/layout layout
              :form/render-opts item-opts}
      :children [(apply (:form-body=> item-opts)
@@ -419,8 +501,29 @@
     (assoc (form-field/change-payload state (:items next-state))
            :commit? true)))
 
+(defun referenced-item-editor-state [state]
+  (cond
+    (:new? state) {:phase :new :value (:value state)}
+    (selected-array-index? state) {:phase :selected
+                                   :selected-index (:selected-index state)}
+    :default {:phase :empty}))
+
+(defun accept-referenced-item-editor-state [state]
+  (cond-> state
+    (:item-editor-id state)
+    (assoc :referenced-editor-state (referenced-item-editor-state state))))
+
+(defun emit-referenced-item-editor-state! [state ctx]
+  (when-let [id (:item-editor-id state)]
+    (ui/emit! (:view ctx)
+              :form/item-editor-state-change
+              {:id id
+               :state (referenced-item-editor-state state)}))
+  state)
+
 (defun emit-array-items-change! [state next-state ctx]
   (let [payload (array-items-change-payload state next-state)]
+    (emit-referenced-item-editor-state! next-state ctx)
     (when payload
       (ui/emit! (:view ctx)
                 :form/edit
@@ -430,18 +533,36 @@
 (defcomponent pixils/form-array-control
   {:init (fn [state ctx]
            (array-control-state state))
+   :update (fn [state ctx]
+             (array-control-state state))
    :on {:form/select (fn [state event ctx]
                        (ui/stop-propagation! event)
-                       (array-control-state
-                        (assoc state
-                               :new? false
-                               :selected-index
-                               (-> event :payload :value))))
+                       (let [index (-> event :payload :index)]
+                         (if (and (:new? state) (nil? index))
+                           state
+                           (let [next-state
+                                 (array-control-state
+                                  (accept-referenced-item-editor-state
+                                   (assoc state
+                                          :new? false
+                                          :selected-index index)))]
+                             (emit-referenced-item-editor-state! next-state ctx)
+                             next-state))))
         :form/add-item (fn [state event ctx]
                          (ui/stop-propagation! event)
-                         (when (:can-add? state)
-                           (open-array-item-dialog! state ctx true))
-                         state)
+                         (cond
+                           (not (:can-add? state)) state
+                           (array-editor-dialog? state)
+                           (do
+                             (open-array-item-dialog! state ctx true)
+                             state)
+                           :default
+                           (let [next-state
+                                 (array-control-state
+                                  (accept-referenced-item-editor-state
+                                   (form-state/begin-new-state state)))]
+                             (emit-referenced-item-editor-state! next-state ctx)
+                             next-state)))
         :form/edit-item (fn [state event ctx]
                           (ui/stop-propagation! event)
                           (when (:can-edit? state)
@@ -457,18 +578,37 @@
                                             state
                                             (array-control-state next-state)
                                             ctx)))
+        :form/save-new (fn [state event ctx]
+                         (ui/stop-propagation! event)
+                         (let [next-state
+                               (array-control-state
+                                (accept-referenced-item-editor-state
+                                 (form-state/save-new-state state)))]
+                           (emit-array-items-change! state next-state ctx)))
+        :form/cancel-new (fn [state event ctx]
+                           (ui/stop-propagation! event)
+                           (let [next-state
+                                 (array-control-state
+                                  (accept-referenced-item-editor-state
+                                   (form-state/cancel-new-state state)))]
+                             (emit-referenced-item-editor-state! next-state ctx)
+                             next-state))
         :form/delete (fn [state event ctx]
                        (ui/stop-propagation! event)
-                       (let [next-state (array-control-state
-                                         (form-state/delete-state state))]
+                       (let [next-state
+                             (array-control-state
+                              (accept-referenced-item-editor-state
+                               (form-state/delete-state state)))]
                          (emit-array-items-change! state next-state ctx)))
         :form/reorder (fn [state event ctx]
                         (ui/stop-propagation! event)
                         (let [next-state
                               (array-control-state
-                               (form-state/move-item-state state
-                                                (-> event :payload :from-index)
-                                                (-> event :payload :to-index)))]
+                               (accept-referenced-item-editor-state
+                                (form-state/move-item-state
+                                 state
+                                 (-> event :payload :from-index)
+                                 (-> event :payload :to-index))))]
                         (emit-array-items-change! state next-state ctx)))}})
 
 (defun array-item-fragment-path [field-id field-schema opts]
@@ -477,100 +617,226 @@
             (:fragment-path opts))
           :items))
 
+(defun item-form-options
+  "Returns rendering options shared by dialog and layout item editors."
+  [field-id field-schema opts]
+  {:context (:context opts)
+   :controls (:controls opts)
+   :text (:text opts)
+   :field-style (:field-style opts)
+   :field-label-style (:field-label-style opts)
+   :nested-field-label-style (:nested-field-label-style opts)
+   :control-style (:control-style opts)
+   :object-style (:object-style opts)
+   :row-style (:row-style opts)
+   :separator-style (:separator-style opts)
+   :array-style (:array-style opts)
+   :array-content-style (:array-content-style opts)
+   :array-list-style (:array-list-style opts)
+   :array-list-box-style (:array-list-box-style opts)
+   :array-summary-style (:array-summary-style opts)
+   :array-summary-row-style (:array-summary-row-style opts)
+   :array-summary-label-style (:array-summary-label-style opts)
+   :array-summary-value-style (:array-summary-value-style opts)
+   :array-toolbar-style (:array-toolbar-style opts)
+   :array-dialog-style (:array-dialog-style opts)
+   :array-dialog-form-style (:array-dialog-form-style opts)
+   :array-dialog-body-style (:array-dialog-body-style opts)
+   :array-dialog-button-row-style (:array-dialog-button-row-style opts)
+   :form-body=> (:form-body=> opts)
+   :layout/fragments (:layout/fragments opts)
+   :fragment-field-id field-id
+   :fragment-path (array-item-fragment-path field-id field-schema opts)
+   :theme-styles? (:theme-styles? opts)})
+
+(defun selected-layout-item-value
+  "Returns the selected or transient value presented by a layout item editor."
+  [{:keys [editor-state form-value field-path]}]
+  (case (:phase editor-state)
+    :new (:value editor-state)
+    :selected (form-state/selected-item
+               (get-in form-value field-path)
+               (:selected-index editor-state))
+    :default nil))
+
+(defun layout-item-editor-state
+  "Derives the value presented by a referenced item editor."
+  [state]
+  (let [value (selected-layout-item-value state)]
+    (assoc state
+           :value value
+           :disabled? (and (= :disabled (:no-selection state))
+                           (nil? value)))))
+
+(defun referenced-item-change-payload
+  "Returns the outer-form edit represented by an existing item change."
+  [state value commit?]
+  (let [index (-> state :editor-state :selected-index)
+        path (append (:field-path state) index)]
+    (when (and (some? index) (some? (:form-value state)))
+      {:field-id (:field-id state)
+       :field-path path
+       :local-field-path path
+       :field-schema (:item-schema state)
+       :old-value (get-in (:form-value state) path)
+       :value value
+       :form-value (assoc-in (:form-value state) path value)
+       :commit? commit?})))
+
+(defun apply-layout-item-change!
+  "Routes an item-form change through its owning array field."
+  [state event ctx commit?]
+  (ui/stop-propagation! event)
+  (let [value (-> event :payload :form-value)
+        editor-state (:editor-state state)]
+    (cond
+      (:disabled? state) state
+
+      (= :new (:phase editor-state))
+      (do
+        (ui/emit! (:view ctx)
+                  :form/item-editor-state-change
+                  {:id (:item-editor-id state)
+                   :state (assoc editor-state :value value)})
+        (assoc state :value value))
+
+      :default
+      (if-let [payload (referenced-item-change-payload state value commit?)]
+        (do
+          (ui/emit! (:view ctx) :form/edit payload)
+          (assoc state :value value))
+        state))))
+
+(defcomponent pixils/form-layout-item-editor
+  {:init (fn [state ctx]
+           (layout-item-editor-state state))
+   :update (fn [state ctx]
+             (layout-item-editor-state state))
+   :on {:form/draft-change (fn [state event ctx]
+                             (apply-layout-item-change! state event ctx false))
+        :form/change (fn [state event ctx]
+                       (apply-layout-item-change! state event ctx true))}})
+
+(defun layout-item-editor-view
+  "Builds the item editor placed at a named form-layout location."
+  [item opts]
+  (when-let [definition (get (:form/item-editors opts) (:id item))]
+    (let [field-id (:field-id definition)
+          field-schema (:field-schema definition)
+          item-schema (array-item-schema field-schema opts)
+          initial-state (layout-item-editor-state
+                         {:editor-state (get (:form/item-editor-state opts) (:id item))
+                          :form-value (:value opts)
+                          :field-path (:field-path definition)
+                          :no-selection (:no-selection definition)})
+          item-opts (assoc (item-form-options field-id field-schema opts)
+                           :value (:value initial-state)
+                           :disabled? (ui/project-state :disabled?)
+                           :form/mode :live
+                           :value-binding (ui/project-state :value))]
+      {:mode 'pixils/form-layout-item-editor
+       :class (form-layout/classes :pixils/form-layout-item-editor (:class item))
+       :style (or (:style item) default-layout-item-editor-style)
+       :state (assoc initial-state
+                     :form-value (ui/project-state :value)
+                     :editor-state (ui/project-state :form/item-editor-state (:id item))
+                     :item-editor-id (:id item)
+                     :field-id field-id
+                     :item-schema item-schema)
+       :children [(array-item-form-view item-schema item-opts)]})))
+
 (defun array-control-view [field-id field-schema opts items-binding]
   (let [item-schema (array-item-schema field-schema opts)
-        summary-specs (array-summary-specs field-schema item-schema)]
+        summary-specs (array-summary-specs field-schema item-schema)
+        field-layout (:field/layout opts)
+        item-editor (or (:item-editor field-layout) :dialog)
+        item-editor-id (when (map? item-editor) (:layout-ref item-editor))
+        no-selection (no-selection-policy item-editor)
+        item-label (or (:item-label field-layout) (:item-label field-schema))
+        toolbar-actions (presented-array-actions
+                         (if item-editor-id
+                           referenced-array-toolbar-actions
+                           array-toolbar-actions)
+                         (:actions field-layout))
+        item-opts (item-form-options field-id field-schema opts)
+        selection-view
+        (apply (:selection=> opts)
+               [{:item-label item-label
+                 :class :pixils/form-array-list
+                 :style (form-layout/style-option opts
+                                                  :array-list-style
+                                                  default-array-list-style)
+                 :list-style (form-layout/style-option opts
+                                                       :array-list-box-style
+                                                       default-array-list-box-style)
+                 :visible-rows 5
+                 :fixed-visible-rows? true
+                 :reorderable? (ui/bind-state :reorderable?)
+                 :disabled? (ui/project-state :read-only?)
+                 :activate-event (when (nil? item-editor-id)
+                                   :form/edit-item)}
+                opts])
+        content-children (cond-> [selection-view]
+                           (nil? item-editor-id)
+                           (append (array-summary-view opts summary-specs)))
+        state (cond->
+               {:items items-binding
+                :schema item-schema
+                :item-schema item-schema
+                :field-id field-id
+                :field-path (when field-id
+                              (form-field/event-path opts field-id field-schema))
+                :local-field-path (when field-id
+                                    (form-field/path field-id field-schema))
+                :field-schema field-schema
+                :form-value (ui/bind-state :form-value)
+                :context (:context opts)
+                :item-opts item-opts
+                :new-template (or (:new-template field-schema)
+                                  (:new-value field-layout)
+                                  (:new-value field-schema)
+                                  {})
+                :new-value-fn (:new-value=> field-layout)
+                :item-label item-label
+                :summary-specs summary-specs
+                :array-editor (:array-editor field-schema)
+                :item-editor item-editor
+                :item-editor-id item-editor-id
+                :no-selection no-selection
+                :toolbar-actions toolbar-actions
+                :disabled? (:disabled? opts)
+                :read-only? (:disabled? opts)}
+                item-editor-id
+                (assoc :selected-index (ui/project-state :form/item-editor-state
+                                                          item-editor-id
+                                                          :selected-index)
+                       :referenced-editor-state (ui/project-state :form/item-editor-state
+                                                                   item-editor-id)))]
     {:mode 'pixils/form-array-control
      :class [:pixils/form-control :pixils/form-array-control]
      :style (or (form-layout/style-option opts :array-style default-array-style)
                 {})
-     :state {:items items-binding
-             :item-schema item-schema
-             :field-id field-id
-             :field-path (when field-id
-                           (form-field/event-path opts field-id field-schema))
-             :local-field-path (when field-id
-                                 (form-field/path field-id field-schema))
-             :field-schema field-schema
-             :form-value (ui/bind-state :form-value)
-             :context (:context opts)
-             :item-opts {:context (:context opts)
-                         :controls (:controls opts)
-                         :text (:text opts)
-                         :field-style (:field-style opts)
-                         :field-label-style (:field-label-style opts)
-                         :nested-field-label-style
-                         (:nested-field-label-style opts)
-                         :control-style (:control-style opts)
-                         :object-style (:object-style opts)
-                         :row-style (:row-style opts)
-                         :separator-style (:separator-style opts)
-                         :array-style (:array-style opts)
-                         :array-content-style (:array-content-style opts)
-                         :array-list-style (:array-list-style opts)
-                         :array-list-box-style (:array-list-box-style opts)
-                         :array-summary-style (:array-summary-style opts)
-                         :array-summary-row-style
-                         (:array-summary-row-style opts)
-                         :array-summary-label-style
-                         (:array-summary-label-style opts)
-                         :array-summary-value-style
-                         (:array-summary-value-style opts)
-                         :array-toolbar-style (:array-toolbar-style opts)
-                         :array-dialog-style (:array-dialog-style opts)
-                         :array-dialog-form-style
-                         (:array-dialog-form-style opts)
-                         :array-dialog-body-style
-                         (:array-dialog-body-style opts)
-                         :array-dialog-button-row-style
-                         (:array-dialog-button-row-style opts)
-                         :layout/fragments (:layout/fragments opts)
-                         :fragment-field-id field-id
-                         :fragment-path
-                         (array-item-fragment-path field-id
-                                                   field-schema
-                                                   opts)
-                         :theme-styles? (:theme-styles? opts)}
-             :new-template (or (:new-template field-schema)
-                               (:new-value field-schema)
-                               {})
-             :item-label (:item-label field-schema)
-             :summary-specs summary-specs
-             :array-editor (:array-editor field-schema)
-             :read-only? (:read-only? field-schema)}
-     :children [{:class :pixils/form-array-content
-                 :style (or (form-layout/style-option
-                              opts
-                              :array-content-style
-                              default-array-content-style)
-                            {})
-                 :state {:value (ui/project-state :value)
-                         :selection-options
-                         (ui/project-state :selection-options)
-                         :selected-indices
-                         (ui/project-state :selected-indices)
-                         :summary (ui/project-state :summary)
-                         :reorderable? (ui/project-state :reorderable?)}
-                 :children [(apply (:selection=> opts)
-                                   [{:item-label (:item-label field-schema)
-                                     :class :pixils/form-array-list
-                                     :style (form-layout/style-option
-                                             opts
-                                             :array-list-style
-                                             default-array-list-style)
-                                     :list-style (form-layout/style-option
-                                                  opts
-                                                  :array-list-box-style
-                                                  default-array-list-box-style)
-                                     :visible-rows 5
-                                     :fixed-visible-rows? true
-                                     :reorderable? (ui/bind-state :reorderable?)
-                                     :activate-event :form/edit-item}
-                                    opts])
-                            (array-summary-view opts summary-specs)]}
-                (array-toolbar opts)]}))
+     :state state
+     :children (cond->
+                [{:class :pixils/form-array-content
+                  :style (or (form-layout/style-option
+                               opts
+                               :array-content-style
+                               default-array-content-style)
+                             {})
+                  :state {:value (ui/project-state :value)
+                          :selection-options
+                          (ui/project-state :selection-options)
+                          :selected-indices
+                          (ui/project-state :selected-indices)
+                          :summary (ui/project-state :summary)
+                          :read-only? (ui/project-state :read-only?)
+                          :reorderable? (ui/project-state :reorderable?)}
+                  :children content-children}]
+                 (not-empty? toolbar-actions)
+                 (append (array-toolbar opts toolbar-actions)))}))
 
 (defun for-field
   "Builds an array editor for a resolved form-field context."
-  [{:keys [id schema value options]}]
-  (array-control-view id schema options value))
+  [{:keys [id schema value disabled? options]}]
+  (array-control-view id schema (assoc options :disabled? disabled?) value))

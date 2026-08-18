@@ -46,10 +46,11 @@
 
 (defun for-field
   "Builds the prefixed keyword-input presentation for a form field."
-  [{:keys [schema value options]}]
+  [{:keys [schema value disabled? options]}]
   {:class [:pixils/form-control :pixils/form-keyword-control]
    :style (or (form-layout/style-option options :control-style default-control-style) {})
-   :state {:value value}
+   :state {:value value
+           :disabled? disabled?}
    :children [{:mode 'ui/text
                :class :ui/muted
                :style {:width :shrink}
@@ -57,4 +58,5 @@
               (make {:style default-style
                      :value (ui/project-state :value)
                      :auto-focus? (:auto-focus? schema)
+                     :disabled? (ui/project-state :disabled?)
                      :read-only? (:read-only? schema)})]})

@@ -674,13 +674,6 @@
                            :text {:color (var :field-text)
                                   :wrap :none}}
 
-            :ui/list-item:hover
-            {:background (var :focus-bg)
-             :text {:color (var :focus-text)}}
-
-            [:ui/list-item:hover 'ui/tree-view-disclosure]
-            {:text {:color (var :focus-text)}}
-
             '(:ui/list-item {:selected true})
             {:background (var :focus-bg)
              :text {:color (var :focus-text)}}

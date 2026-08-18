@@ -3,7 +3,7 @@
 
 (defun for-field
   "Builds a color picker for a resolved form-field context."
-  [{:keys [schema label value options]}]
+  [{:keys [schema label value disabled? options]}]
   (color-picker/make
    {:class [:pixils/form-control :pixils/form-color-control]
     :style (or (:color-picker-style options) (:control-style options) (:style schema) {})
@@ -11,7 +11,7 @@
     :swatch-style (:swatch-style schema)
     :value value
     :allow-alpha? (:allow-alpha? schema)
-    :disabled? (:read-only? schema)
+    :disabled? disabled?
     :editor (:editor schema)
     :dialog-title (or (:dialog-title schema) label)
     :dialog-buttons (:dialog-buttons schema)

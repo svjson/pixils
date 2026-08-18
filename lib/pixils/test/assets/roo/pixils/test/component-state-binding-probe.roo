@@ -85,7 +85,9 @@
                           :explicit-nil (ui/consume-state :cleared)}}]})
 
 (pixils/defcomponent projected-state-leaf
-  {:ui/state-keys [:value]})
+  {:ui/state-keys [:value :initialized-value]
+   :init-ui (fn [ui-state state ctx]
+              (assoc ui-state :initialized-value (:value ui-state)))})
 
 (pixils/defcomponent projected-state-middle
   {:ui/state-keys [:value]
@@ -101,6 +103,20 @@
                   (:advance? state) (assoc :value 2)))
    :children [{:mode 'projected-state-middle
                :ui-state {:value (ui/project-state :value)}}]})
+
+(pixils/defcomponent projected-component-state-leaf
+  {:init (fn [state ctx]
+           (assoc state :initialized-value (:value state)))})
+
+(pixils/defcomponent projected-component-state-middle
+  {:children [{:mode 'projected-component-state-leaf
+               :state {:value (ui/project-state :value)}}]})
+
+(pixils/defcomponent projected-component-state-parent
+  {:init (fn [state ctx]
+           (assoc state :value 1))
+   :children [{:mode 'projected-component-state-middle
+               :state {:value (ui/project-state :value)}}]})
 
 (pixils/defmode root-mode
   {:children [{:mode 'component-state-parent
@@ -128,3 +144,6 @@
    :children [{:mode 'projected-state-parent
                :state (ui/bind-state)
                :ui/state-policy :isolated}]})
+
+(pixils/defmode projected-component-state-root-mode
+  {:children [{:mode 'projected-component-state-parent}]})

@@ -38,6 +38,7 @@
               (assoc state :value value))))}
    :children [(slider/make
                {:style (ui/bind-state :slider-style)
+                :state {:disabled? (ui/project-state :read-only?)}
                 :value (ui/bind-state :value)
                 :min (ui/bind-state :min)
                 :max (ui/bind-state :max)
@@ -50,7 +51,7 @@
 
 (defun for-field
   "Builds a slider for a resolved form-field context."
-  [{:keys [schema value options]}]
+  [{:keys [schema value disabled? options]}]
   {:mode 'pixils/form-slider-control
    :class [:pixils/form-control :pixils/form-slider-control]
    :style (or (:slider-control-style options)
@@ -61,6 +62,6 @@
            :max (:max schema)
            :step (:step schema)
            :axis (or (:axis schema) :x)
-           :read-only? (:read-only? schema)
+           :read-only? disabled?
            :slider-style (or (:slider-style options) default-slider-style)
            :value-style (or (:slider-value-style options) default-value-style)}})

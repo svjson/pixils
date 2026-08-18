@@ -13,7 +13,7 @@
                                            :value {:field/name "Ada" :field/age 36}}}
                          :text {:field/name "Name"}
                          :layout [:field/name]})
-        field-view (-> view :children head :children head)]
+        field-view (-> view :children head :children head :children head)]
     (is (= {:child-count 2 :label "Name"}
            {:child-count (count (:children field-view))
             :label (get-in field-view [:children 0 :state :value])}))))
@@ -25,7 +25,7 @@
                          :text {:field/id "Id"}
                          :layout [:field/id]
                          :value {:field/id :scene/ground}})
-        field-view (-> view :children head :children head)
+        field-view (-> view :children head :children head :children head)
         control (nth (:children field-view) 1)
         prefix (head (:children control))
         editor (nth (:children control) 1)]
@@ -45,7 +45,7 @@
                          :text {:field/role "Role"}
                          :layout [:field/role]
                          :value {:field/role :role/stable-lad}})
-        field-view (-> view :children head :children head)
+        field-view (-> view :children head :children head :children head)
         control (nth (:children field-view) 1)]
     (is (= {:mode 'pixils/form-select-control
             :options [{:value nil :label ""}
@@ -65,7 +65,7 @@
                                               :label "Dawnkeep Stables"}]}}
                          :layout [:field/place]
                          :value {:field/place :place/dawnkeep-stables}})
-        field-view (-> view :children head :children head)
+        field-view (-> view :children head :children head :children head)
         control (nth (:children field-view) 1)]
     (is (= {:mode 'pixils/form-select-control
             :options [{:value :place/dawnkeep-stables :label "Dawnkeep Stables"}]}
@@ -88,7 +88,7 @@
                                               :label "Blackmere"}]}
                          :layout [:source :id]
                          :value {:source :terrain :id :blackmere}})
-        id-view (nth (-> view :children head :children) 1)
+        id-view (nth (-> view :children head :children head :children) 1)
         control (nth (:children id-view) 1)]
     (is (= {:mode 'pixils/form-select-control
             :field-path [:id]

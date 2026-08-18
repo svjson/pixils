@@ -47,9 +47,10 @@
 
 (defun for-field
   "Builds the text-input presentation for a resolved form-field context."
-  [{:keys [schema value options]}]
+  [{:keys [schema value disabled? options]}]
   (make {:style (or (form-layout/style-option options :control-style default-style) {})
          :value value
          :auto-focus? (:auto-focus? schema)
          :emit-blur? true
+         :disabled? disabled?
          :read-only? (:read-only? schema)}))

@@ -1,4 +1,4 @@
-(ns form-playground.forms.persons.summary
+(ns form-playground.view.tabs.people.summary
   (:require pixils
             [pixils.ui :as ui]))
 
@@ -19,7 +19,7 @@
                :state {:value (ui/bind-state :value)}}]})
 
 (defcomponent person-summary
-  {:class :person-summary
+  {:class :app/person-summary
    :children [(summary-line "First"
                             (ui/bind-state :person :field/first-name))
               (summary-line "Last"

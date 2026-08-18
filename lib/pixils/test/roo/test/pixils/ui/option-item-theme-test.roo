@@ -1,0 +1,84 @@
+(ns pixils.ui.option-item-theme-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(deftest option-items/highlight-hover-only-when-the-component-opts-in
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 180 :buffer-height 160
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/option-item-hover-probe.roo")
+      (runtime/push-mode! app 'root-mode)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/mouse-move-at! app 170 150)
+    (runtime/update! app)
+    (let [list-item (runtime/find-view app "ui/list-box-item")
+          list-background-before (-> list-item :effective-style :background)]
+      (runtime/mouse-move-in! app list-item 3 3)
+      (runtime/update! app)
+      (let [list-result {:hovered (-> list-item :interaction :hovered)
+                         :background-before list-background-before
+                         :background-after (-> list-item :effective-style :background)}
+            combo-box (runtime/find-view app "ui/combo-box")]
+        (runtime/click! app combo-box)
+        (runtime/settle-layout! app)
+        (let [combo-item (runtime/find-view app "ui/combo-box-item")
+              combo-background-before (-> combo-item :effective-style :background)]
+          (runtime/mouse-move-in! app combo-item 3 3)
+          (runtime/update! app)
+          {:list list-result
+           :combo {:hovered (-> combo-item :interaction :hovered)
+                   :background-before combo-background-before
+                   :background-after (-> combo-item :effective-style :background)}}))))
+
+  (s/then [{:keys [list combo]}]
+    (is (:hovered list))
+    (is (= (:background-before list) (:background-after list)))
+    (is (:hovered combo))
+    (is (not= (:background-before combo) (:background-after combo)))))
+
+(deftest classic-blue/highlights-list-and-combo-items-with-distinct-colors
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 180 :buffer-height 160
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/option-item-hover-probe.roo")
+      (runtime/push-mode-with-overrides! app
+                                         'root-mode
+                                         {}
+                                         {:theme 'pixils/classic-blue})
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/mouse-move-at! app 170 150)
+    (runtime/update! app)
+    (let [list-item (runtime/find-view app "ui/list-box-item")
+          list-background-before (-> list-item :effective-style :background)]
+      (runtime/mouse-move-in! app list-item 3 3)
+      (runtime/update! app)
+      (let [list-result {:hovered (-> list-item :interaction :hovered)
+                         :background-before list-background-before
+                         :background-after (-> list-item :effective-style :background)}
+            combo-box (runtime/find-view app "ui/combo-box")]
+        (runtime/click! app combo-box)
+        (runtime/settle-layout! app)
+        (let [combo-item (runtime/find-view app "ui/combo-box-item")
+              combo-background-before (-> combo-item :effective-style :background)]
+          (runtime/mouse-move-in! app combo-item 3 3)
+          (runtime/update! app)
+          {:list list-result
+           :combo {:hovered (-> combo-item :interaction :hovered)
+                   :background-before combo-background-before
+                   :background-after (-> combo-item :effective-style :background)}}))))
+
+  (s/then [{:keys [list combo]}]
+    (is (:hovered list))
+    (is (not= (:background-before list) (:background-after list)))
+    (is (:hovered combo))
+    (is (not= (:background-before combo) (:background-after combo)))
+    (is (not= (:background-after list) (:background-after combo)))))

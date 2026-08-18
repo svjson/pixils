@@ -1,0 +1,21 @@
+(ns pixils.test.option-item-hover-probe
+  (:require pixils
+            [pixils.ui.combo-box :as combo-box]
+            [pixils.ui.list-box :as list-box]))
+
+(def options [{:value :alpha :label "Alpha"}
+              {:value :beta :label "Beta"}])
+
+(defmode root-mode
+  {:style {:width :fill
+           :height :fill
+           :padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(list-box/make {:options options
+                              :selected-indices []
+                              :force-selection? false
+                              :visible-rows 2
+                              :style {:width 120}})
+              (combo-box/make {:options options
+                               :style {:width 120}})]})

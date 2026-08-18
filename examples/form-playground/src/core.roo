@@ -1,6 +1,6 @@
 (ns form-playground.core
   (:require pixils
-            form-playground.root
+            form-playground.view.root
             form-playground.theme))
 
 (defprogram form-playground

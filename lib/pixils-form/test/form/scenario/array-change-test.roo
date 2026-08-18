@@ -43,5 +43,33 @@
            {:payload (select-keys payload [:field-path :local-field-path :form-value])
             :next-value (:value next-form-state)}))))
 
+(deftest form-state-change-payload/does-not-advertise-top-level-selection-state
+  (is (= {:form-value {:people [{:id :ada} {:id :grace}]}
+          :value {:people [{:id :ada} {:id :grace}]}}
+         (form/form-state-change-payload
+          {:schema {:type :object
+                    :fields {:people {:type :array
+                                      :items {:type :object
+                                              :fields {:id {:type :keyword}}}}}}
+           :value {:people [{:id :ada} {:id :grace}]}
+           :items nil
+           :selected-index nil
+           :form/selection nil}))))
+
+(deftest form-state-change-payload/includes-state-owned-by-an-actual-selection
+  (is (= {:form-value {:id :grace}
+          :value {:id :grace}
+          :items [{:id :ada} {:id :grace}]
+          :selected-index 1
+          :new? false}
+         (form/form-state-change-payload
+          {:schema {:type :object
+                    :fields {:id {:type :keyword}}}
+           :value {:id :grace}
+           :items [{:id :ada} {:id :grace}]
+           :selected-index 1
+           :new? false
+           :form/selection {:items [{:id :ada} {:id :grace}]}}))))
+
 
 
