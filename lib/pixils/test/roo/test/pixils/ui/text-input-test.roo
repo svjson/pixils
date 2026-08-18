@@ -1,7 +1,8 @@
 (ns pixils.ui.text-input-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test.runtime :as runtime]
+            [pixils.ui.text-input :as text-input]))
 
 (defun text-input-interaction-app
   "Creates and settles an app running `mode` from the text-input interaction
@@ -19,6 +20,13 @@
 
 
 ;; ui/text-input
+
+(deftest text-value-state-transition/uses-the-component-value-formatter
+  (is (= {:text-value "formatted"}
+         (text-input/text-value-state-transition
+          {}
+          {:value :source/value :format-value (fn [_value] "formatted")}
+          [:value]))))
 
 (deftest text-input/keeps-editing-state-outside-application-state
   (s/given
@@ -74,6 +82,23 @@
             {:text-input {:value "ab" :text-value "ab"}
              :last-change {:value "ab"}}}
            result))))
+
+(deftest text-input/positions-the-rendered-caret-at-the-logical-cursor
+  (s/given
+    (text-input-interaction-app 'short-text-input-mode))
+
+  (s/when [app]
+    (runtime/press-key! app :end)
+    (runtime/settle-layout! app)
+    (let [inner-ui-state (-> (runtime/find-view app "ui/text-input-inner") :ui-state)]
+      {:cursor-index (:cursor-index inner-ui-state)
+       :caret-x (-> inner-ui-state :layout :caret-x)
+       :rendered-left (-> (runtime/find-view app "ui/text-input-caret") :style :left)}))
+
+  (s/then [{:keys [cursor-index caret-x rendered-left]}]
+    (is (= 2 cursor-index))
+    (is (> caret-x 0))
+    (is (= caret-x rendered-left))))
 
 (deftest text-input/shared-state-commits-event-driven-edits
   (s/given

@@ -291,24 +291,31 @@
      :selection-start selection-start
      :selection-end selection-end}))
 
+(defun format-text-value [state value]
+  "Returns the editable text produced by a component's value formatter."
+  (cond
+    (nil? value) ""
+    (:format-value state) (apply (:format-value state) [value])
+    :default (str value)))
+
 (defun text-value-state-transition
   "Returns the editor text for an outer text or specialized value transition."
   [current candidate changed-keys]
   {:text-value
    (cond
      (contains? changed-keys :text-value) (or (:text-value candidate) "")
-     (contains? changed-keys :value) (if (nil? (:value candidate))
-                                      ""
-                                      (str (:value candidate)))
-     (nil? (:text-value current)) (if (nil? (:value candidate))
-                                    ""
-                                    (str (:value candidate)))
+     (or (contains? changed-keys :value)
+         (contains? changed-keys :format-value))
+     (format-text-value candidate (:value candidate))
+     (nil? (:text-value current)) (format-text-value candidate (:value candidate))
      :default (:text-value current))})
 
 (defun text-metrics-source
   "Returns the inputs that determine measured text geometry."
   [state ctx]
-  {:value (or (:value state) "")
+  {:value (if (contains? state :text-value)
+            (or (:text-value state) "")
+            (or (:value state) ""))
    :text-opts (text-args (-> ctx :view :effective-style))})
 
 (defun text-metrics-for
@@ -603,6 +610,7 @@
    :read-only?
    :auto-focus?
    :accept-value?
+   :format-value
    :emit-change?
    :emit-blur?])
 
@@ -610,13 +618,13 @@
 (defcomponent ui/text-input
   {:ui/state-keys TEXT-INPUT-UI-STATE-KEYS
    :ui/models [{:owns [:text-value]
-                :depends-on [:value]
+                :depends-on [:value :format-value]
                 :transition text-value-state-transition}]
-   :init-ui (fn [ui-state _state _ctx]
-              (let [value (or (:value ui-state) "")]
+   :init-ui (fn [{:keys [value] :as ui-state} _state _ctx]
+              (let [value (or value "")]
                 (assoc ui-state
                        :value value
-                       :text-value value
+                       :text-value (format-text-value ui-state value)
                        :content-policy (or (:content-policy ui-state)
                                            text-input-content-policy))))
    :children [{:mode 'ui/text-input-inner
