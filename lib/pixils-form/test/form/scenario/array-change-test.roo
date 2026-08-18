@@ -1,0 +1,46 @@
+(ns pixils.form.scenario.array-change-test
+  (:require proof.core
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/array-items-change-payload
+
+(deftest array-items-change-payload/updates-nested-form-state
+  (let [view (form/array-control-view
+              :parts
+              {:type :array
+               :items {:type :object
+                       :fields {:id {:type :keyword}}}}
+              {:field-path-prefix [:shape]
+               :schema {:type :object
+                        :fields {:parts {:type :array
+                                         :items {:type :object
+                                                 :fields {:id {:type :keyword}}}}}}
+               :value {:parts [{:id :base}]}}
+              [{:id :base}])
+        state (assoc (:state view)
+                     :items [{:id :base}]
+                     :form-value {:shape {:parts [{:id :base}]}})
+        payload (form/array-items-change-payload
+                 state
+                 (assoc state
+                        :items [{:id :base}
+                                {:id :cove}]))
+        next-form-state
+        (form/changed-form-state
+         {:schema {:shape {:type :object
+                           :fields {:parts {:type :array
+                                            :items {:type :object
+                                                    :fields {:id {:type :keyword}}}}}}}
+          :value {:shape {:parts [{:id :base}]}}}
+         payload)]
+    (is (= {:payload {:field-path [:shape :parts]
+                      :local-field-path [:parts]
+                      :form-value {:shape {:parts [{:id :base} {:id :cove}]}}}
+            :next-value {:shape {:parts [{:id :base} {:id :cove}]}}}
+           {:payload (select-keys payload [:field-path :local-field-path :form-value])
+            :next-value (:value next-form-state)}))))
+
+
+

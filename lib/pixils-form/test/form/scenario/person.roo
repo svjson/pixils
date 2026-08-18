@@ -1,0 +1,11 @@
+(ns pixils.form.scenario.person)
+
+(def schema
+  {:field/name {:type :text
+                :required true}
+   :field/age {:type :integer
+               :required true
+               :min 0
+               :max 130}
+   :field/city {:type :text
+                :path [:profile :city]}})

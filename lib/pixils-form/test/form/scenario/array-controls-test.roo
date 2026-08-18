@@ -1,0 +1,74 @@
+(ns pixils.form.scenario.array-controls-test
+  (:require proof.core
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/renders-root-array-editor-for-object-items
+  (let [view (form/make {:schema {:type :array
+                                  :item-label {:path [:relation]}
+                                  :item-summary [{:label "Relation"
+                                                  :path [:relation]}
+                                                 {:label "Priority"
+                                                  :path [:priority]}]
+                                  :items {:type :object
+                                          :fields {:relation {:type :keyword
+                                                              :valid-values [
+                                                               :place-relation/works-at]}
+                                                   :priority {:type :integer}}}}
+                         :value [{:relation :place-relation/works-at
+                                  :priority 10}]})
+        array-control (-> view :children head :children head)
+        content-row (head (:children array-control))
+        selection-view (head (:children content-row))
+        list-box (head (:children selection-view))
+        summary-view (nth (:children content-row) 1)
+        action-row (nth (:children array-control) 1)]
+    (is (= {:array {:mode 'pixils/form-array-control :child-count 2}
+            :selection {:mode 'pixils/form-selection :item-label {:path [:relation]}}
+            :list-box {:visible-rows 5 :fixed-visible-rows? true
+                       :style {:width :fill :height :fill}}
+            :summary {:mode 'pixils/form-array-summary
+                      :specs [{:label "Relation" :path [:relation]}
+                              {:label "Priority" :path [:priority]}]}
+            :action-count 3}
+           {:array {:mode (:mode array-control)
+                    :child-count (count (:children array-control))}
+            :selection {:mode (:mode selection-view)
+                        :item-label (-> selection-view :state :item-label)}
+            :list-box (merge (select-keys (-> list-box :state :component)
+                                          [:visible-rows :fixed-visible-rows?])
+                             {:style (:style list-box)})
+            :summary {:mode (:mode summary-view) :specs (-> summary-view :state :specs)}
+            :action-count (count (:children action-row))}))))
+
+(deftest make/renders-nested-array-field-editor
+  (let [view (form/make {:schema {:field/relations {:type :array
+                                   :items {:type :object
+                                           :fields {:place-id {:type :keyword
+                                                               :valid-values [
+                                                                :place/dawnkeep-stables]}
+                                                    :anchor {:type :keyword}}}}}
+                         :layout [:field/relations]
+                         :value {:field/relations
+                                 [{:place-id :place/dawnkeep-stables
+                                   :anchor :stable/aisle}]}})
+        relations-view (-> view :children head :children head)
+        array-control (nth (:children relations-view) 1)
+        content-row (head (:children array-control))
+        selection-view (head (:children content-row))
+        summary-view (nth (:children content-row) 1)
+        action-row (nth (:children array-control) 1)]
+    (is (= {:array-mode 'pixils/form-array-control
+            :selection {:mode 'pixils/form-selection :activate-event :form/edit-item}
+            :summary {:mode 'pixils/form-array-summary
+                      :specs [{:label ":place-id" :path [:place-id]}
+                              {:label ":anchor" :path [:anchor]}]}
+            :action-count 3}
+           {:array-mode (:mode array-control)
+            :selection {:mode (:mode selection-view)
+                        :activate-event (-> selection-view :state :activate-event)}
+            :summary {:mode (:mode summary-view) :specs (-> summary-view :state :specs)}
+            :action-count (count (:children action-row))}))))

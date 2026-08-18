@@ -1,0 +1,254 @@
+(ns pixils.form.scenario.composed-layout-test
+  (:require proof.core
+            [pixils.form.actions :as form-actions]
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/supports-hierarchical-model-projection-layout
+  (let [view (form/make
+              {:models {:register
+                        {:models {:person {:schema person/schema
+                                          :value {:field/name "Ada" :field/age 36}}
+                                  :people {:value [{:field/name "Ada" :field/age 36}]}
+                                  :selected-person-index {:value 0 :transient? true}
+                                  :new-person? {:value false :transient? true}
+                                  :new-person {:value {:field/name "" :field/age 0}
+                                               :transient? true}}
+                         :projections {:current-person {:target [:register :person]
+                           :items [:register :people]
+                           :selected-index [:register :selected-person-index]
+                           :new? [:register :new-person?]
+                           :new-value [:register :new-person]}}}}
+               :text {:field/name "Name"}
+               :layout [{:type :row
+                         :children [{:type :form
+                                     :model [:register :person]
+                                     :layout [:field/name]}
+                                    {:type :selection
+                                     :projection [:register :current-person]}]}]})
+        row-view (-> view :children head :children head)
+        form-view (head (:children row-view))
+        selection-view (nth (:children row-view) 1)]
+    (is (= {:state {:schema person/schema
+                    :value {:field/name "Ada" :field/age 36}
+                    :items [{:field/name "Ada" :field/age 36}]
+                    :selected-index 0 :new? false}
+            :layout {:root-child-count 1 :row-child-count 2
+                     :row-value? true :form-value? true
+                     :selection-mode 'pixils/form-selection}}
+           {:state (select-keys (:state view)
+                                [:schema :value :items :selected-index :new?])
+            :layout {:root-child-count (count (-> view :children head :children))
+                     :row-child-count (count (:children row-view))
+                     :row-value? (contains? (:state row-view) :value)
+                     :form-value? (contains? (:state form-view) :value)
+                     :selection-mode (:mode selection-view)}}))))
+
+(deftest make/supports-direct-master-detail-layout
+  (let [new-value-fn (fn [index]
+                       {:field/name ""
+                        :field/age 0
+                        :label (str "New Person " (inc index))})
+        view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}
+                       {:field/name "Grace"
+                        :field/age 85}]
+               :selected-index 0
+               :new-value-fn new-value-fn
+               :layout [{:type :row
+                         :children [{:type :form
+                                     :layout [:field/name]}
+                                    {:type :selection
+                                     :class :person-list
+                                     :item-label [:field/name]}]}]})
+        row-view (-> view :children head :children head)
+        form-view (head (:children row-view))
+        selection-view (nth (:children row-view) 1)]
+    (is (= {:state {:schema person/schema
+                    :value {:field/name "Ada" :field/age 36}
+                    :items [{:field/name "Ada" :field/age 36}
+                            {:field/name "Grace" :field/age 85}]
+                    :selected-index 0 :new-value-fn new-value-fn}
+            :form-value? true
+            :selection {:mode 'pixils/form-selection
+                        :class [:pixils/form-selection :person-list]
+                        :item-label [:field/name]}}
+           {:state (select-keys (:state view)
+                                [:schema :value :items :selected-index :new-value-fn])
+            :form-value? (contains? (:state form-view) :value)
+            :selection {:mode (:mode selection-view) :class (:class selection-view)
+                        :item-label (-> selection-view :state :item-label)}}))))
+
+(deftest make/renders-selection-toolbar-actions
+  (let [view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :actions [:add :save :cancel :delete]}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        row-view (-> view :children head :children head)
+        selection-view (head (:children row-view))
+        list-box (head (:children selection-view))
+        toolbar (nth (:children selection-view) 1)]
+    (is (= {:selection-child-count 2
+            :list-box {:mode 'ui/list-box :item=> 'ui/list-box-item}
+            :toolbar {:class :pixils/form-selection-toolbar
+                      :events [:form/new :form/save-new :form/cancel-new :form/delete]}
+            :action-events [:form/new :form/save-new :form/cancel-new :form/delete]}
+           {:selection-child-count (count (:children selection-view))
+            :list-box {:mode (:mode list-box)
+                       :item=> (-> list-box :state :component :item=>)}
+            :toolbar {:class (:class toolbar)
+                      :events (for [action (:children toolbar)]
+                                (-> action :state :event))}
+            :action-events (map (-> view :state :form/actions)
+                                form-actions/action-event-id)}))))
+
+(deftest make/renders-selection-context-menu-actions
+  (let [view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :actions [:add :delete]
+                          :action-presentation {:delete :context-menu}}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        row-view (-> view :children head :children head)
+        selection-view (head (:children row-view))
+        list-box (head (:children selection-view))
+        toolbar (nth (:children selection-view) 1)
+        item=> (-> list-box :state :component :item=>)
+        item-view (item=> 0 {:value 0
+                             :label "Ada"})]
+    (is (= {:toolbar-events [:form/new]
+            :item-provider? true
+            :item-mode 'pixils/form-selection-list-item
+            :context-menu-actions [:delete]}
+           {:toolbar-events (for [action (:children toolbar)]
+                              (-> action :state :event))
+            :item-provider? (some? item=>)
+            :item-mode (:mode item-view)
+            :context-menu-actions (map (-> item-view :state :context-menu-actions)
+                                       :key)}))))
+
+(deftest make/supports-action-layout-nodes
+  (let [view (form/make
+              {:models {:register
+                        {:models {:person {:schema person/schema
+                                          :value {:field/name "Ada" :field/age 36}}
+                                  :people {:value [{:field/name "Ada" :field/age 36}]}
+                                  :selected-person-index {:value 0}
+                                  :new-person? {:value false}
+                                  :new-person {:value {:field/name "" :field/age 0}}}
+                         :projections {:current-person {:target [:register :person]
+                           :items [:register :people]
+                           :selected-index [:register :selected-person-index]
+                           :new? [:register :new-person?]
+                           :new-value [:register :new-person]}}}}
+               :layout [{:type :selection
+                         :projection [:register :current-person]}
+                        {:type :row
+                         :children [{:type :action
+                                     :id :person/new
+                                     :label "New"
+                                     :disabled-when :new?}
+                                    {:type :action
+                                     :id :person/save
+                                     :label "Save"
+                                     :enabled-when [:and :new? :valid?]}]}]})
+        action-row (nth (-> view :children head :children) 1)
+        new-action (head (:children action-row))
+        save-action (nth (:children action-row) 1)]
+    (is (= {:new {:mode 'pixils/form-action :event :person/new :label "New"
+                  :disabled-when :new?}
+            :save {:enabled-when [:and :new? :valid?]}}
+           {:new (merge {:mode (:mode new-action)}
+                        (select-keys (:state new-action) [:event :label :disabled-when]))
+            :save (select-keys (:state save-action) [:enabled-when])}))))
+
+(deftest make/renders-map-row-and-group-layout-children
+  (let [view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :layout [{:type :row
+                         :children [{:type :group
+                                     :layout [:field/name]}
+                                    {:type :group
+                                     :layout [:field/age]}]}]})
+        row-view (-> view :children head :children head)
+        left-group (head (:children row-view))
+        right-group (nth (:children row-view) 1)]
+    (is (= [:field/name :field/age]
+           [(-> left-group :children head :state :field-id)
+            (-> right-group :children head :state :field-id)]))))
+
+(deftest make/supports-vector-layout-shorthand-with-classes
+  (let [view (form/make
+         {:class :person-register-form
+          :models {:register
+                   {:models {:person {:schema person/schema
+                                      :value {:field/name "Ada" :field/age 36}}
+                             :people {:value [{:field/name "Ada" :field/age 36}]}
+                             :selected-person-index {:value 0}
+                             :new-person? {:value false}
+                             :new-person {:value {:field/name "" :field/age 0}}}
+                    :projections {:current-person {:target [:register :person]
+                      :items [:register :people]
+                      :selected-index [:register :selected-person-index]
+                      :new? [:register :new-person?]
+                      :new-value [:register :new-person]}}}}
+          :layout [[:row.person-main-row
+                    [:form [:register :person] [:field/name]]
+                    [:group.person-list-column
+                     [:selection.person-list [:register :current-person]]
+                     [:button.person-new
+                      :person/new
+                      {:label "New"
+                       :disabled-when :new?}]]]]})
+        row-view (-> view :children head :children head)
+        fields-view (head (:children row-view))
+        group-view (nth (:children row-view) 1)
+        selection-view (head (:children group-view))
+        action-view (nth (:children group-view) 1)]
+    (is (= {:form {:class [:pixils/form :person-register-form]}
+            :row {:class [:pixils/form-row :person-main-row] :value? true}
+            :fields {:class :pixils/form-fields :value? true}
+            :group {:class [:pixils/form-row :pixils/form-group :person-list-column]}
+            :selection {:mode 'pixils/form-selection
+                        :class [:pixils/form-selection :person-list]}
+            :action {:mode 'pixils/form-action :class [:pixils/form-action :person-new]
+                     :event :person/new :disabled-when :new?}}
+           {:form (select-keys view [:class])
+            :row {:class (:class row-view) :value? (contains? (:state row-view) :value)}
+            :fields {:class (:class fields-view)
+                     :value? (contains? (:state fields-view) :value)}
+            :group (select-keys group-view [:class])
+            :selection (select-keys selection-view [:mode :class])
+            :action (merge (select-keys action-view [:mode :class])
+                           (select-keys (:state action-view)
+                                        [:event :disabled-when]))}))))
+
+
+

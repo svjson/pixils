@@ -1,0 +1,161 @@
+(ns pixils.form.scenario.array-dialog-test
+  (:require proof.core
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/array-item-dialog-body
+
+(deftest array-item-dialog-body/renders-form-and-buttons
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:relation {:type :keyword}
+                        :priority {:type :integer}}}
+              {})
+        item-form (head (:children body))
+        button-row (nth (:children body) 1)]
+    (is (= {:body {:mode 'ui/dialog-body :required-state? [true true true]
+                   :required-events? [true true]}
+            :form {:mode 'pixils/form
+                   :class [:pixils/form :pixils/form-array-item-form]
+                   :body {:id "form-body" :class :pixils/form-body}}
+            :buttons {:mode 'ui/dialog-button-row :count 2}}
+           {:body {:mode (:mode body)
+                   :required-state? (for [key [:index :new? :value]]
+                                      (contains? (:state body) key))
+                   :required-events? (for [event [:dialog/button :form/draft-change]]
+                                       (contains? (:on body) event))}
+            :form {:mode (:mode item-form) :class (:class item-form)
+                   :body (select-keys (head (:children item-form)) [:id :class])}
+            :buttons {:mode (:mode button-row) :count (count (:children button-row))}}))))
+
+(deftest array-item-dialog-body/keeps-item-form-fill-width-with-theme-styles
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:opacity {:type :slider
+                                  :min 0
+                                  :max 1}}}
+              {:theme-styles? true})
+        item-form (head (:children body))]
+    (is (= {:class [:pixils/form :pixils/form-array-item-form]
+            :style form/default-array-dialog-form-style}
+           (select-keys item-form [:class :style])))))
+
+(deftest array-item-dialog-body/uses-configured-layout
+  (let [body (form/array-item-dialog-body
+              person/schema
+              {:layout [:field/name]
+               :value {:field/name "Ada"
+                       :field/age 36}})
+        item-form (head (:children body))]
+    (is (= [:field/name]
+           (for [field (-> item-form :children head :children)]
+             (-> field :state :field-id))))))
+
+(deftest array-item-dialog-body/uses-global-fragment-layout
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:field/name {:type :text}
+                        :field/age {:type :integer}}}
+              {:layout {:fragments
+                        {:object [:field/age :field/name]}}
+               :value {:field/name "Ada"
+                       :field/age 36}})
+        item-form (head (:children body))]
+    (is (= [:field/age :field/name]
+           (for [field (-> item-form :children head :children)]
+             (-> field :state :field-id))))))
+
+(deftest array-item-dialog-body/renders-fragment-sections-as-top-level-sections
+  (let [body (form/array-item-dialog-body
+              {:type :object
+               :fields {:field/name {:type :text}}}
+              {:layout {:fragments
+                        {:object [{:type :section
+                                   :title "Identity"
+                                   :layout [:field/name]}]}}
+               :value {:field/name "Ada"}})
+        item-form (head (:children body))
+        section (-> item-form :children head :children head)]
+    (is (= {:mode 'ui/group-box :class :pixils/form-section :title "Identity"}
+           (merge (select-keys section [:mode :class])
+                  (select-keys (:state section) [:title]))))))
+
+(deftest array-item-dialog-body/uses-active-root-union-variant-layout
+  (let [body (form/array-item-dialog-body
+              {:definitions
+               {:rule-base {:type :object
+                 :fields {:type {:type :keyword
+                                 :valid-values [:preferred-position
+                                                :distance-range]}}}
+                :preferred-position-rule {:extends :rule-base
+                 :fields {:point {:type :number}}}
+                :distance-range-rule {:extends :rule-base
+                 :fields {:distance {:type :number}}}
+                :rule {:type :union
+                 :discriminator :type
+                 :base {:ref :rule-base}
+                 :variants {:preferred-position {:ref :preferred-position-rule}
+                            :distance-range {:ref :distance-range-rule}}}}
+               :schema {:ref :rule}}
+              {:layout {:fragments
+                        {:rule {:cases
+                                [{:where {:variant :preferred-position}
+                                  :layout [:point :type]}
+                                 {:where {:variant :distance-range}
+                                  :layout [:distance :type]}]}}}
+               :value {:type :preferred-position
+                       :point 3}})
+        item-form (head (:children body))
+        union-control (-> item-form :children head :children head)]
+    (is (= [:point :type]
+           (for [field (-> union-control :children head :children)]
+             (-> field :state :field-id))))))
+
+(deftest array-item-dialog-body/keeps-default-root-union-layout-dynamic
+  (let [body (form/array-item-dialog-body
+              {:definitions
+               {:rule-base {:type :object
+                 :fields {:type {:type :keyword
+                                 :valid-values [:preferred-position
+                                                :distance-range]}}}
+                :preferred-position-rule {:extends :rule-base
+                 :fields {:point {:type :number}}}
+                :distance-range-rule {:extends :rule-base
+                 :fields {:distance {:type :number}}}
+                :rule {:type :union
+                 :discriminator :type
+                 :base {:ref :rule-base}
+                 :variants {:preferred-position {:ref :preferred-position-rule}
+                            :distance-range {:ref :distance-range-rule}}}}
+               :schema {:ref :rule}}
+              {:value {:type :preferred-position
+                       :point 3}})
+        item-form (head (:children body))
+        union-control (-> item-form :children head :children head)
+        union-children (-> union-control :children head :children)
+        point-view (nth union-children 1)
+        distance-view (nth union-children 2)]
+    (is (= {:form-layout nil :union-layout nil :point-field-id :point :distance-field nil}
+           {:form-layout (-> item-form :state :form/layout)
+            :union-layout (-> union-control :state :layout)
+            :point-field-id (-> point-view :state :field-id)
+            :distance-field distance-view}))))
+
+(deftest array-item-dialog-body/preserves-custom-controls
+  (let [custom-control (fn [field-id field-schema field-label opts]
+                         {:mode 'test/custom-control
+                          :state {:field-id field-id
+                                  :label field-label}})
+        body (form/array-item-dialog-body
+              {:type :object
+               :fields {:group {:type :group-membership}}}
+              {:controls {:group-membership custom-control}
+               :text {:group "Group"}})
+        item-form (head (:children body))
+        field-view (-> item-form :children head :children head)
+        control (nth (:children field-view) 1)]
+    (is (= {:mode 'test/custom-control :state {:field-id :group :label "Group"}}
+           {:mode (:mode control)
+            :state (select-keys (:state control) [:field-id :label])}))))

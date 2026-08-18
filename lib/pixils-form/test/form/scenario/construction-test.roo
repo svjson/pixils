@@ -1,0 +1,155 @@
+(ns pixils.form.scenario.construction-test
+  (:require proof.core
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/keeps-component-mode-separate-from-form-mode
+  (let [transient-view (form/make {:schema person/schema
+                                   :value {:field/name "Ada"
+                                           :field/age 36}})
+        live-view (form/make {:schema person/schema
+                              :value {:field/name "Ada"
+                                      :field/age 36}
+                              :mode :live})]
+    (is (= [{:mode 'pixils/form :form/mode :transient}
+            {:mode 'pixils/form :form/mode :live}]
+           (for [view [transient-view live-view]]
+             {:mode (:mode view) :form/mode (-> view :state :form/mode)})))))
+
+(deftest make/renders-fill-width-form-body
+  (let [view (form/make {:schema person/schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}})
+        body (head (:children view))]
+    (is (= {:class :pixils/form-body :style {:width :fill :height :shrink}}
+           {:class (:class body) :style (select-keys (:style body) [:width :height])}))))
+
+(deftest make/renders-theme-backed-structural-classes
+  (let [view (form/make {:schema person/schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}
+                         :theme-styles? true})
+        body (head (:children view))
+        field (head (:children body))
+        label (head (:children field))
+        control (nth (:children field) 1)]
+    (is (= {:form {:class :pixils/form}
+            :body {:class :pixils/form-body}
+            :field {:class :pixils/form-field :style {:visibility :visible}}
+            :label {:class [:ui/muted :pixils/form-label] :style {}}
+            :control {:class [:pixils/form-control :pixils/form-text-control] :style {}}}
+           {:form (select-keys view [:class])
+            :body (select-keys body [:class])
+            :field (select-keys field [:class :style])
+            :label (select-keys label [:class :style])
+            :control (select-keys control [:class :style])}))))
+
+(deftest make/renders-slider-field-with-built-in-slider-control
+  (let [view (form/make {:schema {:opacity {:type :slider
+                                            :min 0
+                                            :max 1
+                                            :step 0.05}}
+                         :value {:opacity 0.75}})
+        field (-> view :children head :children head)
+        control (nth (:children field) 1)]
+    (is (= {:mode 'pixils/form-slider-control
+            :class [:pixils/form-control :pixils/form-slider-control]
+            :state {:axis :x :min 0 :max 1 :step 0.05}}
+           {:mode (:mode control)
+            :class (:class control)
+            :state (select-keys (:state control) [:axis :min :max :step])}))))
+
+(deftest make/keeps-stable-dimensions-with-theme-styles
+  (let [view (form/make {:schema {:zoom {:type :slider
+                                         :min 1
+                                         :max 4}}
+                         :value {:zoom 2}
+                         :theme-styles? true})
+        field (-> view :children head :children head)
+        control (nth (:children field) 1)]
+    (is (= {:style form/default-slider-control-style
+            :state {:slider-style form/default-slider-style
+                    :value-style form/default-slider-value-style}}
+           {:style (:style control)
+            :state (select-keys (:state control) [:slider-style :value-style])}))))
+
+(deftest make/renders-color-field-with-built-in-color-picker
+  (let [view (form/make {:schema {:accent {:type :color}}
+                         :value {:accent {:r 12 :g 34 :b 56 :a 255}}})
+        field (-> view :children head :children head)
+        control (nth (:children field) 1)]
+    (is (= {:mode 'ui/color-picker
+            :class [:pixils/form-control :pixils/form-color-control]
+            :value? true}
+           {:mode (:mode control) :class (:class control)
+            :value? (some? (-> control :state :value))}))))
+
+(deftest make/passes-color-picker-options
+  (let [view (form/make {:schema {:accent {:type :color
+                                           :read-only? true
+                                           :allow-alpha? false
+                                           :editor false
+                                           :dialog-title "Accent Color"
+                                           :swatch-class :paint/accent-swatch
+                                           :swatch-style {:width 32
+                                                          :height 18}}}
+                         :value {:accent {:r 12 :g 34 :b 56}}})
+        field (-> view :children head :children head)
+        control (nth (:children field) 1)
+        swatch (head (:children control))]
+    (is (= {:control {:disabled? true :allow-alpha? false :editor false
+                      :dialog-title "Accent Color"}
+            :swatch {:class [:ui/color-picker-swatch :paint/accent-swatch]
+                     :style {:width 32 :height 18}}}
+           {:control (select-keys (:state control)
+                                  [:disabled? :allow-alpha? :editor :dialog-title])
+            :swatch (select-keys swatch [:class :style])}))))
+
+(deftest make/renders-top-level-layout-sections-as-group-boxes
+  (let [view (form/make {:schema person/schema
+                         :value {:field/name "Ada"
+                                 :field/age 36
+                                 :profile {:city "London"}}
+                         :layout [{:type :section
+                                   :title "Identity"
+                                   :layout [:field/name :field/city]}]})
+        section (-> view :children head :children head)
+        body (-> section :children head :children head)]
+    (is (= {:section {:mode 'ui/group-box :class :pixils/form-section :title "Identity"}
+            :body {:mode 'ui/group-box-body :class :pixils/form-section-body
+                   :child-modes ['pixils/form-field 'pixils/form-field]}}
+           {:section {:mode (:mode section) :class (:class section)
+                      :title (-> section :state :title)}
+            :body {:mode (:mode body) :class (:class body)
+                   :child-modes (map (:children body) :mode)}}))))
+
+(deftest make/renders-nested-layout-sections-as-plain-containers
+  (let [view (form/make {:schema person/schema
+                         :value {:field/name "Ada"
+                                 :field/age 36}
+                         :layout [{:type :section
+                                   :title "Outer"
+                                   :layout [{:type :section
+                                             :title "Inner"
+                                             :layout [:field/name]}]}]})
+        outer (-> view :children head :children head)
+        outer-body (-> outer :children head :children head)
+        inner (head (:children outer-body))
+        inner-title (head (:children inner))
+        inner-body (nth (:children inner) 1)]
+    (is (= {:outer {:mode 'ui/group-box :class :pixils/form-section}
+            :inner {:class :pixils/form-nested-section}
+            :title {:mode 'ui/text :class [:ui/muted :pixils/form-nested-section-title]
+                    :value "Inner"}
+            :body {:class :pixils/form-nested-section-body
+                   :child-mode 'pixils/form-field}}
+           {:outer (select-keys outer [:mode :class])
+            :inner (select-keys inner [:mode :class])
+            :title {:mode (:mode inner-title) :class (:class inner-title)
+                    :value (-> inner-title :state :value)}
+            :body {:class (:class inner-body)
+                   :child-mode (-> inner-body :children head :mode)}}))))

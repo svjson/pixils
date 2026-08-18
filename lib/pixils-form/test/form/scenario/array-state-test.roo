@@ -1,0 +1,60 @@
+(ns pixils.form.scenario.array-state-test
+  (:require proof.core
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/array-dialog-result-state
+
+(deftest array-dialog-result-state/appends-and-projects-new-item
+  (let [new-value-fn (fn [index]
+                       {:field/name ""
+                        :field/age 0
+                        :label (str "New Person " (inc index))})
+        state (form/form-state
+               {:schema person/schema
+                :value {:field/name "Ada"
+                        :field/age 36}
+                :items [{:field/name "Ada"
+                         :field/age 36}]
+                :selected-index 0
+                :new-value-fn new-value-fn})
+        next-state (form/form-state
+                    (form/array-dialog-result-state
+                     state
+                     {:type :confirm
+                      :new? true
+                      :value {:field/name "Grace"
+                              :field/age 85}}))]
+    (is (= {:items [{:field/name "Ada" :field/age 36}
+                    {:field/name "Grace" :field/age 85}]
+            :selected-index 1
+            :value {:field/name "Grace" :field/age 85}}
+           (select-keys next-state [:items :selected-index :value])))))
+
+(deftest array-dialog-result-state/replaces-existing-empty-item
+  (let [state {:items [{}]
+               :selected-index 0
+               :projected-index 0
+               :projected-item {}
+               :value {}}
+        replaced (form/array-dialog-result-state
+                  state
+                  {:type :confirm
+                   :new? false
+                   :index 0
+                   :value {:relation :place-relation/works-at
+                           :place-id :workstation/stable-hand-post
+                           :anchor :stand}})
+        projected (form/projection-state replaced)]
+    (is (= {:items [{:relation :place-relation/works-at
+                     :place-id :workstation/stable-hand-post
+                     :anchor :stand}]
+            :value {:relation :place-relation/works-at
+                    :place-id :workstation/stable-hand-post
+                    :anchor :stand}}
+           {:items (:items replaced) :value (:value projected)}))))
+
+
+

@@ -1,0 +1,46 @@
+(ns pixils.form.controls.text-input
+  (:require [pixils.form.layout :as form-layout]
+            [pixils.ui :as ui]
+            [pixils.ui.text-input :as text-input]))
+
+(def default-style
+  "Default dimensions for a form text-input control."
+  {:width :fill
+   :height 24})
+
+(defun content-policy
+  "Applies form text editing without replacing the externally supplied value.
+
+  Edits update the local string draft and emit stock text-input events."
+  [state operation value ctx]
+  (case operation
+    :edit
+    (do
+      (when (not= (:emit-change? state) false)
+        (ui/emit! (:view ctx) :text-input/change {:value value}))
+      (assoc state :text-value value))
+
+    :commit
+    (do
+      (when (not= (:emit-blur? state) false)
+        (ui/emit! (:view ctx)
+                  :text-input/blur
+                  {:value (:text-value state)}))
+      state)
+
+    :default state))
+
+(defun make
+  "Builds a form text-input control from stock `ui/text-input` behavior."
+  [{:keys [class style] :as opts}]
+  (text-input/make
+   (assoc opts
+          :class (form-layout/classes
+                  [:pixils/form-control :pixils/form-text-control]
+                  class)
+          :ui-state (assoc (or (:ui-state opts) {})
+                           :content-policy
+                           content-policy)
+          :style (if (contains? opts :style)
+                   style
+                   default-style))))

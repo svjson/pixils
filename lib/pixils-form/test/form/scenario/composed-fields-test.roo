@@ -1,0 +1,151 @@
+(ns pixils.form.scenario.composed-fields-test
+  (:require proof.core
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/renders-fields-through-named-definition-references
+  (let [view (form/make {:schema {:definitions
+                                  {:stable-role {:type :keyword
+                                                 :valid-values [:role/stable-lad
+                                                                :role/stable-master]}}
+                                  :schema {:field/role {:ref :stable-role}}}
+                         :text {:field/role "Role"}
+                         :layout [:field/role]
+                         :value {:field/role :role/stable-lad}})
+        field-view (-> view :children head :children head)
+        control (nth (:children field-view) 1)]
+    (is (= {:mode 'pixils/form-select-control
+            :options [{:value nil :label ""}
+                      {:value :role/stable-lad :label "role/stable-lad"}
+                      {:value :role/stable-master :label "role/stable-master"}]}
+           {:mode (:mode control) :options (get-in control [:state :options])}))))
+
+(deftest make/renders-object-root-fields-without-explicit-layout
+  (let [view (form/make {:schema {:type :object
+                                  :fields {:relation {:type :keyword
+                                                      :valid-values [
+                                                       :place-relation/works-at]}
+                                           :priority {:type :integer :min 1}}}
+                         :value {:relation :place-relation/works-at
+                                 :priority 10}})
+        relation-view (-> view :children head :children head)
+        relation-control (nth (:children relation-view) 1)
+        priority-view (nth (-> view :children head :children) 1)
+        priority-control (nth (:children priority-view) 1)]
+    (is (= ['pixils/form-select-control 'ui/number-input]
+           [(:mode relation-control) (:mode priority-control)]))))
+
+(deftest make/renders-number-fields-with-fractional-input-enabled
+  (let [number-view (form/make {:schema {:distance {:type :number}}
+                                :value {:distance 0.1}})
+        integer-view (form/make {:schema {:count {:type :integer}}
+                                 :value {:count 1}})
+        number-control (nth (-> number-view :children head :children head :children) 1)
+        integer-control (nth (-> integer-view :children head :children head :children) 1)]
+    (is (= [{:mode 'ui/number-input :allow-fractions? true :commit-on :blur}
+            {:mode 'ui/number-input :allow-fractions? false :commit-on :blur}]
+           (for [control [number-control integer-control]]
+             (merge {:mode (:mode control)}
+                    (select-keys (-> control :state :component)
+                                 [:allow-fractions? :commit-on])))))))
+
+(deftest make/renders-fields-with-form-change-metadata
+  (let [view (form/make {:schema {:name {:type :text}
+                                  :count {:type :integer}
+                                  :enabled? {:type :boolean}
+                                  :role {:type :keyword
+                                         :valid-values [:a :b]}}
+                         :value {:name "Ada"
+                                 :count 1
+                                 :enabled? false
+                                 :role :a}})
+        fields (-> view :children head :children)
+        name-field (head fields)
+        count-field (nth fields 1)
+        enabled-field (nth fields 2)
+        role-field (nth fields 3)
+        name-control (nth (:children name-field) 1)
+        count-control (nth (:children count-field) 1)
+        enabled-control (nth (:children enabled-field) 1)
+        role-control (nth (:children role-field) 1)]
+    (is (= [{:field-id :name :field-path [:name] :control-mode 'ui/text-input}
+            {:field-id :count :field-path [:count] :control-mode 'ui/number-input}
+            {:field-id :enabled? :field-path [:enabled?] :control-mode 'ui/checkbox}
+            {:field-id :role :field-path [:role]
+             :control-mode 'pixils/form-select-control}]
+           (for [[field control] [[name-field name-control]
+                                  [count-field count-control]
+                                  [enabled-field enabled-control]
+                                  [role-field role-control]]]
+             {:field-id (get-in field [:state :field-id])
+              :field-path (get-in field [:state :field-path])
+              :control-mode (:mode control)})))))
+
+(deftest make/renders-nested-object-fields
+  (let [view (form/make {:schema {:field/location {:type :object
+                                   :fields {:place-id {:type :keyword
+                                                      :valid-values [
+                                                       :place/dawnkeep-stables]}
+                                            :anchor {:type :keyword}}}}
+                         :layout [:field/location]
+                         :value {:field/location
+                                 {:place-id :place/dawnkeep-stables
+                                  :anchor :stable/aisle}}})
+        location-view (-> view :children head :children head)
+        object-control (nth (:children location-view) 1)
+        object-children (-> object-control :children head :children)
+        place-view (head object-children)
+        place-control (nth (:children place-view) 1)
+        anchor-view (nth object-children 1)
+        anchor-control (nth (:children anchor-view) 1)]
+    (is (= {:mode 'pixils/form-object-control
+            :child-control-modes ['pixils/form-select-control 'pixils/form-keyword-input]}
+           {:mode (:mode object-control)
+            :child-control-modes [(:mode place-control) (:mode anchor-control)]}))))
+
+(deftest make/uses-compact-fixed-label-width
+  (let [view (form/make {:schema {:shape {:type :object
+                                          :fields {:radius {:type :object
+                                                            :fields {
+                                                             :x {:type :number}}}}}}
+                         :layout [:shape]
+                         :value {:shape {:radius {:x 1}}}
+                         :field-label-style {:width 112
+                                             :height 18}})
+        shape-view (-> view :children head :children head)
+        shape-label (head (:children shape-view))
+        shape-control (nth (:children shape-view) 1)
+        radius-view (-> shape-control :children head :children head)
+        radius-label (head (:children radius-view))
+        radius-control (nth (:children radius-view) 1)
+        x-view (-> radius-control :children head :children head)
+        x-label (head (:children x-view))]
+    (is (= [112 64 64]
+           (for [label [shape-label radius-label x-label]]
+             (-> label :style :width))))))
+
+(deftest make/supports-explicit-label-style
+  (let [view (form/make {:schema {:shape {:type :object
+                                          :fields {:radius {:type :object
+                                                            :fields {
+                                                             :x {:type :number}}}}}}
+                         :layout [:shape]
+                         :value {:shape {:radius {:x 1}}}
+                         :field-label-style {:width 112
+                                             :height 18}
+                         :nested-field-label-style {:width 72
+                                                    :height 18}})
+        shape-view (-> view :children head :children head)
+        shape-label (head (:children shape-view))
+        shape-control (nth (:children shape-view) 1)
+        radius-view (-> shape-control :children head :children head)
+        radius-label (head (:children radius-view))
+        radius-control (nth (:children radius-view) 1)
+        x-view (-> radius-control :children head :children head)
+        x-label (head (:children x-view))]
+    (is (= [112 72 72]
+           (for [label [shape-label radius-label x-label]]
+             (-> label :style :width))))))

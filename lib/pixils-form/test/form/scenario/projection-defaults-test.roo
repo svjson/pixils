@@ -1,0 +1,70 @@
+(ns pixils.form.scenario.projection-defaults-test
+  (:require proof.core
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/renders-selection-dialog-add-action
+  (let [new-value-fn (fn [index]
+                       {:field/name ""
+                        :field/age 0
+                        :label (str "New Person " (inc index))})
+        view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada"
+                       :field/age 36}
+               :items [{:field/name "Ada"
+                        :field/age 36}]
+               :selected-index 0
+               :new-value-fn new-value-fn
+               :selection-defaults {:actions {:add true :delete true}
+                :action-presentation {:delete :context-menu}}
+               :layout [[:row
+                         {:type :selection
+                          :item-label [:field/name]
+                          :visible-rows 4}
+                         {:type :form
+                          :layout [:field/name]}]]})
+        state (:state view)
+        row-view (-> view :children head :children head)
+        selection-view (head (:children row-view))
+        toolbar (nth (:children selection-view) 1)]
+    (is (= {:selection {:visible-rows 4
+                        :actions {:add true :delete true}
+                        :action-presentation {:delete :context-menu}}
+            :new-value-fn new-value-fn
+            :toolbar-events [:form/new]}
+           {:selection (select-keys (:form/selection state)
+                                    [:visible-rows :actions :action-presentation])
+            :new-value-fn (:new-value-fn state)
+            :toolbar-events (for [action (:children toolbar)]
+                              (-> action :state :event))}))))
+
+(deftest make/normalizes-combined-model-projection
+  (let [view (form/make {:model :person
+                         :models {:person {:schema person/schema
+                                           :value {:field/name "Ada" :field/age 36}}
+                                  :people {:value [{:field/name "Ada" :field/age 36}]}
+                                  :selected-person-index {:value 0 :transient? true}
+                                  :new-person? {:value false :transient? true}
+                                  :new-person {:value {:field/name "" :field/age 0}
+                                               :transient? true}}
+                         :projection {:target :person
+                                      :items :people
+                                      :selected-index :selected-person-index
+                                      :new? :new-person?
+                                      :new-value :new-person}
+                         :layout [:field/name]
+                         :selection {:items :people
+                                     :selected-index :selected-person-index}})]
+    (is (= {:schema person/schema
+            :value {:field/name "Ada" :field/age 36}
+            :items [{:field/name "Ada" :field/age 36}]
+            :selected-index 0
+            :new? false
+            :new-value {:field/name "" :field/age 0}}
+           (select-keys (:state view)
+                        [:schema :value :items :selected-index :new? :new-value])))))

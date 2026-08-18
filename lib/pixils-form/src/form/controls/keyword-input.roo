@@ -1,0 +1,84 @@
+(ns pixils.form.controls.keyword-input
+  (:require pixils
+            [pixils.form.layout :as form-layout]
+            [pixils.ui :as ui]
+            [pixils.ui.text-input :as text-input]))
+
+(def default-style
+  "Default layout and dimensions for a form keyword-input control."
+  {:width :fill
+   :height 24
+   :layout {:direction :row
+            :align-items :center
+            :gap 4}})
+
+(def KEYWORD-INPUT-UI-STATE-KEYS
+  "Component-state keys owned by `pixils/form-keyword-input`."
+  [:value
+   :text-value
+   :auto-focus?
+   :read-only?])
+
+(defun value->text
+  "Returns the editable text representation of a keyword value."
+  [value]
+  (cond
+    (nil? value) ""
+    (keyword? value) (form-layout/keyword-label value)
+    :default (str value)))
+
+(defun text-value-transition
+  "Derives keyword editor text when its canonical value changes."
+  [current candidate changed-keys]
+  {:text-value
+   (cond
+     (contains? changed-keys :text-value) (or (:text-value candidate) "")
+     (contains? changed-keys :value) (value->text (:value candidate))
+     (nil? (:text-value current)) (value->text (:value candidate))
+     :default (:text-value current))})
+
+
+;; Component
+
+(defcomponent pixils/form-keyword-input
+  {:ui/state-keys KEYWORD-INPUT-UI-STATE-KEYS
+   :ui/models [{:owns [:text-value]
+                :depends-on [:value]
+                :transition text-value-transition}]
+   :init-ui (fn [ui-state _state _ctx]
+              (assoc ui-state
+                     :text-value (value->text (:value ui-state))))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width :shrink}
+               :state {:value ":"}}
+              (text-input/make
+               {:style {:width :fill
+                        :height :fill}
+                :ui-state {:value (ui/bind-state :text-value)
+                           :auto-focus? (ui/project-state :auto-focus?)
+                           :read-only? (ui/project-state :read-only?)
+                           :emit-blur? true}})]})
+
+
+;; Make funtion
+
+(defun make
+  "Builds an isolated form keyword-input control.
+
+  `:value` is a keyword or `nil`; the nested text editor receives only its
+  string representation."
+  [{:keys [class style state ui-state state-policy] :as opts}]
+  (let [component (merge (select-keys state KEYWORD-INPUT-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts KEYWORD-INPUT-UI-STATE-KEYS))]
+    (cond-> {:mode 'pixils/form-keyword-input
+             :class (form-layout/classes
+                     [:pixils/form-control :pixils/form-keyword-control]
+                     class)
+             :style (if (contains? opts :style)
+                      style
+                      default-style)
+             :state (assoc state :component component)
+             :ui/state-policy (or state-policy :isolated)}
+            ui-state (assoc :ui-state ui-state))))

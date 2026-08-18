@@ -1,0 +1,181 @@
+(ns pixils.form.scenario.union-fields-test
+  (:require proof.core
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/renders-active-discriminated-union-fields
+  (let [view (form/make {:schema {:definitions
+                          {:rule-base {:type :object
+                            :fields {:type {:type :keyword
+                                            :valid-values [:preferred-position :edge]}}}
+                           :preferred-position-rule {:extends :rule-base
+                            :fields {:point {:type :number}}}
+                           :edge-rule {:extends :rule-base
+                            :fields {:target {:type :keyword}}}}
+                          :schema {:type :union
+                                   :discriminator :type
+                                   :base {:ref :rule-base}
+                                   :variants {
+                                    :preferred-position {:ref :preferred-position-rule}
+                                    :edge {:ref :edge-rule}}}}
+                         :value {:type :preferred-position :point 3}})
+        union-control (-> view :children head :children head)
+        union-children (-> union-control :children head :children)
+        type-view (head union-children)
+        point-view (nth union-children 1)
+        target-view (nth union-children 2)]
+    (is (= {:control {:mode 'pixils/form-object-control :field-path-prefix nil}
+            :children [{:field-id :type}
+                       {:mode 'pixils/form-field :form-value? true :visibility :visible}
+                       nil]}
+           {:control {:mode (:mode union-control)
+                      :field-path-prefix (-> union-control :state :field-path-prefix)}
+            :children [{:field-id (-> type-view :state :field-id)}
+                       {:mode (:mode point-view)
+                        :form-value? (contains? (:state point-view) :form-value)
+                        :visibility (get-in point-view [:style :visibility])}
+                       target-view]}))))
+
+(deftest make/renders-nested-discriminated-union-field
+  (let [view (form/make {:schema {:definitions
+                          {:effect-base {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values [:move :wait]}}}
+                           :move-effect {:extends :effect-base
+                            :fields {:distance {:type :number}}}
+                           :wait-effect {:extends :effect-base
+                            :fields {:duration {:type :integer}}}
+                           :effect {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}
+                                       :wait {:ref :wait-effect}}}}
+                          :schema {:field/effect {:ref :effect}}}
+                         :layout [:field/effect]
+                         :value {:field/effect {:kind :move
+                                                :distance 1.5}}})
+        effect-view (-> view :children head :children head)
+        union-control (nth (:children effect-view) 1)
+        union-children (-> union-control :children head :children)
+        kind-view (head union-children)
+        kind-control (nth (:children kind-view) 1)
+        distance-view (nth union-children 1)
+        distance-control (nth (:children distance-view) 1)
+        duration-view (nth union-children 2)]
+    (is (= {:control-mode 'pixils/form-object-control
+            :kind-field {:field-path [:field/effect :kind] :local-field-path [:kind]
+                         :visibility :visible}
+            :kind-control {:mode 'pixils/form-select-control
+                           :field-path [:field/effect :kind] :local-field-path [:kind]}
+            :distance-field {:field-path [:field/effect :distance]
+                             :local-field-path [:distance] :visibility :visible}
+            :distance-control-mode 'ui/number-input
+            :duration-field nil}
+           {:control-mode (:mode union-control)
+            :kind-field {:field-path (get-in kind-view [:state :field-path])
+                         :local-field-path (get-in kind-view [:state :local-field-path])
+                         :visibility (get-in kind-view [:style :visibility])}
+            :kind-control {:mode (:mode kind-control)
+                           :field-path (get-in kind-control [:state :field-path])
+                           :local-field-path (-> kind-control :state :local-field-path)}
+            :distance-field {:field-path (get-in distance-view [:state :field-path])
+                             :local-field-path (-> distance-view :state :local-field-path)
+                             :visibility (get-in distance-view [:style :visibility])}
+            :distance-control-mode (:mode distance-control)
+            :duration-field duration-view}))))
+
+(deftest make/renders-nested-union-field-with-active-variant-layout
+  (let [view (form/make {:schema {:definitions
+                          {:effect-base {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values [:move :wait]}}}
+                           :move-effect {:extends :effect-base
+                            :fields {:distance {:type :number}}}
+                           :wait-effect {:extends :effect-base
+                            :fields {:duration {:type :integer}}}
+                           :effect {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}
+                                       :wait {:ref :wait-effect}}}}
+                          :schema {:field/effect {:ref :effect}}}
+                         :layout {:root [:field/effect]
+                                  :fragments {:effect
+                                   {:cases [{:where {:variant :move}
+                                      :layout [:distance :kind]}
+                                     {:where {:variant :wait}
+                                      :layout [:duration :kind]}]}}}
+                         :value {:field/effect {:kind :move
+                                                :distance 1.5}}})
+        effect-view (-> view :children head :children head)
+        union-control (nth (:children effect-view) 1)]
+    (is (= [:distance :kind]
+           (for [field (-> union-control :children head :children)]
+             (-> field :state :local-field-path head))))))
+
+(deftest make/renders-fragment-case-matching-any-selector
+  (let [view (form/make {:schema {:definitions
+                          {:effect-base {:type :object
+                            :fields {:kind {:type :keyword
+                                            :valid-values [:move]}}}
+                           :move-effect {:extends :effect-base
+                            :fields {:distance {:type :number}}}
+                           :effect {:type :union
+                            :discriminator :kind
+                            :base {:ref :effect-base}
+                            :variants {:move {:ref :move-effect}}}}
+                          :schema {:primary {:ref :effect}
+                                   :secondary {:ref :effect}}}
+                         :layout {:root [:primary :secondary]
+                                  :fragments {:effect {:default [:kind]
+                                    :cases [{:where [{:path [:secondary]}
+                                              {:path [:alternate]}]
+                                      :layout [:distance :kind]}]}}}
+                         :value {:primary {:kind :move
+                                           :distance 1.5}
+                                 :secondary {:kind :move
+                                             :distance 2.5}}})
+        primary-view (-> view :children head :children head)
+        primary-control (nth (:children primary-view) 1)
+        secondary-view (nth (-> view :children head :children) 1)
+        secondary-control (nth (:children secondary-view) 1)]
+    (is (= [[:kind] [:distance :kind]]
+           (for [control [primary-control secondary-control]]
+             (for [field (-> control :children head :children)]
+               (-> field :state :local-field-path head)))))))
+
+(deftest make/renders-active-union-object-field-with-missing-value
+  (let [view (form/make {:schema {:definitions
+                          {:rule-base {:type :object
+                            :fields {:type {:type :keyword
+                                            :valid-values [:distance-range]}}}
+                           :distance {:type :object
+                            :fields {:min {:type :number}
+                                     :max {:type :number}}}
+                           :distance-rule {:extends :rule-base
+                            :fields {:distance {:ref :distance}}}
+                           :rule {:type :union
+                            :discriminator :type
+                            :base {:ref :rule-base}
+                            :variants {:distance-range {:ref :distance-rule}}}}
+                          :schema {:field/rule {:ref :rule}}}
+                         :layout [:field/rule]
+                         :value {:field/rule {:type :distance-range}}})
+        rule-view (-> view :children head :children head)
+        rule-control (nth (:children rule-view) 1)
+        rule-children (-> rule-control :children head :children)
+        distance-view (nth rule-children 1)
+        distance-control (nth (:children distance-view) 1)
+        distance-children (-> distance-control :children head :children)
+        min-view (head distance-children)
+        max-view (nth distance-children 1)]
+    (is (= {:field-id :distance
+            :control-mode 'pixils/form-object-control
+            :child-field-ids [:min :max]}
+           {:field-id (-> distance-view :state :field-id)
+            :control-mode (:mode distance-control)
+            :child-field-ids (for [field distance-children]
+                               (-> field :state :field-id))}))))

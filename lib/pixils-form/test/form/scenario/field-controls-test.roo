@@ -1,0 +1,94 @@
+(ns pixils.form.scenario.field-controls-test
+  (:require proof.core
+            [pixils.form.scenario.person :as person]
+            [pixils.form :as form]))
+
+
+
+;; pixils.form/make
+
+(deftest make/renders-combined-model-layout-from-resolved-schema
+  (let [view (form/make {:model :person
+                         :models {:person {:schema person/schema
+                                           :value {:field/name "Ada" :field/age 36}}}
+                         :text {:field/name "Name"}
+                         :layout [:field/name]})
+        field-view (-> view :children head :children head)]
+    (is (= {:child-count 2 :label "Name"}
+           {:child-count (count (:children field-view))
+            :label (get-in field-view [:children 0 :state :value])}))))
+
+(deftest make/renders-keyword-fields-with-prefixed-input
+  (let [view (form/make {:schema {:field/id {:type :keyword
+                                             :required true
+                                             :auto-focus? true}}
+                         :text {:field/id "Id"}
+                         :layout [:field/id]
+                         :value {:field/id :scene/ground}})
+        field-view (-> view :children head :children head)
+        control (nth (:children field-view) 1)]
+    (is (= {:mode 'pixils/form-keyword-input
+            :class [:pixils/form-control :pixils/form-keyword-control]
+            :auto-focus? true}
+           {:mode (:mode control) :class (:class control)
+            :auto-focus? (get-in control [:state :component :auto-focus?])}))))
+
+(deftest make/renders-valid-values-fields-with-select-control
+  (let [view (form/make {:schema {:field/role {:type :keyword
+                                               :valid-values [:role/stable-lad
+                                                              :role/stable-master]}}
+                         :text {:field/role "Role"}
+                         :layout [:field/role]
+                         :value {:field/role :role/stable-lad}})
+        field-view (-> view :children head :children head)
+        control (nth (:children field-view) 1)]
+    (is (= {:mode 'pixils/form-select-control
+            :options [{:value nil :label ""}
+                      {:value :role/stable-lad :label "role/stable-lad"}
+                      {:value :role/stable-master :label "role/stable-master"}]}
+           {:mode (:mode control) :options (get-in control [:state :options])}))))
+
+(deftest make/renders-context-backed-valid-values-fields-with-select-control
+  (let [view (form/make {:schema {:field/place {:type :keyword
+                                                :required true
+                                                :valid-values {
+                                                 :from [:vocabularies :places]
+                                                 :value-path [:id]
+                                                 :label-path [:label]}}}
+                         :context {:vocabularies
+                                   {:places [{:id :place/dawnkeep-stables
+                                              :label "Dawnkeep Stables"}]}}
+                         :layout [:field/place]
+                         :value {:field/place :place/dawnkeep-stables}})
+        field-view (-> view :children head :children head)
+        control (nth (:children field-view) 1)]
+    (is (= {:mode 'pixils/form-select-control
+            :options [{:value :place/dawnkeep-stables :label "Dawnkeep Stables"}]}
+           {:mode (:mode control) :options (get-in control [:state :options])}))))
+
+(deftest make/renders-dependent-valid-values-with-current-form-value
+  (let [view (form/make {:schema {:source {:type :keyword
+                                           :required true
+                                           :valid-values [:landmarks :terrain]}
+                                  :id {:type :keyword
+                                       :required true
+                                       :valid-values {:from {:field [:source]
+                                               :sources {:landmarks [:landmarks]
+                                                         :terrain [:terrain]}}
+                                        :value-path [:value]
+                                        :label-path [:label]}}}
+                         :context {:landmarks [{:value :dawnkeep
+                                                :label "Dawnkeep"}]
+                                   :terrain [{:value :blackmere
+                                              :label "Blackmere"}]}
+                         :layout [:source :id]
+                         :value {:source :terrain :id :blackmere}})
+        id-view (nth (-> view :children head :children) 1)
+        control (nth (:children id-view) 1)]
+    (is (= {:mode 'pixils/form-select-control
+            :field-path [:id]
+            :matching-options [{:value :blackmere :label "Blackmere"}]}
+           {:mode (:mode control)
+            :field-path (get-in control [:state :field-path])
+            :matching-options (filter (get-in control [:state :options])
+                                      (fn [option] (= :blackmere (:value option))))}))))
