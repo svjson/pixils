@@ -1,13 +1,15 @@
 (ns tilemap-editor.core
   (:require pixils
+            pixils.form.base-theme
+            pixils.ui.theme.classic-blue
             tilemap-editor.assets
             tilemap-editor.root
-            tilemap-editor.view.theme))
+            tilemap-editor.theme))
 
 (defprogram tilemap-editor
   {:display {:resolution {:scale 2}
              :align :align/center
              :background {:r 0x10 :g 0x13 :b 0x17}}
    :target-frame-rate 0
-   :theme 'pixils/classic-blue
+   :theme ['pixils/classic-blue 'tilemap-editor/theme]
    :initial-mode 'main-mode})

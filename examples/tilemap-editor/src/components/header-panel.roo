@@ -1,0 +1,22 @@
+(ns tilemap-editor.components.header-panel
+  (:require [pixils.ui :as ui]
+            [pixils.ui.button :as btn]
+            [pixils.ui.header-panel :as hp]))
+
+(defun make-button [{:keys [kind action disabled?] :as button}]
+  (btn/make {:class :ui/toolbar-button
+             :label (case kind
+                      :item/add "+")
+             :state {:disabled? disabled?}
+             :on-click (fn [state eent ctx]
+                         (unless (:disabled? state)
+                           (ui/emit! (:view ctx) action))
+                         state)}))
+
+(defun make
+  [{:keys [title buttons class]} children]
+  {:view=> hp/make
+   :class class
+   :title title
+   :header-children (map buttons make-button)
+   :children children})

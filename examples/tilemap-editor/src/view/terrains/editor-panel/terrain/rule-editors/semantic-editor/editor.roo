@@ -13,7 +13,7 @@
             [tilemap-editor.view.terrains.editor-panel.terrain.rule-editors.manual-editor.editor
              :as manual]
             [tilemap-editor.view.terrains.model :as model]
-            [tilemap-editor.view.theme :as theme]))
+            [tilemap-editor.theme :as theme]))
 
 (def terrain-standard-slot-tile-size 40)
 (def terrain-standard-slot-marker-size (int (/ terrain-standard-slot-tile-size

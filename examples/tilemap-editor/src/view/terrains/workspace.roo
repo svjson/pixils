@@ -262,7 +262,8 @@
               state)))
         :terrain-set/context-command
         (fn [state {:keys [payload]} ctx]
-          (let [terrain-set-index (:terrain-set-index payload)
+          (let [terrain-set-index (or (:terrain-set-index payload)
+                                      (:index payload))
                 state (assoc state
                              :selected-terrain-set-index terrain-set-index
                              :selected-terrain-index nil)]
@@ -296,7 +297,8 @@
             state))
         :terrain/context-command
         (fn [state {:keys [payload]} ctx]
-          (let [terrain-index (:terrain-index payload)
+          (let [terrain-index (or (:terrain-index payload)
+                                  (:index payload))
                 state (assoc state :selected-terrain-index terrain-index)
                 terrain-set (model/selected-terrain-set
                              (:terrain-sets state)

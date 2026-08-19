@@ -1,6 +1,5 @@
-(ns tilemap-editor.view.theme
-  (:require pixils
-            pixils.ui.theme.classic-blue))
+(ns tilemap-editor.theme
+  (:require pixils))
 
 (def editor-bg {:r 0x1d :g 0x23 :b 0x2a})
 (def panel-bg {:r 0x2c :g 0x34 :b 0x3d})
@@ -11,8 +10,9 @@
 (def accent {:r 0xff :g 0xcc :b 0x66})
 
 (deftheme tilemap-editor/theme
-  {:extend 'pixils/classic-blue
-   :vars {:dark {:content-bg content-bg}}
+  {:default-variant :dark
+   :vars {:dark {:content-bg content-bg
+                 :list-box-row-height 24}}
    :styles {:ui/app {:background editor-bg
                      :text {:color text-main}}
 
@@ -21,31 +21,60 @@
                                 :thickness 1}
                        :text {:color text-main}}
 
-            'ui/header-panel {:width :fill}
-
             'ui/list-box {:width :fill}
+
+            'ui/header-panel {:width :fill
+                              :height :fill}
+
 
             'ui/header-panel-header
             {:layout {:direction :row
                       :align-items :center
                       :gap 4}}
 
-            'ui/header-panel-body {:padding 8}
+
+            'ui/header-panel-body {:height :fill
+                                   :padding 8}
+
+            ['(ui/header-panel :tm/list-wrapper) 'ui/header-panel-body]
+            {:padding 0}
+
+            ['ui/header-panel 'ui/list-box]
+            {:width :fill
+             :height :fill}
+
+            'pixils/form {:width :fill
+                          :height :fill}
+
+            :pixils/form-body {:width :fill
+                               :height :fill}
+
+            :pixils/form-fields
+            {:width :fill
+             :height :fill
+             :layout {:direction :column
+                      :gap 8}}
+
+            :pixils/form-field {:width :fill
+                                :height :fill}
+
+            :pixils/form-layout-item-editor {:width :fill
+                                             :height :fill}
+
+            :pixils/form-array-control {:width :fill
+                                        :height :fill}
+
+            :pixils/form-array-content {:width :fill
+                                        :height :fill}
+
+            :pixils/form-array-list {:width :fill
+                                     :height :fill}
 
             :terrain/selection-column
             {:width :fill
              :height :fill
              :layout {:direction :column
                       :gap 8}}
-
-            :tilemap-editor/header-panel
-            {:height :fill}
-
-            [:tilemap-editor/header-panel 'ui/header-panel-body]
-            {:height :fill}
-
-            [:tilemap-editor/header-panel 'ui/list-box]
-            {:height :fill}
 
             :ui/title {:text {:color accent}}
 

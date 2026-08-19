@@ -22,7 +22,7 @@
   (s/when [app]
     (main-window/switch-to! app :tab/terrains {:by :mouse/click})
     (runtime/render! app)
-    (let [rows (runtime/find-views app "ui/list-box-item")
+    (let [rows (runtime/find-views app "pixils/form-selection-list-item")
           overworld (find-first rows
                                 (fn [row]
                                   (= "Overworld" (-> row :ui-state :label))))
@@ -38,6 +38,13 @@
       (runtime/click! app water)
       (runtime/update! app)
       (is (= 1 (:selected-terrain-index (runtime/active-state app))))
+      (is (= true
+             (-> (runtime/find-view-containing
+                  app
+                  "pixils/form-selection-list-item"
+                  "Water")
+                 :ui-state
+                 :selected)))
       (runtime/mouse-click-in! app water 5 5 :right)
       (runtime/update! app)
       (runtime/render! app)

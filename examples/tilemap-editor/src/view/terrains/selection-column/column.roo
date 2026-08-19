@@ -1,104 +1,83 @@
 (ns tilemap-editor.view.terrains.selection-column.column
   (:require pixils
+            [pixils.form :as form]
             [pixils.ui :as ui]
-            [pixils.ui.button :as bt]
-            [pixils.ui.header-panel :as hp]
-            [pixils.ui.list-box :as lb]))
+            [tilemap-editor.components.header-panel :as hp]
+            [tilemap-editor.view.terrains.selection-column.schema :as schema]))
 
-(defun make-terrain-set-list-panel
-  "Builds the terrain-set selection panel.
+(def terrain-set-actions
+  [{:key :rename
+    :label "Rename Terrain Set"
+    :event :terrain-set/context-command
+    :payload {:command :rename}
+    :presentation :context-menu}
+   {:key :delete
+    :label "Delete"
+    :event :terrain-set/context-command
+    :payload {:command :delete}
+    :presentation :context-menu}])
 
-  Returns:
-  A header-panel definition that projects terrain workspace selections."
-  []
-  (hp/make {:title "Terrain Sets"
-            :class :tilemap-editor/header-panel
-            :header-children [(bt/make {:class :ui/toolbar-button
-                                        :label "+"
-                                        :on-click (fn [state event ctx]
-                                                    (ui/emit! (:view ctx) :terrain/add-set)
-                                                    state)})]
-            :on {:list-box/selection-change (fn [state {:keys [payload] :as event} ctx]
-                                              (ui/stop-propagation! event)
-                                              (ui/emit! (:view ctx)
-                                                        :terrain/set-select
-                                                        (head (:selected-indices payload)))
-                                              state)
-                 :list-box/context-action (fn [state {:keys [payload] :as event} ctx]
-                                            (ui/stop-propagation! event)
-                                            (ui/emit! (:view ctx)
-                                                      :terrain-set/context-command
-                                                      {:terrain-set-index (:index payload)
-                                                       :command (:action payload)})
-                                            state)}
-            :state {:subject (ui/project-state :subject)
-                    :workspace (ui/project-state :workspace)}
-            :body-state {:subject (ui/project-state :subject)
-                         :workspace (ui/project-state :workspace)}
-            :children [(lb/make {:options (ui/project-state :subject :terrain-sets)
-                                 :row-height 24
-                                 :selected-index (ui/project-state :workspace
-                                                                   :selection
-                                                                   :terrain-set-index)
-                                 :force-selection? true
-                                 :item-context-menu {:settings {:mnemonics {:enabled false}}
-                                                     :items [{:label "Rename Terrain Set"
-                                                              :action :rename}
-                                                             {:label "Delete"
-                                                              :action :delete}]}})]}))
+(def terrain-actions
+  [{:key :rename
+    :label "Rename Terrain"
+    :event :terrain/context-command
+    :payload {:command :rename}
+    :presentation :context-menu}
+   {:key :duplicate
+    :label "Duplicate"
+    :event :terrain/context-command
+    :payload {:command :duplicate}
+    :presentation :context-menu}
+   {:key :delete
+    :label "Delete"
+    :event :terrain/context-command
+    :payload {:command :delete}
+    :presentation :context-menu}])
 
-(defun make-terrain-list-panel
-  "Builds the terrain selection panel.
-
-  Returns:
-  A header-panel definition that projects terrain workspace selections."
-  []
-  (hp/make {:title "Terrains"
-            :class :tilemap-editor/header-panel
-            :header-children [(bt/make {:class :ui/toolbar-button
-                                        :label "+"
-                                        :state {:disabled? (ui/project-state :derived :list-panel-disabled?)}
-                                        :on-click (fn [state event ctx]
-                                                    (unless (:disabled? state)
-                                                      (ui/emit! (:view ctx) :terrain/add))
-                                                    state)})]
-            :on {:list-box/selection-change
-                 (fn [state {:keys [payload] :as event} ctx]
-                   (ui/stop-propagation! event)
-                   (ui/emit! (:view ctx) :terrain/select (head (:selected-indices payload)))
-                   state)
-                 :list-box/context-action
-                 (fn [state {:keys [payload] :as event} ctx]
-                   (ui/stop-propagation! event)
-                   (ui/emit! (:view ctx) :terrain/context-command {:terrain-index (:index payload)
-                                                                   :command (:action payload)})
-                   state)}
-            :state {:subject (ui/project-state :subject)
-                    :workspace (ui/project-state :workspace)
-                    :derived (ui/project-state :derived)}
-            :body-state {:subject (ui/project-state :subject)
-                         :workspace (ui/project-state :workspace)
-                         :derived (ui/project-state :derived)}
-            :children [(lb/make {:options (ui/project-state :subject
-                                                            :selected-terrain-set
-                                                            :terrains)
-                                 :row-height 24
-                                 :disabled? (ui/project-state :derived
-                                                              :list-panel-disabled?)
-                                 :selected-index (ui/project-state :workspace
-                                                                   :selection
-                                                                   :terrain-index)
-                                 :force-selection? true
-                                 :item-context-menu
-                                 {:settings {:mnemonics {:enabled false}}
-                                  :items [{:label "Rename Terrain"
-                                           :action :rename}
-                                          {:label "Duplicate"
-                                           :action :duplicate}
-                                          {:label "Delete"
-                                           :action :delete}]}})]}))
+(defun make []
+  (form/make
+   {:schema schema/schema
+    :value (ui/project-state)
+    :layout
+    {:root
+     [(hp/make {:title "Terrain Sets"
+                :class :tm/list-wrapper
+                :buttons [{:kind :item/add
+                           :action :terrain/add-set}]}
+               [[:field :terrain-sets
+                 {:label false
+                  :summary false
+                  :fixed-visible-rows? false
+                  :actions terrain-set-actions
+                  :item-editor {:layout-ref :selected-terrain-set}}]])
+      (hp/make {:title "Terrains"
+                :class :tm/list-wrapper
+                :buttons [{:kind :item/add
+                           :action :terrain/add
+                           :disabled? (ui/project-state :value
+                                                        :derived
+                                                        :list-panel-disabled?)}]}
+               [{:id :selected-terrain-set}])]
+     :fragments
+     {:terrain-sets
+      [[:field :terrains
+        {:label false
+         :summary false
+         :fixed-visible-rows? false
+         :actions terrain-actions}]]}}}))
 
 (defcomponent terrain-definition-selector-column
   {:class :terrain/selection-column
-   :children [(make-terrain-set-list-panel)
-              (make-terrain-list-panel)]})
+   :on {:form/select
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (case (:field-id payload)
+            :terrain-sets
+            (ui/emit! (:view ctx) :terrain/set-select (:index payload))
+
+            :terrains
+            (ui/emit! (:view ctx) :terrain/select (:index payload))
+
+            :default nil)
+          state)}
+   :children [(make)]})

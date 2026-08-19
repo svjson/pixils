@@ -1,0 +1,10 @@
+(ns tilemap-editor.view.terrains.selection-column.schema)
+
+(def schema
+  "Form-local schema for selecting terrain sets and their terrains."
+  {:type :object
+   :fields {:terrain-sets {:type :array
+                            :path [:subject :terrain-sets]
+                            :items {:type :object
+                                    :fields {:terrains {:type :array
+                                                        :items {:type :any}}}}}}})
