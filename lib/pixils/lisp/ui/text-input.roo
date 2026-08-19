@@ -11,59 +11,6 @@
 
 ;; Text editing
 
-(defun text-args [style]
-  (reduce-kv (:text style)
-             {}
-             (fn [arg-map k v]
-               (if (nil? v)
-                 arg-map
-                 (merge arg-map {k v})))))
-
-(defun insert-text-at [value cursor-index text]
-  (str (substr value 0 cursor-index)
-       text
-       (substr value cursor-index)))
-
-(defun remove-char-before [value cursor-index]
-  (str (substr value 0 (dec cursor-index))
-       (substr value cursor-index)))
-
-(defun remove-char-after [value cursor-index]
-  (str (substr value 0 cursor-index)
-       (substr value (inc cursor-index))))
-
-(defun remove-text-range [value start-index end-index]
-  (str (substr value 0 start-index)
-       (substr value end-index)))
-
-(defun replace-text-range [value start-index end-index text]
-  (str (substr value 0 start-index)
-       text
-       (substr value end-index)))
-
-(defun text-input-content-policy
-  "Applies an editor content operation to text-input UI state.
-
-  `operation` is `:edit` for a candidate string or `:commit` when editing
-  finishes. Returns the next UI state, or `nil` when an edit is rejected."
-  [state operation value ctx]
-  (case operation
-    :edit
-    (when (if-let [accept-value? (:accept-value? state)]
-            (apply accept-value? [value state])
-            true)
-      (when (not= (:emit-change? state) false)
-        (ui/emit! (:view ctx) :text-input/change {:value value}))
-      (assoc state :value value :text-value value))
-
-    :commit
-    (do
-      (when (not= (:emit-blur? state) false)
-        (ui/emit! (:view ctx) :text-input/blur {:value (:value state)}))
-      state)
-
-    :default state))
-
 (defun text-input-change [state value cursor-index]
   (if (:read-only? state)
     state
@@ -73,6 +20,26 @@
         (assoc :selection-anchor nil)
         (assoc :selection-start nil)
         (assoc :selection-end nil))))
+
+(defun insert-text [{:keys [cursor-index value] :as state} text]
+  (if-let [{:keys [start end] :as selection} (selection-bounds state)]
+    (text-input-change state
+                       (replace value start end text)
+                       (+ start (count text)))
+    (text-input-change state
+                       (insert value cursor-index text)
+                       (+ cursor-index (count text)))))
+
+
+
+;; Text Selection
+
+(defun selection-bounds [{:keys [selection-start selection-end] :as state}]
+  (when (and (number? selection-start)
+             (number? selection-end)
+             (< selection-start selection-end))
+    {:start selection-start
+     :end selection-end}))
 
 (defun text-input-has-selection? [state]
   (and (number? (:selection-start state))
@@ -102,6 +69,9 @@
           (assoc :selection-start start)
           (assoc :selection-end end)))))
 
+
+;; Cursor
+
 (defun text-input-move-cursor [state cursor-index extend?]
   (let [cursor-index (clamp cursor-index 0 (count (:value state)))]
     (if extend?
@@ -120,42 +90,17 @@
         (assoc :selection-start nil)
         (assoc :selection-end nil))))
 
-(defun text-input-collapse-left [state]
-  (if (text-input-has-selection? state)
-    (:selection-start state)
-    (dec (:cursor-index state))))
+(defun collapse-left [{:keys [cursor-index] :as state}]
+  (or (:start (selection-bounds state))
+      (dec cursor-index)))
 
-(defun text-input-collapse-right [state]
-  (if (text-input-has-selection? state)
-    (:selection-end state)
-    (+ (:cursor-index state) 1)))
+(defun collapse-right [{:keys [cursor-index] :as state}]
+  (or (:end (selection-bounds state))
+      (inc cursor-index)))
 
-(defun text-input-delete-selection
-  [{:keys [value selection-start selection-end] :as state}]
-  (text-input-change state
-                     (remove-text-range value selection-start selection-end)
-                     selection-start))
-
-(defun text-input-insert-text [state text]
-  (let [value (:value state)
-        cursor-index (:cursor-index state)]
-    (if (text-input-has-selection? state)
-      (let [start (:selection-start state)]
-        (text-input-change state
-                           (replace-text-range value
-                                               start
-                                               (:selection-end state)
-                                               text)
-                           (+ start (count text))))
-      (text-input-change state
-                         (insert-text-at value cursor-index text)
-                         (+ cursor-index (count text))))))
-
-(defun text-input-selected-text [state]
-  (if (text-input-has-selection? state)
-    (substr (:value state)
-            (:selection-start state)
-            (:selection-end state))
+(defun text-input-selected-text [{:keys [value] :as state}]
+  (if-let [{:keys [start end] :as selection} (selection-bounds state)]
+    (substr value start end)
     ""))
 
 (defun text-input-select-all [state]
@@ -168,6 +113,9 @@
           (assoc :selection-start 0)
           (assoc :selection-end end))
       (text-input-move-cursor state 0 false))))
+
+
+;; Input handling
 
 (defun text-input-shift? [event ctx]
   (or (k/held-shift? event)
@@ -195,9 +143,12 @@
     (key-matches? event :key/X :key/x)
     (cond
       (or (:read-only? state)
-          (not (text-input-has-selection? state))) state
+          (not (text-input-has-selection? state)))
+      state
+
       (clipboard/set-text! (text-input-selected-text state))
-      (text-input-delete-selection state)
+      (drop value (:selection-start state) (:selection-end state))
+
       :default state)
 
     (key-matches? event :key/V :key/v)
@@ -205,7 +156,7 @@
       state
       (let [text (clipboard/get-text)]
         (cond-> state
-          (not-empty? text) (text-input-insert-text text))))
+          (not-empty? text) (insert-text text))))
 
     :default nil))
 
@@ -220,23 +171,26 @@
         :key/backspace
         (cond
           (text-input-has-selection? state)
-          (text-input-delete-selection state)
+          (let [selection-start (:selection-start state)]
+            (text-input-change state
+                               (drop value selection-start (:selection-end state))
+                               selection-start))
 
           (> cursor-index 0)
           (text-input-change state
-                             (remove-char-before value cursor-index)
+                             (drop value (dec cursor-index) cursor-index)
                              (dec cursor-index))
 
           :default state)
 
         :key/delete
-        (cond
-          (text-input-has-selection? state)
-          (text-input-delete-selection state)
+        (cond-let
+          [{:keys [start end]} (selection-bounds state)]
+          (text-input-change state (drop value start end) start)
 
           (< cursor-index (count value))
           (text-input-change state
-                             (remove-char-after value cursor-index)
+                             (drop value cursor-index (inc cursor-index))
                              cursor-index)
 
           :default state)
@@ -245,14 +199,14 @@
         (text-input-move-cursor state
                                 (if extend?
                                   (dec cursor-index)
-                                  (text-input-collapse-left state))
+                                  (collapse-left state))
                                 extend?)
 
         :key/right
         (text-input-move-cursor state
                                 (if extend?
-                                  (+ cursor-index 1)
-                                  (text-input-collapse-right state))
+                                  (inc cursor-index)
+                                  (collapse-right state))
                                 extend?)
 
         :key/home
@@ -263,7 +217,7 @@
 
         :default
         (if-let [text (kbd/event->text event)]
-          (text-input-insert-text state text)
+          (insert-text state text)
           state)))))
 
 (defun text-editor-state-transition
@@ -291,6 +245,33 @@
      :selection-start selection-start
      :selection-end selection-end}))
 
+
+
+;; Value Format
+
+(defun text-input-content-policy
+  "Applies an editor content operation to text-input UI state.
+
+  `operation` is `:edit` for a candidate string or `:commit` when editing
+  finishes. Returns the next UI state, or `nil` when an edit is rejected."
+  [state operation value ctx]
+  (case operation
+    :edit
+    (when (if-let [accept-value? (:accept-value? state)]
+            (apply accept-value? [value state])
+            true)
+      (when (not= (:emit-change? state) false)
+        (ui/emit! (:view ctx) :text-input/change {:value value}))
+      (assoc state :value value :text-value value))
+
+    :commit
+    (do
+      (when (not= (:emit-blur? state) false)
+        (ui/emit! (:view ctx) :text-input/blur {:value (:value state)}))
+      state)
+
+    :default state))
+
 (defun format-text-value [state value]
   "Returns the editable text produced by a component's value formatter."
   (cond
@@ -310,6 +291,17 @@
      (nil? (:text-value current)) (format-text-value candidate (:value candidate))
      :default (:text-value current))})
 
+
+;; Text Geometry
+
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
 (defun text-metrics-source
   "Returns the inputs that determine measured text geometry."
   [state ctx]
@@ -324,15 +316,6 @@
   (if (= source (-> state :layout :metrics-source))
     (-> state :layout :metrics)
     (r/text-metrics (:value source) (:text-opts source))))
-
-(defun text-input-content-size [_state ctx]
-  (let [ui-state (-> ctx :view :ui-state)
-        source (text-metrics-source ui-state ctx)
-        metrics (if (not-empty? (:value source))
-                  (text-metrics-for ui-state source)
-                  (r/text-metrics "M" (:text-opts source)))]
-    {:w (max 1 (or (:w metrics) 0))
-     :h (max 1 (or (:h metrics) 0))}))
 
 (defun text-index-at-x-loop [x-positions target-x index]
   (if (>= (inc index) (count x-positions))
@@ -499,7 +482,14 @@
 
 (defcomponent ui/text-input-inner
   {:focusable true
-   :content-size text-input-content-size
+   :content-size (fn [_state ctx]
+                   (let [ui-state (-> ctx :view :ui-state)
+                         source (text-metrics-source ui-state ctx)
+                         metrics (if (not-empty? (:value source))
+                                   (text-metrics-for ui-state source)
+                                   (r/text-metrics "M" (:text-opts source)))]
+                     {:w (max 1 (or (:w metrics) 0))
+                      :h (max 1 (or (:h metrics) 0))}))
    :drag {:button :left
           :start :motion}
    :style {:width :fill
@@ -555,47 +545,47 @@
    :on-key-down (fn [state event ctx]
                   (let [ui-state (-> ctx :view :ui-state)]
                     (unless (:disabled? ui-state)
-                    (let [next-ui-state (text-input-key-transition ui-state
-                                                                   event
-                                                                   ctx)]
-                      (unless (= ui-state next-ui-state)
-                      (ui/set-ui-state! ctx next-ui-state)
-                      (when (not= (:value ui-state)
-                                  (:value next-ui-state))
-                        (ui/emit! (:view ctx)
-                                  :text-input-inner/change
-                                  {:value (:value next-ui-state)})))))
+                      (let [next-ui-state (text-input-key-transition ui-state
+                                                                     event
+                                                                     ctx)]
+                        (unless (= ui-state next-ui-state)
+                          (ui/set-ui-state! ctx next-ui-state)
+                          (when (not= (:value ui-state)
+                                      (:value next-ui-state))
+                            (ui/emit! (:view ctx)
+                                      :text-input-inner/change
+                                      {:value (:value next-ui-state)})))))
                     state))
    :on-mouse-down (fn [state event ctx]
                     (let [ui-state (-> ctx :view :ui-state)]
                       (unless (:disabled? ui-state)
-                      (ui/stop-propagation! event)
-                      (ui/focus! ctx)
-                      (ui/set-ui-state!
-                       ctx
-                       (text-input-mouse-move-cursor
-                        ui-state
-                        event
-                        ctx
-                        (text-input-shift? event ctx))))
+                        (ui/stop-propagation! event)
+                        (ui/focus! ctx)
+                        (ui/set-ui-state!
+                         ctx
+                         (text-input-mouse-move-cursor
+                          ui-state
+                          event
+                          ctx
+                          (text-input-shift? event ctx))))
                       state))
    :on-drag-start (fn [state event ctx]
                     (let [ui-state (-> ctx :view :ui-state)]
                       (unless (:disabled? ui-state)
-                      (ui/set-ui-state! ctx
-                                        (text-input-mouse-move-cursor ui-state
-                                                                      event
-                                                                      ctx
-                                                                      true)))
+                        (ui/set-ui-state! ctx
+                                          (text-input-mouse-move-cursor ui-state
+                                                                        event
+                                                                        ctx
+                                                                        true)))
                       state))
    :on-drag (fn [state event ctx]
               (let [ui-state (-> ctx :view :ui-state)]
                 (unless (:disabled? ui-state)
-                (ui/set-ui-state! ctx
-                                  (text-input-mouse-move-cursor ui-state
-                                                                event
-                                                                ctx
-                                                                true)))
+                  (ui/set-ui-state! ctx
+                                    (text-input-mouse-move-cursor ui-state
+                                                                  event
+                                                                  ctx
+                                                                  true)))
                 state))})
 
 

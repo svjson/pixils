@@ -75,12 +75,10 @@
         :last-change (:last-change (runtime/active-state app))}}))
 
   (s/then [result]
-    (is (= {:after-insert
-            {:text-input {:value "abc" :text-value "abc"}
-             :last-change {:value "abc"}}
-            :after-backspace
-            {:text-input {:value "ab" :text-value "ab"}
-             :last-change {:value "ab"}}}
+    (is (= {:after-insert {:text-input {:value "abc" :text-value "abc"}
+                           :last-change {:value "abc"}}
+            :after-backspace {:text-input {:value "ab" :text-value "ab"}
+                              :last-change {:value "ab"}}}
            result))))
 
 (deftest text-input/positions-the-rendered-caret-at-the-logical-cursor
@@ -157,15 +155,13 @@
 
   (s/when [app]
     (runtime/press-modified-key! app :left-shift :left)
-    (let [after-first-left
-          (select-keys
-           (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
-           [:cursor-index :selection-start :selection-end])]
+    (let [after-first-left (select-keys
+                            (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                            [:cursor-index :selection-start :selection-end])]
       (runtime/press-modified-key! app :left-shift :left)
-      (let [after-second-left
-            (select-keys
-             (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
-             [:cursor-index :selection-start :selection-end])]
+      (let [after-second-left (select-keys
+                               (-> (runtime/find-view app "ui/text-input-inner") :ui-state)
+                               [:cursor-index :selection-start :selection-end])]
         (runtime/press-key! app :right)
         {:after-first-left after-first-left
          :after-second-left after-second-left
