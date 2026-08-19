@@ -1,5 +1,7 @@
 (ns form-playground.core
   (:require pixils
+            pixils.form.base-theme
+            pixils.ui.theme.windows-3
             form-playground.view.root
             form-playground.theme))
 
@@ -8,5 +10,5 @@
              :align :align/center
              :background {:r 0x1c :g 0x20 :b 0x24}}
    :target-frame-rate 0
-   :theme 'form-playground/theme
+   :theme ['pixils/windows-3 'pixils-form/base 'form-playground/theme]
    :initial-mode 'main-mode})
