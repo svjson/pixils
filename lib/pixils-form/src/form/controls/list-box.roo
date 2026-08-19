@@ -9,25 +9,6 @@
             [pixils.ui.menu :as menu]
             [pixils.ui.option-item :as option]))
 
-(def default-style
-  "Default layout for a form list-box control."
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 4}})
-
-(def default-list-style
-  "Default dimensions for the list box within a form list-box control."
-  {:width :fill})
-
-(def default-toolbar-style
-  "Default layout for list-box actions presented as a toolbar."
-  {:width :fill
-   :height :shrink
-   :layout {:direction :row
-            :align-items :center
-            :gap 6}})
-
 (defun item-action-payload
   "Adds the clicked selection item to a configured action payload."
   [state action]
@@ -66,10 +47,6 @@
   {:extend 'ui/option-item
    :class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
    :ui/state-keys [:field-id :context-menu-actions]
-   :style {:width :fill
-           :clip true
-           :layout {:direction :row
-                    :align-items :center}}
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
                   (open-context-menu! (-> ctx :view :ui-state) state event ctx)
@@ -82,7 +59,7 @@
                                    (:payload payload)))
                        state)}
    :children [{:mode 'ui/text
-               :style {:width :fill}
+               :class :pixils/form-selection-item-label
                :state {:value (ui/bind-state :label)}}]})
 
 (defun item=>
@@ -101,14 +78,11 @@
 (defun toolbar-view
   "Builds the toolbar presented alongside a form list box."
   [selection opts actions]
-  {:class :pixils/form-selection-toolbar
-   :style (or (form-layout/style-option opts
-                                        :selection-toolbar-style
-                                        default-toolbar-style)
-              {})
-   :state {:form/action-disabled (ui/project-state :form/action-disabled)}
-   :children (for [action actions]
-               (form-actions/action-view action opts))})
+  (merge {:class :pixils/form-selection-toolbar
+          :state {:form/action-disabled (ui/project-state :form/action-disabled)}
+          :children (for [action actions]
+                      (form-actions/action-view action opts))}
+         (form-layout/style-map (:selection-toolbar-style opts))))
 
 (defcomponent pixils/form-selection
   {:init (fn [state ctx]
@@ -155,20 +129,21 @@
                         (item=> context-menu-actions (:field-id selection)))
         list-box-view
         (list-box/make
-         {:options (ui/bind-state :options)
-          :selected-indices (ui/bind-state :selected-indices)
-          :disabled? (ui/project-state :disabled?)
-          :force-selection? false
-          :row-height (:row-height selection)
-          :visible-rows (:visible-rows selection)
-          :fixed-visible-rows? (:fixed-visible-rows? selection)
-          :reorderable? (ui/bind-state :reorderable?)
-          :item=> item-provider
-          :style (if (contains? selection :list-style)
-                   (:list-style selection)
-                   (form-layout/style-option opts
-                                             :selection-list-style
-                                             default-list-style))})
+         (merge {:class (form-layout/classes
+                         :pixils/form-selection-list-box
+                         (:list-class selection))
+                 :options (ui/bind-state :options)
+                 :selected-indices (ui/bind-state :selected-indices)
+                 :disabled? (ui/project-state :disabled?)
+                 :force-selection? false
+                 :row-height (:row-height selection)
+                 :visible-rows (:visible-rows selection)
+                 :fixed-visible-rows? (:fixed-visible-rows? selection)
+                 :reorderable? (ui/bind-state :reorderable?)
+                 :item=> item-provider}
+                (form-layout/style-map
+                 (or (:list-style selection)
+                     (:selection-list-style opts)))))
         children (if (empty? toolbar-actions)
                    [list-box-view]
                    [list-box-view (toolbar-view selection opts toolbar-actions)])]
@@ -184,11 +159,6 @@
                     :activate-event (:activate-event selection)}
             :children children}
            (form-layout/style-map
-            (form-layout/defaultable-style (:style selection)
-                                           (:class selection)
-                                           (form-layout/style-option
-                                            opts
-                                            :selection-style
-                                            default-style)))
+            (or (:style selection) (:selection-style opts)))
            {:class (form-layout/classes :pixils/form-selection
                                         (:class selection))}))))

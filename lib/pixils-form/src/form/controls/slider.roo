@@ -4,25 +4,6 @@
             [pixils.ui :as ui]
             [pixils.ui.slider :as slider]))
 
-(def default-control-style
-  "Default layout for a form slider and its value."
-  {:width :fill
-   :height 22
-   :layout {:direction :row
-            :gap 8
-            :align-items :center}})
-
-(def default-slider-style
-  "Default dimensions for the slider within a form slider control."
-  {:width :fill
-   :min-width 220
-   :height 18})
-
-(def default-value-style
-  "Default dimensions for a form slider's displayed value."
-  {:width 64
-   :height 18})
-
 (defcomponent pixils/form-slider-control
   {:on {:slider/change
         (fn [state {:keys [payload] :as event} ctx]
@@ -37,7 +18,8 @@
               state
               (assoc state :value value))))}
    :children [(slider/make
-               {:style (ui/bind-state :slider-style)
+               {:class :pixils/form-slider
+                :style (ui/bind-state :slider-style)
                 :state {:disabled? (ui/project-state :read-only?)}
                 :value (ui/bind-state :value)
                 :min (ui/bind-state :min)
@@ -52,16 +34,17 @@
 (defun for-field
   "Builds a slider for a resolved form-field context."
   [{:keys [schema value disabled? options]}]
-  {:mode 'pixils/form-slider-control
-   :class [:pixils/form-control :pixils/form-slider-control]
-   :style (or (:slider-control-style options)
-              (:control-style options)
-              default-control-style)
-   :state {:value value
-           :min (:min schema)
-           :max (:max schema)
-           :step (:step schema)
-           :axis (or (:axis schema) :x)
-           :read-only? disabled?
-           :slider-style (or (:slider-style options) default-slider-style)
-           :value-style (or (:slider-value-style options) default-value-style)}})
+  (let [control-style (or (:slider-control-style options)
+                          (:control-style options))
+        view {:mode 'pixils/form-slider-control
+              :class [:pixils/form-control :pixils/form-slider-control]
+              :state {:value value
+                      :min (:min schema)
+                      :max (:max schema)
+                      :step (:step schema)
+                      :axis (or (:axis schema) :x)
+                      :read-only? disabled?
+                      :slider-style (:slider-style options)
+                      :value-style (:slider-value-style options)}}]
+    (merge view
+           (form-layout/style-map control-style))))

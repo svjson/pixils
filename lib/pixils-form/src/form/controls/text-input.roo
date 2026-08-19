@@ -3,11 +3,6 @@
             [pixils.ui :as ui]
             [pixils.ui.text-input :as text-input]))
 
-(def default-style
-  "Default dimensions for a form text-input control."
-  {:width :fill
-   :height 24})
-
 (defun content-policy
   "Applies form text editing without replacing the externally supplied value.
 
@@ -34,23 +29,21 @@
   "Builds a form text-input control from stock `ui/text-input` behavior."
   [{:keys [class style] :as opts}]
   (text-input/make
-   (assoc opts
-          :class (form-layout/classes
-                  [:pixils/form-control :pixils/form-text-control]
-                  class)
-          :ui-state (assoc (or (:ui-state opts) {})
-                           :content-policy
-                           content-policy)
-          :style (if (contains? opts :style)
-                   style
-                   default-style))))
+   (merge (dissoc opts :class :style)
+          {:class (form-layout/classes
+                   [:pixils/form-control :pixils/form-text-control]
+                   class)
+           :ui-state (assoc (or (:ui-state opts) {})
+                            :content-policy
+                            content-policy)}
+          (form-layout/style-map style))))
 
 (defun for-field
   "Builds the text-input presentation for a resolved form-field context."
   [{:keys [schema value disabled? options]}]
-  (make {:style (or (form-layout/style-option options :control-style default-style) {})
-         :value value
-         :auto-focus? (:auto-focus? schema)
-         :emit-blur? true
-         :disabled? disabled?
-         :read-only? (:read-only? schema)}))
+  (make (merge {:value value
+                :auto-focus? (:auto-focus? schema)
+                :emit-blur? true
+                :disabled? disabled?
+                :read-only? (:read-only? schema)}
+               (form-layout/style-map (:control-style options)))))

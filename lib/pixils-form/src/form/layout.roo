@@ -6,33 +6,6 @@
 (def LAYOUT-VECTOR-TYPES
   [:row :group :section :form :field :selection :action])
 
-(def default-section-style
-  {:width :fill
-   :height :shrink})
-
-(def default-section-body-style
-  {:width :fill
-   :height :shrink
-   :padding 8
-   :layout {:direction :column
-            :gap 8}})
-
-(def default-nested-section-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 4}})
-
-(def default-nested-section-body-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 6}})
-
-(def default-nested-section-title-style
-  {:width :fill
-   :height 18})
-
 (defun layout-config? [layout]
   (and (map? layout)
        (or (contains? layout :root)
@@ -60,16 +33,6 @@
       (empty? all) nil
       (= 1 (count all)) (head all)
       :default all)))
-
-(defun defaultable-style [style class default-style]
-  (or style
-      (when (nil? class) default-style)))
-
-(defun style-option [opts key default-style]
-  (if-let [style (get opts key)]
-    style
-    (unless (= true (:theme-styles? opts))
-      default-style)))
 
 (defun style-map [style]
   (if style {:style style} {}))
@@ -301,30 +264,21 @@
   (group-box/make
    {:title (:title item)
     :class (classes :pixils/form-section (:class item))
-    :style (defaultable-style (:style item)
-                              (:class item)
-                              (style-option
-                               opts
-                               :section-style
-                               default-section-style))
+    :style (or (:style item) (:section-style opts))
     :state state-binding
     :frame-class (classes :pixils/form-section-frame
                           (:frame-class item))
     :frame-style (if (contains? item :frame-style)
                    (:frame-style item)
-                   (style-option opts :section-frame-style nil))
+                   (:section-frame-style opts))
     :title-class (classes :pixils/form-section-title
                           (:title-class item))
     :title-style (if (contains? item :title-style)
                    (:title-style item)
-                   (style-option opts :section-title-style nil))
+                   (:section-title-style opts))
     :body-class (classes :pixils/form-section-body
                          (:body-class item))
-    :body-style (or (:body-style item)
-                    (style-option
-                     opts
-                     :section-body-style
-                     default-section-body-style))
+    :body-style (or (:body-style item) (:section-body-style opts))
     :body-state state-binding
     :children children}))
 
@@ -335,29 +289,16 @@
                          [:ui/muted :pixils/form-nested-section-title]
                          (:title-class item))
                  :style (or (:title-style item)
-                            (style-option
-                             opts
-                             :nested-section-title-style
-                             default-nested-section-title-style)
-                            {})
+                            (:nested-section-title-style opts))
                  :state {:value title}})
         body {:class :pixils/form-nested-section-body
               :style (or (:body-style item)
-                         (style-option
-                          opts
-                          :nested-section-body-style
-                          default-nested-section-body-style)
-                         {})
+                         (:nested-section-body-style opts))
               :state state-binding
               :children children}]
     (merge {:state state-binding
             :children (if title [title body] [body])}
-           (style-map (defaultable-style (:style item)
-                                         (:class item)
-                                         (style-option
-                                          opts
-                                          :nested-section-style
-                                          default-nested-section-style)))
+           (style-map (or (:style item) (:nested-section-style opts)))
            {:class (classes :pixils/form-nested-section
                             (:class item))})))
 

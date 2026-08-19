@@ -6,22 +6,6 @@
             [pixils.ui :as ui]
             [zoology.schema :as model-schema]))
 
-(def default-style
-  "Default layout for nested object fields."
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 8}})
-
-(def default-control-style
-  "Default dimensions for an object-form control."
-  {:width :fill
-   :height :shrink})
-
-(def default-nested-label-width
-  "Maximum default width of labels nested in an object control."
-  64)
-
 (def body-id
   "Stable child identifier for an object control's rendered fields."
   "form-object-body")
@@ -194,14 +178,6 @@
      :valid-value-options-cache
      (valid-values/direct-options-cache-for-schema {} schema context value)}))
 
-(defun nested-field-label-style [options]
-  "Returns the label style used by fields nested in an object control."
-  (let [style (:field-label-style options)
-        width (:width style)]
-    (or (:nested-field-label-style options)
-        (cond-> style
-          (number? width) (assoc :width (min width default-nested-label-width))))))
-
 (defun render-options [state value]
   "Returns form-rendering options for an object control's current value."
   (let [nested? (some? (:field-path-prefix state))
@@ -216,7 +192,8 @@
             :field-path-prefix (:field-path-prefix state)
             :field-label-style
             (if nested?
-              (nested-field-label-style (:render-options state))
+              (or (:nested-field-label-style (:render-options state))
+                  (:field-label-style (:render-options state)))
               (:field-label-style (:render-options state)))))))
 
 (defun body-view [state value]
@@ -225,12 +202,12 @@
         layout (or (:layout state)
                    (fragment-layout (:schema state) options)
                    (model-schema/active-schema-field-ids (:schema state) value))]
-    {:id body-id
-     :class :pixils/form-object-body
-     :style (:object-style state)
-     :state {:value (ui/project-state :value)
-             :disabled? (ui/project-state :disabled?)}
-     :children (apply (:fields=> options) [layout options])}))
+    (merge {:id body-id
+            :class :pixils/form-object-body
+            :state {:value (ui/project-state :value)
+                    :disabled? (ui/project-state :disabled?)}
+            :children (apply (:fields=> options) [layout options])}
+           (form-layout/style-map (:object-style state)))))
 
 (defun replace-body! [state ctx]
   "Replaces an object control's rendered branch after structural change."
@@ -279,15 +256,12 @@
                :field-path-prefix (:field-path-prefix object-options)
                :layout nil
                :render-options object-options
-               :object-style (form-layout/style-option options :object-style default-style)}]
-    {:mode 'pixils/form-object-control
-     :class [:pixils/form-control :pixils/form-object-control]
-     :style (or (form-layout/style-option options
-                                          :object-control-style
-                                          default-control-style)
-                {})
-     :state state
-     :children [(body-view state (:value object-options))]}))
+               :object-style (:object-style options)}]
+    (merge {:mode 'pixils/form-object-control
+            :class [:pixils/form-control :pixils/form-object-control]
+            :state state
+            :children [(body-view state (:value object-options))]}
+           (form-layout/style-map (:object-control-style options)))))
 
 (defun root-view
   "Builds an object-form control for a root union schema."
@@ -299,12 +273,9 @@
                :field-path-prefix nil
                :layout layout
                :render-options options
-               :object-style (form-layout/style-option options :object-style default-style)}]
-    {:mode 'pixils/form-object-control
-     :class [:pixils/form-control :pixils/form-object-control]
-     :style (or (form-layout/style-option options
-                                          :object-control-style
-                                          default-control-style)
-                {})
-     :state state
-     :children [(body-view state (:value options))]}))
+               :object-style (:object-style options)}]
+    (merge {:mode 'pixils/form-object-control
+            :class [:pixils/form-control :pixils/form-object-control]
+            :state state
+            :children [(body-view state (:value options))]}
+           (form-layout/style-map (:object-control-style options)))))

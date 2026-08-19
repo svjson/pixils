@@ -1,6 +1,6 @@
 (ns pixils.form.scenario.construction-test
   (:require proof.core
-            [pixils.form.controls.slider :as slider-control]
+            pixils.form.base-theme
             [pixils.form.scenario.person :as person]
             [pixils.form :as form]))
 
@@ -21,25 +21,10 @@
            (for [view [transient-view live-view]]
              {:mode (:mode view) :form/mode (-> view :state :form/mode)})))))
 
-(deftest make/renders-form-body-with-spaced-fields-region
+(deftest make/renders-structural-classes-without-stock-inline-styles
   (let [view (form/make {:schema person/schema
                          :value {:field/name "Ada"
                                  :field/age 36}})
-        body (head (:children view))
-        fields (head (:children body))]
-    (is (= {:body {:class :pixils/form-body
-                   :style {:width :fill :height :shrink}}
-            :fields {:class :pixils/form-fields
-                     :style form/default-fields-style}}
-           {:body {:class (:class body)
-                   :style (select-keys (:style body) [:width :height])}
-            :fields (select-keys fields [:class :style])}))))
-
-(deftest make/renders-theme-backed-structural-classes
-  (let [view (form/make {:schema person/schema
-                         :value {:field/name "Ada"
-                                 :field/age 36}
-                         :theme-styles? true})
         body (head (:children view))
         fields (head (:children body))
         field (head (:children fields))
@@ -48,12 +33,12 @@
     (is (= {:form {:class :pixils/form}
             :body {:class :pixils/form-body}
             :fields {:class :pixils/form-fields}
-            :field {:class :pixils/form-field :style {:visibility :visible}}
-            :label {:class [:ui/muted :pixils/form-label] :style {}}
-            :control {:class [:pixils/form-control :pixils/form-text-control] :style {}}}
-           {:form (select-keys view [:class])
-            :body (select-keys body [:class])
-            :fields (select-keys fields [:class])
+            :field {:class :pixils/form-field}
+            :label {:class [:ui/muted :pixils/form-label]}
+            :control {:class [:pixils/form-control :pixils/form-text-control]}}
+           {:form (select-keys view [:class :style])
+            :body (select-keys body [:class :style])
+            :fields (select-keys fields [:class :style])
             :field (select-keys field [:class :style])
             :label (select-keys label [:class :style])
             :control (select-keys control [:class :style])}))))
@@ -73,19 +58,16 @@
             :class (:class control)
             :state (select-keys (:state control) [:axis :min :max :step])}))))
 
-(deftest make/keeps-stable-dimensions-with-theme-styles
+(deftest make/leaves-slider-layout-to-the-theme
   (let [view (form/make {:schema {:zoom {:type :slider
                                          :min 1
                                          :max 4}}
-                         :value {:zoom 2}
-                         :theme-styles? true})
+                         :value {:zoom 2}})
         field (-> view :children head :children head :children head)
         control (nth (:children field) 1)]
-    (is (= {:style slider-control/default-control-style
-            :state {:slider-style slider-control/default-slider-style
-                    :value-style slider-control/default-value-style}}
-           {:style (:style control)
-            :state (select-keys (:state control) [:slider-style :value-style])}))))
+    (is (= {}
+           (select-keys (:state control) [:slider-style :value-style])))
+    (is (not (contains? control :style)))))
 
 (deftest make/renders-color-field-with-built-in-color-picker
   (let [view (form/make {:schema {:accent {:type :color}}

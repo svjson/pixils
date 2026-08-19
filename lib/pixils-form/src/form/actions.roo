@@ -4,10 +4,6 @@
             [pixils.ui :as ui]
             pixils.ui.button))
 
-(def default-action-style
-  {:width 96
-   :height 24})
-
 (defun condition-value [state condition]
   (cond
     (keyword? condition) (get state condition)
@@ -68,8 +64,7 @@
                            (:payload state)))
                state)
    :children [{:mode 'ui/button
-               :style {:width :fill
-                       :height :fill}
+               :class :pixils/form-action-button
                :state {:label (ui/bind-state :label)
                        :disabled? (ui/bind-state :disabled?)}}]})
 
@@ -83,12 +78,6 @@
                     :disabled-when (:disabled-when action)
                     :disabled? (ui/project-state :form/action-disabled
                                                  event-id)}}
-           (form-layout/style-map
-           (form-layout/defaultable-style (:style action)
-                                          (:class action)
-                                          (form-layout/style-option
-                                           opts
-                                           :action-style
-                                           default-action-style)))
+           (form-layout/style-map (or (:style action) (:action-style opts)))
            {:class (form-layout/classes :pixils/form-action
                                         (:class action))})))

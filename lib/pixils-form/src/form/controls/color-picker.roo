@@ -1,25 +1,29 @@
 (ns pixils.form.controls.color-picker
-  (:require [pixils.ui.color-picker :as color-picker]))
+  (:require [pixils.form.layout :as form-layout]
+            [pixils.ui.color-picker :as color-picker]))
 
 (defun for-field
   "Builds a color picker for a resolved form-field context."
   [{:keys [schema label value disabled? options]}]
   (color-picker/make
-   {:class [:pixils/form-control :pixils/form-color-control]
-    :style (or (:color-picker-style options) (:control-style options) (:style schema) {})
-    :swatch-class (:swatch-class schema)
-    :swatch-style (:swatch-style schema)
-    :value value
-    :allow-alpha? (:allow-alpha? schema)
-    :disabled? disabled?
-    :editor (:editor schema)
-    :dialog-title (or (:dialog-title schema) label)
-    :dialog-buttons (:dialog-buttons schema)
-    :dialog-window-class (:dialog-window-class schema)
-    :dialog-window-style (:dialog-window-style schema)
-    :dialog-body-class (:dialog-body-class schema)
-    :dialog-body-style (:dialog-body-style schema)
-    :editor-class (:editor-class schema)
-    :editor-style (:editor-style schema)
-    :dialog-button-row-class (:dialog-button-row-class schema)
-    :dialog-button-row-style (:dialog-button-row-style schema)}))
+   (merge {:class [:pixils/form-control :pixils/form-color-control]
+           :swatch-class (:swatch-class schema)
+           :swatch-style (:swatch-style schema)
+           :value value
+           :allow-alpha? (:allow-alpha? schema)
+           :disabled? disabled?
+           :editor (:editor schema)
+           :dialog-title (or (:dialog-title schema) label)
+           :dialog-buttons (:dialog-buttons schema)
+           :dialog-window-class (:dialog-window-class schema)
+           :dialog-window-style (:dialog-window-style schema)
+           :dialog-body-class (:dialog-body-class schema)
+           :dialog-body-style (:dialog-body-style schema)
+           :editor-class (:editor-class schema)
+           :editor-style (:editor-style schema)
+           :dialog-button-row-class (:dialog-button-row-class schema)
+           :dialog-button-row-style (:dialog-button-row-style schema)}
+          (form-layout/style-map
+           (or (:color-picker-style options)
+               (:control-style options)
+               (:style schema))))))

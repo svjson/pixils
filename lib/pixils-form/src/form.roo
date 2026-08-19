@@ -23,39 +23,6 @@
             [pixils.ui :as ui]
             [pixils.ui.dialog :as dialog]))
 
-(def default-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 8}})
-
-(def default-field-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 3}})
-
-(def default-field-label-style
-  {:width :fill})
-
-(def default-row-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :row
-            :align-items :start
-            :gap 10}})
-
-(def default-separator-style
-  {:width :fill
-   :height 1
-   :background {:r 0x9a :g 0x9a :b 0x92}})
-
-(def default-fields-style
-  {:width :fill
-   :height :shrink
-   :layout {:direction :column
-            :gap 8}})
-
 (def form-state-binding
   {:value (ui/project-state :value)
    :disabled? (ui/project-state :disabled?)})
@@ -196,10 +163,8 @@
                                (:value state)))
 
 (defun form-field-style [base-style visible?]
-  (assoc (or base-style {})
-         :visibility (if visible?
-                       :visible
-                       :none)))
+  (cond-> (or base-style {})
+    (not visible?) (assoc :visibility :none)))
 
 (defun sync-form-field-style! [state ctx]
   (ui/style! (:view ctx)
@@ -329,66 +294,60 @@
    (:field-label-class opts)))
 
 (defun field-label-view [field-label opts]
-  {:mode 'ui/text
-   :class (field-label-class opts)
-   :style (or (form-layout/style-option opts
-                                        :field-label-style
-                                        default-field-label-style)
-              {})
-   :state {:value field-label}})
+  (merge {:mode 'ui/text
+          :class (field-label-class opts)
+          :state {:value field-label}}
+         (form-layout/style-map (:field-label-style opts))))
 
 (defun field-view [field-id opts]
   (let [schema (or (:schema opts) {})
         field-schema (model-schema/resolved-field-schema schema field-id)
         field-label (label-for field-id (:text opts))
-        base-style (form-layout/style-option opts :field-style default-field-style)
+        base-style (:field-style opts)
         local-field-path (form-field/path field-id field-schema)
         initial-visible? (model-schema/field-visible? schema
                                                       field-id
                                                       (:value opts))]
     (if field-schema
       (when initial-visible?
-        {:mode 'pixils/form-field
-         :class :pixils/form-field
-         :style (form-field-style base-style true)
-         :state {:value (ui/project-state :value)
-                 :form-value (ui/project-state :value)
-                 :form/item-editor-state (ui/project-state :form/item-editor-state)
-                 :schema schema
-                 :field-id field-id
-                 :field-path (form-field/event-path opts field-id field-schema)
-                 :local-field-path local-field-path
-                 :field-schema field-schema
-                 :disabled? (if (:read-only? field-schema)
-                              true
-                              (ui/project-state :disabled?))
-                 :base-style base-style
-                 :dynamic-visibility?
-                 (model-schema/dynamic-field-visibility? schema)
-                 :visible? true}
-         :children (cond-> []
-                     (not= false (-> opts :field/layout :label))
-                     (append (field-label-view field-label opts))
-                     true (append (field-control field-id
-                                                 field-schema
-                                                 field-label
-                                                 opts)))})
+        (merge {:mode 'pixils/form-field
+                :class :pixils/form-field
+                :state {:value (ui/project-state :value)
+                        :form-value (ui/project-state :value)
+                        :form/item-editor-state
+                        (ui/project-state :form/item-editor-state)
+                        :schema schema
+                        :field-id field-id
+                        :field-path (form-field/event-path opts field-id field-schema)
+                        :local-field-path local-field-path
+                        :field-schema field-schema
+                        :disabled? (if (:read-only? field-schema)
+                                     true
+                                     (ui/project-state :disabled?))
+                        :base-style base-style
+                        :dynamic-visibility?
+                        (model-schema/dynamic-field-visibility? schema)
+                        :visible? true}
+                :children (cond-> []
+                            (not= false (-> opts :field/layout :label))
+                            (append (field-label-view field-label opts))
+                            true (append (field-control field-id
+                                                        field-schema
+                                                        field-label
+                                                        opts)))}
+               (form-layout/style-map base-style)))
       {:mode 'ui/text
        :state {:value (str "Unknown form field " field-id)}})))
 
 (defun separator-view [opts]
-  {:class :pixils/form-separator
-   :style (or (form-layout/style-option opts
-                                         :separator-style
-                                         default-separator-style)
-              {})})
+  (merge {:class :pixils/form-separator}
+         (form-layout/style-map (:separator-style opts))))
 
 (defun row-view [items opts]
-  {:class :pixils/form-row
-   :style (or (form-layout/style-option opts :row-style default-row-style)
-              {})
-   :state form-state-binding
-   :children (layout-item-views items opts)})
+  (merge {:class :pixils/form-row
+          :state form-state-binding
+          :children (layout-item-views items opts)}
+         (form-layout/style-map (:row-style opts))))
 
 (defun model-layout-opts [opts item]
   (let [model-id (or (:model item)
@@ -414,13 +373,7 @@
                                     opts)]
     (merge {:state form-layout-state-binding
             :children children}
-           (form-layout/style-map
-           (form-layout/defaultable-style (:style item)
-                                          (:class item)
-                                          (form-layout/style-option
-                                           opts
-                                           :fields-style
-                                           default-fields-style)))
+           (form-layout/style-map (or (:style item) (:fields-style opts)))
            {:class (form-layout/classes :pixils/form-fields (:class item))})))
 
 (defun selection-layout-view [item opts]
@@ -443,9 +396,7 @@
                      (or (:children item) (:layout item))
                      opts)}
          (form-layout/style-map
-          (or (:style item)
-              (when (nil? (:class item))
-                (form-layout/style-option opts :row-style default-row-style))))
+          (or (:style item) (:row-style opts)))
          {:class (form-layout/classes
                   (case (:type item)
                     :group [:pixils/form-row :pixils/form-group]
@@ -774,11 +725,10 @@
                                ctx))))}})
 
 (defun fields-view [children opts]
-  {:class :pixils/form-fields
-   :style (or (form-layout/style-option opts :fields-style default-fields-style)
-              {})
-   :state form-layout-state-binding
-   :children children})
+  (merge {:class :pixils/form-fields
+          :state form-layout-state-binding
+          :children children}
+         (form-layout/style-map (:fields-style opts))))
 
 (defun control-render-options
   "Adds generic form-rendering capabilities used by compound controls."
@@ -827,15 +777,11 @@
           [(list-box-control/for-selection selection opts) fields])))))
 
 (defun form-body-view [layout schema opts selection]
-  {:id form-body-id
-   :class :pixils/form-body
-   :style (or (form-layout/style-option opts
-                                         :body-style
-                                         {:width :fill
-                                          :height :shrink})
-              {})
-   :state form-layout-state-binding
-   :children (form-children layout schema opts selection)})
+  (merge {:id form-body-id
+          :class :pixils/form-body
+          :state form-layout-state-binding
+          :children (form-children layout schema opts selection)}
+         (form-layout/style-map (:body-style opts))))
 
 (defun form-render-opts [state]
   (form-valid-values/with-options-cache
@@ -930,9 +876,5 @@
                                        schema
                                        opts
                                        render-selection)]}
-           (form-layout/style-map
-            (form-layout/defaultable-style
-             style
-             class
-             (form-layout/style-option opts :style default-style)))
+           (form-layout/style-map style)
            {:class (form-layout/classes :pixils/form class)})))

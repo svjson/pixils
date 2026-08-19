@@ -1,6 +1,5 @@
 (ns pixils.form.scenario.array-dialog-test
   (:require proof.core
-            [pixils.form.controls.array-editor :as array-editor-control]
             [pixils.form.scenario.person :as person]
             [pixils.form :as form]))
 
@@ -31,16 +30,15 @@
                    :body (select-keys (head (:children item-form)) [:id :class])}
             :buttons {:mode (:mode button-row) :count (count (:children button-row))}}))))
 
-(deftest array-item-dialog-body/keeps-item-form-fill-width-with-theme-styles
+(deftest array-item-dialog-body/leaves-item-form-layout-to-the-theme
   (let [body (form/array-item-dialog-body
               {:type :object
                :fields {:opacity {:type :slider
                                   :min 0
                                   :max 1}}}
-              {:theme-styles? true})
+              {})
         item-form (head (:children body))]
-    (is (= {:class [:pixils/form :pixils/form-array-item-form]
-            :style array-editor-control/default-array-dialog-form-style}
+    (is (= {:class [:pixils/form :pixils/form-array-item-form]}
            (select-keys item-form [:class :style])))))
 
 (deftest array-item-dialog-body/uses-configured-layout

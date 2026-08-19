@@ -7,11 +7,6 @@
             [pixils.ui.combo-box :as combo-box]
             [zoology.schema :as model-schema]))
 
-(def default-style
-  "Default dimensions for a form combo-box control."
-  {:width :fill
-   :height 24})
-
 (defun option-index-from [options value index]
   "Returns the matching option index at or after `index`."
   (cond
@@ -103,9 +98,9 @@
                  :value (:value payload)
                  :form-value (form-field/assoc-value state (:value payload))
                  :selected-index (:selected-index payload)))}
-   :children [(combo-box/make {:options (ui/bind-state :options)
+   :children [(combo-box/make {:class :pixils/form-select-input
+                               :options (ui/bind-state :options)
                                :selected-index (ui/bind-state :selected-index)
-                               :style {:width :fill :height :fill}
                                :row-height (ui/bind-state :row-height)
                                :max-height (ui/bind-state :max-height)
                                :disabled? (ui/bind-state :disabled?)})]})
@@ -113,18 +108,18 @@
 (defun for-field
   "Builds a combo-box for a resolved form-field context."
   [{:keys [id schema value disabled? options]}]
-  {:mode 'pixils/form-select-control
-   :class [:pixils/form-control :pixils/form-select-control]
-   :style (or (form-layout/style-option options :control-style default-style) {})
-   :state {:value value
-           :form-value (ui/bind-state :form-value)
-           :options (selectable-options schema options)
-           :field-id id
-           :field-path (form-field/event-path options id schema)
-           :local-field-path (form-field/path id schema)
-           :field-schema schema
-           :context (:context options)
-           :valid-value-options-cache (:valid-value-options-cache options)
-           :row-height (:row-height schema)
-           :max-height (:max-height schema)
-           :disabled? disabled?}})
+  (merge {:mode 'pixils/form-select-control
+          :class [:pixils/form-control :pixils/form-select-control]
+          :state {:value value
+                  :form-value (ui/bind-state :form-value)
+                  :options (selectable-options schema options)
+                  :field-id id
+                  :field-path (form-field/event-path options id schema)
+                  :local-field-path (form-field/path id schema)
+                  :field-schema schema
+                  :context (:context options)
+                  :valid-value-options-cache (:valid-value-options-cache options)
+                  :row-height (:row-height schema)
+                  :max-height (:max-height schema)
+                  :disabled? disabled?}}
+         (form-layout/style-map (:control-style options))))

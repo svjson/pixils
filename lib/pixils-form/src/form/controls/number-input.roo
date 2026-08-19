@@ -2,25 +2,22 @@
   (:require [pixils.form.layout :as form-layout]
             [pixils.ui.number-input :as number-input]))
 
-(def default-style
-  "Default dimensions for a form number-input control."
-  {:width :fill
-   :height 24})
-
 (defun for-field
   "Builds a number-input for a resolved form-field context."
   [{:keys [schema value disabled? options]}]
   (assoc (number-input/make
-          {:style (or (form-layout/style-option options :control-style default-style) {})
-           :value value
-           :min (:min schema)
-           :max (:max schema)
-           :step (:step schema)
-           :allow-negative? (:allow-negative? schema)
-           :allow-fractions? (if (contains? schema :allow-fractions?)
-                               (:allow-fractions? schema)
-                               (= (:type schema) :number))
-           :disabled? disabled?
-           :auto-focus? (:auto-focus? schema)
-           :commit-on (if (contains? schema :commit-on) (:commit-on schema) :blur)})
+          (merge {:value value
+                  :min (:min schema)
+                  :max (:max schema)
+                  :step (:step schema)
+                  :allow-negative? (:allow-negative? schema)
+                  :allow-fractions? (if (contains? schema :allow-fractions?)
+                                      (:allow-fractions? schema)
+                                      (= (:type schema) :number))
+                  :disabled? disabled?
+                  :auto-focus? (:auto-focus? schema)
+                  :commit-on (if (contains? schema :commit-on)
+                               (:commit-on schema)
+                               :blur)}
+                 (form-layout/style-map (:control-style options))))
          :class [:pixils/form-control :pixils/form-number-control]))

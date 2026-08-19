@@ -4,19 +4,6 @@
             [pixils.form.controls.text-input :as text-input-control]
             [pixils.ui :as ui]))
 
-(def default-style
-  "Default dimensions for a form keyword-input editor."
-  {:width :fill
-   :height :fill})
-
-(def default-control-style
-  "Default layout for a keyword prefix and its editor."
-  {:width :fill
-   :height 24
-   :layout {:direction :row
-            :align-items :center
-            :gap 4}})
-
 (defun value->text
   "Returns the editable text representation of a keyword value."
   [value]
@@ -41,22 +28,20 @@
           (assoc opts
                  :class (form-layout/classes :pixils/form-keyword-input class)
                  :format-value value->text
-                 :style (if (contains? opts :style) style default-style)))
+                 :style style))
          :mode 'pixils/form-keyword-input))
 
 (defun for-field
   "Builds the prefixed keyword-input presentation for a form field."
   [{:keys [schema value disabled? options]}]
-  {:class [:pixils/form-control :pixils/form-keyword-control]
-   :style (or (form-layout/style-option options :control-style default-control-style) {})
-   :state {:value value
-           :disabled? disabled?}
-   :children [{:mode 'ui/text
-               :class :ui/muted
-               :style {:width :shrink}
-               :state {:value ":"}}
-              (make {:style default-style
-                     :value (ui/project-state :value)
-                     :auto-focus? (:auto-focus? schema)
-                     :disabled? (ui/project-state :disabled?)
-                     :read-only? (:read-only? schema)})]})
+  (merge {:class [:pixils/form-control :pixils/form-keyword-control]
+          :state {:value value
+                  :disabled? disabled?}
+          :children [{:mode 'ui/text
+                      :class [:ui/muted :pixils/form-keyword-prefix]
+                      :state {:value ":"}}
+                     (make {:value (ui/project-state :value)
+                            :auto-focus? (:auto-focus? schema)
+                            :disabled? (ui/project-state :disabled?)
+                            :read-only? (:read-only? schema)})]}
+         (form-layout/style-map (:control-style options))))
