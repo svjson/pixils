@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.masks.mask-sets.row
   (:require pixils
             [pixils.ui :as ui]
-            [pixils.ui.menu :as menu]))
+            [pixils.ui.popup-menu :as popup-menu]))
 
 (def row-height 24)
 
@@ -24,7 +24,7 @@
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
                   (when (= (:button event) :right)
-                    (menu/open-context-menu! context-menu
+                    (popup-menu/open-context! context-menu
                                              (:global-position event)
                                              state
                                              ctx))

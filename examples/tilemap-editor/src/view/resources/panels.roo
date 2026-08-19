@@ -5,7 +5,7 @@
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             tilemap-editor.view.resources.model))
 
 (def resource-list-row-height 24)
@@ -125,7 +125,7 @@
                           (image-resource-context-resource-ids state)]
 
                         (ui/stop-propagation! event)
-                        (menu/open-context-menu!
+                        (popup-menu/open-context!
                          (image-resource-context-menu resource-ids)
                          (:global-position event)
                          state
@@ -184,7 +184,7 @@
 
                     (ui/stop-propagation! event)
                     (when (= (:button event) :right)
-                      (menu/open-context-menu! bundle-context-menu
+                      (popup-menu/open-context! bundle-context-menu
                                                (:global-position event)
                                                state
                                                ctx))

@@ -16,11 +16,11 @@
 
 
 
-;; pixils.ui.menu-bar/make-menu
+;; pixils.ui.menu-bar/make
 
-(deftest make-menu/separates-application-and-component-state
+(deftest make/separates-application-and-component-state
   (s/when []
-    (let [spec (menu-bar/make-menu
+    (let [spec (menu-bar/make
                 {:state {:game :ready}
                  :style {:width 123
                          :height 17}}
@@ -48,11 +48,11 @@
                            :text "File"}}
            result))))
 
-(deftest make-menu/preserves-the-application-map-call-shape
+(deftest make/preserves-the-application-map-call-shape
   (is (= {:mode 'ui/menu-bar
           :application {:game :ready}
           :style-supplied? false}
-         (let [spec (menu-bar/make-menu
+         (let [spec (menu-bar/make
                      {:game :ready}
                      {:items [{:label "File"}]}
                      {})]
@@ -60,11 +60,11 @@
             :application (select-keys (:state spec) [:game])
             :style-supplied? (contains? spec :style)}))))
 
-(deftest make-menu/applies-canonical-component-input-precedence
+(deftest make/applies-canonical-component-input-precedence
   (is (= {:menu-scale 4
           :active-index 3
           :pending-open-index 2}
-         (let [spec (menu-bar/make-menu
+         (let [spec (menu-bar/make
                      {:state {:menu-scale 1
                               :active-index 1
                               :component {:menu-scale 2

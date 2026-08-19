@@ -3,7 +3,7 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.scroll-pane :as sp]
             [pixils.ui.tab-panel :as tabs]
             [pixils.tilemap.materialize :as materialize]
@@ -486,7 +486,7 @@
      (ui/stop-propagation! event)
      (when (and (= (:button event) :left)
                 (not (:disabled? state)))
-       (menu/open-context-menu!
+       (popup-menu/open-context!
         terrain-standard-setup-menu
         (:global-position event)
         (assoc state
@@ -688,7 +688,7 @@
      (ui/stop-propagation! event)
      (when (and (= (:button event) :left)
                 (not (:disabled? state)))
-       (menu/open-context-menu!
+       (popup-menu/open-context!
         (terrain-standard-opposing-menu state)
         (:global-position event)
         (assoc state

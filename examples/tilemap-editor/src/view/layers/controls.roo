@@ -3,7 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.tilemap.project.model :as data]))
 
 (def layer-list-row-height 26)
@@ -99,7 +99,7 @@
 
                     (ui/stop-propagation! event)
                     (when (= (:button event) :right)
-                      (menu/open-context-menu! (layer-context-menu state)
+                      (popup-menu/open-context! (layer-context-menu state)
                                                (:global-position event)
                                                state
                                                ctx))

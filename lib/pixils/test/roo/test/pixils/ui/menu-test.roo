@@ -1,0 +1,34 @@
+(ns pixils.ui.menu-test
+  (:require proof.core
+            [pixils.ui.menu :as menu]
+            [pixils.ui.menu-bar :as menu-bar]
+            [pixils.ui.menu-model :as menu-model]))
+
+
+
+;; pixils.ui.menu/default-menu-settings
+
+(deftest default-menu-settings/forwards-to-the-canonical-settings
+  (is (= menu-model/default-settings
+         menu/default-menu-settings)))
+
+
+
+;; pixils.ui.menu/normalize-menu
+
+(deftest normalize-menu/forwards-to-the-canonical-normalizer
+  (let [definition {:items [{:label "&File"}]}
+        keymap {}]
+    (is (= (menu-model/normalize definition keymap)
+           (menu/normalize-menu definition keymap)))))
+
+
+
+;; pixils.ui.menu/make-menu
+
+(deftest make-menu/forwards-to-the-canonical-constructor
+  (let [options {:style {:height 18}}
+        definition {:items [{:label "File"}]}
+        keymap {}]
+    (is (= (menu-bar/make options definition keymap)
+           (menu/make-menu options definition keymap)))))

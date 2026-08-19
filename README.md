@@ -372,12 +372,12 @@ visually unchanged while dragging.
 is the final item index after removing the dragged item. Dropping an item back
 onto its original position does not emit `:list-box/reorder`.
 
-`ui/menu-bar` is usually created with `pixils.ui.menu/make-menu` from a menu
+`ui/menu-bar` is usually created with `pixils.ui.menu-bar/make` from a menu
 definition and action map. The first argument can be either the menu state map
 or an options map with `:state` plus node options such as `:style`:
 
 ```clojure
-(pixils.ui.menu/make-menu
+(pixils.ui.menu-bar/make
   {:state {:game (pixils.ui/bind-state :game)}
    :style {:height 18}}
   menu-definition

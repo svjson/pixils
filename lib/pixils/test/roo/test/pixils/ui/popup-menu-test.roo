@@ -22,25 +22,25 @@
 
 
 
-;; pixils.ui.popup-menu/popup-position
+;; pixils.ui.popup-menu/position
 
-(deftest popup-position/places-popups-relative-to-the-anchor
+(deftest position/places-popups-relative-to-the-anchor
   (is (= {:below {:left 10
                   :top 26}
           :right {:left 42
                   :top 6}}
-         {:below (popup-menu/popup-position
+         {:below (popup-menu/position
                   {:bounds {:x 10 :y 6 :w 32 :h 20}}
                   :below)
-          :right (popup-menu/popup-position
+          :right (popup-menu/position
                   {:bounds {:x 10 :y 6 :w 32 :h 20}}
                   :right)})))
 
 
 
-;; pixils.ui.popup-menu/popup-option-item-state
+;; pixils.ui.popup-menu/option-item-state
 
-(deftest popup-option-item-state/derives-selection-when-building-the-row
+(deftest option-item-state/derives-selection-when-building-the-row
   (is (= {:node {:item-type :option
                  :value :dark
                  :selected-path [:preferences :theme]
@@ -61,7 +61,7 @@
           :game nil
           :preferences {:theme :dark}
           :selected true}
-         (popup-menu/popup-option-item-state
+         (popup-menu/option-item-state
           {:item-type :option
            :value :dark
            :selected-path [:preferences :theme]

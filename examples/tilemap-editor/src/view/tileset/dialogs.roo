@@ -9,7 +9,7 @@
             [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.number-input :as ni]
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
@@ -1652,7 +1652,7 @@
 	   :on-mouse-up (fn [state event ctx]
 	                  (ui/stop-propagation! event)
 	                  (unless (:disabled? state)
-	                    (menu/open-context-menu!
+	                    (popup-menu/open-context!
 	                     (tile-add-menu (:has-project-image-resources? state))
 	                     (:global-position event)
 	                     state

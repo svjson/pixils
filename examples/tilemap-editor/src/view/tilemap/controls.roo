@@ -6,7 +6,7 @@
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.slider :as sl]
             [pixils.ui.theme-assets :as theme-assets]
@@ -91,7 +91,7 @@
    :on-mouse-up (fn [state event ctx]
 
                     (when (= (:button event) :right)
-                      (menu/open-context-menu! (map-context-menu (:maps state))
+                      (popup-menu/open-context! (map-context-menu (:maps state))
                                                (:global-position event)
                                                (map-menu-state state)
                                                ctx))
@@ -117,7 +117,7 @@
 
                     (ui/stop-propagation! event)
                     (when (= (:button event) :left)
-                      (menu/open-context-menu! (map-chooser-menu (:maps state))
+                      (popup-menu/open-context! (map-chooser-menu (:maps state))
                                                (:global-position event)
                                                (map-menu-state state)
                                                ctx))

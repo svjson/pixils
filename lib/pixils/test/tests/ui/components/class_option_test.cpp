@@ -84,7 +84,7 @@ TEST_F(ClassOptionTest, public_make_functions_apply_class_to_outer_component)
                            :cell-height 20
                            :columns 1}
                     :children []})
-                  (pixils.ui.menu/make-menu
+                  (pixils.ui.menu-bar/make
                    {:class :class-test/menu}
                    menu-definition
                    {})]})

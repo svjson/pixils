@@ -1,6 +1,6 @@
 (ns workbench.menus
   (:require [pixils.ui :as ui]
-            [pixils.ui.menu :as menu]))
+            [pixils.ui.menu-bar :as menu-bar]))
 
 
 
@@ -35,6 +35,6 @@
                      :action :icons/cleanup}]}]})
 
 (defun make-workbench-menu []
-  (menu/make-menu {:style {:height 18}}
+  (menu-bar/make {:style {:height 18}}
                   workbench-menu
                   workbench-menu-keymap))

@@ -3,7 +3,7 @@
             [pixils.render :as r]
             [pixils.point :as pt]
             [pixils.ui :as ui]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.menu-bar :as menu-bar]
             [pixils.ui.window :as w]
             [pixils.examples.minesweeper.game-logic :as gl]
             [pixils.examples.minesweeper.status-panel :as status-panel]
@@ -145,7 +145,7 @@
                                 :color? true}))
    :action-map menu-keymap
    :children [(merge {:id "menu"}
-                     (menu/make-menu {:game (ui/bind-state :game)
+                     (menu-bar/make {:game (ui/bind-state :game)
                                       :preferences (ui/bind-state :preferences)}
                                      menu-definition
                                      menu-keymap))

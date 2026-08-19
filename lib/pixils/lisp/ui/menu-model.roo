@@ -5,7 +5,7 @@
 
 ;; Settings and normalization
 
-(def default-menu-settings
+(def default-settings
   "Default mnemonic and shortcut-rendering settings for normalized menus."
   {:mnemonics {:enabled true
                :marker "&"
@@ -54,7 +54,7 @@
    :key/f11 "F11"
    :key/f12 "F12"})
 
-(defun merge-menu-settings
+(defun merge-settings
   "Merge menu settings while preserving nested mnemonic and shortcut defaults.
 
   Args:
@@ -273,7 +273,7 @@
     (keyword? shortcut) (shortcut-key-name shortcut)
     :default (format-shortcut-parts shortcut)))
 
-(defun normalize-menu-item
+(defun normalize-item
   "Normalize one menu item and its descendants.
 
   Args:
@@ -290,7 +290,7 @@
      :settings inherited-settings}
 
     :default
-    (let [settings (merge-menu-settings inherited-settings
+    (let [settings (merge-settings inherited-settings
                                         (item-settings item))
           label-data (normalize-label item settings)
           action (:action item)
@@ -318,9 +318,9 @@
                                  (some? shortcut))
                         (format-shortcut shortcut))
        :items (for [child (:items item)]
-                (normalize-menu-item child settings keymap))})))
+                (normalize-item child settings keymap))})))
 
-(defun normalize-menu
+(defun normalize
   "Normalize a declarative menu tree.
 
   Args:
@@ -330,12 +330,12 @@
   Returns:
   A normalized menu root with stable item shapes."
   [menu-definition keymap]
-  (let [settings (merge-menu-settings default-menu-settings
+  (let [settings (merge-settings default-settings
                                       (:settings menu-definition))]
     {:node-type :root
      :settings settings
      :items (for [item (:items menu-definition)]
-              (normalize-menu-item item settings keymap))}))
+              (normalize-item item settings keymap))}))
 
 
 

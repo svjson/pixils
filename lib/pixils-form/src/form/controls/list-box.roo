@@ -6,7 +6,7 @@
             [pixils.form.state :as form-state]
             [pixils.ui :as ui]
             [pixils.ui.list-box :as list-box]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.option-item :as option]))
 
 (defun item-action-payload
@@ -37,7 +37,7 @@
   (when (and (= (:button event) :right)
              (not (:disabled? ui-state))
              (not-empty? (:context-menu-actions ui-state)))
-    (menu/open-context-menu!
+    (popup-menu/open-context!
      (context-menu ui-state)
      (:global-position event)
      state

@@ -15,8 +15,8 @@
   "Compatibility alias for the default menu normalization settings.
 
   Deprecated:
-  Use `pixils.ui.menu-model/default-menu-settings` instead."
-  menu-model/default-menu-settings)
+  Use `pixils.ui.menu-model/default-settings` instead."
+  menu-model/default-settings)
 
 (defun normalize-menu
   "Normalize a menu definition through the compatibility facade.
@@ -29,9 +29,9 @@
   A normalized menu root.
 
   Deprecated:
-  Use `pixils.ui.menu-model/normalize-menu` instead."
+  Use `pixils.ui.menu-model/normalize` instead."
   [menu-definition keymap]
-  (menu-model/normalize-menu menu-definition keymap))
+  (menu-model/normalize menu-definition keymap))
 
 (defun make-menu
   "Build a menu-bar view specification through the compatibility facade.
@@ -45,9 +45,9 @@
   A `ui/menu-bar` view specification.
 
   Deprecated:
-  Use `pixils.ui.menu-bar/make-menu` instead."
+  Use `pixils.ui.menu-bar/make` instead."
   [options menu-definition keymap]
-  (menu-bar/make-menu options menu-definition keymap))
+  (menu-bar/make options menu-definition keymap))
 
 (defun open-context-menu!
   "Open a context-menu overlay through the compatibility facade.
@@ -62,6 +62,6 @@
   The result of opening the popup mode, or `nil` for an empty menu.
 
   Deprecated:
-  Use `pixils.ui.popup-menu/open-context-menu!` instead."
+  Use `pixils.ui.popup-menu/open-context!` instead."
   [menu-definition position state ctx]
-  (popup-menu/open-context-menu! menu-definition position state ctx))
+  (popup-menu/open-context! menu-definition position state ctx))

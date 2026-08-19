@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.list-box :as lb]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [tilemap-editor.view.property-sets.model :as model]))
 
 (def property-set-list-row-height 24)
@@ -27,7 +27,7 @@
 
                     (ui/stop-propagation! event)
                     (when (= (:button event) :right)
-                      (menu/open-context-menu! property-set-context-menu
+                      (popup-menu/open-context! property-set-context-menu
                                                (:global-position event)
                                                state
                                                ctx))

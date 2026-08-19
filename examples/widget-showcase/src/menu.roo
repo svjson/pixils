@@ -1,5 +1,5 @@
 (ns widget-showcase.menu
-  (:require [pixils.ui.menu :as menu]))
+  (:require [pixils.ui.menu-bar :as menu-bar]))
 
 (def showcase-keymap
   {:key/f1 :showcase/about
@@ -63,6 +63,6 @@
                                 nil)]}]})
 
 (defun make-menu []
-  (menu/make-menu {:style {:height 20}}
+  (menu-bar/make {:style {:height 20}}
                   showcase-menu
                   showcase-keymap))

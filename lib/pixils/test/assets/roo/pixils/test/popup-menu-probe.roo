@@ -1,6 +1,6 @@
 (ns pixils.test.popup-menu-probe
   (:require pixils
-            [pixils.ui.menu :as menu]))
+            [pixils.ui.menu-bar :as menu-bar]))
 
 (def keyboard-menu
   {:items [{:label "File"
@@ -25,7 +25,7 @@
         (fn [state event _ctx]
           (assoc state :last-action {:action :file/save
                                      :payload (:payload event)}))}
-   :children [(menu/make-menu
+   :children [(menu-bar/make
                {:style {:width 120
                         :height 20}}
                keyboard-menu

@@ -4,9 +4,9 @@
 
 
 
-;; pixils.ui.menu-model/normalize-menu
+;; pixils.ui.menu-model/normalize
 
-(deftest normalize-menu/normalizes-settings-and-action-shortcuts
+(deftest normalize/normalizes-settings-and-action-shortcuts
   (is (= {:node-type :root
           :settings {:mnemonics {:enabled false
                                  :marker "&"
@@ -34,7 +34,7 @@
                    :resolved-shortcut [:key/ctrl :key/o]
                    :shortcut-text "Ctrl+O"
                    :items []}]}
-         (model/normalize-menu
+         (model/normalize
           {:settings {:mnemonics {:enabled false}}
            :items [{:label "Open"
                     :action :file/open}]}

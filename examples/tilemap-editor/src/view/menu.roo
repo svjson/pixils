@@ -1,5 +1,5 @@
 (ns tilemap-editor.view.menu
-  (:require [pixils.ui.menu :as menu]
+  (:require [pixils.ui.menu-bar :as menu-bar]
             [tilemap-editor.model.workbook :as editor-workbook]))
 
 
@@ -167,7 +167,7 @@
 (defun tilemap-editor-menu-child [state]
   (let [menu-state (normalized-menu-state state)]
     (merge {:id "tilemap-editor-menu"}
-           (menu/make-menu {:style {:width :fill}
+           (menu-bar/make {:style {:width :fill}
                             :state {:option-state menu-state}}
                            (tilemap-editor-menu state)
                            tilemap-editor-menu-keymap))))

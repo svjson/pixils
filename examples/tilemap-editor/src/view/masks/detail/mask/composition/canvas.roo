@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.masks.detail.mask.composition.selected-tile :as selected-tile]
             [tilemap-editor.view.masks.detail.mask.palette :as palette]
@@ -62,7 +62,7 @@
     (assoc state :selected-mask-tile-item-index index)))
 
 (defun open-item-context-menu! [state event ctx index]
-  (menu/open-context-menu! (item-context-menu index)
+  (popup-menu/open-context! (item-context-menu index)
                            (:global-position event)
                            state
                            ctx)

@@ -8,14 +8,14 @@
 
 ;; Menu-bar state
 
-(def MENU-BAR-UI-STATE-KEYS
+(def UI-STATE-KEYS
   "Canonical UI-state keys owned by `ui/menu-bar`."
   [:menu
    :menu-scale
    :active-index
    :pending-open-index])
 
-(def MENU-BAR-ITEM-UI-STATE-KEYS
+(def ITEM-UI-STATE-KEYS
   "Canonical UI-state keys owned by `ui/menu-bar-item`."
   [:node
    :menu-index
@@ -42,7 +42,7 @@
                (< index (count children)))
       (nth children index))))
 
-(defun top-menu-item-at
+(defun item-at
   "Resolve a top-level normalized menu item by index.
 
   Args:
@@ -68,7 +68,7 @@
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
 
-(defun menu-bar-item-highlight-transition
+(defun item-highlight-transition
   "Derive keyboard-active highlighting for a menu-bar item.
 
   Args:
@@ -84,7 +84,7 @@
                      (= (:menu-index candidate)
                         (:active-index candidate)))})
 
-(defun update-menu-item-ui-state
+(defun update-item-ui-state
   "Apply menu-item interaction changes to UI and compatibility state.
 
   Args:
@@ -98,7 +98,7 @@
   (ui/set-ui-state! ctx (merge (-> ctx :view :ui-state) updates))
   (merge state updates))
 
-(defun sync-menu-scale
+(defun sync-scale
   "Synchronize measured menu scale after layout.
 
   Args:
@@ -127,12 +127,12 @@
   UI state with any pending request cleared."
   [ui-state state ctx]
   (if-let [index (:pending-open-index ui-state)]
-    (let [node (top-menu-item-at (:menu ui-state) index)
+    (let [node (item-at (:menu ui-state) index)
           child-view (child-view-at (:view ctx) index)]
       (when (and node
                  child-view
                  (not (:disabled? node)))
-        (popup/open-popup-at-view! node
+        (popup/open-at-view! node
                                    (merge state ui-state)
                                    child-view
                                    :below))
@@ -145,10 +145,10 @@
 
 (defcomponent ui/menu-bar-item
   {:class :menu/item
-   :ui/state-keys MENU-BAR-ITEM-UI-STATE-KEYS
+   :ui/state-keys ITEM-UI-STATE-KEYS
    :ui/models [{:owns [:highlighted]
                 :depends-on [:disabled? :active-index :menu-index]
-                :transition menu-bar-item-highlight-transition}]
+                :transition item-highlight-transition}]
    :on-mouse-down
    (fn [state event ctx]
      (let [ui-state (-> ctx :view :ui-state)
@@ -156,14 +156,14 @@
        (ui/stop-propagation! event)
        (cond
          (:suppress-next-open? ui-state)
-         (update-menu-item-ui-state state
+         (update-item-ui-state state
                                     ctx
                                     {:suppress-next-open? false})
 
          (and node
               (not (:disabled? node))
               (model/submenu-node? node))
-         (update-menu-item-ui-state
+         (update-item-ui-state
           state
           ctx
           {:active-index (:menu-index ui-state)
@@ -202,7 +202,7 @@
 
               (and (= :dismiss (:type payload))
                    (:anchor-click? payload))
-              (update-menu-item-ui-state state
+              (update-item-ui-state state
                                          ctx
                                          {:suppress-next-open? true})
 
@@ -214,9 +214,9 @@
 (defcomponent ui/menu-bar
   {:style {:width :fill
            :layout {:direction :row}}
-   :ui/state-keys MENU-BAR-UI-STATE-KEYS
+   :ui/state-keys UI-STATE-KEYS
    :update-ui open-pending-popup
-   :after-layout-ui sync-menu-scale
+   :after-layout-ui sync-scale
    :on {:menu/navigate-top
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
@@ -262,17 +262,17 @@
   Normalized component state using canonical input precedence."
   [opts]
   (let [state (or (:state opts) {})
-        normalized-menu (model/normalize-menu (:menu-definition opts)
-                                              (:keymap opts))]
+        normalized-menu (model/normalize (:menu-definition opts)
+                                         (:keymap opts))]
     (merge {:menu-scale (-> opts :style :scale)
             :active-index nil
             :pending-open-index nil}
-           (select-keys state MENU-BAR-UI-STATE-KEYS)
+           (select-keys state UI-STATE-KEYS)
            (:component state)
-           (select-keys opts MENU-BAR-UI-STATE-KEYS)
+           (select-keys opts UI-STATE-KEYS)
            {:menu normalized-menu})))
 
-(defun make-menu-node
+(defun make-node
   "Build a `ui/menu-bar` view specification from canonical options.
 
   Args:
@@ -308,7 +308,7 @@
       ui-state (assoc :ui-state ui-state)
       state-policy (assoc :ui/state-policy state-policy))))
 
-(defun make-menu-options
+(defun make-options
   "Normalize canonical and legacy menu constructor arguments.
 
   Args:
@@ -317,7 +317,7 @@
   - `keymap`: Action bindings used to resolve displayed shortcuts.
 
   Returns:
-  Canonical options accepted by `make-menu-node`."
+  Canonical options accepted by `make-node`."
   [options menu-definition keymap]
   (merge (if (or (contains? options :state)
                  (contains? options :style)
@@ -329,7 +329,7 @@
          {:menu-definition menu-definition
           :keymap keymap}))
 
-(defun make-menu
+(defun make
   "Build a menu-bar view specification.
 
   Args:
@@ -340,4 +340,4 @@
   Returns:
   A `ui/menu-bar` view specification."
   [options menu-definition keymap]
-  (make-menu-node (make-menu-options options menu-definition keymap)))
+  (make-node (make-options options menu-definition keymap)))

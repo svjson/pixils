@@ -17,7 +17,7 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
                          :action :file/open}]}]})
 
     (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
+      {:children [(pixils.ui.menu-bar/make
                    {:style {:scale 2}}
                    menu-definition
                    {})]})
@@ -58,7 +58,7 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
                          :action :game/new}]}]})
 
     (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
+      {:children [(pixils.ui.menu-bar/make
                    {}
                    menu-definition
                    {})]})
@@ -97,7 +97,7 @@ TEST_F(MenuTest, clicking_open_menu_bar_item_closes_without_reopening)
                          :action :file/open}]}]})
 
     (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
+      {:children [(pixils.ui.menu-bar/make
                    {}
                    menu-definition
                    {})]})
@@ -141,7 +141,7 @@ TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
 
     (pixils/defmode root-mode
       {:theme 'pixils/classic-blue
-       :children [(pixils.ui.menu/make-menu
+       :children [(pixils.ui.menu-bar/make
                    {}
                    menu-definition
                    {})]})
@@ -330,7 +330,7 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
 
     (pixils/defmode root-mode
       {:theme 'pixils/classic-blue
-       :children [(pixils.ui.menu/make-menu
+       :children [(pixils.ui.menu-bar/make
                    {}
                    menu-definition
                    {})]})
@@ -409,7 +409,7 @@ TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
 
     (pixils/defmode root-mode
       {:theme 'pixils/classic-blue
-       :children [(pixils.ui.menu/make-menu
+       :children [(pixils.ui.menu-bar/make
                    {}
                    menu-definition
                    {})]})
@@ -707,7 +707,7 @@ TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
        :on-mouse-up (fn [state event ctx]
                       (if (= (:button event) :right)
                         (do
-                          (pixils.ui.menu/open-context-menu!
+                          (pixils.ui.popup-menu/open-context!
                            context-menu
                            (:global-position event)
                            state

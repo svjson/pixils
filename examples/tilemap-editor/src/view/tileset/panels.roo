@@ -4,7 +4,7 @@
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.list-box :as lb]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.number-input :as ni]
             [pixils.ui.slider :as sl]
             [pixils.ui.tab-panel :as tabs]
@@ -125,7 +125,7 @@
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
                   (when (= (:button event) :right)
-                    (menu/open-context-menu! tileset-context-menu
+                    (popup-menu/open-context! tileset-context-menu
                                              (:global-position event)
                                              state
                                              ctx))
@@ -331,7 +331,7 @@
                   (ui/stop-propagation! event)
                   (when (and (= (:button event) :right)
                              (not-empty? (selected-tileset-tile-selection state)))
-                    (menu/open-context-menu! (tile-context-menu state)
+                    (popup-menu/open-context! (tile-context-menu state)
                                              (:global-position event)
                                              state
                                              ctx))

@@ -3,7 +3,7 @@
             [pixils.point :as pt]
             [pixils.ui :as ui]
             [pixils.ui.internal.option-navigation :as navigation]
-            [pixils.ui.menu :as menu]
+            [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.option-item :as option]
             [pixils.ui.option-list :as option-list]
             [pixils.ui.option-selection :as selection]))
@@ -444,7 +444,7 @@
                                         :option option}))]
                     (ui/set-ui-state! ctx next-ui-state)
                     (when context-menu
-                      (menu/open-context-menu! context-menu
+                      (popup-menu/open-context! context-menu
                                                (:global-position payload)
                                                state
                                                ctx))
