@@ -81,23 +81,6 @@
                               :last-change {:value "ab"}}}
            result))))
 
-(deftest text-input/positions-the-rendered-caret-at-the-logical-cursor
-  (s/given
-    (text-input-interaction-app 'short-text-input-mode))
-
-  (s/when [app]
-    (runtime/press-key! app :end)
-    (runtime/settle-layout! app)
-    (let [inner-ui-state (-> (runtime/find-view app "ui/text-input-inner") :ui-state)]
-      {:cursor-index (:cursor-index inner-ui-state)
-       :caret-x (-> inner-ui-state :layout :caret-x)
-       :rendered-left (-> (runtime/find-view app "ui/text-input-caret") :style :left)}))
-
-  (s/then [{:keys [cursor-index caret-x rendered-left]}]
-    (is (= 2 cursor-index))
-    (is (> caret-x 0))
-    (is (= caret-x rendered-left))))
-
 (deftest text-input/shared-state-commits-event-driven-edits
   (s/given
     (text-input-interaction-app 'shared-text-input-mode))

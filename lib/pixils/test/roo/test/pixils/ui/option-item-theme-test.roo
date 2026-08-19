@@ -3,7 +3,7 @@
             [proof.syntax :as s]
             [pixils.test.runtime :as runtime]))
 
-(deftest option-items/highlight-hover-only-when-the-component-opts-in
+(deftest base-theme/highlights-only-items-with-hover-highlight-class
   (s/given
     (let [app (runtime/make-app {:package-root "../.."
                                  :buffer-width 180 :buffer-height 160
@@ -16,10 +16,12 @@
   (s/when [app]
     (runtime/mouse-move-at! app 170 150)
     (runtime/update! app)
+    (runtime/layout! app)
     (let [list-item (runtime/find-view app "ui/list-box-item")
           list-background-before (-> list-item :effective-style :background)]
       (runtime/mouse-move-in! app list-item 3 3)
       (runtime/update! app)
+      (runtime/layout! app)
       (let [list-result {:hovered (-> list-item :interaction :hovered)
                          :background-before list-background-before
                          :background-after (-> list-item :effective-style :background)}
@@ -30,6 +32,7 @@
               combo-background-before (-> combo-item :effective-style :background)]
           (runtime/mouse-move-in! app combo-item 3 3)
           (runtime/update! app)
+          (runtime/layout! app)
           {:list list-result
            :combo {:hovered (-> combo-item :interaction :hovered)
                    :background-before combo-background-before
@@ -57,10 +60,12 @@
   (s/when [app]
     (runtime/mouse-move-at! app 170 150)
     (runtime/update! app)
+    (runtime/layout! app)
     (let [list-item (runtime/find-view app "ui/list-box-item")
           list-background-before (-> list-item :effective-style :background)]
       (runtime/mouse-move-in! app list-item 3 3)
       (runtime/update! app)
+      (runtime/layout! app)
       (let [list-result {:hovered (-> list-item :interaction :hovered)
                          :background-before list-background-before
                          :background-after (-> list-item :effective-style :background)}
@@ -71,6 +76,7 @@
               combo-background-before (-> combo-item :effective-style :background)]
           (runtime/mouse-move-in! app combo-item 3 3)
           (runtime/update! app)
+          (runtime/layout! app)
           {:list list-result
            :combo {:hovered (-> combo-item :interaction :hovered)
                    :background-before combo-background-before

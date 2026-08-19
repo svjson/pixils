@@ -162,6 +162,50 @@ TEST_F(TextInputTest, text_input_caret_uses_text_metrics_on_first_layout)
   EXPECT_GT(cursor_y->num().get_int(), 0);
 }
 
+TEST_F(TextInputTest, end_key_positions_rendered_caret_at_logical_cursor)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/text-input
+                   :style {:width 80 :height 22}
+                   :state {:value "ab"
+                           :auto-focus? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  auto inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
+  ASSERT_NE(inner, nullptr);
+  ASSERT_NE(caret, nullptr);
+
+  input().key_down(SDLK_HOME);
+  frame_cycle();
+  input().key_up(SDLK_HOME);
+  frame_cycle();
+
+  auto cursor_index = get_keyword(inner->ui_state, "cursor-index");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_EQ(cursor_index->num().get_int(), 0);
+
+  input().key_down(SDLK_END);
+  frame_cycle();
+
+  cursor_index = get_keyword(inner->ui_state, "cursor-index");
+  auto layout = get_keyword(inner->ui_state, "layout");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(layout, nullptr);
+  auto caret_x = get_keyword(layout, "caret-x");
+  ASSERT_NE(caret_x, nullptr);
+
+  EXPECT_EQ(cursor_index->num().get_int(), 2);
+  EXPECT_GT(caret_x->num().get_int(), 0);
+  EXPECT_EQ(caret->bounds.x,
+            inner->effective_style.content_rect(inner->bounds).x + caret_x->num().get_int());
+}
+
 TEST_F(TextInputTest, text_input_caret_tracks_edits_in_the_same_frame)
 {
   runtime.eval(R"(
