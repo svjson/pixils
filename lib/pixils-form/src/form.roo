@@ -328,6 +328,15 @@
      [:ui/muted :pixils/form-label])
    (:field-label-class opts)))
 
+(defun field-label-view [field-label opts]
+  {:mode 'ui/text
+   :class (field-label-class opts)
+   :style (or (form-layout/style-option opts
+                                        :field-label-style
+                                        default-field-label-style)
+              {})
+   :state {:value field-label}})
+
 (defun field-view [field-id opts]
   (let [schema (or (:schema opts) {})
         field-schema (model-schema/resolved-field-schema schema field-id)
@@ -357,15 +366,13 @@
                  :dynamic-visibility?
                  (model-schema/dynamic-field-visibility? schema)
                  :visible? true}
-         :children [{:mode 'ui/text
-                     :class (field-label-class opts)
-                     :style (or (form-layout/style-option
-                                  opts
-                                  :field-label-style
-                                  default-field-label-style)
-                                {})
-                     :state {:value field-label}}
-                    (field-control field-id field-schema field-label opts)]})
+         :children (cond-> []
+                     (not= false (-> opts :field/layout :label))
+                     (append (field-label-view field-label opts))
+                     true (append (field-control field-id
+                                                 field-schema
+                                                 field-label
+                                                 opts)))})
       {:mode 'ui/text
        :state {:value (str "Unknown form field " field-id)}})))
 

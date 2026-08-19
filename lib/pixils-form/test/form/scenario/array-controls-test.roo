@@ -170,6 +170,24 @@
                           :children (nth 1))]
     (is (= 1 (count (:children array-control))))))
 
+(deftest make/can-omit-the-array-summary
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people [{:name "Ada"}]}
+               :layout [[:field :people {:summary false :actions false}]]})
+        array-control (-> view :children head :children head :children head
+                          :children (nth 1))
+        content (head (:children array-control))]
+    (is (= {:array-child-count 1
+            :content-child-count 1
+            :content-mode 'pixils/form-selection}
+           {:array-child-count (count (:children array-control))
+            :content-child-count (count (:children content))
+            :content-mode (-> content :children head :mode)}))))
+
 (deftest make/can-omit-individual-array-actions
   (let [view (form/make
               {:schema {:type :object

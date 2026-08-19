@@ -831,7 +831,8 @@
                  :actions context-menu-actions}
                 opts])
         content-children (cond-> [selection-view]
-                           (nil? item-editor-id)
+                           (and (nil? item-editor-id)
+                                (not= false (:summary field-layout)))
                            (append (array-summary-view opts summary-specs)))
         state (cond->
                {:items items-binding

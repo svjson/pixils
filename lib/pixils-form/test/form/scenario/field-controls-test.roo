@@ -18,6 +18,16 @@
            {:child-count (count (:children field-view))
             :label (get-in field-view [:children 0 :state :value])}))))
 
+(deftest make/can-omit-a-field-label
+  (let [view (form/make {:schema person/schema
+                         :value {:field/name "Ada" :field/age 36}
+                         :layout [[:field :field/name {:label false}]]})
+        field-view (-> view :children head :children head :children head)]
+    (is (= {:child-count 1
+            :control-mode 'ui/text-input}
+           {:child-count (count (:children field-view))
+            :control-mode (-> field-view :children head :mode)}))))
+
 (deftest make/renders-keyword-fields-with-prefixed-input
   (let [view (form/make {:schema {:field/id {:type :keyword
                                              :required true
