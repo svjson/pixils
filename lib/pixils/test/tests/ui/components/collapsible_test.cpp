@@ -1,7 +1,7 @@
 #include "../../render_fixture.h"
+#include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
-#include <pixils/ui/style.h>
 #include <roo/runtime/dict.h>
 
 using CollapsibleTest = RenderFixture;
@@ -13,12 +13,14 @@ namespace
     return Roo::Dict::get_property(state, Roo::keyword(key));
   }
 
-  bool has_render_copy_fitting(const std::vector<RenderOperation>& ops, const Pixils::Rect& rect)
+  bool has_render_copy_fitting(const std::vector<RenderOperation>& ops,
+                               const Pixils::Rect& rect)
   {
     for (const auto& op : ops)
     {
       if (op.type == RenderOpType::RENDER_COPY && op.rendered_rect.w > 0 &&
-          op.rendered_rect.h > 0 && op.rendered_rect.w <= rect.w && op.rendered_rect.h <= rect.h)
+          op.rendered_rect.h > 0 && op.rendered_rect.w <= rect.w &&
+          op.rendered_rect.h <= rect.h)
       {
         return true;
       }
@@ -30,7 +32,7 @@ namespace
   }
 } // namespace
 
-TEST_F(CollapsibleTest, collapsible_toggles_bound_state_and_hides_content)
+TEST_F(CollapsibleTest, collapsible_toggles_and_restyles_content_only_on_change)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -76,6 +78,10 @@ TEST_F(CollapsibleTest, collapsible_toggles_bound_state_and_hides_content)
   EXPECT_GT(marker->bounds.h, 0);
   EXPECT_TRUE(has_render_copy_fitting(render_target()->render_ops, marker->bounds));
 
+  const auto collapsed_style_generation = content->style_generation;
+  update_cycle();
+  EXPECT_EQ(content->style_generation, collapsed_style_generation);
+
   input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
   update_cycle();
   input().mouse_up({header->bounds.x + 5, header->bounds.y + 5});
@@ -92,172 +98,5 @@ TEST_F(CollapsibleTest, collapsible_toggles_bound_state_and_hides_content)
   ASSERT_TRUE(content->effective_style.visibility.has_value());
   EXPECT_EQ(*content->effective_style.visibility, Pixils::UI::Style::Visibility::VISIBLE);
   EXPECT_EQ(content->bounds.h, 30);
-}
-
-TEST_F(CollapsibleTest, disabled_collapsible_header_does_not_toggle)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx]
-               {:advanced? false})
-       :children [(pixils.ui.collapsible/make
-                   {:title "Advanced"
-                    :expanded? (pixils.ui/bind-state :advanced?)
-                    :disabled? true
-                    :header-style {:height 20}
-                    :content-style {:height 30}
-                    :children [{:mode 'ui/text
-                                :state {:value "Advanced content"}}]})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  auto collapsible = session.active_mode->children[0];
-  ASSERT_NE(collapsible, nullptr);
-  auto header = collapsible->children[0];
-  ASSERT_NE(header, nullptr);
-
-  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-  input().mouse_up({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-
-  auto expanded = state_property(session.active_mode->state, "advanced?");
-  ASSERT_NE(expanded, nullptr);
-  EXPECT_EQ(expanded->to_string(), "false");
-}
-
-TEST_F(CollapsibleTest, header_shared_state_policy_records_pressed_in_state_and_ui_state)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:children [{:mode 'ui/collapsible-header
-                   :style {:width 120 :height 20}
-                   :state {:title "Advanced"}}]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto header = session.active_mode->children[0];
-  ASSERT_NE(header, nullptr);
-
-  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-
-  auto pressed = state_property(header->state, "pressed");
-  auto ui_pressed = state_property(header->ui_state, "pressed");
-  ASSERT_NE(pressed, nullptr);
-  ASSERT_NE(ui_pressed, nullptr);
-  EXPECT_EQ(pressed->to_string(), "true");
-  EXPECT_EQ(ui_pressed->to_string(), "true");
-}
-
-TEST_F(CollapsibleTest, header_pressed_state_survives_custom_update)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:children [{:mode 'ui/collapsible-header
-                   :style {:width 120 :height 20}
-                   :state {:title "Advanced"
-                           :disabled? false}
-                   :update (fn [state ctx]
-                             {:title (:title state)
-                              :disabled? (:disabled? state)})}]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto header = session.active_mode->children[0];
-  ASSERT_NE(header, nullptr);
-
-  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-
-  auto pressed = state_property(header->state, "pressed");
-  auto ui_pressed = state_property(header->ui_state, "pressed");
-  ASSERT_NE(pressed, nullptr);
-  ASSERT_NE(ui_pressed, nullptr);
-  EXPECT_EQ(pressed->to_string(), "true");
-  EXPECT_EQ(ui_pressed->to_string(), "true");
-}
-
-TEST_F(CollapsibleTest, collapsible_can_omit_marker)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.collapsible/make
-                   {:title "Plain"
-                    :marker? false
-                    :expanded? true
-                    :header-style {:height 20}
-                    :children [{:mode 'ui/text
-                                :state {:value "Content"}}]})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  auto collapsible = session.active_mode->children[0];
-  ASSERT_NE(collapsible, nullptr);
-  auto header = collapsible->children[0];
-  ASSERT_NE(header, nullptr);
-  ASSERT_EQ(header->children.size(), 1u);
-  EXPECT_EQ(header->children[0]->definition->name, "ui/text");
-}
-
-TEST_F(CollapsibleTest, collapsible_accepts_text_marker_overrides)
-{
-  runtime.eval(R"(
-    (pixils/defmode root-mode
-      {:init (fn [state ctx]
-               {:expanded? false})
-       :children [(pixils.ui.collapsible/make
-                   {:title "Advanced"
-                    :expanded? (pixils.ui/bind-state :expanded?)
-                    :collapsed-marker "+"
-                    :expanded-marker "-"
-                    :header-style {:height 20}
-                    :children [{:mode 'ui/text
-                                :state {:value "Content"}}]})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  auto collapsible = session.active_mode->children[0];
-  ASSERT_NE(collapsible, nullptr);
-  auto header = collapsible->children[0];
-  ASSERT_NE(header, nullptr);
-  ASSERT_EQ(header->children.size(), 2u);
-  auto marker = header->children[0];
-  EXPECT_EQ(marker->definition->name, "ui/collapsible-marker");
-  EXPECT_EQ(marker->children.size(), 0u);
-  auto collapsed_marker = state_property(marker->state, "collapsed-marker");
-  auto expanded_marker = state_property(marker->state, "expanded-marker");
-  ASSERT_NE(collapsed_marker, nullptr);
-  ASSERT_NE(expanded_marker, nullptr);
-  EXPECT_EQ(collapsed_marker->to_string(), "\"+\"");
-  EXPECT_EQ(expanded_marker->to_string(), "\"-\"");
-
-  input().mouse_down({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-  input().mouse_up({header->bounds.x + 5, header->bounds.y + 5});
-  update_cycle();
-  session.render_mode();
-
-  auto expanded = state_property(session.active_mode->state, "expanded?");
-  ASSERT_NE(expanded, nullptr);
-  EXPECT_EQ(expanded->to_string(), "true");
+  EXPECT_GT(content->style_generation, collapsed_style_generation);
 }

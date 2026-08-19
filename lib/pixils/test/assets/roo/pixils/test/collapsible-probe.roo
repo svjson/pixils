@@ -1,0 +1,84 @@
+(ns pixils.test.collapsible-probe
+  (:require pixils
+            pixils.ui.collapsible
+            [pixils.ui :as ui]))
+
+(pixils/defmode disabled-root
+  {:init (fn [_state _ctx]
+           {:advanced? false})
+   :children [(pixils.ui.collapsible/make
+               {:title "Advanced"
+                :expanded? (pixils.ui/bind-state :advanced?)
+                :disabled? true
+                :header-style {:width 120 :height 20}
+                :children [{:mode 'ui/text
+                            :state {:value "Content"}}]})]})
+
+(pixils/defmode constructor-precedence-root
+  {:children [(pixils.ui.collapsible/make
+               {:title "Top-level title"
+                :expanded? false
+                :state {:app-value 7
+                        :title "Legacy title"
+                        :expanded? true
+                        :component {:title "Component title"
+                                    :expanded? true}}
+                :content-state {:form-value 9
+                                :content-data {:custom-value 11}}
+                :children [{:mode 'ui/text
+                            :state {:value "Content"}}]})]})
+
+(pixils/defmode state-replacement-root
+  {:children [(pixils.ui.collapsible/make
+               {:title "Advanced"
+                :expanded? false
+                :header-style {:width 120 :height 20}
+                :update (fn [_state _ctx]
+                          {:app-value 5})
+                :children [{:mode 'ui/text
+                            :state {:value "Content"}}]})]})
+
+(pixils/defmode header-root
+  {:children [{:mode 'ui/collapsible-header
+               :style {:width 120 :height 20}
+               :state {:title "Advanced"}}]})
+
+(pixils/defmode header-state-replacement-root
+  {:children [{:mode 'ui/collapsible-header
+               :style {:width 120 :height 20}
+               :state {:title "Advanced"
+                       :disabled? false}
+               :update (fn [state _ctx]
+                         {:title (:title state)
+                          :disabled? (:disabled? state)})}]})
+
+(pixils/defmode marker-overrides-root
+  {:init (fn [_state _ctx]
+           {:expanded? false})
+   :children [(pixils.ui.collapsible/make
+               {:title "Advanced"
+                :expanded? (pixils.ui/bind-state :expanded?)
+                :collapsed-marker "+"
+                :expanded-marker "-"
+                :header-style {:width 120 :height 20}
+                :children [{:mode 'ui/text
+                            :state {:value "Content"}}]})]})
+
+(pixils/defmode keyboard-root
+  {:init (fn [_state _ctx]
+           {:advanced? false
+            :focused? false})
+   :update (fn [state ctx]
+             (unless (:focused? state)
+               (ui/focus! (head (ui/children (head (ui/children ctx))))))
+             (assoc state :focused? true))
+   :on {:collapsible/toggle
+        (fn [state event _ctx]
+          (assoc state :last-toggle (:payload event)))}
+   :children [(pixils.ui.collapsible/make
+               {:title "Advanced"
+                :value :advanced
+                :expanded? (pixils.ui/bind-state :advanced?)
+                :header-style {:width 120 :height 20}
+                :children [{:mode 'ui/text
+                            :state {:value "Content"}}]})]})

@@ -1,0 +1,186 @@
+(ns pixils.ui.collapsible-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [pixils.ui.collapsible :as collapsible]))
+
+(defun app-for [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file! app "pixils/test/collapsible-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    app))
+
+
+
+;; pixils.ui.collapsible/make
+
+(deftest make/uses-component-precedence-and-preserves-content-state
+  (s/given
+    (app-for 'constructor-precedence-root))
+
+  (s/when [app]
+    (let [collapsible (runtime/find-view app "ui/collapsible")
+          header (runtime/find-view app "ui/collapsible-header")
+          content (runtime/find-view app "ui/collapsible-content")]
+      {:component (select-keys (:ui-state collapsible) [:title :expanded?])
+       :application (select-keys (:state collapsible) [:app-value])
+       :header (select-keys (:ui-state header) [:title :expanded?])
+       :content-ui (select-keys (:ui-state content) [:expanded?])
+       :content-application
+       (select-keys (:state content) [:form-value :content-data])}))
+
+  (s/then [result]
+    (is (= {:component {:title "Top-level title"
+                        :expanded? false}
+            :application {:app-value 7}
+            :header {:title "Top-level title"
+                     :expanded? false}
+            :content-ui {:expanded? false}
+            :content-application {:form-value 9
+                                  :content-data {:custom-value 11}}}
+           result))))
+
+(deftest make/omits-marker-when-marker-option-is-false
+  (s/when []
+    (-> (collapsible/make {:title "Plain"
+                           :marker? false
+                           :expanded? true
+                           :children [{:mode 'ui/text
+                                       :state {:value "Content"}}]})
+        :children
+        head
+        :children
+        (map :mode)))
+
+  (s/then [modes]
+    (is (= ['ui/text] modes))))
+
+(deftest make/projects-text-marker-overrides
+  (s/given
+    (app-for 'marker-overrides-root))
+
+  (s/when [app]
+    (let [marker (runtime/find-view app "ui/collapsible-marker")]
+      {:state (select-keys (:state marker)
+                           [:collapsed-marker :expanded-marker])
+       :ui-state (select-keys (:ui-state marker)
+                              [:collapsed-marker :expanded-marker])
+       :children (:children marker)}))
+
+  (s/then [result]
+    (is (= {:state {:collapsed-marker "+"
+                    :expanded-marker "-"}
+            :ui-state {:collapsed-marker "+"
+                       :expanded-marker "-"}
+            :children nil}
+           result))))
+
+
+
+;; pixils.ui/collapsible
+
+(deftest collapsible/does-not-toggle-when-disabled
+  (s/given
+    (app-for 'disabled-root))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view app "ui/collapsible-header"))
+    (runtime/update! app)
+    {:application-expanded? (:advanced? (runtime/active-state app))
+     :ui-expanded? (-> (runtime/find-view app "ui/collapsible")
+                       :ui-state
+                       :expanded?)})
+
+  (s/then [result]
+    (is (= {:application-expanded? false
+            :ui-expanded? false}
+           result))))
+
+(deftest collapsible/preserves-expanded-ui-state-across-application-state-replacement
+  (s/given
+    (app-for 'state-replacement-root))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view app "ui/collapsible-header"))
+    (runtime/update! app)
+    {:component
+     (select-keys (:ui-state (runtime/find-view app "ui/collapsible"))
+                  [:expanded?])
+     :content
+     (select-keys (:ui-state (runtime/find-view app "ui/collapsible-content"))
+                  [:expanded?])
+     :application
+     (select-keys (:state (runtime/find-view app "ui/collapsible"))
+                  [:app-value])})
+
+  (s/then [result]
+    (is (= {:component {:expanded? true}
+            :content {:expanded? true}
+            :application {:app-value 5}}
+           result))))
+
+
+
+;; pixils.ui/collapsible-header
+
+(deftest collapsible-header/mirrors-pressed-state-under-shared-policy
+  (s/given
+    (app-for 'header-root))
+
+  (s/when [app]
+    (let [header (runtime/find-view app "ui/collapsible-header")]
+      (runtime/mouse-down-in! app header 5 5)
+      (runtime/update! app)
+      (let [header (runtime/find-view app "ui/collapsible-header")]
+        {:state (select-keys (:state header) [:pressed])
+         :ui-state (select-keys (:ui-state header) [:pressed])})))
+
+  (s/then [result]
+    (is (= {:state {:pressed true}
+            :ui-state {:pressed true}}
+           result))))
+
+(deftest collapsible-header/preserves-pressed-state-across-application-state-replacement
+  (s/given
+    (app-for 'header-state-replacement-root))
+
+  (s/when [app]
+    (let [header (runtime/find-view app "ui/collapsible-header")]
+      (runtime/mouse-down-in! app header 5 5)
+      (runtime/update! app)
+      (let [header (runtime/find-view app "ui/collapsible-header")]
+        {:state (select-keys (:state header) [:title :disabled? :pressed])
+         :ui-state (select-keys (:ui-state header)
+                                [:title :disabled? :pressed])})))
+
+  (s/then [result]
+    (is (= {:state {:title "Advanced"
+                    :disabled? false
+                    :pressed true}
+            :ui-state {:title "Advanced"
+                       :disabled? false
+                       :pressed true}}
+           result))))
+
+(deftest collapsible-header/toggles-the-focused-component-on-enter
+  (s/given
+    (app-for 'keyboard-root))
+
+  (s/when [app]
+    (runtime/press-key! app :enter)
+    {:application-expanded? (:advanced? (runtime/active-state app))
+     :component-expanded? (-> (runtime/find-view app "ui/collapsible")
+                              :ui-state
+                              :expanded?)
+     :toggle (:last-toggle (runtime/active-state app))})
+
+  (s/then [result]
+    (is (= {:application-expanded? true
+            :component-expanded? true
+            :toggle {:expanded? true
+                     :value :advanced}}
+           result))))

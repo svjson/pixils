@@ -14,7 +14,7 @@
    :a "A"})
 
 (defun channel-value [value]
-  (int (max 0 (min 255 (or value 0)))))
+  (clamp (or value 0) 0 255))
 
 (defun normalize-color [color]
   {:r (channel-value (:r color))

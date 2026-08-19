@@ -421,7 +421,8 @@ theme-styled inset frame with the title over the top border:
 
 `ui/collapsible` is usually created with `pixils.ui.collapsible/make`. Bind
 `:expanded?` when an ancestor should own the open/closed state. Clicking the
-header toggles the state and emits `:collapsible/toggle` with
+header, or pressing Enter while it is focused, toggles the state and emits
+`:collapsible/toggle` with
 `{:expanded? bool :value value}`.
 
 ```clojure

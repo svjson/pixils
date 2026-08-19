@@ -18,8 +18,9 @@
                        :h (or (:h dim) 0)}
                       :center) 0))
 
-(defun render-collapsible-marker! [state ctx]
-  (let [theme (ui/theme-var ctx :collapsible {})
+(defun render-collapsible-marker! [_state ctx]
+  (let [state (-> ctx :view :ui-state)
+        theme (ui/theme-var ctx :collapsible {})
         marker (if (:expanded? state)
                  (or (:expanded-marker state)
                      (:expanded-image state)
@@ -41,7 +42,7 @@
                                               {:w 9 :h 9}))})
       (unless (keyword? marker)
         (let [label (or marker (if (:expanded? state) "v" ">"))
-              args (reduce-kv (or (-> ctx :view :effective-style :text) {})
+              args (reduce-kv (-> ctx :view :effective-style :text)
                               {}
                               (fn [arg-map style-key value]
                                 (if (nil? value)
@@ -60,53 +61,100 @@
                                          (r/text-size label args))
                      args)))))))
 
-(defun sync-collapsible-content-style! [state ctx]
-  (ui/style! (:view ctx)
-             {:hidden (not (:expanded? state))})
-  state)
+(defun sync-collapsible-content-style! [ui-state _state ctx]
+  (let [expanded? (not (not (:expanded? ui-state)))]
+    (if (and (contains? ui-state :applied-expanded?)
+             (= expanded? (:applied-expanded? ui-state)))
+      ui-state
+      (do
+        (ui/style! (:view ctx)
+                   {:hidden (not expanded?)})
+        (assoc ui-state :applied-expanded? expanded?)))))
 
-(defun class-map [class]
-  (if class {:class class} {}))
-
+(defun request-collapsible-toggle! [ui-state ctx]
+  (ui/emit! (:view ctx)
+            :collapsible/header-click
+            {:value (:value ui-state)}))
 
 
 ;; Internal components
 
+(def COLLAPSIBLE-MARKER-UI-STATE-KEYS
+  [:expanded?
+   :expanded-marker
+   :collapsed-marker
+   :expanded-image
+   :collapsed-image])
+
+(def COLLAPSIBLE-HEADER-UI-STATE-KEYS
+  [:title
+   :expanded?
+   :expanded-marker
+   :collapsed-marker
+   :expanded-image
+   :collapsed-image
+   :disabled?
+   :value
+   :pressed])
+
+(def COLLAPSIBLE-CONTENT-UI-STATE-KEYS
+  [:expanded?])
+
 (defcomponent ui/collapsible-marker
-  {:render render-collapsible-marker!})
+  {:ui/state-keys COLLAPSIBLE-MARKER-UI-STATE-KEYS
+   :render render-collapsible-marker!})
 
 (defcomponent ui/collapsible-header
   {:focusable true
-   :ui/state-keys [:pressed]
+   :ui/state-keys COLLAPSIBLE-HEADER-UI-STATE-KEYS
    :init-ui (fn [ui-state state ctx]
               (assoc ui-state
                      :pressed
                      (if (contains? ui-state :pressed)
                        (:pressed ui-state)
                        (:pressed state))))
-   :update-ui (fn [ui-state state ctx]
-                (assoc ui-state
-                       :pressed
-                       (and (not (:disabled? state))
-                            (contains? (-> ctx :view :interaction :pressed) :left)
-                            (-> ctx :view :interaction :hovered))))
+   :update-ui (fn [ui-state _state ctx]
+                (let [pressed? (and (not (:disabled? ui-state))
+                                    (contains? (-> ctx :view :interaction :pressed) :left)
+                                    (-> ctx :view :interaction :hovered))]
+                  (if (= pressed? (:pressed ui-state))
+                    ui-state
+                    (assoc ui-state :pressed pressed?))))
    :on-click (fn [state event ctx]
-               (when (and (not (:disabled? state))
-                          (= (:button event) :left))
-                 (ui/emit! (:view ctx)
-                           :collapsible/header-click
-                           {:value (:value state)}))
-               state)})
+               (let [ui-state (-> ctx :view :ui-state)]
+                 (when (and (not (:disabled? ui-state))
+                            (= (:button event) :left))
+                   (request-collapsible-toggle! ui-state ctx)))
+               state)
+   :on-key-down (fn [state event ctx]
+                  (let [ui-state (-> ctx :view :ui-state)]
+                    (when (and (not (:disabled? ui-state))
+                               (= (:key event) :key/enter))
+                      (ui/stop-propagation! event)
+                      (request-collapsible-toggle! ui-state ctx)))
+                  state)})
 
 (defcomponent ui/collapsible-content
-  {:init sync-collapsible-content-style!
-   :update sync-collapsible-content-style!})
+  {:ui/state-keys COLLAPSIBLE-CONTENT-UI-STATE-KEYS
+   :init-ui sync-collapsible-content-style!
+   :update-ui sync-collapsible-content-style!})
 
 
 ; Main component
 
+(def COLLAPSIBLE-UI-STATE-KEYS
+  [:title
+   :expanded?
+   :expanded-marker
+   :collapsed-marker
+   :expanded-image
+   :collapsed-image
+   :disabled?
+   :value])
+
 (defcomponent ui/collapsible
-  {:class :ui/collapsible})
+  {:class :ui/collapsible
+   :ui/state-keys COLLAPSIBLE-UI-STATE-KEYS})
 
 
 
@@ -134,70 +182,88 @@
 
   The returned component owns the application-facing `:expanded?` state and
   emits `:collapsible/toggle` with `{:expanded? bool :value value}` when the
-  header is clicked. The header's transient `:pressed` value is component UI
+  header is activated. The header's transient `:pressed` value is component UI
   state, kept visible in ordinary state by the default shared state policy
   during migration."
   [{:keys [title expanded? marker? expanded-marker collapsed-marker
            expanded-image collapsed-image disabled? value class style state init update on
            header-style header-class marker-style marker-class
            title-style title-class header-children content-style
-           content-class content-state children]}]
-  (let [collapsible-state (merge (or state {})
-                                 {:title title
-                                  :expanded? expanded?
-                                  :marker? marker?
-                                  :expanded-marker expanded-marker
-                                  :collapsed-marker collapsed-marker
-                                  :expanded-image expanded-image
-                                  :collapsed-image collapsed-image
-                                  :disabled? disabled?
-                                  :value value})]
-    (merge {:mode 'ui/collapsible
-            :style (or style {})
-            :state collapsible-state
-            :on (merge (or on {})
-                       {:collapsible/header-click
-                        (fn [state event ctx]
-                          (let [next-expanded? (not (:expanded? state))]
-                            (ui/stop-propagation! event)
-                            (ui/emit! (:view ctx)
-                                      :collapsible/toggle
-                                      {:expanded? next-expanded?
-                                       :value (:value state)})
-                            (assoc state :expanded? next-expanded?)))})
-            :children [(merge {:mode 'ui/collapsible-header
-                               :id "header"
-                               :style (or header-style {})
-                               :state {:title (ui/bind-state :title)
-                                       :expanded? (ui/bind-state :expanded?)
-                                       :disabled? (ui/bind-state :disabled?)
-                                       :value (ui/bind-state :value)}
-                               :children (concat
-                                          (if (not= (:marker? collapsible-state) false)
-                                            [(merge
-                                              {:mode 'ui/collapsible-marker
-                                               :style (or marker-style {})
-                                               :state {:expanded? (ui/bind-state :expanded?)
-                                                       :expanded-marker expanded-marker
-                                                       :collapsed-marker collapsed-marker
-                                                       :expanded-image expanded-image
-                                                       :collapsed-image collapsed-image}}
-                                              (class-map marker-class))]
-                                            [])
-                                          (or header-children
-                                              [(merge {:mode 'ui/text
-                                                       :class :ui/collapsible-title
-                                                       :style (or title-style {})
-                                                       :state {:value (ui/bind-state :title)}}
-                                                      (class-map title-class))]))}
-                              (class-map header-class))
-                       (merge {:mode 'ui/collapsible-content
-                               :id "content"
-                               :style (or content-style {})
-                               :state (merge (or content-state {})
-                                             {:expanded? (ui/bind-state :expanded?)})
-                               :children (or children [])}
-                              (class-map content-class))]}
-           (if class {:class class} {})
-           (if init {:init init} {})
-           (if update {:update update} {}))))
+           content-class content-state children ui-state state-policy]
+    :as opts}]
+  (let [state (or state {})
+        component (merge (select-keys state COLLAPSIBLE-UI-STATE-KEYS)
+                         (:component state)
+                         (select-keys opts COLLAPSIBLE-UI-STATE-KEYS))
+        header-component
+        {:title (ui/project-state :title)
+         :expanded? (ui/project-state :expanded?)
+         :expanded-marker (ui/project-state :expanded-marker)
+         :collapsed-marker (ui/project-state :collapsed-marker)
+         :expanded-image (ui/project-state :expanded-image)
+         :collapsed-image (ui/project-state :collapsed-image)
+         :disabled? (ui/project-state :disabled?)
+         :value (ui/project-state :value)}
+        content-state (or content-state {})]
+    (cond->
+      {:mode 'ui/collapsible
+       :state (assoc state :component component)
+       :on (merge on
+                  {:collapsible/header-click
+                   (fn [state event ctx]
+                     (let [ui-state (-> ctx :view :ui-state)
+                           next-expanded? (not (:expanded? ui-state))]
+                       (ui/stop-propagation! event)
+                       (ui/set-ui-state! ctx
+                                         (assoc ui-state
+                                                :expanded?
+                                                next-expanded?))
+                       (ui/emit! (:view ctx)
+                                 :collapsible/toggle
+                                 {:expanded? next-expanded?
+                                  :value (:value ui-state)})
+                       (assoc state :expanded? next-expanded?)))})
+       :children
+       [(cond->
+          {:mode 'ui/collapsible-header
+           :id "header"
+           :state {:component header-component}
+           :children
+           (concat
+            (if (not= marker? false)
+              [(cond->
+                 {:mode 'ui/collapsible-marker
+                  :state
+                  {:component
+                   {:expanded? (ui/project-state :expanded?)
+                    :expanded-marker (ui/project-state :expanded-marker)
+                    :collapsed-marker (ui/project-state :collapsed-marker)
+                    :expanded-image (ui/project-state :expanded-image)
+                    :collapsed-image (ui/project-state :collapsed-image)}}}
+                 (contains? opts :marker-style) (assoc :style marker-style)
+                 marker-class (assoc :class marker-class))]
+              [])
+            (or header-children
+                [(cond->
+                   {:mode 'ui/text
+                    :class :ui/collapsible-title
+                    :state {:value (ui/project-state :title)}}
+                   (contains? opts :title-style) (assoc :style title-style)
+                   title-class (assoc :class title-class))]))}
+          (contains? opts :header-style) (assoc :style header-style)
+          header-class (assoc :class header-class))
+        (cond->
+          {:mode 'ui/collapsible-content
+           :id "content"
+           :ui/state-policy :isolated
+           :ui-state {:expanded? (ui/project-state :expanded?)}
+           :state content-state
+           :children (or children [])}
+          (contains? opts :content-style) (assoc :style content-style)
+          content-class (assoc :class content-class))]}
+      (contains? opts :style) (assoc :style style)
+      class (assoc :class class)
+      ui-state (assoc :ui-state ui-state)
+      state-policy (assoc :ui/state-policy state-policy)
+      init (assoc :init init)
+      update (assoc :update update))))
