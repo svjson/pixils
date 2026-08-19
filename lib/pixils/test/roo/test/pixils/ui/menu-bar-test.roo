@@ -1,0 +1,123 @@
+(ns pixils.ui.menu-bar-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [pixils.ui.menu-bar :as menu-bar]))
+
+(defun app-for [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file! app "pixils/test/menu-bar-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    app))
+
+
+
+;; pixils.ui.menu-bar/make-menu
+
+(deftest make-menu/separates-application-and-component-state
+  (s/when []
+    (let [spec (menu-bar/make-menu
+                {:state {:game :ready}
+                 :style {:width 123
+                         :height 17}}
+                {:items [{:label "File"}]}
+                {})]
+      {:mode (:mode spec)
+       :style (:style spec)
+       :application (select-keys (:state spec) [:game])
+       :component (select-keys (-> spec :state :component)
+                               [:menu-scale
+                                :active-index
+                                :pending-open-index])
+       :child-modes (map (:children spec) :mode)
+       :child-inputs (select-keys (-> spec :children head :state)
+                                  [:menu-index :disabled? :text])}))
+
+  (s/then [result]
+    (is (= {:mode 'ui/menu-bar
+            :style {:width 123
+                    :height 17}
+            :application {:game :ready}
+            :component {}
+            :child-modes ['ui/menu-bar-item]
+            :child-inputs {:menu-index 0
+                           :text "File"}}
+           result))))
+
+(deftest make-menu/preserves-the-application-map-call-shape
+  (is (= {:mode 'ui/menu-bar
+          :application {:game :ready}
+          :style-supplied? false}
+         (let [spec (menu-bar/make-menu
+                     {:game :ready}
+                     {:items [{:label "File"}]}
+                     {})]
+           {:mode (:mode spec)
+            :application (select-keys (:state spec) [:game])
+            :style-supplied? (contains? spec :style)}))))
+
+(deftest make-menu/applies-canonical-component-input-precedence
+  (is (= {:menu-scale 4
+          :active-index 3
+          :pending-open-index 2}
+         (let [spec (menu-bar/make-menu
+                     {:state {:menu-scale 1
+                              :active-index 1
+                              :component {:menu-scale 2
+                                          :active-index 2
+                                          :pending-open-index 2}}
+                      :menu-scale 4
+                      :active-index 3}
+                     {:items [{:label "File"}]}
+                     {})]
+           (select-keys (-> spec :state :component)
+                        [:menu-scale
+                         :active-index
+                         :pending-open-index])))))
+
+
+
+;; pixils.ui/menu-bar-item
+
+(deftest menu-bar-item/emits-leaf-actions-without-opening-a-popup
+  (s/given
+    (app-for 'menu-action-root))
+
+  (s/when [app]
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    {:mode (runtime/active-mode-name app)
+     :state (runtime/active-state app)})
+
+  (s/then [result]
+    (is (= {:mode "menu-action-root"
+            :state {:quit true
+                    :payload {:source :menu}}}
+           result))))
+
+(deftest menu-bar-item/does-not-open-an-empty-item
+  (s/given
+    (app-for 'menu-static-root))
+
+  (s/when [app]
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    {:mode (runtime/active-mode-name app)
+     :ui-state (select-keys
+                (:ui-state (runtime/find-view app "ui/menu-bar-item"))
+                [:active-index :pending-open-index])})
+
+  (s/then [result]
+    (is (= {:mode "menu-static-root"
+            :ui-state {}}
+           result))))

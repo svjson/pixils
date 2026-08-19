@@ -1,0 +1,814 @@
+(ns pixils.ui.popup-menu
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.image :as img]
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.menu-model :as model]))
+
+
+
+;; Popup model and construction
+
+(defun child-view-at
+  "Resolve a direct child view by index.
+
+  Args:
+  - `view`: Parent view.
+  - `index`: Candidate child index.
+
+  Returns:
+  The child view, or `nil` for an invalid index."
+  [view index]
+  (let [children (ui/children view)]
+    (when (and (>= index 0)
+               (< index (count children)))
+      (nth children index))))
+
+(defun item-selected?
+  "Derive whether an option or toggle menu node is selected.
+
+  Args:
+  - `node`: Normalized menu node.
+  - `state`: Application state containing the node's selection path.
+
+  Returns:
+  The derived selected value."
+  [node state]
+  (let [selected-value (get-in state (:selected-path node))]
+    (case (:item-type node)
+      :toggle selected-value
+      :option (= selected-value (:value node))
+      :default false)))
+
+(defun popup-item-state
+  "Build stable component inputs for a popup row.
+
+  Args:
+  - `node`: Normalized menu node.
+  - `state`: Popup and application inputs.
+
+  Returns:
+  Component state for a standard popup row."
+  [node state]
+  (let [has-submenu (model/submenu-node? node)]
+    {:node node
+     :index (:index state)
+     :highlighted-index (:highlighted-index state)
+     :input-source (:input-source state)
+     :menu-depth (:menu-depth state)
+     :text (:display-text node)
+     :shortcut-text (:shortcut-text node)
+     :trailing-shortcut-text (if has-submenu "" (:shortcut-text node))
+     :disabled? (:disabled? node)
+     :has-submenu has-submenu
+     :highlighted false
+     :option-state (:option-state state)
+     :game (:game state)
+     :preferences (:preferences state)}))
+
+(defun popup-option-item-state
+  "Build popup-row state with derived option selection.
+
+  Args:
+  - `node`: Normalized option or toggle node.
+  - `state`: Popup and application inputs.
+
+  Returns:
+  Component state for an option popup row."
+  [node state]
+  (assoc (popup-item-state node state)
+         :selected
+         (item-selected? node state)))
+
+(defun popup-item-child
+  "Build the child specification for one normalized popup node.
+
+  Args:
+  - `node`: Normalized menu node.
+  - `state`: Popup and application inputs.
+
+  Returns:
+  A separator, option-row, or standard-row view specification."
+  [node state]
+  (cond
+    (= :separator (:node-type node))
+    {:mode 'ui/menu-separator}
+
+    (or (= (:item-type node) :option)
+        (= (:item-type node) :toggle))
+    {:mode 'ui/popup-menu-option-item
+     :state (popup-option-item-state node state)}
+
+    :default
+    {:mode 'ui/popup-menu-item
+     :state (popup-item-state node state)}))
+
+(defun popup-position
+  "Calculate an unclamped popup origin relative to an anchor view.
+
+  Args:
+  - `anchor-view`: View containing anchor bounds.
+  - `placement`: Placement keyword such as `:right` or `:below`.
+
+  Returns:
+  Absolute `:left` and `:top` coordinates."
+  [anchor-view placement]
+  (case placement
+    :right {:left (+ (-> anchor-view :bounds :x)
+                     (-> anchor-view :bounds :w))
+            :top (-> anchor-view :bounds :y)}
+    :default {:left (-> anchor-view :bounds :x)
+              :top (+ (-> anchor-view :bounds :y)
+                      (-> anchor-view :bounds :h))}))
+
+(defun point-in-rect?
+  "Return whether a point lies inside a half-open rectangle.
+
+  Args:
+  - `point`: Point map with `:x` and `:y` coordinates.
+  - `rect`: Rectangle map with position and dimensions."
+  [point rect]
+  (and (some? point)
+       (some? rect)
+       (>= (:x point) (:x rect))
+       (>= (:y point) (:y rect))
+       (< (:x point) (+ (:x rect) (:w rect)))
+       (< (:y point) (+ (:y rect) (:h rect)))))
+
+(defun popup-menu-children
+  "Build the outer and inner popup view specifications.
+
+  Args:
+  - `items`: Normalized menu nodes.
+  - `state`: Popup and application inputs.
+  - `position`: Absolute popup origin.
+
+  Returns:
+  Popup child specifications."
+  [items state position]
+  [{:mode 'ui/popup-menu-outer
+    :state {:items (ui/bind-state :items)
+            :highlighted-index (ui/bind-state :highlighted-index)
+            :input-source (ui/bind-state :input-source)
+            :menu-depth (ui/bind-state :menu-depth)
+            :menu-scale (ui/bind-state :menu-scale)
+            :option-state (ui/bind-state :option-state)
+            :game (ui/bind-state :game)
+            :preferences (ui/bind-state :preferences)}
+    :style {:position :absolute
+            :width :shrink
+            :height :shrink
+            :left (:left position)
+            :top (:top position)}
+    :children
+    [{:mode 'ui/popup-menu-inner
+      :state {:items (ui/bind-state :items)
+              :highlighted-index (ui/bind-state :highlighted-index)
+              :input-source (ui/bind-state :input-source)
+              :menu-depth (ui/bind-state :menu-depth)
+              :menu-scale (ui/bind-state :menu-scale)
+              :option-state (ui/bind-state :option-state)
+              :game (ui/bind-state :game)
+              :preferences (ui/bind-state :preferences)}
+      :children
+      (for-indexed [index item items]
+        (assoc (popup-item-child
+                item
+                {:node item
+                 :index index
+                 :highlighted-index (ui/bind-state :highlighted-index)
+                 :input-source (ui/bind-state :input-source)
+                 :menu-depth (ui/bind-state :menu-depth)
+                 :menu-scale (ui/bind-state :menu-scale)
+                 :option-state (ui/bind-state :option-state)
+                 :game (ui/bind-state :game)
+                 :preferences (ui/bind-state :preferences)})
+               :style {:width :fill}))}]}])
+
+(defun open-popup-at-position!
+  "Open a popup overlay for normalized items at an absolute position.
+
+  Args:
+  - `items`: Normalized menu nodes.
+  - `state`: Popup and application inputs.
+  - `origin-view`: View that receives the popup result.
+  - `position`: Absolute popup origin.
+
+  Returns:
+  The pushed mode result, or `nil` for an empty item list."
+  [items state origin-view position]
+  (when (not-empty? items)
+    (push-mode!
+     (or (:popup-mode state) 'ui/popup-menu)
+     {:items items
+      :highlighted-index (model/first-selectable-index items)
+      :input-source :mouse
+      :menu-depth (or (:menu-depth state) 0)
+      :menu-scale (:menu-scale state)
+      :anchor-bounds (:anchor-bounds state)
+      :option-state (:option-state state)
+      :game (:game state)
+      :preferences (:preferences state)}
+     {:origin {:view origin-view
+               :event :menu/select}
+      :style {:scale (:menu-scale state)}
+      :children (popup-menu-children items state position)})))
+
+(defun open-popup-at-view!
+  "Open a node's submenu relative to an anchor view.
+
+  Args:
+  - `node`: Enabled normalized node owning submenu items.
+  - `state`: Popup and application inputs.
+  - `anchor-view`: View used for placement and result routing.
+  - `placement`: Relative placement keyword.
+
+  Returns:
+  The pushed mode result, or `nil` when the node cannot open."
+  [node state anchor-view placement]
+  (when (and (not (:disabled? node))
+             (model/submenu-node? node))
+    (open-popup-at-position! (:items node)
+                             (assoc state
+                                    :anchor-bounds
+                                    (:visual-bounds anchor-view))
+                             anchor-view
+                             (popup-position anchor-view placement))))
+
+(defun open-context-menu!
+  "Normalize and open a context-menu overlay.
+
+  Args:
+  - `menu-definition`: Declarative menu tree and optional settings.
+  - `position`: Global popup origin with `:x` and `:y` coordinates.
+  - `state`: Application and popup inputs, including an optional keymap.
+  - `ctx`: Hook context whose view receives the popup result.
+
+  Returns:
+  The pushed context-menu mode result, or `nil` for an empty menu."
+  [menu-definition position state ctx]
+  (let [menu (model/normalize-menu menu-definition (:keymap state))]
+    (open-popup-at-position! (:items menu)
+                             (assoc state :popup-mode 'ui/context-menu)
+                             (:view ctx)
+                             {:left (:x position)
+                              :top (:y position)})))
+
+(defun open-popup!
+  "Open a node's popup below the current hook view.
+
+  Args:
+  - `node`: Normalized node owning submenu items.
+  - `state`: Popup and application inputs.
+  - `ctx`: Hook context containing the anchor view.
+
+  Returns:
+  The pushed popup mode result, or `nil`."
+  [node state ctx]
+  (open-popup-at-view! node state (:view ctx) :below))
+
+(defun open-submenu!
+  "Open a nested popup to the right of an item view.
+
+  Args:
+  - `node`: Normalized node owning submenu items.
+  - `state`: Parent popup and application inputs.
+  - `anchor-view`: Item view used for placement and result routing.
+
+  Returns:
+  The pushed popup mode result, or `nil`."
+  [node state anchor-view]
+  (open-popup-at-view! node
+                       (assoc state
+                              :menu-depth
+                              (inc (or (:menu-depth state) 0)))
+                       anchor-view
+                       :right))
+
+(defun activate-menu-index!
+  "Activate the logical popup item at an index.
+
+  Args:
+  - `state`: Popup UI and application state.
+  - `ctx`: Popup-inner hook context.
+  - `index`: Candidate item index.
+
+  Returns:
+  The unchanged shared state after opening or emitting."
+  [state ctx index]
+  (let [node (model/highlighted-item (:items state) index)
+        child-view (child-view-at (:view ctx) index)]
+    (cond
+      (and node
+           child-view
+           (not (:disabled? node))
+           (model/submenu-node? node))
+      (do
+        (open-submenu! node state child-view)
+        state)
+
+      (and node
+           (not (:disabled? node))
+           (not (model/submenu-node? node))
+           (:action node))
+      (do
+        (ui/emit! (:view ctx)
+                  :menu/select
+                  {:type :action
+                   :action (:action node)
+                   :payload (:payload node)})
+        state)
+
+      :default
+      state)))
+
+
+
+;; Popup item state
+
+(def POPUP-MENU-ITEM-UI-STATE-KEYS
+  "Canonical UI-state keys owned by `ui/popup-menu-item`."
+  [:node
+   :index
+   :highlighted-index
+   :input-source
+   :menu-depth
+   :menu-scale
+   :text
+   :trailing-shortcut-text
+   :disabled?
+   :has-submenu
+   :highlighted])
+
+(def POPUP-MENU-OPTION-ITEM-UI-STATE-KEYS
+  "Additional UI-state keys owned by `ui/popup-menu-option-item`."
+  [:selected])
+
+(def POPUP-MENU-INNER-UI-STATE-KEYS
+  "Canonical UI-state keys owned by `ui/popup-menu-inner`."
+  [:items
+   :highlighted-index
+   :input-source
+   :menu-depth
+   :menu-scale])
+
+(defun popup-item-highlight-transition
+  "Derive keyboard highlighting for a popup item.
+
+  Args:
+  - `current`: Current derived model values.
+  - `candidate`: UI state after dependency changes.
+  - `changed-keys`: Dependencies changed by the transition.
+
+  Returns:
+  The next `:highlighted` model value."
+  [_current candidate _changed-keys]
+  {:highlighted (and (not (:disabled? candidate))
+                     (= :keyboard (:input-source candidate))
+                     (= (:index candidate)
+                        (:highlighted-index candidate)))})
+
+(defun update-popup-navigation
+  "Apply popup navigation changes to UI and compatibility state.
+
+  Args:
+  - `state`: Current shared compatibility state.
+  - `ctx`: Popup hook context.
+  - `updates`: Intrinsic navigation changes.
+
+  Returns:
+  Updated shared compatibility state."
+  [state ctx updates]
+  (ui/set-ui-state! ctx (merge (-> ctx :view :ui-state) updates))
+  (merge state updates))
+
+
+
+;; Popup item components
+
+(defcomponent ui/popup-menu-item
+  {:class :menu/item
+   :style {:layout {:direction :row
+                    :align-items :center}}
+   :ui/state-keys POPUP-MENU-ITEM-UI-STATE-KEYS
+   :ui/models [{:owns [:highlighted]
+                :depends-on [:disabled?
+                             :input-source
+                             :index
+                             :highlighted-index]
+                :transition popup-item-highlight-transition}]
+   :on-mouse-motion
+   (fn [state _event ctx]
+     (let [ui-state (-> ctx :view :ui-state)]
+       (if (:disabled? ui-state)
+         state
+         (update-popup-navigation state
+                                  ctx
+                                  {:input-source :mouse
+                                   :highlighted-index (:index ui-state)}))))
+   :on-mouse-down
+   (fn [state event ctx]
+     (let [ui-state (-> ctx :view :ui-state)]
+       (when (and (not (:disabled? ui-state))
+                  (:has-submenu ui-state))
+         (open-submenu! (:node ui-state)
+                        (merge state ui-state)
+                        (:view ctx)))
+       (ui/stop-propagation! event)
+       state))
+   :on-mouse-up
+   (fn [state _event ctx]
+     (let [ui-state (-> ctx :view :ui-state)
+           node (:node ui-state)]
+       (when (and (not (:disabled? ui-state))
+                  (not (:has-submenu ui-state)))
+         (ui/emit! (:view ctx)
+                   :menu/select
+                   {:type :action
+                    :action (:action node)
+                    :payload (:payload node)})))
+     state)
+   :on {:menu/select
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)]
+            (ui/stop-propagation! event)
+            (unless (:disabled? ui-state)
+              (ui/emit! (:view ctx) :menu/select (:payload event)))
+            state))}
+   :children [{:mode 'ui/menu-option-indicator
+               :state {:selected false
+                       :show-marker false}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/project-state :text)}}
+              {:mode 'ui/menu-item-trailing
+               :state {:has-submenu (ui/project-state :has-submenu)
+                       :highlighted (ui/project-state :highlighted)
+                       :shortcut-text
+                       (ui/project-state :trailing-shortcut-text)}}]})
+
+(defcomponent ui/popup-menu-option-item
+  {:extend 'ui/popup-menu-item
+   :ui/state-keys POPUP-MENU-OPTION-ITEM-UI-STATE-KEYS
+   :on-mouse-down (fn [state event _ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up
+   (fn [state _event ctx]
+     (let [ui-state (-> ctx :view :ui-state)
+           node (:node ui-state)]
+       (unless (:disabled? ui-state)
+         (ui/emit! (:view ctx)
+                   :menu/select
+                   {:type :action
+                    :action (:action node)
+                    :payload (:payload node)})))
+     state)
+   :children [{:mode 'ui/menu-option-indicator
+               :state {:selected (ui/project-state :selected)
+                       :show-marker true}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/project-state :text)}}
+              {:mode 'ui/menu-item-trailing
+               :state {:has-submenu (ui/project-state :has-submenu)
+                       :highlighted (ui/project-state :highlighted)
+                       :shortcut-text
+                       (ui/project-state :trailing-shortcut-text)}}]})
+
+(defcomponent ui/menu-separator {})
+
+
+
+;; Popup item rendering
+
+(defun menu-option-indicator-text-args
+  "Normalize themed text arguments for menu indicators.
+
+  Args:
+  - `style`: Effective indicator style.
+
+  Returns:
+  Render-ready text arguments."
+  [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map key value]
+               (if (nil? value)
+                 arg-map
+                 (assoc arg-map
+                        key
+                        (case key
+                          :font (if (keyword? value)
+                                  value
+                                  (keyword value))
+                          :default value))))))
+
+(defun render-menu-submenu-indicator!
+  "Render the themed submenu indicator for a popup row.
+
+  Args:
+  - `state`: Shared compatibility state.
+  - `ctx`: Render hook context."
+  [_state ctx]
+  (let [ui-state (-> ctx :view :ui-state)
+        indicator (ui/theme-var ctx :menu-submenu-indicator {})
+        highlighted (:highlighted ui-state)
+        text (if (:has-submenu ui-state)
+               (or (when highlighted (:highlighted-text indicator))
+                   (:text indicator)
+                   "")
+               "")
+        image (when (:has-submenu ui-state)
+                (or (when highlighted (:highlighted-image indicator))
+                    (:image indicator)))
+        text-args (menu-option-indicator-text-args
+                   (-> ctx :view :effective-style))]
+    (when image
+      (let [dim (img/size image)
+            y (if dim
+                (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                0)]
+        (r/image! image {:x 0 :y y})))
+    (unless (empty? text)
+      (r/text! text {:x 0 :y 0} text-args))))
+
+(defcomponent ui/menu-submenu-indicator
+  {:class :menu/submenu-indicator
+   :ui/state-keys [:has-submenu :highlighted]
+   :render render-menu-submenu-indicator!})
+
+(defcomponent ui/menu-item-trailing
+  {:class :menu/trailing-column
+   :style {:layout {:direction :row
+                    :align-items :center}}
+   :ui/state-keys [:has-submenu :highlighted :shortcut-text]
+   :children [{:mode 'ui/text
+               :class :menu/shortcut-text
+               :state {:value (ui/project-state :shortcut-text)}}
+              {:mode 'ui/menu-submenu-indicator
+               :state {:has-submenu (ui/project-state :has-submenu)
+                       :highlighted (ui/project-state :highlighted)}}]})
+
+(defun menu-option-indicator-text
+  "Select themed marker text for an option indicator.
+
+  Args:
+  - `state`: Option-indicator UI state.
+  - `indicator`: Theme indicator configuration.
+
+  Returns:
+  Marker text, possibly empty."
+  [state indicator]
+  (if (get state :show-marker true)
+    (if (:selected state)
+      (or (:selected-text indicator) "")
+      (or (:unselected-text indicator) ""))
+    ""))
+
+(defun menu-option-indicator-image
+  "Select a themed image for a selected option indicator.
+
+  Args:
+  - `state`: Option-indicator UI state.
+  - `indicator`: Theme indicator configuration.
+
+  Returns:
+  The selected image, or `nil`."
+  [state indicator]
+  (when (and (:selected state)
+             (get state :show-marker true))
+    (:selected-image indicator)))
+
+(defun menu-option-indicator-symbol
+  "Select a themed symbol for a selected option indicator.
+
+  Args:
+  - `state`: Option-indicator UI state.
+  - `indicator`: Theme indicator configuration.
+
+  Returns:
+  The selected symbol, or `nil`."
+  [state indicator]
+  (when (and (:selected state)
+             (get state :show-marker true))
+    (:selected-symbol indicator)))
+
+(defun menu-option-indicator-text-color
+  "Resolve the color used to draw a symbolic option marker.
+
+  Args:
+  - `text-args`: Render-ready text arguments.
+
+  Returns:
+  The configured color or black."
+  [text-args]
+  (or (:color text-args) c/BLACK))
+
+(defun draw-menu-option-checkmark-symbol!
+  "Draw the built-in pixel checkmark symbol.
+
+  Args:
+  - `x`: Left drawing coordinate.
+  - `y`: Top drawing coordinate.
+  - `color`: Checkmark color."
+  [x y color]
+  (r/line! {:x (+ x 7) :y y} {:x (+ x 7) :y (+ y 1)} color)
+  (r/line! {:x (+ x 6) :y (+ y 2)} {:x (+ x 7) :y (+ y 2)} color)
+  (r/line! {:x (+ x 6) :y (+ y 3)} {:x (+ x 6) :y (+ y 3)} color)
+  (r/line! {:x (+ x 5) :y (+ y 4)} {:x (+ x 6) :y (+ y 4)} color)
+  (r/line! {:x x :y (+ y 5)} {:x (+ x 1) :y (+ y 5)} color)
+  (r/line! {:x (+ x 5) :y (+ y 5)} {:x (+ x 5) :y (+ y 5)} color)
+  (r/line! {:x (+ x 1) :y (+ y 6)} {:x (+ x 2) :y (+ y 6)} color)
+  (r/line! {:x (+ x 4) :y (+ y 6)} {:x (+ x 5) :y (+ y 6)} color)
+  (r/line! {:x (+ x 2) :y (+ y 7)} {:x (+ x 2) :y (+ y 7)} color)
+  (r/line! {:x (+ x 4) :y (+ y 7)} {:x (+ x 4) :y (+ y 7)} color)
+  (r/line! {:x (+ x 2) :y (+ y 8)} {:x (+ x 4) :y (+ y 8)} color)
+  (r/line! {:x (+ x 3) :y (+ y 9)} {:x (+ x 3) :y (+ y 9)} color))
+
+(defun render-menu-option-indicator-symbol!
+  "Render a built-in option-indicator symbol.
+
+  Args:
+  - `symbol`: Symbol keyword to render.
+  - `text-args`: Render arguments supplying symbol color.
+  - `ctx`: Render hook context."
+  [symbol text-args ctx]
+  (case symbol
+    :checkmark
+    (let [x (int (/ (- (-> ctx :view :bounds :w) 8) 2))
+          y (int (/ (- (-> ctx :view :bounds :h) 10) 2))]
+      (draw-menu-option-checkmark-symbol!
+       x
+       y
+       (menu-option-indicator-text-color text-args)))
+    :default nil))
+
+(defun render-menu-option-indicator!
+  "Render the themed option indicator for a popup row.
+
+  Args:
+  - `state`: Shared compatibility state.
+  - `ctx`: Render hook context."
+  [_state ctx]
+  (let [ui-state (-> ctx :view :ui-state)
+        indicator (ui/theme-var ctx :menu-option-indicator {})
+        image (menu-option-indicator-image ui-state indicator)
+        symbol (menu-option-indicator-symbol ui-state indicator)
+        text (menu-option-indicator-text ui-state indicator)
+        text-args (menu-option-indicator-text-args
+                   (-> ctx :view :effective-style))]
+    (when image
+      (let [dim (img/size image)
+            x (if dim
+                (int (/ (- (-> ctx :view :bounds :w) (:w dim)) 2))
+                0)
+            y (if dim
+                (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                0)]
+        (r/image! image {:x x :y y})))
+    (when symbol
+      (render-menu-option-indicator-symbol! symbol text-args ctx))
+    (unless (empty? text)
+      (let [dim (r/text-size text text-args)
+            x (if dim
+                (int (/ (- (-> ctx :view :bounds :w) (:w dim)) 2))
+                0)
+            y (if dim
+                (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                0)]
+        (r/text! text {:x x :y y} text-args)))))
+
+(defcomponent ui/menu-option-indicator
+  {:class :menu/option-indicator
+   :ui/state-keys [:selected :show-marker]
+   :render render-menu-option-indicator!})
+
+
+
+;; Popup modes and keyboard navigation
+
+(defmode ui/popup-menu
+  {:on-mouse-down
+   (fn [state event _ctx]
+     (pop-mode! (if (point-in-rect? (:global-position event)
+                                    (:anchor-bounds state))
+                  {:type :dismiss
+                   :anchor-click? true}
+                  {:type :dismiss}))
+     state)
+   :on {:menu/select
+        (fn [state event _ctx]
+          (ui/stop-propagation! event)
+          (pop-mode! (:payload event))
+          state)}
+   :compose {:render :pass}})
+
+(defmode ui/context-menu
+  {:on-mouse-down (fn [state _event _ctx]
+                    (pop-mode! {:type :dismiss})
+                    state)
+   :on {:menu/select
+        (fn [state event _ctx]
+          (ui/stop-propagation! event)
+          (pop-mode! (:payload event))
+          state)}
+   :compose {:render :pass}})
+
+(defcomponent ui/popup-menu-outer {})
+
+(defcomponent ui/popup-menu-inner
+  {:focusable true
+   :ui/state-keys POPUP-MENU-INNER-UI-STATE-KEYS
+   :init-ui (fn [ui-state _state ctx]
+              (ui/focus! ctx)
+              ui-state)
+   :on-key-down
+   (fn [state event ctx]
+     (let [ui-state (-> ctx :view :ui-state)]
+       (case (:key event)
+         :key/right
+         (let [index (:highlighted-index ui-state)
+               next-state (assoc ui-state :input-source :keyboard)
+               node (model/highlighted-item (:items next-state) index)
+               child-view (child-view-at (:view ctx) index)]
+           (ui/stop-propagation! event)
+           (when (and node
+                      child-view
+                      (model/submenu-node? node))
+             (open-submenu! node (merge state next-state) child-view))
+           (if (and (= 0 (:menu-depth next-state))
+                    (or (nil? node)
+                        (not (model/submenu-node? node))))
+             (do
+               (pop-mode! {:type :navigate-top
+                           :direction :right})
+               (update-popup-navigation state ctx {:input-source :keyboard}))
+             (update-popup-navigation state ctx {:input-source :keyboard})))
+
+         :key/left
+         (do
+           (ui/stop-propagation! event)
+           (case (:menu-depth ui-state)
+             0 (pop-mode! {:type :navigate-top
+                           :direction :left})
+             :default (pop-mode!))
+           (update-popup-navigation state ctx {:input-source :keyboard}))
+
+         :key/down
+         (do
+           (ui/stop-propagation! event)
+           (update-popup-navigation
+            state
+            ctx
+            {:input-source :keyboard
+             :highlighted-index
+             (model/move-highlight-index (:items ui-state)
+                                         (:highlighted-index ui-state)
+                                         1)}))
+
+         :key/up
+         (do
+           (ui/stop-propagation! event)
+           (update-popup-navigation
+            state
+            ctx
+            {:input-source :keyboard
+             :highlighted-index
+             (model/move-highlight-index (:items ui-state)
+                                         (:highlighted-index ui-state)
+                                         -1)}))
+
+         :key/escape
+         (do
+           (ui/stop-propagation! event)
+           (case (:menu-depth ui-state)
+             0 (pop-mode! {:type :dismiss})
+             :default (pop-mode!))
+           (update-popup-navigation state ctx {:input-source :keyboard}))
+
+         :key/enter
+         (do
+           (ui/stop-propagation! event)
+           (activate-menu-index! (merge state
+                                       ui-state
+                                       {:input-source :keyboard})
+                                 ctx
+                                 (:highlighted-index ui-state)))
+
+         :default
+         (let [mnemonic-char (model/event-mnemonic-char event)
+               index (model/find-mnemonic-index (:items ui-state)
+                                                mnemonic-char)]
+           (if index
+             (do
+               (ui/stop-propagation! event)
+               (activate-menu-index!
+                (merge state
+                       ui-state
+                       {:input-source :keyboard
+                        :highlighted-index index})
+                ctx
+                index))
+             state)))))})

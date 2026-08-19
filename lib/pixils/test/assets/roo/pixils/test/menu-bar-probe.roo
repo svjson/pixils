@@ -1,0 +1,27 @@
+(ns pixils.test.menu-bar-probe
+  (:require pixils
+            [pixils.ui.menu :as menu]))
+
+(pixils/defmode menu-action-root
+  {:init (fn [_state _ctx]
+           {:quit false
+            :payload nil})
+   :on {:game/quit
+        (fn [state event _ctx]
+          (assoc state
+                 :quit true
+                 :payload (:payload event)))}
+   :children [(menu/make-menu
+               {:style {:width 120
+                        :height 20}}
+               {:items [{:label "Quit"
+                         :action :game/quit
+                         :payload {:source :menu}}]}
+               {})]})
+
+(pixils/defmode menu-static-root
+  {:children [(menu/make-menu
+               {:style {:width 120
+                        :height 20}}
+               {:items [{:label "Static"}]}
+               {})]})

@@ -1,0 +1,95 @@
+(ns pixils.ui.menu-model-test
+  (:require proof.core
+            [pixils.ui.menu-model :as model]))
+
+
+
+;; pixils.ui.menu-model/normalize-menu
+
+(deftest normalize-menu/normalizes-settings-and-action-shortcuts
+  (is (= {:node-type :root
+          :settings {:mnemonics {:enabled false
+                                 :marker "&"
+                                 :render-marker "@"
+                                 :trigger :alt
+                                 :style :underline}
+                     :shortcuts {:render true}}
+          :items [{:node-type :item
+                   :item-type :action
+                   :action :file/open
+                   :payload nil
+                   :disabled? nil
+                   :value nil
+                   :label "Open"
+                   :text "Open"
+                   :display-text "Open"
+                   :mnemonic nil
+                   :settings {:mnemonics {:enabled false
+                                          :marker "&"
+                                          :render-marker "@"
+                                          :trigger :alt
+                                          :style :underline}
+                              :shortcuts {:render true}}
+                   :selected-path nil
+                   :resolved-shortcut [:key/ctrl :key/o]
+                   :shortcut-text "Ctrl+O"
+                   :items []}]}
+         (model/normalize-menu
+          {:settings {:mnemonics {:enabled false}}
+           :items [{:label "Open"
+                    :action :file/open}]}
+          {[:key/ctrl :key/o] :file/open}))))
+
+
+
+;; pixils.ui.menu-model/parse-mnemonic-label
+
+(deftest parse-mnemonic-label/preserves-escaped-markers-and-first-mnemonic
+  (is (= {:text "Save & Exit"
+          :mnemonic {:char (head "S")
+                     :index 0
+                     :trigger :alt
+                     :style :underline}}
+         (model/parse-mnemonic-label "&Save && Exit"
+                                     "&"
+                                     :alt
+                                     :underline
+                                     0
+                                     ""
+                                     nil))))
+
+
+
+;; pixils.ui.menu-model/move-highlight-index
+
+(deftest move-highlight-index/skips-disabled-items-and-separators
+  (let [items [{:node-type :item}
+               {:node-type :separator}
+               {:node-type :item :disabled? true}
+               {:node-type :item}]]
+    (is (= {:forward 3
+            :wrapped 0
+            :backward 0}
+           {:forward (model/move-highlight-index items 0 1)
+            :wrapped (model/move-highlight-index items 3 1)
+            :backward (model/move-highlight-index items 3 -1)}))))
+
+(deftest first-selectable-index/returns-nil-when-no-item-is-selectable
+  (is (nil? (model/first-selectable-index
+             [{:node-type :separator}
+              {:node-type :item
+               :disabled? true}]))))
+
+
+
+;; pixils.ui.menu-model/find-mnemonic-index
+
+(deftest find-mnemonic-index/ignores-disabled-items
+  (is (= 1
+         (model/find-mnemonic-index
+          [{:node-type :item
+            :disabled? true
+            :mnemonic {:char "O"}}
+           {:node-type :item
+            :mnemonic {:char "O"}}]
+          "O"))))

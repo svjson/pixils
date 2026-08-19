@@ -1,67 +1,12 @@
 #include "../../render_fixture.h"
 
+#include <SDL3/SDL_mouse.h>
 #include <algorithm>
-
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <SDL3/SDL_mouse.h>
 
 using MenuTest = RenderFixture;
-
-TEST_F(MenuTest, make_menu_accepts_options_map_with_style)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "File"}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
-                   {:state {:game (pixils.ui/bind-state :game)}
-                    :style {:width 123
-                            :height 17}}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", runtime.eval("{:game :ready}"));
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_NE(menu->definition, nullptr);
-  EXPECT_EQ(menu->definition->name, "ui/menu-bar");
-  EXPECT_EQ(menu->bounds.w, 123);
-  EXPECT_EQ(menu->bounds.h, 17);
-}
-
-TEST_F(MenuTest, make_menu_keeps_legacy_three_argument_shape)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "File"}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
-                   {:game (pixils.ui/bind-state :game)}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", runtime.eval("{:game :ready}"));
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_NE(menu->definition, nullptr);
-  EXPECT_EQ(menu->definition->name, "ui/menu-bar");
-}
 
 TEST_F(MenuTest, opened_popup_inherits_menu_scale)
 {
@@ -274,8 +219,8 @@ TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
   ASSERT_TRUE(selected_indicator->effective_theme.default_variant.has_value());
   EXPECT_EQ(*selected_indicator->effective_theme.default_variant, "dark");
   ASSERT_TRUE(selected_indicator->effective_theme.vars.count("dark") > 0);
-  ASSERT_TRUE(selected_indicator->effective_theme.vars.at("dark").count(
-                "menu-option-indicator") > 0);
+  ASSERT_TRUE(
+    selected_indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
   auto indicator_var =
     selected_indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
   ASSERT_NE(indicator_var, nullptr);
@@ -359,17 +304,16 @@ TEST_F(MenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symbol)
   auto indicator = session.active_mode->children[0];
   ASSERT_NE(indicator, nullptr);
   ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
-  ASSERT_TRUE(
-    indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
+  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
   auto indicator_var =
     indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
   ASSERT_NE(indicator_var, nullptr);
   EXPECT_EQ(indicator_var->to_string(), "{:selected-symbol :checkmark}");
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op)
-                                { return op.type == RenderOpType::RENDER_COPY; });
+  auto copy_ops =
+    std::count_if(render_target()->render_ops.begin(),
+                  render_target()->render_ops.end(),
+                  [](const auto& op) { return op.type == RenderOpType::RENDER_COPY; });
   EXPECT_EQ(copy_ops, 0);
 }
 
@@ -438,8 +382,8 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   EXPECT_EQ(leaf_state->to_string(), "false");
 
   ASSERT_TRUE(submenu_indicator->effective_theme.vars.count("dark") > 0);
-  ASSERT_TRUE(submenu_indicator->effective_theme.vars.at("dark").count(
-                "menu-submenu-indicator") > 0);
+  ASSERT_TRUE(
+    submenu_indicator->effective_theme.vars.at("dark").count("menu-submenu-indicator") > 0);
   auto indicator_var =
     submenu_indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
   ASSERT_NE(indicator_var, nullptr);
@@ -545,12 +489,10 @@ TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
   EXPECT_EQ(submenu_indicator->bounds.x + submenu_indicator->bounds.w,
             submenu_trailing_right);
 
-  EXPECT_GE(plain_trailing->bounds.x - (plain_label->bounds.x + plain_label->bounds.w),
-            16);
+  EXPECT_GE(plain_trailing->bounds.x - (plain_label->bounds.x + plain_label->bounds.w), 16);
   EXPECT_GE(option_trailing->bounds.x - (option_label->bounds.x + option_label->bounds.w),
             16);
-  EXPECT_GE(submenu_trailing->bounds.x -
-              (submenu_label->bounds.x + submenu_label->bounds.w),
+  EXPECT_GE(submenu_trailing->bounds.x - (submenu_label->bounds.x + submenu_label->bounds.w),
             16);
 }
 
@@ -599,23 +541,27 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
   ASSERT_NE(highlighted_source, nullptr);
   EXPECT_EQ(normal_source->to_string(), ":generated");
   EXPECT_EQ(highlighted_source->to_string(), ":generated");
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/scrollbar-arrow-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/scrollbar-arrow-right))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
-                         ":windows-95-theme/submenu-chevron-highlighted))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-95-theme "
+                    ":windows-95-theme/submenu-chevron-highlighted))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
-                         ":windows-95-theme/submenu-chevron-highlighted))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-95-theme "
+                    ":windows-95-theme/submenu-chevron-highlighted))")
               ->num()
               .get_int(),
             7);
@@ -638,8 +584,8 @@ TEST_F(MenuTest, windows_95_dark_submenu_indicator_uses_bright_image_by_default)
   auto indicator = session.active_mode->children[0];
   ASSERT_NE(indicator, nullptr);
   ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
-  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count(
-                "menu-submenu-indicator") > 0);
+  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count("menu-submenu-indicator") >
+              0);
   auto indicator_var =
     indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
   ASSERT_NE(indicator_var, nullptr);
@@ -693,23 +639,27 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
   ASSERT_NE(highlighted_source, nullptr);
   EXPECT_EQ(normal_source->to_string(), ":generated");
   EXPECT_EQ(highlighted_source->to_string(), ":generated");
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/chevron-right))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/chevron-right))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/chevron-right))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/chevron-right))")
               ->num()
               .get_int(),
             7);
-  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
-                         ":windows-3-theme/submenu-chevron-highlighted))")
+  EXPECT_EQ(runtime
+              .eval("(:w (resource-size :windows-3-theme "
+                    ":windows-3-theme/submenu-chevron-highlighted))")
               ->num()
               .get_int(),
             4);
-  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
-                         ":windows-3-theme/submenu-chevron-highlighted))")
+  EXPECT_EQ(runtime
+              .eval("(:h (resource-size :windows-3-theme "
+                    ":windows-3-theme/submenu-chevron-highlighted))")
               ->num()
               .get_int(),
             7);
@@ -732,8 +682,8 @@ TEST_F(MenuTest, windows_3_dark_submenu_indicator_uses_bright_image_by_default)
   auto indicator = session.active_mode->children[0];
   ASSERT_NE(indicator, nullptr);
   ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
-  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count(
-                "menu-submenu-indicator") > 0);
+  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count("menu-submenu-indicator") >
+              0);
   auto indicator_var =
     indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
   ASSERT_NE(indicator_var, nullptr);
@@ -784,77 +734,4 @@ TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
   ASSERT_NE(outer, nullptr);
   EXPECT_EQ(outer->bounds.x, 42);
   EXPECT_EQ(outer->bounds.y, 17);
-}
-
-TEST_F(MenuTest, menu_bar_item_without_children_emits_action_without_opening_popup)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "Quit"
-                :action :game/quit
-                :payload {:source :menu}}]})
-
-    (pixils/defmode root-mode
-      {:on {:game/quit (fn [state event ctx]
-                         (assoc (assoc state :quit true)
-                                :payload (:payload event)))}
-       :children [(pixils.ui.menu/make-menu
-                   {}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", runtime.eval("{:quit false}"));
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-
-  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
-                      menu_item->bounds.y + menu_item->bounds.h / 2});
-  update_cycle();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
-  EXPECT_EQ(session.active_mode->state->to_string(),
-            "{:quit true :payload {:source :menu}}");
-}
-
-TEST_F(MenuTest, menu_bar_item_without_children_or_action_does_not_open_popup)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "Static"}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu/make-menu
-                   {}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-
-  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
-                      menu_item->bounds.y + menu_item->bounds.h / 2});
-  update_cycle();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
 }
