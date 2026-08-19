@@ -140,21 +140,6 @@
        (style-border-side-thickness style :top)
        (style-border-side-thickness style :bottom))))
 
-(defun managed-height [state ctx]
-  (let [height (preferred-height state ctx)]
-    (case (-> (style ctx) :box-sizing)
-      :content-box height
-      :default
-      (+ height (vertical-content-inset ctx)))))
-
-(defun managed-style [state ctx]
-  (if (:managed-height? state)
-    {:height (managed-height state ctx)}
-    {}))
-
-(defun can-sync-managed-height? [ctx]
-  (> (or (-> ctx :view :bounds :h) 0) 0))
-
 (defun content-view [ctx]
   (let [scroll-pane (head (ui/children ctx))
         row (when scroll-pane
@@ -344,13 +329,8 @@
         computed-visible-rows (or (:visible-rows state)
                                   (theme-visible-rows ctx))
         state (assoc state :computed-row-height computed-row-height)
-        state (assoc state :computed-visible-rows computed-visible-rows)
-        state (assoc state :scroll-content-size (scroll-content-size state))]
-    (when (and (:managed-height? state)
-               (can-sync-managed-height? ctx))
-      (ui/style! (:view ctx)
-                 (managed-style state ctx)))
-    state))
+        state (assoc state :computed-visible-rows computed-visible-rows)]
+    (assoc state :scroll-content-size (scroll-content-size state))))
 
 (defun sync-rendered-items [state ctx]
   (let [render-key (render-key state)]
@@ -393,7 +373,6 @@
    :computed-visible-rows
    :max-height
    :fixed-visible-rows?
-   :managed-height?
    :disabled?
    :item=>
    :decorate-item
@@ -427,7 +406,7 @@
   `opts` accepts the option-list constructor fields, ordinary application
   `:state`, and explicit `:state :component` values. Derived controls can merge
   their own policy fields into the returned map before constructing children."
-  [{:keys [style state] :as opts}]
+  [{:keys [state] :as opts}]
   (let [supplied-component (merge (select-keys state OPTION-LIST-UI-STATE-KEYS)
                                    (:component state)
                                    (select-keys opts OPTION-LIST-UI-STATE-KEYS))
@@ -436,9 +415,7 @@
                           :explicit-row-height? (some? (:row-height supplied-component))
                           :computed-row-height (:row-height supplied-component)
                           :auto-row-height? (nil? (:row-height supplied-component))
-                          :computed-visible-rows (:visible-rows supplied-component)
-                          :managed-height? (not (and style
-                                                     (contains? style :height)))})]
+                          :computed-visible-rows (:visible-rows supplied-component)})]
     (assoc component
            :scroll-content-size
            (scroll-content-size component))))

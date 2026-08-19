@@ -116,6 +116,33 @@ TEST_F(OptionListTest, option_list_uses_theme_row_height_and_visible_rows)
   EXPECT_EQ(option_list->bounds.h, 76);
 }
 
+TEST_F(OptionListTest, option_list_respects_themed_fill_height)
+{
+  runtime.eval(R"(
+    (pixils/deftheme fill-option-list-theme
+      {:styles {'ui/option-list {:height :fill}}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/base-theme 'fill-option-list-theme]
+       :style {:width 100
+               :height 160
+               :layout {:direction :column}}
+       :children [(pixils.ui.option-list/make
+                   {:options [{:value :a :label "Alpha"}]
+                    :row-height 20
+                    :fixed-visible-rows? false})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+  frame_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto option_list = session.active_mode->children[0];
+  ASSERT_NE(option_list, nullptr);
+  EXPECT_EQ(option_list->bounds.h, session.active_mode->bounds.h);
+}
+
 TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
 {
   runtime.eval(R"(
