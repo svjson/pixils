@@ -91,3 +91,30 @@
           (layout/section-wrapper {}
                                   {:form/section-depth 2
                                    :section-wrappers {2 :none}})])))
+
+
+
+;; pixils.form.layout/resolve-view
+
+(deftest resolve-view/resolves-recursive-function-providers
+  (is (= {:component 'app/panel
+          :children [:field]
+          :state {:value 4}}
+         (select-keys
+          (layout/resolve-view
+           (fn [_options]
+             (fn [_options]
+               'app/panel))
+           {:children [:field]
+            :state {:value 4}})
+          [:component :children :state]))))
+
+(deftest resolve-view/extends-view-declarations-with-container-options
+  (is (= {:component 'app/panel
+          :class :people
+          :children [:field]}
+         (layout/resolve-view
+          {:component 'app/panel
+           :class :default}
+          {:class :people
+           :children [:field]}))))

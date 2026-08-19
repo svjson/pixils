@@ -57,6 +57,3 @@
                     :place-id :workstation/stable-hand-post
                     :anchor :stand}}
            {:items (:items replaced) :value (:value projected)}))))
-
-
-

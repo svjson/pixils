@@ -559,7 +559,8 @@
     next-state))
 
 (defcomponent pixils/form-array-control
-  {:init (fn [state ctx]
+  {:ui/state-keys [:new? :selected-index]
+   :init (fn [state ctx]
            (array-control-state state))
    :update (fn [state ctx]
              (array-control-state state))
@@ -575,7 +576,20 @@
                                           :new? false
                                           :selected-index index)))]
                              (emit-referenced-item-editor-state! next-state ctx)
-                             next-state))))
+                             (when (not= (:selected-index state)
+                                         (:selected-index next-state))
+                               (ui/emit! (:view ctx)
+                                         :form/select
+                                         {:field-id (:field-id next-state)
+                                          :field-path (:field-path next-state)
+                                          :index (:selected-index next-state)
+                                          :value (:value next-state)}))
+                             (ui/set-ui-state!
+                              ctx
+                              (assoc (-> ctx :view :ui-state)
+                                     :new? (:new? next-state)
+                                     :selected-index (:selected-index next-state)))
+                             state))))
         :form/add-item (fn [state event ctx]
                          (ui/stop-propagation! event)
                          (cond
@@ -651,6 +665,8 @@
   {:context (:context opts)
    :controls (:controls opts)
    :text (:text opts)
+   :body-style (:body-style opts)
+   :fields-style (:fields-style opts)
    :field-style (:field-style opts)
    :field-label-style (:field-label-style opts)
    :nested-field-label-style (:nested-field-label-style opts)
@@ -801,8 +817,12 @@
                  :list-style (form-layout/style-option opts
                                                        :array-list-box-style
                                                        default-array-list-box-style)
-                 :visible-rows 5
-                 :fixed-visible-rows? true
+                 :row-height (:row-height field-layout)
+                 :visible-rows (or (:visible-rows field-layout) 5)
+                 :fixed-visible-rows?
+                 (if (contains? field-layout :fixed-visible-rows?)
+                   (:fixed-visible-rows? field-layout)
+                   true)
                  :reorderable? (ui/bind-state :reorderable?)
                  :disabled? (ui/project-state :read-only?)
                  :activate-event (when (nil? item-editor-id)

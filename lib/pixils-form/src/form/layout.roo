@@ -74,6 +74,26 @@
 (defun style-map [style]
   (if style {:style style} {}))
 
+(defun resolve-view-result [provided options]
+  "Resolves a value returned by a layout view provider.
+
+  A returned function is called with the same options until it produces a
+  component symbol or complete view declaration."
+  (cond
+    (fn? provided) (resolve-view-result (provided options) options)
+    (= "symbol" (type-of provided)) (assoc options :component provided)
+    :default provided))
+
+(defun resolve-view [view=> options]
+  "Resolves a layout view provider with its rendered container options.
+
+  A component symbol receives the options as its declaration. A view
+  declaration is extended by the options. Functions receive the options and
+  may return another function, a component symbol, or a complete declaration."
+  (if (map? view=>)
+    (merge view=> options)
+    (resolve-view-result view=> options)))
+
 (defun keyword-label [value]
   (if (keyword? value)
     (if-let [qualifier (qualifier value)]

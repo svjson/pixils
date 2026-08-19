@@ -454,18 +454,30 @@
                       (form-layout/section-child-opts opts))
    form-layout-state-binding))
 
+(defun container-layout-view [item opts]
+  (let [children (layout-item-views (or (:children item) (:layout item)) opts)
+        options (-> item
+                    (dissoc :view=>)
+                    (dissoc :type)
+                    (dissoc :layout)
+                    (assoc :state (merge (:state item) form-layout-state-binding)
+                           :children children))]
+    (form-layout/resolve-view (:view=> item) options)))
+
 (defun map-layout-item-view [item opts]
-  (case (:type item)
-    :form (form-layout-view item opts)
-    :field (field-view (:id item) (assoc opts :field/layout item))
-    :selection (selection-layout-view item opts)
-    :action (form-actions/action-view item opts)
-    :section (section-layout-view item opts)
-    :group (row-layout-view item opts)
-    :row (row-layout-view item opts)
-    :default (or (array-editor-control/layout-item-editor-view item opts)
-                 {:mode 'ui/text
-                  :state {:value (str "Unknown form layout item " item)}})))
+  (if (:view=> item)
+    (container-layout-view item opts)
+    (case (:type item)
+      :form (form-layout-view item opts)
+      :field (field-view (:id item) (assoc opts :field/layout item))
+      :selection (selection-layout-view item opts)
+      :action (form-actions/action-view item opts)
+      :section (section-layout-view item opts)
+      :group (row-layout-view item opts)
+      :row (row-layout-view item opts)
+      :default (or (array-editor-control/layout-item-editor-view item opts)
+                   {:mode 'ui/text
+                    :state {:value (str "Unknown form layout item " item)}}))))
 
 (defun layout-item-view [item opts]
   (let [item (form-layout/normalize-layout-item item)]
@@ -643,16 +655,20 @@
   next-state)
 
 (defcomponent pixils/form
-  {:init (fn [state ctx]
+  {:ui/state-keys [:form/item-editor-state]
+   :init (fn [state ctx]
            (initialized-form-state state))
    :update (fn [state ctx]
              (form-state state))
    :on {:form/item-editor-state-change
         (fn [state event ctx]
           (ui/stop-propagation! event)
-          (assoc-in state
-                    [:form/item-editor-state (-> event :payload :id)]
-                    (-> event :payload :state)))
+          (ui/set-ui-state!
+           ctx
+           (assoc-in (-> ctx :view :ui-state)
+                     [:form/item-editor-state (-> event :payload :id)]
+                     (-> event :payload :state)))
+          state)
         :form/edit (fn [state event ctx]
                      (let [stopped (ui/stop-propagation! event)]
                        (if (:disabled? state)
@@ -673,18 +689,22 @@
                                         next-state)))
                            next-state))))
         :form/select (fn [state event ctx]
-                       (let [stopped (ui/stop-propagation! event)]
-                         (let [index (-> event :payload :index)
-                               next-state
-                               (form-state
-                                (assoc state
-                                       :new? false
-                                       :selected-index index))]
-                           (ui/emit! (:view ctx)
-                                     :form/select
-                                     {:index index
-                                      :value (:value next-state)})
-                           next-state)))
+                       (ui/stop-propagation! event)
+                       (let [{:keys [field-id index] :as payload} (:payload event)]
+                         (if field-id
+                           (do
+                             (ui/emit! (:view ctx) :form/select payload)
+                             state)
+                           (let [next-state
+                                 (form-state
+                                  (assoc state
+                                         :new? false
+                                         :selected-index index))]
+                             (ui/emit! (:view ctx)
+                                       :form/select
+                                       {:index index
+                                        :value (:value next-state)})
+                             next-state))))
         :form/new (fn [state event ctx]
                     (let [stopped (ui/stop-propagation! event)]
                       (let [add-action (form-action state :add)

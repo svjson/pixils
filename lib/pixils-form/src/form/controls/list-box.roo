@@ -52,12 +52,12 @@
 
 (defun open-context-menu!
   "Opens the configured item context menu for a right-button event."
-  [state event ctx]
+  [ui-state state event ctx]
   (when (and (= (:button event) :right)
-             (not (:disabled? state))
-             (not-empty? (:context-menu-actions state)))
+             (not (:disabled? ui-state))
+             (not-empty? (:context-menu-actions ui-state)))
     (menu/open-context-menu!
-     (context-menu state)
+     (context-menu ui-state)
      (:global-position event)
      state
      ctx)))
@@ -65,13 +65,14 @@
 (defcomponent pixils/form-selection-list-item
   {:extend 'ui/option-item
    :class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
+   :ui/state-keys [:field-id :context-menu-actions]
    :style {:width :fill
            :clip true
            :layout {:direction :row
                     :align-items :center}}
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
-                  (open-context-menu! state event ctx)
+                  (open-context-menu! (-> ctx :view :ui-state) state event ctx)
                   state)
    :on {:menu/select (fn [state {:keys [payload] :as event} ctx]
                        (ui/stop-propagation! event)
@@ -89,12 +90,13 @@
   [context-menu-actions field-id]
   (fn [index option]
     {:mode 'pixils/form-selection-list-item
-     :state {:index index
-             :value (option/value option)
-             :label (option/label option)
-             :field-id field-id
-             :selected-indices (ui/bind-state :selected-indices)
-             :context-menu-actions context-menu-actions}}))
+     :state {:component
+             {:index index
+              :value (option/value option)
+              :label (option/label option)
+              :field-id field-id
+              :selected-indices (ui/bind-state :selected-indices)
+              :context-menu-actions context-menu-actions}}}))
 
 (defun toolbar-view
   "Builds the toolbar presented alongside a form list box."
@@ -120,9 +122,7 @@
             state
             (let [index (head (-> event :payload :selected-indices))]
               (ui/emit! (:view ctx) :form/select {:index index})
-              (assoc state
-                     :new? false
-                     :selected-index index))))
+              state)))
         :list-box/activate
         (fn [state event ctx]
           (ui/stop-propagation! event)
@@ -159,6 +159,7 @@
           :selected-indices (ui/bind-state :selected-indices)
           :disabled? (ui/project-state :disabled?)
           :force-selection? false
+          :row-height (:row-height selection)
           :visible-rows (:visible-rows selection)
           :fixed-visible-rows? (:fixed-visible-rows? selection)
           :reorderable? (ui/bind-state :reorderable?)

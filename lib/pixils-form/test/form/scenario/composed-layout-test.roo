@@ -2,7 +2,8 @@
   (:require proof.core
             [pixils.form.actions :as form-actions]
             [pixils.form.scenario.person :as person]
-            [pixils.form :as form]))
+            [pixils.form :as form]
+            [pixils.ui.header-panel :as header-panel]))
 
 
 
@@ -149,7 +150,10 @@
                               (-> action :state :event))
             :item-provider? (some? item=>)
             :item-mode (:mode item-view)
-            :context-menu-actions (map (-> item-view :state :context-menu-actions)
+            :context-menu-actions (map (-> item-view
+                                           :state
+                                           :component
+                                           :context-menu-actions)
                                        :key)}))))
 
 (deftest make/supports-action-layout-nodes
@@ -203,6 +207,30 @@
     (is (= [:field/name :field/age]
            [(-> left-group :children head :state :field-id)
             (-> right-group :children head :state :field-id)]))))
+
+(deftest make/wraps-layout-children-with-a-view-provider
+  (let [view (form/make
+              {:schema person/schema
+               :value {:field/name "Ada" :field/age 36}
+               :layout [{:view=> header-panel/make
+                         :title "Identity"
+                         :class :person-panel
+                         :children [:field/name]}]})
+        panel (-> view :children head :children head :children head)
+        body (nth (:children panel) 1)
+        field (head (:children body))]
+    (is (= {:panel {:mode 'ui/header-panel
+                    :class :person-panel
+                    :title "Identity"
+                    :form-state-keys [:value :disabled? :new? :valid?
+                                      :form/item-editor-state :selection-options
+                                      :selected-indices :form/action-disabled]}
+            :field-id :field/name}
+           {:panel {:mode (:mode panel)
+                    :class (:class panel)
+                    :title (-> panel :state :title)
+                    :form-state-keys (keys (-> body :state))}
+            :field-id (-> field :state :field-id)}))))
 
 (deftest make/supports-vector-layout-shorthand-with-classes
   (let [view (form/make

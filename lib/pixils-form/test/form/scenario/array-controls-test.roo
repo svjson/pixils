@@ -217,7 +217,8 @@
                                       :field-id :people}}]}}
            {:array-child-count (count (:children array-control))
             :item-mode (:mode item-view)
-            :menu (form-list-box/context-menu (:state item-view))}))))
+            :menu (form-list-box/context-menu
+                   (-> item-view :state :component))}))))
 
 
 
