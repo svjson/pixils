@@ -3,6 +3,7 @@
             [pixils.form.actions :as form-actions]
             [pixils.form.field :as form-field]
             [pixils.form.layout :as form-layout]
+            [pixils.form.selection :as selection]
             [pixils.form.state :as form-state]
             [pixils.form.valid-values :as form-valid-values]
             [pixils.ui :as ui]
@@ -194,14 +195,41 @@
     :label "Delete"
     :enabled-when :can-delete?}])
 
-(defun presented-array-actions [actions presentation]
+(defun array-action [defaults declaration]
   (cond
-    (= false presentation) []
-    (map? presentation)
-    (filter actions
-            (fn [action]
-              (not= false (get presentation (:key action) true))))
-    :default actions))
+    (keyword? declaration)
+    (find-first defaults
+                (fn [action] (= declaration (:key action))))
+
+    (map? declaration)
+    (if-let [default-action
+             (find-first defaults
+                         (fn [action] (= (:key declaration) (:key action))))]
+      (merge default-action declaration)
+      declaration)
+
+    :default nil))
+
+(defun configured-array-actions [defaults config]
+  (cond
+    (= false config) []
+
+    (or (nil? config) (= true config)) defaults
+
+    (map? config)
+    (keep defaults
+          (fn [action]
+            (let [declaration (get config (:key action) true)]
+              (cond
+                (= false declaration) nil
+                (map? declaration) (merge action declaration)
+                :default action))))
+
+    (sequential? config)
+    (keep config (fn [declaration]
+                   (array-action defaults declaration)))
+
+    :default defaults))
 
 (defun summary-spec-path [item-schema field-id]
   (model-schema/field-path field-id
@@ -753,11 +781,15 @@
         item-editor-id (when (map? item-editor) (:layout-ref item-editor))
         no-selection (no-selection-policy item-editor)
         item-label (or (:item-label field-layout) (:item-label field-schema))
-        toolbar-actions (presented-array-actions
-                         (if item-editor-id
-                           referenced-array-toolbar-actions
-                           array-toolbar-actions)
-                         (:actions field-layout))
+        actions (configured-array-actions
+                 (if item-editor-id
+                   referenced-array-toolbar-actions
+                   array-toolbar-actions)
+                 (:actions field-layout))
+        toolbar-actions
+        (selection/actions-for-presentation {:actions actions} :toolbar)
+        context-menu-actions
+        (selection/actions-for-presentation {:actions actions} :context-menu)
         item-opts (item-form-options field-id field-schema opts)
         selection-view
         (apply (:selection=> opts)
@@ -774,7 +806,9 @@
                  :reorderable? (ui/bind-state :reorderable?)
                  :disabled? (ui/project-state :read-only?)
                  :activate-event (when (nil? item-editor-id)
-                                   :form/edit-item)}
+                                   :form/edit-item)
+                 :field-id field-id
+                 :actions context-menu-actions}
                 opts])
         content-children (cond-> [selection-view]
                            (nil? item-editor-id)

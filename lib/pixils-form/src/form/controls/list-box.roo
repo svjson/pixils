@@ -28,18 +28,27 @@
             :align-items :center
             :gap 6}})
 
+(defun item-action-payload
+  "Adds the clicked selection item to a configured action payload."
+  [state action]
+  (merge (if (map? (:payload action)) (:payload action) {})
+         (cond-> {:index (:index state)
+                  :value (:value state)}
+           (some? (:field-id state))
+           (assoc :field-id (:field-id state)))))
+
 (defun menu-item
-  "Builds a context-menu item for a form selection action."
-  [action]
+  "Builds a context-menu item for a form selection action and clicked item."
+  [state action]
   {:label (:label action)
    :action (form-actions/action-event-id action)
-   :payload (:payload action)})
+   :payload (item-action-payload state action)})
 
 (defun context-menu
   "Builds a context menu for form selection actions."
-  [actions]
-  {:items (for [action actions]
-            (menu-item action))})
+  [state]
+  {:items (for [action (:context-menu-actions state)]
+            (menu-item state action))})
 
 (defun open-context-menu!
   "Opens the configured item context menu for a right-button event."
@@ -48,7 +57,7 @@
              (not (:disabled? state))
              (not-empty? (:context-menu-actions state)))
     (menu/open-context-menu!
-     (context-menu (:context-menu-actions state))
+     (context-menu state)
      (:global-position event)
      state
      ctx)))
@@ -77,12 +86,13 @@
 
 (defun item=>
   "Returns an item provider carrying the configured context-menu actions."
-  [context-menu-actions]
+  [context-menu-actions field-id]
   (fn [index option]
     {:mode 'pixils/form-selection-list-item
      :state {:index index
              :value (option/value option)
              :label (option/label option)
+             :field-id field-id
              :selected-indices (ui/bind-state :selected-indices)
              :context-menu-actions context-menu-actions}}))
 
@@ -142,7 +152,7 @@
         context-menu-actions
         (selection/actions-for-presentation selection :context-menu)
         item-provider (unless (empty? context-menu-actions)
-                        (item=> context-menu-actions))
+                        (item=> context-menu-actions (:field-id selection)))
         list-box-view
         (list-box/make
          {:options (ui/bind-state :options)

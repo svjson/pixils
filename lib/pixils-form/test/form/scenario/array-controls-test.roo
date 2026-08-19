@@ -1,7 +1,8 @@
 (ns pixils.form.scenario.array-controls-test
   (:require proof.core
             [pixils.form :as form]
-            [pixils.form.controls.array-editor :as array-editor]))
+            [pixils.form.controls.array-editor :as array-editor]
+            [pixils.form.controls.list-box :as form-list-box]))
 
 
 
@@ -185,6 +186,38 @@
     (is (= [:form/edit-item]
            (for [action (:children toolbar)]
              (-> action :state :event))))))
+
+(deftest make/routes-array-context-actions-with-clicked-item-context
+  (let [view (form/make
+              {:schema {:type :object
+                        :fields {:people {:type :array
+                                          :items {:type :object
+                                                  :fields {:name {:type :text}}}}}}
+               :value {:people [{:name "Ada"} {:name "Bea"}]}
+               :layout [[:field :people
+                         {:item-label {:path [:name]}
+                          :actions [{:key :rename
+                                     :label "Rename"
+                                     :event :people/context-command
+                                     :payload {:command :rename}
+                                     :presentation :context-menu}]}]]})
+        array-control (-> view :children head :children head :children head
+                          :children (nth 1))
+        selection-view (-> array-control :children head :children head)
+        list-box (-> selection-view :children head)
+        item=> (-> list-box :state :component :item=>)
+        item-view (item=> 1 {:value {:name "Bea"} :label "Bea"})]
+    (is (= {:array-child-count 1
+            :item-mode 'pixils/form-selection-list-item
+            :menu {:items [{:label "Rename"
+                            :action :people/context-command
+                            :payload {:command :rename
+                                      :index 1
+                                      :value {:name "Bea"}
+                                      :field-id :people}}]}}
+           {:array-child-count (count (:children array-control))
+            :item-mode (:mode item-view)
+            :menu (form-list-box/context-menu (:state item-view))}))))
 
 
 
