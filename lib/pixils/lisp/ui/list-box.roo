@@ -286,7 +286,7 @@
 
 (defcomponent ui/list-box-item
   {:extend 'ui/option-item
-   :class [:ui/list-item :ui/list-box-item]
+   :class :ui/list-box-item
    :ui/state-keys [:reorderable?
                    :reorder-index
                    :reorder-value

@@ -1309,7 +1309,6 @@ layout surfaces:
 | `:ui/muted` | Secondary text. |
 | `:ui/accent` | Highlight text. |
 | `:ui/canvas` | Framed drawing or editor surface. |
-| `:ui/list-item` | Selectable list/palette rows; `{:selected true}` marks the selected row. |
 
 Themes are presentation profiles, and presentation includes both visual styling
 and layout policy. Applications can rely on the built-in base theme, choose a

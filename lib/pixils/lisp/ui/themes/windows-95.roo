@@ -487,15 +487,23 @@
             {:background (var :selection-bg)
              :text {:color (var :selection-text)}}
 
-            :ui/list-item {:padding (var :list-box-item-padding)
-                           :text {:color (var :field-text)
-                                  :wrap :none}}
+            'ui/option-item {:padding (var :list-box-item-padding)
+                             :text {:color (var :field-text)
+                                    :wrap :none}}
 
-            '(:ui/list-item {:selected true})
+            'ui/tree-view-item {:padding (var :list-box-item-padding)
+                                :text {:color (var :field-text)
+                                       :wrap :none}}
+
+            '(ui/option-item {:selected true})
             {:background (var :focus-bg)
              :text {:color (var :focus-text)}}
 
-            ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+            '(ui/tree-view-item {:selected true})
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)}}
+
+            ['(ui/tree-view-item {:selected true}) 'ui/tree-view-disclosure]
             {:text {:color (var :focus-text)}}
 
             'ui/list-box {:background (var :field-bg)

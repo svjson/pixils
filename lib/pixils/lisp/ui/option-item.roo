@@ -37,7 +37,7 @@
 ;; Component
 
 (defcomponent ui/option-item
-  {:class [:ui/list-item :ui/option-item]
+  {:class :ui/option-item
    :ui/state-keys [:index
                    :value
                    :label

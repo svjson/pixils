@@ -312,24 +312,34 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    :ui/list-item {:padding (var :list-box-item-padding)
-                   :text {:color {:r 0xe6 :g 0xea :b 0xee}
-                          :wrap :none}}
+    'ui/option-item {:padding (var :list-box-item-padding)
+                     :text {:color {:r 0xe6 :g 0xea :b 0xee}
+                            :wrap :none}}
 
-    :ui/list-item:hover
+    'ui/tree-view-item {:padding (var :list-box-item-padding)
+                        :text {:color {:r 0xe6 :g 0xea :b 0xee}
+                               :wrap :none}}
+
+    'ui/list-box-item:hover
     {:background (var :list-item-hover-bg)}
 
-    [:ui/list-item:hover 'ui/tree-view-disclosure]
+    'ui/tree-view-item:hover
+    {:background (var :list-item-hover-bg)}
+
+    ['ui/tree-view-item:hover 'ui/tree-view-disclosure]
     {:text {:color (var :list-item-hover-text)}}
 
     '(:ui/combo-box-item :ui/hover-highlight:hover)
     {:background (var :hover-highlight-bg)
      :text {:color (var :hover-highlight-text)}}
 
-    '(:ui/list-item {:selected true})
+    '(ui/option-item {:selected true})
     {:background (var :selection-bg)}
 
-    ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+    '(ui/tree-view-item {:selected true})
+    {:background (var :selection-bg)}
+
+    ['(ui/tree-view-item {:selected true}) 'ui/tree-view-disclosure]
     {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
     'ui/list-box {:background (var :content-bg)
@@ -591,7 +601,11 @@
      :text {:color (var :disabled-text)
             :marked-style {:color (var :disabled-text)}}}
 
-    :ui/list-item:disabled
+    'ui/option-item:disabled
+    {:background (var :disabled-bg)
+     :text {:color (var :disabled-text)}}
+
+    'ui/tree-view-item:disabled
     {:background (var :disabled-bg)
      :text {:color (var :disabled-text)}}
 

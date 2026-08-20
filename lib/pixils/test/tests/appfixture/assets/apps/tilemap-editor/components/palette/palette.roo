@@ -32,7 +32,8 @@
                  (r/rect! rect {:color {:r 0xe6 :g 0xea :b 0xee}}))))})
 
 (defcomponent tile-swatch
-  {:class :ui/list-item
+  {:extend 'ui/option-item
+   :class :ui/hover-highlight
    :style {:width :fill
            :height tile-palette-row-height
            :padding [4 6]

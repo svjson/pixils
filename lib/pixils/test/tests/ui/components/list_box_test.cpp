@@ -1143,7 +1143,8 @@ TEST_F(ListBoxTest, list_box_item_uses_theme_hover_style)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
-      {:children [(pixils.ui.list-box/make
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
                     :style {:width 100}

@@ -281,9 +281,14 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    :ui/list-item {:padding (var :list-box-item-padding)
-                   :text {:color (var :text)
-                          :wrap :none}}
+    'ui/option-item {:height (var :list-box-row-height)
+                     :padding (var :list-box-item-padding)
+                     :text {:color (var :text)
+                            :wrap :none}}
+
+    'ui/tree-view-item {:padding (var :list-box-item-padding)
+                        :text {:color (var :text)
+                               :wrap :none}}
 
     :ui/hover-highlight:hover
     {:background (var :hover-highlight-bg)
@@ -292,13 +297,15 @@
     [:ui/hover-highlight:hover 'ui/tree-view-disclosure]
     {:text {:color (var :hover-highlight-text)}}
 
-    '(:ui/list-item {:selected true})
+    '(ui/option-item {:selected true})
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    'ui/option-item {:height (var :list-box-row-height)}
+    '(ui/tree-view-item {:selected true})
+    {:background (var :selection-bg)
+     :text {:color (var :selection-text)}}
 
-    ['(:ui/list-item {:selected true}) 'ui/tree-view-disclosure]
+    ['(ui/tree-view-item {:selected true}) 'ui/tree-view-disclosure]
     {:text {:color (var :selection-text)}}
 
     'ui/option-list {:width :shrink
@@ -652,7 +659,11 @@
             :marked-style {:color (var :disabled-text)}}
      :background (var :surface)}
 
-    :ui/list-item:disabled
+    'ui/option-item:disabled
+    {:text {:color (var :disabled-text)}
+     :background (var :surface)}
+
+    'ui/tree-view-item:disabled
     {:text {:color (var :disabled-text)}
      :background (var :surface)}
 

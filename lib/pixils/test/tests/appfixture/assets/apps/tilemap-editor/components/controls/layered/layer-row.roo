@@ -5,7 +5,8 @@
             [tilemap-editor.data :as data]))
 
 (defcomponent layer-row
-  {:class [:ui/list-item :ui/list-item-hover]
+  {:extend 'ui/option-item
+   :class [:ui/hover-highlight :ui/list-item-hover]
    :style {:width :fill
            :height 26
            :padding [3 6]

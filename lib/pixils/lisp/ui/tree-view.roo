@@ -317,7 +317,7 @@
             disclosure-width))))
 
 (defcomponent ui/tree-view-item
-  {:class [:ui/list-item :ui/tree-view-item :ui/hover-highlight]
+  {:class [:ui/tree-view-item :ui/hover-highlight]
    :style {:width :fill
            :height default-row-height
            :clip true
