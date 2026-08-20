@@ -2,6 +2,7 @@
  :version "0.1.0"
  :description "Pixils tilemap project document model."
  :dependencies {pixils-tilemap "0.1.0"
+                zoology "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src"]
  :namespace-roots {pixils.tilemap.project ["src" "test"]}

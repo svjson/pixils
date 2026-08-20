@@ -1,13 +1,46 @@
 (ns pixils.tilemap.project.schemas
   (:require [pixils.tilemap.project.model :as model]))
 
-(def mask-size-schema
-  "Form schema for editing a project mask-size map with `:w` and `:h` values."
-  {:width {:type :integer
-           :path [:w]
-           :min model/min-map-dimension
-           :max model/max-map-dimension}
-   :height {:type :integer
-            :path [:h]
-            :min model/min-map-dimension
-            :max model/max-map-dimension}})
+(def project-schema
+  "Canonical schema document for Pixils tilemap project data. "
+  {:definitions {:property/base {:type :object
+                                 :fields {:id {:type :keyword
+                                               :required true}
+                                          :label {:type :text
+                                                  :required true}
+                                          :type {:type :keyword
+                                                 :required true
+                                                 :valid-values model/property-type-options}}}
+
+                 :property/any {:type :object
+                                :fields {:default {:type :any}}}
+
+                 :property/number {:type :object
+                                   :fields {:default {:type :number}}}
+
+                 :property/enum {:type :object
+                                 :fields {:default {:type :any}
+                                          :values {:type :array
+                                                   :required true
+                                                   :items {:type :any}}}}
+
+                 :property/definition {:type :union
+                                       :discriminator :type
+                                       :base {:ref :property/base}
+                                       :variants {:any {:ref :property/any}
+                                                  :number {:ref :property/number}
+                                                  :enum {:ref :property/enum}}}
+
+                 :property/set {:type :object
+                                :fields {:id {:type :keyword
+                                              :required true}
+                                         :label {:type :text
+                                                 :required true}
+                                         :properties {:type :array
+                                                      :required true
+                                                      :items {:ref :property/definition}}}}}
+
+   :schema {:type :object
+            :fields {:property-sets {:type :array
+                                     :required true
+                                     :items {:ref :property/set}}}}})

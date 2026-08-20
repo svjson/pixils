@@ -20,10 +20,14 @@ pixils.tilemap.project.model/project-format
 ; => :pixils.tilemap-editor/project
 ```
 
+A canonical [zoology](https://github.com/svjson/roo-lang/tree/master/pkg/zoology) schema is 
+exported by `pixils.tilemap.project.schemas/project-schema`.
+
 A project document can contain:
 
 - `:resources` with project-owned resource bundles.
 - `:tilesets` with `:color`, `:image`, or `:sprite` tile definitions.
+- `:property-sets` with reusable property definitions and defaults.
 - `:terrain-sets` with terrain definitions and preview tiles.
 - `:rulesets` for generated terrain-stamp output.
 - `:layer-profiles` describing source and target layers.

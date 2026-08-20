@@ -1,16 +1,82 @@
 (ns pixils.tilemap.project.schemas-test
   (:require proof.core
             [pixils.tilemap.project.model :as model]
-            [pixils.tilemap.project.schemas :as schemas]))
+            [pixils.tilemap.project.schemas :as schemas]
+            [zoology.validation :as validation]))
 
-(deftest mask-size-schema-edits-project-size-shape
-  (is (= [:w] (get-in schemas/mask-size-schema [:width :path])))
-  (is (= [:h] (get-in schemas/mask-size-schema [:height :path])))
-  (is (= model/min-map-dimension
-         (get-in schemas/mask-size-schema [:width :min])))
-  (is (= model/max-map-dimension
-         (get-in schemas/mask-size-schema [:width :max])))
-  (is (= model/min-map-dimension
-         (get-in schemas/mask-size-schema [:height :min])))
-  (is (= model/max-map-dimension
-         (get-in schemas/mask-size-schema [:height :max]))))
+(deftest project-schema-accepts-normalized-property-sets
+  (let [document
+        (model/project-document
+         {:property-sets
+          [{:id :movement
+            :label "Movement"
+            :properties [{:id :metadata
+                          :label "Metadata"
+                          :type :any
+                          :default {:walkable? true}}
+                         {:id :cost
+                          :label "Cost"
+                          :type :number
+                          :default 2}
+                         {:id :surface
+                          :label "Surface"
+                          :type :enum
+                          :values [:stone :grass]
+                          :default :stone}]}]
+          :layers []})
+        result (validation/validate schemas/project-schema document)]
+    (is (= {:valid? true
+            :errors {}}
+           result))))
+
+(deftest project-schema-rejects-unknown-property-types
+  (let [result
+        (validation/validate
+         schemas/project-schema
+         {:property-sets
+          [{:id :movement
+            :label "Movement"
+            :properties [{:id :cost
+                          :label "Cost"
+                          :type :currency}]}]})]
+    (is (= false (:valid? result)))
+    (is (= :valid-values
+           (-> result
+               :errors
+               :property-sets
+               head
+               :errors
+               (get 0)
+               :properties
+               head
+               :errors
+               (get 0)
+               :type
+               head
+               :rule)))))
+
+(deftest project-schema-requires-enum-values
+  (let [result
+        (validation/validate
+         schemas/project-schema
+         {:property-sets
+          [{:id :movement
+            :label "Movement"
+            :properties [{:id :surface
+                          :label "Surface"
+                          :type :enum}]}]})]
+    (is (= false (:valid? result)))
+    (is (= :required
+           (-> result
+               :errors
+               :property-sets
+               head
+               :errors
+               (get 0)
+               :properties
+               head
+               :errors
+               (get 0)
+               :values
+               head
+               :rule)))))
