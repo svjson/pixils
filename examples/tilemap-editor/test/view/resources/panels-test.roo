@@ -20,6 +20,18 @@
           {:view {:bounds {:w 284
                            :h 24}}}))))
 
+(deftest image-resource-row-drag-payload-carries-source-style
+  (let [source-style {:background {:r 1 :g 2 :b 3}}
+        payload (panels/image-resource-drag-payload
+                 {:bundle-id :terrain-assets
+                  :value :tiles
+                  :key-label ":terrain-assets/tiles"
+                  :name "Tiles"}
+                 {:start-position {:x 4 :y 6}}
+                 {:view {:bounds {:w 284 :h 24}
+                         :effective-style source-style}})]
+    (is (= source-style (:source-style payload)))))
+
 (deftest resource-bundle-row-accepts-drop-payloads
   (is (= {:source-bundle-id :terrain-assets
           :resource-id :tiles

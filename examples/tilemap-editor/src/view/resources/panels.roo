@@ -60,14 +60,16 @@
      :height (or (:h bounds) resource-list-row-height)}))
 
 (defun image-resource-drag-payload [state event ctx]
-  {:kind :resource/image
-   :bundle-id (:bundle-id state)
-   :resource-id (:value state)
-   :key-label (:key-label state)
-   :name (:name state)
-   :width (:width (image-resource-drag-size ctx))
-   :height (:height (image-resource-drag-size ctx))
-   :offset (:start-position event)})
+  (cond-> {:kind :resource/image
+           :bundle-id (:bundle-id state)
+           :resource-id (:value state)
+           :key-label (:key-label state)
+           :name (:name state)
+           :width (:width (image-resource-drag-size ctx))
+           :height (:height (image-resource-drag-size ctx))
+           :offset (:start-position event)}
+          (-> ctx :view :effective-style)
+          (assoc :source-style (-> ctx :view :effective-style))))
 
 (defun point-minus [position offset]
   (let [pos (or position {:x 0 :y 0})
@@ -324,8 +326,7 @@
                      (image-resource-list-child []))]})
 
 (defcomponent image-resource-drag-preview
-  {:class [:ui/list-item :ui/list-box-item]
-   :style {:position :absolute
+  {:style {:position :absolute
            :width resource-drag-preview-width
            :height resource-list-row-height
            :padding [3 6]
@@ -338,18 +339,23 @@
              (let [preview (:drag-preview state)
                    position (:position preview)]
 
+                 (when-let [source-style (:source-style preview)]
+                   (ui/style! (:view ctx) source-style))
                  (ui/style! (:view ctx)
                             (if preview
-                              {:hidden false
+                              {:position :absolute
+                               :hidden false
+                               :hit-test false
                                :left (:x position)
                                :top (:y position)
                                :width (or (:width preview)
                                           resource-drag-preview-width)
                                :height (or (:height preview)
                                            resource-list-row-height)}
-                              {:hidden true}))
+                              {:position :absolute
+                               :hidden true
+                               :hit-test false}))
                  (assoc state
-                        :selected true
                         :key-label (or (:key-label preview) "")
                         :name (or (:name preview) ""))))
    :children [{:mode 'ui/text
