@@ -1,4 +1,16 @@
-(ns tilemap-editor.view.masks.forms)
+(ns tilemap-editor.view.masks.forms
+  (:require [pixils.tilemap.project.model :as model]))
+
+(def mask-set-size-schema
+  "Form schema for editing the width and height of a mask set."
+  {:width {:type :integer
+           :path [:w]
+           :min model/min-map-dimension
+           :max model/max-map-dimension}
+   :height {:type :integer
+            :path [:h]
+            :min model/min-map-dimension
+            :max model/max-map-dimension}})
 
 (def mask-set-size-text
   "Field labels for the mask-set dimension form."

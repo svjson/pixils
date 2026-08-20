@@ -16,10 +16,9 @@
                                :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
-
-                                             (ui/emit! (:view ctx)
-                                                       :property-set/add)
-                                             state)}]
+                                           (ui/emit! (:view ctx)
+                                                     :property-set/add)
+                                           state)}]
             :body-style {:padding 8
                          :height :fill}
             :state {:property-sets (ui/bind-state :property-sets)
