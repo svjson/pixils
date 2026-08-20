@@ -44,8 +44,8 @@
      ctx)))
 
 (defcomponent pixils/form-selection-list-item
-  {:extend 'ui/option-item
-   :class [:ui/list-item :ui/list-box-item :pixils/form-selection-list-item]
+  {:extend 'ui/list-box-item
+   :class :pixils/form-selection-list-item
    :ui/state-keys [:field-id :context-menu-actions]
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
