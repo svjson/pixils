@@ -101,12 +101,14 @@ namespace
     return nullptr;
   }
 
-  std::shared_ptr<View> find_list_item_with_label(const std::shared_ptr<View>& view,
-                                                  const std::string& label_text)
+  std::shared_ptr<View> find_option_item_with_label(const std::shared_ptr<View>& view,
+                                                    const std::string& label_text)
   {
     if (!view) return nullptr;
-    if (view->definition && (view->definition->name == "ui/list-box-item" ||
-                             view->definition->name == "ui/option-item"))
+    if (view->definition &&
+        std::find(view->definition->selector_modes.begin(),
+                  view->definition->selector_modes.end(),
+                  "ui/option-item") != view->definition->selector_modes.end())
     {
       auto label = get_key(view->ui_state, "label");
       if (label && label->str() == label_text) return view;
@@ -114,7 +116,7 @@ namespace
 
     for (const auto& child : view->children)
     {
-      auto match = find_list_item_with_label(child, label_text);
+      auto match = find_option_item_with_label(child, label_text);
       if (match) return match;
     }
 
@@ -286,7 +288,7 @@ TEST_F(FileDialogTest, file_list_keeps_dialog_dimensions_when_directory_count_ch
   const auto initial_window_bounds = window->bounds;
   const auto initial_list_bounds = list_box->bounds;
 
-  auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
+  auto assets = find_option_item_with_label(session.active_mode, "[D] assets");
   ASSERT_NE(assets, nullptr);
   input().mouse_down(
     {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
@@ -474,7 +476,7 @@ TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_pat
   EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->type, Roo::Value::Type::NIL);
 
   auto original_entry =
-    find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
+    find_option_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(original_entry, nullptr);
 
   input().key_down(SDLK_RETURN);
@@ -488,7 +490,7 @@ TEST_F(FileDialogTest, typing_path_does_not_navigate_until_enter_and_invalid_pat
   EXPECT_EQ(get_key(file_dialog_body->state, "path")->str(), project.path());
   EXPECT_EQ(get_key(file_dialog_body->state, "pending-path")->str(), "z");
   EXPECT_EQ(get_key(file_dialog_body->state, "path-error")->str(), "Folder not found");
-  EXPECT_NE(find_list_item_with_label(session.active_mode, "    tilemap-editor.edn"),
+  EXPECT_NE(find_option_item_with_label(session.active_mode, "    tilemap-editor.edn"),
             nullptr);
 }
 
@@ -561,7 +563,7 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
   ASSERT_NE(file_dialog_body, nullptr);
   EXPECT_EQ(file_dialog_body->bounds.w, window_body->bounds.w);
 
-  auto entry = find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
+  auto entry = find_option_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(entry, nullptr);
   input().mouse_down(
     {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
@@ -634,8 +636,8 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
   session.update_mode();
   session.render_mode();
 
-  auto first = find_list_item_with_label(session.active_mode, "    demo-map.edn");
-  auto second = find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
+  auto first = find_option_item_with_label(session.active_mode, "    demo-map.edn");
+  auto second = find_option_item_with_label(session.active_mode, "    tilemap-editor.edn");
   ASSERT_NE(first, nullptr);
   ASSERT_NE(second, nullptr);
 
@@ -774,7 +776,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
   ASSERT_EQ(session.active_mode->definition->name, "ui/combo-box-popup");
   session.render_mode();
 
-  auto all_files = find_list_item_with_label(session.active_mode, "All files (*)");
+  auto all_files = find_option_item_with_label(session.active_mode, "All files (*)");
   ASSERT_NE(all_files, nullptr);
   input().mouse_down({all_files->bounds.x + (all_files->bounds.w / 2),
                       all_files->bounds.y + (all_files->bounds.h / 2)});
@@ -786,7 +788,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
   session.render_mode();
 
   ASSERT_EQ(session.active_mode->definition->name, "ui/dialog-frame");
-  auto entry = find_list_item_with_label(session.active_mode, "    readme.txt");
+  auto entry = find_option_item_with_label(session.active_mode, "    readme.txt");
   ASSERT_NE(entry, nullptr);
   input().mouse_down(
     {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)},
@@ -846,7 +848,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
   session.update_mode();
   session.render_mode();
 
-  auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
+  auto assets = find_option_item_with_label(session.active_mode, "[D] assets");
   ASSERT_NE(assets, nullptr);
   input().mouse_down(
     {assets->bounds.x + (assets->bounds.w / 2), assets->bounds.y + (assets->bounds.h / 2)});
@@ -875,7 +877,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
   ASSERT_NE(path, nullptr);
   EXPECT_EQ(path->str(), (project.root / "assets").string());
 
-  auto terrain = find_list_item_with_label(session.active_mode, "    terrain.edn");
+  auto terrain = find_option_item_with_label(session.active_mode, "    terrain.edn");
   ASSERT_NE(terrain, nullptr);
 }
 
@@ -905,7 +907,7 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
   session.update_mode();
   session.render_mode();
 
-  auto entry = find_list_item_with_label(session.active_mode, "    demo-map.edn");
+  auto entry = find_option_item_with_label(session.active_mode, "    demo-map.edn");
   ASSERT_NE(entry, nullptr);
   input().mouse_down(
     {entry->bounds.x + (entry->bounds.w / 2), entry->bounds.y + (entry->bounds.h / 2)});
