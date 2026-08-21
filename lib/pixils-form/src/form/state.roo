@@ -16,11 +16,28 @@
              (< index (count items)))
     (nth items index)))
 
-(defun default-item-label [item index]
-  (or (:label item)
-      (:name item)
-      (:id item)
-      (str "Item " (inc index))))
+(defun default-item-label
+  "Returns the stock selection label for an array item.
+
+  Object items prefer conventional label, name, and identity fields. Other
+  non-empty values label themselves.
+
+  Args:
+  - `item`: Array item to present.
+  - `index`: Zero-based position used by the fallback label.
+
+  Returns:
+  A display string or conventional object label value."
+  [item index]
+  (let [fallback (str "Item " (inc index))]
+    (cond
+      (map? item) (or (:label item)
+                      (:name item)
+                      (:id item)
+                      fallback)
+      (or (nil? item)
+          (and (string? item) (empty? item))) fallback
+      :default (str item))))
 
 (defun path-value [item path]
   (cond

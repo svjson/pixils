@@ -848,6 +848,15 @@
              :label ":place/dawnkeep-smithy"}]
            options))))
 
+(deftest selection-options/uses-scalar-values-as-default-labels
+  (is (= [{:value 0 :label "grass"}
+          {:value 1 :label ":water"}
+          {:value 2 :label "42"}
+          {:value 3 :label "false"}
+          {:value 4 :label "Item 5"}
+          {:value 5 :label "Item 6"}]
+         (form-state/selection-options ["grass" :water 42 false nil ""] nil))))
+
 
 
 ;; pixils.array-editor-control/selection-add-dialog-config
