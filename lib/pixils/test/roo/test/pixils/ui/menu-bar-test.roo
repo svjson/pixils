@@ -28,24 +28,37 @@
                 {})]
       {:mode (:mode spec)
        :style (:style spec)
+       :state-policy (:ui/state-policy spec)
        :application (select-keys (:state spec) [:game])
        :component (select-keys (-> spec :state :component)
                                [:menu-scale
                                 :active-index
                                 :pending-open-index])
        :child-modes (map (:children spec) :mode)
-       :child-inputs (select-keys (-> spec :children head :state)
-                                  [:menu-index :disabled? :text])}))
+       :child-state-policy (-> spec :children head :ui/state-policy)
+       :child-application-state (-> spec :children head :state)
+       :child-inputs (select-keys (-> spec :children head :ui-state)
+                                  [:menu-index :disabled? :text])
+       :dead-child-inputs (select-keys (-> spec :children head :ui-state)
+                                       [:pending-open-index
+                                        :menu-scale
+                                        :option-state
+                                        :game
+                                        :preferences])}))
 
   (s/then [result]
     (is (= {:mode 'ui/menu-bar
             :style {:width 123
                     :height 17}
+            :state-policy :isolated
             :application {:game :ready}
             :component {}
             :child-modes ['ui/menu-bar-item]
+            :child-state-policy :isolated
+            :child-application-state nil
             :child-inputs {:menu-index 0
-                           :text "File"}}
+                           :text "File"}
+            :dead-child-inputs {}}
            result))))
 
 (deftest make/preserves-the-application-map-call-shape
@@ -78,6 +91,14 @@
                         [:menu-scale
                          :active-index
                          :pending-open-index])))))
+
+(deftest make/preserves-explicit-shared-state-policy
+  (is (= :shared
+         (:ui/state-policy
+          (menu-bar/make
+           {:state-policy :shared}
+           {:items [{:label "File"}]}
+           {})))))
 
 
 
@@ -121,3 +142,91 @@
     (is (= {:mode "menu-static-root"
             :ui-state {}}
            result))))
+
+
+
+;; pixils.ui/menu-bar
+
+(deftest menu-bar/opens-a-popup-with-the-effective-menu-scale
+  (s/given
+    (app-for 'menu-scaled-root))
+
+  (s/when [app]
+    (let [menu (runtime/find-view app "ui/menu-bar")]
+      (runtime/mouse-down-in! app
+                              (runtime/find-view app "ui/menu-bar-item")
+                              1
+                              1)
+      (runtime/update! app)
+      (runtime/render! app)
+      {:mode (runtime/active-mode-name app)
+       :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)
+       :menu-ui-state (select-keys (:ui-state menu)
+                                   [:menu-scale
+                                    :active-index
+                                    :pending-open-index])
+       :mirrored-state (select-keys (:state menu)
+                                    [:menu-scale
+                                     :active-index
+                                     :pending-open-index])}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :popup-visual-scale 2
+            :menu-ui-state {:menu-scale 2
+                            :active-index 0}
+            :mirrored-state {}}
+           result))))
+
+(deftest menu-bar/omits-popup-scale-when-the-menu-has-none
+  (s/given
+    (app-for 'menu-unscaled-root))
+
+  (s/when [app]
+    (let [menu (runtime/find-view app "ui/menu-bar")]
+      (runtime/mouse-down-in! app
+                              (runtime/find-view app "ui/menu-bar-item")
+                              1
+                              1)
+      (runtime/update! app)
+      (runtime/render! app)
+      {:mode (runtime/active-mode-name app)
+       :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)
+       :menu-ui-state (select-keys (:ui-state menu) [:menu-scale])
+       :mirrored-state (select-keys (:state menu) [:menu-scale])}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :popup-visual-scale 1
+            :menu-ui-state {}
+            :mirrored-state {}}
+           result))))
+
+(deftest menu-bar/dismisses-an-open-popup-when-its-anchor-is-clicked
+  (s/given
+    (app-for 'menu-unscaled-root))
+
+  (s/when [app]
+    (let [item (runtime/find-view app "ui/menu-bar-item")]
+      (runtime/mouse-down-in! app item 1 1)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (let [opened-mode (runtime/active-mode-name app)]
+        (runtime/mouse-down-in! app item 1 1)
+        (runtime/update! app)
+        {:opened-mode opened-mode
+         :dismissed-mode (runtime/active-mode-name app)})))
+
+  (s/then [result]
+    (is (= {:opened-mode "ui/popup-menu"
+            :dismissed-mode "menu-unscaled-root"}
+           result))))
+
+(deftest menu-bar/inherits-the-theme-font
+  (s/when []
+    (let [app (app-for 'menu-classic-blue-root)
+          text (runtime/find-view app "ui/text")]
+      (-> text :effective-style :text :font)))
+
+  (s/then [font]
+    (is (= :font/classic-blue-font font))))

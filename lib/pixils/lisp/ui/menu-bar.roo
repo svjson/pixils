@@ -16,14 +16,12 @@
    :pending-open-index])
 
 (def ITEM-UI-STATE-KEYS
-  "Canonical UI-state keys owned by `ui/menu-bar-item`."
+  "Canonical UI-state inputs and intrinsic fields held by `ui/menu-bar-item`."
   [:node
    :menu-index
    :disabled?
    :active-index
-   :pending-open-index
    :text
-   :menu-scale
    :highlighted
    :suppress-next-open?])
 
@@ -84,26 +82,12 @@
                      (= (:menu-index candidate)
                         (:active-index candidate)))})
 
-(defun update-item-ui-state
-  "Apply menu-item interaction changes to UI and compatibility state.
-
-  Args:
-  - `state`: Current shared compatibility state.
-  - `ctx`: Item hook context.
-  - `updates`: Intrinsic UI-state changes.
-
-  Returns:
-  Updated shared compatibility state."
-  [state ctx updates]
-  (ui/set-ui-state! ctx (merge (-> ctx :view :ui-state) updates))
-  (merge state updates))
-
 (defun sync-scale
   "Synchronize measured menu scale after layout.
 
   Args:
   - `ui-state`: Current menu-bar UI state.
-  - `state`: Current shared compatibility state.
+  - `state`: Ignored ordinary state.
   - `ctx`: Menu-bar hook context.
 
   Returns:
@@ -115,27 +99,42 @@
       ui-state
       (assoc ui-state :menu-scale scale))))
 
+(defun open-popup-at-index!
+  "Open an enabled top-level submenu by index.
+
+  Args:
+  - `ui-state`: Current menu-bar UI state.
+  - `state`: Current application state.
+  - `ctx`: Menu-bar hook context.
+  - `index`: Candidate top-level item index.
+
+  Returns:
+  The pushed popup result, or `nil` when the item cannot open."
+  [ui-state state ctx index]
+  (let [node (item-at (:menu ui-state) index)
+        child-view (child-view-at (:view ctx) index)]
+    (when (and node
+               child-view
+               (not (:disabled? node)))
+      (popup/open-at-view! node
+                           (merge state ui-state)
+                           child-view
+                           :below))))
+
 (defun open-pending-popup
   "Open and clear a deferred top-level popup request.
 
   Args:
   - `ui-state`: Current menu-bar UI state.
-  - `state`: Current application and compatibility state.
+  - `state`: Current application state.
   - `ctx`: Menu-bar hook context.
 
   Returns:
   UI state with any pending request cleared."
   [ui-state state ctx]
   (if-let [index (:pending-open-index ui-state)]
-    (let [node (item-at (:menu ui-state) index)
-          child-view (child-view-at (:view ctx) index)]
-      (when (and node
-                 child-view
-                 (not (:disabled? node)))
-        (popup/open-at-view! node
-                                   (merge state ui-state)
-                                   child-view
-                                   :below))
+    (do
+      (open-popup-at-index! ui-state state ctx index)
       (assoc ui-state :pending-open-index nil))
     ui-state))
 
@@ -156,18 +155,18 @@
        (ui/stop-propagation! event)
        (cond
          (:suppress-next-open? ui-state)
-         (update-item-ui-state state
-                                    ctx
-                                    {:suppress-next-open? false})
+         (do
+           (ui/update-ui-state! ctx assoc :suppress-next-open? false)
+           state)
 
          (and node
               (not (:disabled? node))
               (model/submenu-node? node))
-         (update-item-ui-state
-          state
-          ctx
-          {:active-index (:menu-index ui-state)
-           :pending-open-index (:menu-index ui-state)})
+         (do
+           (ui/emit! (:view ctx)
+                     :menu/open
+                     {:menu-index (:menu-index ui-state)})
+           state)
 
          (and node
               (not (:disabled? node))
@@ -202,9 +201,9 @@
 
               (and (= :dismiss (:type payload))
                    (:anchor-click? payload))
-              (update-item-ui-state state
-                                         ctx
-                                         {:suppress-next-open? true})
+              (do
+                (ui/update-ui-state! ctx assoc :suppress-next-open? true)
+                state)
 
               :default
               state)))}
@@ -217,7 +216,15 @@
    :ui/state-keys UI-STATE-KEYS
    :update-ui open-pending-popup
    :after-layout-ui sync-scale
-   :on {:menu/navigate-top
+   :on {:menu/open
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                index (-> event :payload :menu-index)]
+            (ui/stop-propagation! event)
+            (when (open-popup-at-index! ui-state state ctx index)
+              (ui/update-ui-state! ctx assoc :active-index index))
+            state))
+        :menu/navigate-top
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
                 payload (:payload event)
@@ -230,23 +237,20 @@
                             (:menu-index payload)
                             direction)]
             (ui/stop-propagation! event)
-            (ui/set-ui-state! ctx
-                              (assoc ui-state
-                                     :active-index next-index
-                                     :pending-open-index next-index))
-            (assoc state
-                   :active-index next-index
-                   :pending-open-index next-index)))
+            (ui/update-ui-state!
+             ctx
+             merge
+             {:active-index next-index
+              :pending-open-index next-index})
+            state))
         :menu/select
         (fn [state _event ctx]
-          (let [ui-state (-> ctx :view :ui-state)]
-            (ui/set-ui-state! ctx
-                              (assoc ui-state
-                                     :active-index nil
-                                     :pending-open-index nil))
-            (assoc state
-                   :active-index nil
-                   :pending-open-index nil)))}})
+          (ui/update-ui-state!
+           ctx
+           merge
+           {:active-index nil
+            :pending-open-index nil})
+          state)}})
 
 
 
@@ -284,29 +288,24 @@
   (let [state (or (:state opts) {})
         class (:class opts)
         ui-state (:ui-state opts)
-        state-policy (:state-policy opts)
         component (component-state opts)]
     (cond->
       {:mode 'ui/menu-bar
        :state (assoc state :component component)
+       :ui/state-policy (or (:state-policy opts) :isolated)
        :children
        (for-indexed [index item (-> component :menu :items)]
          {:mode 'ui/menu-bar-item
           :style {:padding [2 8]}
-          :state {:node item
-                  :menu-index index
-                  :disabled? (:disabled? item)
-                  :active-index (ui/bind-state :active-index)
-                  :pending-open-index (ui/bind-state :pending-open-index)
-                  :text (:display-text item)
-                  :menu-scale (ui/bind-state :menu-scale)
-                  :option-state (ui/bind-state :option-state)
-                  :game (ui/bind-state :game)
-                  :preferences (ui/bind-state :preferences)}})}
+          :ui/state-policy :isolated
+          :ui-state {:node item
+                     :menu-index index
+                     :disabled? (:disabled? item)
+                     :active-index (ui/project-state :active-index)
+                     :text (:display-text item)}})}
       (contains? opts :style) (assoc :style (:style opts))
       class (assoc :class class)
-      ui-state (assoc :ui-state ui-state)
-      state-policy (assoc :ui/state-policy state-policy))))
+      ui-state (assoc :ui-state ui-state))))
 
 (defun make-options
   "Normalize canonical and legacy menu constructor arguments.
@@ -338,6 +337,8 @@
   - `keymap`: Action bindings used to resolve displayed shortcuts.
 
   Returns:
-  A `ui/menu-bar` view specification."
+  An isolated `ui/menu-bar` view specification. Pass `:state-policy :shared`
+  only when compatibility code reads intrinsic menu fields from ordinary
+  state."
   [options menu-definition keymap]
   (make-node (make-options options menu-definition keymap)))

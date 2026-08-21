@@ -1,195 +1,12 @@
 #include "../../render_fixture.h"
 
-#include <SDL3/SDL_mouse.h>
 #include <algorithm>
 #include <gtest/gtest.h>
-#include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 
-using MenuTest = RenderFixture;
+using PopupMenuTest = RenderFixture;
 
-TEST_F(MenuTest, opened_popup_inherits_menu_scale)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "File"
-                :items [{:label "Open"
-                         :action :file/open}]}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu-bar/make
-                   {:style {:scale 2}}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  auto menu_scale = Roo::Dict::get_property(menu->state, Roo::keyword("menu-scale"));
-  ASSERT_NE(menu_scale, nullptr);
-  EXPECT_EQ(menu_scale->to_string(), "2");
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-
-  input().mouse_down({menu_item->bounds.x * 2 + menu_item->bounds.w,
-                      menu_item->bounds.y * 2 + menu_item->bounds.h});
-  update_cycle();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
-  ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
-  EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
-}
-
-TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "Game"
-                :items [{:label "New"
-                         :action :game/new}]}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu-bar/make
-                   {}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  auto menu_scale = Roo::Dict::get_property(menu->state, Roo::keyword("menu-scale"));
-  EXPECT_TRUE(!menu_scale || menu_scale->type == Roo::Value::Type::NIL);
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-
-  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
-                      menu_item->bounds.y + menu_item->bounds.h / 2});
-  update_cycle();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
-  EXPECT_FALSE(session.active_mode->effective_style.scale.has_value());
-}
-
-TEST_F(MenuTest, clicking_open_menu_bar_item_closes_without_reopening)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "File"
-                :items [{:label "Open"
-                         :action :file/open}]}]})
-
-    (pixils/defmode root-mode
-      {:children [(pixils.ui.menu-bar/make
-                   {}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-  auto item_center = std::make_pair(menu_item->bounds.x + menu_item->bounds.w / 2,
-                                    menu_item->bounds.y + menu_item->bounds.h / 2);
-
-  input().mouse_down(item_center);
-  update_cycle();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
-
-  input().mouse_down(item_center);
-  update_cycle();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "root-mode");
-}
-
-TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
-{
-  runtime.eval(R"(
-    (def menu-definition
-      {:items [{:label "File"
-                :items [{:label "Open"
-                         :action :file/open}]}]})
-
-    (pixils/defmode root-mode
-      {:theme 'pixils/classic-blue
-       :children [(pixils.ui.menu-bar/make
-                   {}
-                   menu-definition
-                   {})]})
-  )");
-
-  session.push_mode("root-mode", Roo::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto menu = session.active_mode->children[0];
-  ASSERT_NE(menu, nullptr);
-  ASSERT_EQ(menu->children.size(), 1u);
-  auto menu_item = menu->children[0];
-  ASSERT_NE(menu_item, nullptr);
-  ASSERT_EQ(menu_item->children.size(), 1u);
-  auto menu_text = menu_item->children[0];
-  ASSERT_NE(menu_text, nullptr);
-  ASSERT_TRUE(menu_text->effective_style.text.has_value());
-  ASSERT_TRUE(menu_text->effective_style.text->font.has_value());
-  EXPECT_EQ(*menu_text->effective_style.text->font, "font/classic-blue-font");
-
-  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
-                      menu_item->bounds.y + menu_item->bounds.h / 2});
-  update_cycle();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "ui/popup-menu");
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto outer = session.active_mode->children[0];
-  ASSERT_NE(outer, nullptr);
-  ASSERT_EQ(outer->children.size(), 1u);
-  auto inner = outer->children[0];
-  ASSERT_NE(inner, nullptr);
-  ASSERT_EQ(inner->children.size(), 1u);
-  auto popup_item = inner->children[0];
-  ASSERT_NE(popup_item, nullptr);
-  ASSERT_FALSE(popup_item->children.empty());
-  auto popup_text = popup_item->children[0];
-  ASSERT_NE(popup_text, nullptr);
-  ASSERT_TRUE(popup_text->effective_style.text.has_value());
-  ASSERT_TRUE(popup_text->effective_style.text->font.has_value());
-  EXPECT_EQ(*popup_text->effective_style.text->font, "font/classic-blue-font");
-}
-
-TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
+TEST_F(PopupMenuTest, classic_blue_menu_option_indicator_uses_theme_text)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -227,7 +44,7 @@ TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
   EXPECT_EQ(indicator_var->to_string(), "{:selected-text \"[x]\" :unselected-text \"[ ]\"}");
 }
 
-TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
+TEST_F(PopupMenuTest, base_theme_generates_stock_menu_option_checkmark_image)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -285,7 +102,7 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   EXPECT_EQ(render_target()->render_ops.back().rendered_rect.h, 10);
 }
 
-TEST_F(MenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symbol)
+TEST_F(PopupMenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symbol)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -317,7 +134,7 @@ TEST_F(MenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symbol)
   EXPECT_EQ(copy_ops, 0);
 }
 
-TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
+TEST_F(PopupMenuTest, classic_blue_submenu_indicator_uses_theme_text)
 {
   runtime.eval(R"(
     (def menu-definition
@@ -352,34 +169,16 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   ASSERT_EQ(inner->children.size(), 2u);
 
   auto submenu_item = inner->children[0];
-  auto leaf_item = inner->children[1];
   ASSERT_EQ(submenu_item->children.size(), 3u);
-  ASSERT_EQ(leaf_item->children.size(), 3u);
 
   auto submenu_trailing = submenu_item->children[2];
-  auto leaf_trailing = leaf_item->children[2];
   ASSERT_NE(submenu_trailing, nullptr);
-  ASSERT_NE(leaf_trailing, nullptr);
   EXPECT_EQ(submenu_trailing->definition->name, "ui/menu-item-trailing");
-  EXPECT_EQ(leaf_trailing->definition->name, "ui/menu-item-trailing");
   ASSERT_EQ(submenu_trailing->children.size(), 2u);
-  ASSERT_EQ(leaf_trailing->children.size(), 2u);
 
   auto submenu_indicator = submenu_trailing->children[1];
-  auto leaf_indicator = leaf_trailing->children[1];
   ASSERT_NE(submenu_indicator, nullptr);
-  ASSERT_NE(leaf_indicator, nullptr);
   EXPECT_EQ(submenu_indicator->definition->name, "ui/menu-submenu-indicator");
-  EXPECT_EQ(leaf_indicator->definition->name, "ui/menu-submenu-indicator");
-
-  auto submenu_state =
-    Roo::Dict::get_property(submenu_indicator->state, Roo::keyword("has-submenu"));
-  auto leaf_state =
-    Roo::Dict::get_property(leaf_indicator->state, Roo::keyword("has-submenu"));
-  ASSERT_NE(submenu_state, nullptr);
-  ASSERT_NE(leaf_state, nullptr);
-  EXPECT_EQ(submenu_state->to_string(), "true");
-  EXPECT_EQ(leaf_state->to_string(), "false");
 
   ASSERT_TRUE(submenu_indicator->effective_theme.vars.count("dark") > 0);
   ASSERT_TRUE(
@@ -390,7 +189,7 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   EXPECT_EQ(indicator_var->to_string(), "{:text \">\"}");
 }
 
-TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
+TEST_F(PopupMenuTest, popup_items_share_marker_label_and_trailing_columns)
 {
   runtime.eval(R"(
     (def menu-definition
@@ -496,7 +295,7 @@ TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
             16);
 }
 
-TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
+TEST_F(PopupMenuTest, windows_95_submenu_indicator_generates_chevron_images)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -567,7 +366,7 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
             7);
 }
 
-TEST_F(MenuTest, windows_95_dark_submenu_indicator_uses_bright_image_by_default)
+TEST_F(PopupMenuTest, windows_95_dark_submenu_indicator_uses_bright_image_by_default)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -594,7 +393,7 @@ TEST_F(MenuTest, windows_95_dark_submenu_indicator_uses_bright_image_by_default)
             ":highlighted-image :windows-95-theme/submenu-chevron-highlighted}");
 }
 
-TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
+TEST_F(PopupMenuTest, windows_3_submenu_indicator_generates_chevron_images)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -665,7 +464,7 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
             7);
 }
 
-TEST_F(MenuTest, windows_3_dark_submenu_indicator_uses_bright_image_by_default)
+TEST_F(PopupMenuTest, windows_3_dark_submenu_indicator_uses_bright_image_by_default)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -690,48 +489,4 @@ TEST_F(MenuTest, windows_3_dark_submenu_indicator_uses_bright_image_by_default)
   EXPECT_EQ(indicator_var->to_string(),
             "{:image :windows-3-theme/submenu-chevron-highlighted "
             ":highlighted-image :windows-3-theme/submenu-chevron-highlighted}");
-}
-
-TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
-{
-  runtime.eval(R"(
-    (def context-menu
-      {:settings {:mnemonics {:enabled false}}
-       :items [{:label "Rename"
-                :action :layer/rename}
-               {:label "Delete"
-                :action :layer/delete}]})
-
-    (pixils/defmode context-target
-      {:style {:width 100 :height 30}
-       :on-mouse-up (fn [state event ctx]
-                      (if (= (:button event) :right)
-                        (do
-                          (pixils.ui.popup-menu/open-context!
-                           context-menu
-                           (:global-position event)
-                           state
-                           ctx)
-                          state)
-                        state))})
-  )");
-
-  session.push_mode("context-target", Roo::Constant::NIL);
-  session.active_mode->bounds = {0, 0, 100, 30};
-  session.update_mode();
-  session.render_mode();
-
-  input().mouse_down({42, 17}, SDL_BUTTON_RIGHT);
-  update_cycle();
-  input().mouse_up({42, 17}, SDL_BUTTON_RIGHT);
-  update_cycle();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->definition->name, "ui/context-menu");
-  ASSERT_EQ(session.active_mode->children.size(), 1u);
-  auto outer = session.active_mode->children[0];
-  ASSERT_NE(outer, nullptr);
-  EXPECT_EQ(outer->bounds.x, 42);
-  EXPECT_EQ(outer->bounds.y, 17);
 }

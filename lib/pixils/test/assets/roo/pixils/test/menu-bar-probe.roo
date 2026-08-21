@@ -2,6 +2,11 @@
   (:require pixils
             [pixils.ui.menu-bar :as menu-bar]))
 
+(def submenu-menu
+  {:items [{:label "File"
+            :items [{:label "Open"
+                     :action :file/open}]}]})
+
 (pixils/defmode menu-action-root
   {:init (fn [_state _ctx]
            {:quit false
@@ -24,4 +29,23 @@
                {:style {:width 120
                         :height 20}}
                {:items [{:label "Static"}]}
+               {})]})
+
+(pixils/defmode menu-scaled-root
+  {:children [(menu-bar/make
+               {:style {:scale 2}}
+               submenu-menu
+               {})]})
+
+(pixils/defmode menu-unscaled-root
+  {:children [(menu-bar/make
+               {}
+               submenu-menu
+               {})]})
+
+(pixils/defmode menu-classic-blue-root
+  {:theme 'pixils/classic-blue
+   :children [(menu-bar/make
+               {}
+               submenu-menu
                {})]})

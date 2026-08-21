@@ -1,6 +1,7 @@
 (ns pixils.test.popup-menu-probe
   (:require pixils
-            [pixils.ui.menu-bar :as menu-bar]))
+            [pixils.ui.menu-bar :as menu-bar]
+            [pixils.ui.popup-menu :as popup-menu]))
 
 (def keyboard-menu
   {:items [{:label "File"
@@ -13,6 +14,21 @@
                     {:label "Save"
                      :action :file/save
                      :payload {:source :keyboard}}]}]})
+
+(def submenu-indicator-menu
+  {:items [{:label "File"
+            :items [{:label "Recent"
+                     :items [{:label "Map"
+                              :action :file/open-recent}]}
+                    {:label "Open"
+                     :action :file/open}]}]})
+
+(def context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename"
+            :action :layer/rename}
+           {:label "Delete"
+            :action :layer/delete}]})
 
 (pixils/defmode popup-keyboard-root
   {:init (fn [_state _ctx]
@@ -30,3 +46,32 @@
                         :height 20}}
                keyboard-menu
                {})]})
+
+(pixils/defmode popup-classic-blue-root
+  {:theme 'pixils/classic-blue
+   :children [(menu-bar/make
+               {}
+               keyboard-menu
+               {})]})
+
+(pixils/defmode popup-submenu-indicator-root
+  {:theme 'pixils/classic-blue
+   :children [(menu-bar/make
+               {}
+               submenu-indicator-menu
+               {})]})
+
+(pixils/defmode popup-context-target
+  {:style {:width 100
+           :height 30}
+   :on-mouse-up (fn [state event ctx]
+                  (case (:button event)
+                    :right
+                    (do
+                      (popup-menu/open-context!
+                       context-menu
+                       (:global-position event)
+                       state
+                       ctx)
+                      state)
+                    :default state))})

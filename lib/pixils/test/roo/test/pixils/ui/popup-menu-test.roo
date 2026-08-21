@@ -4,14 +4,18 @@
             [pixils.test.runtime :as runtime]
             [pixils.ui.popup-menu :as popup-menu]))
 
-(defun popup-app []
+(defun app-for [mode]
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
                                :render-backend false})]
     (runtime/eval-file! app "pixils/test/popup-menu-probe.roo")
-    (runtime/push-mode! app 'popup-keyboard-root)
+    (runtime/push-mode! app mode)
     (runtime/settle-layout! app)
+    app))
+
+(defun open-popup-app [mode]
+  (let [app (app-for mode)]
     (runtime/mouse-down-in! app
                             (runtime/find-view app "ui/menu-bar-item")
                             1
@@ -19,6 +23,9 @@
     (runtime/update! app)
     (runtime/settle-layout! app)
     app))
+
+(defun popup-app []
+  (open-popup-app 'popup-keyboard-root))
 
 
 
@@ -120,4 +127,63 @@
     (is (= {:mode "popup-keyboard-root"
             :last-action {:action :file/save
                           :payload {:source :keyboard}}}
+           result))))
+
+(deftest popup-menu-inner/inherits-the-theme-font
+  (s/when []
+    (let [app (open-popup-app 'popup-classic-blue-root)
+          text (runtime/find-view app "ui/text")]
+      {:mode (runtime/active-mode-name app)
+       :font (-> text :effective-style :text :font)}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :font :font/classic-blue-font}
+           result))))
+
+
+
+;; pixils.ui/menu-submenu-indicator
+
+(deftest menu-submenu-indicator/represents-submenu-and-leaf-rows
+  (s/when []
+    (let [app (open-popup-app 'popup-submenu-indicator-root)
+          trailing (runtime/find-views app "ui/menu-item-trailing")
+          indicators (runtime/find-views app "ui/menu-submenu-indicator")]
+      {:mode (runtime/active-mode-name app)
+       :trailing-count (count trailing)
+       :indicator-count (count indicators)
+       :has-submenu (for [indicator indicators]
+                      (-> indicator :ui-state :has-submenu))}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :trailing-count 2
+            :indicator-count 2
+            :has-submenu [true false]}
+           result))))
+
+
+
+;; pixils.ui.popup-menu/open-context!
+
+(deftest open-context!/opens-at-the-mouse-position
+  (s/given
+    (app-for 'popup-context-target))
+
+  (s/when [app]
+    (runtime/mouse-down-at! app 42 17 :right)
+    (runtime/update! app)
+    (runtime/mouse-up-at! app 42 17 :right)
+    (runtime/update! app)
+    (runtime/settle-layout! app)
+    {:mode (runtime/active-mode-name app)
+     :position (select-keys
+                (:bounds (runtime/find-view app "ui/popup-menu-outer"))
+                [:x :y])})
+
+  (s/then [result]
+    (is (= {:mode "ui/context-menu"
+            :position {:x 42
+                       :y 17}}
            result))))
