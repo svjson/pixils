@@ -1,58 +1,13 @@
 (ns pixils.ui.menu-bar
   (:require pixils
             [pixils.ui :as ui]
+            [pixils.ui.menu-bar-item :as menu-bar-item]
             [pixils.ui.menu-model :as model]
             [pixils.ui.popup-menu :as popup]))
 
 
 
 ;; Menu-bar state
-
-(def UI-STATE-KEYS
-  "Canonical UI-state keys owned by `ui/menu-bar`."
-  [:menu
-   :menu-scale
-   :active-index
-   :pending-open-index])
-
-(def ITEM-UI-STATE-KEYS
-  "Canonical UI-state inputs and intrinsic fields held by `ui/menu-bar-item`."
-  [:node
-   :menu-index
-   :disabled?
-   :active-index
-   :text
-   :highlighted
-   :suppress-next-open?])
-
-(defun child-view-at
-  "Resolve a direct child view by index.
-
-  Args:
-  - `view`: Parent view.
-  - `index`: Candidate child index.
-
-  Returns:
-  The child view, or `nil` for an invalid index."
-  [view index]
-  (let [children (ui/children view)]
-    (when (and (>= index 0)
-               (< index (count children)))
-      (nth children index))))
-
-(defun item-at
-  "Resolve a top-level normalized menu item by index.
-
-  Args:
-  - `menu`: Normalized menu root.
-  - `index`: Candidate item index.
-
-  Returns:
-  The menu item, or `nil` for an invalid index."
-  [menu index]
-  (when (and (>= index 0)
-             (< index (count (:items menu))))
-    (nth (:items menu) index)))
 
 (defun view-scale
   "Read the effective scale inherited by a view.
@@ -66,39 +21,6 @@
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
 
-(defun item-highlight-transition
-  "Derive keyboard-active highlighting for a menu-bar item.
-
-  Args:
-  - `current`: Current derived model values.
-  - `candidate`: UI state after dependency changes.
-  - `changed-keys`: Dependencies changed by the transition.
-
-  Returns:
-  The next `:highlighted` model value."
-  [_current candidate _changed-keys]
-  {:highlighted (and (not (:disabled? candidate))
-                     (some? (:active-index candidate))
-                     (= (:menu-index candidate)
-                        (:active-index candidate)))})
-
-(defun sync-scale
-  "Synchronize measured menu scale after layout.
-
-  Args:
-  - `ui-state`: Current menu-bar UI state.
-  - `state`: Ignored ordinary state.
-  - `ctx`: Menu-bar hook context.
-
-  Returns:
-  UI state containing the effective scale."
-  [ui-state _state ctx]
-  (let [scale (view-scale (:view ctx))]
-    (if (or (nil? scale)
-            (= scale (:menu-scale ui-state)))
-      ui-state
-      (assoc ui-state :menu-scale scale))))
-
 (defun open-popup-at-index!
   "Open an enabled top-level submenu by index.
 
@@ -111,8 +33,8 @@
   Returns:
   The pushed popup result, or `nil` when the item cannot open."
   [ui-state state ctx index]
-  (let [node (item-at (:menu ui-state) index)
-        child-view (child-view-at (:view ctx) index)]
+  (let [node (nth (-> ui-state :menu :items) index)
+        child-view (nth (-> ctx :view ui/children) index)]
     (when (and node
                child-view
                (not (:disabled? node)))
@@ -133,89 +55,34 @@
   UI state with any pending request cleared."
   [ui-state state ctx]
   (if-let [index (:pending-open-index ui-state)]
-    (do
-      (open-popup-at-index! ui-state state ctx index)
-      (assoc ui-state :pending-open-index nil))
+    (-> ui-state
+        (open-popup-at-index! state ctx index)
+        (assoc :pending-open-index nil))
     ui-state))
 
 
 
-;; Menu-bar components
+;; Menu-bar component
 
-(defcomponent ui/menu-bar-item
-  {:class :menu/item
-   :ui/state-keys ITEM-UI-STATE-KEYS
-   :ui/models [{:owns [:highlighted]
-                :depends-on [:disabled? :active-index :menu-index]
-                :transition item-highlight-transition}]
-   :on-mouse-down
-   (fn [state event ctx]
-     (let [ui-state (-> ctx :view :ui-state)
-           node (:node ui-state)]
-       (ui/stop-propagation! event)
-       (cond
-         (:suppress-next-open? ui-state)
-         (do
-           (ui/update-ui-state! ctx assoc :suppress-next-open? false)
-           state)
-
-         (and node
-              (not (:disabled? node))
-              (model/submenu-node? node))
-         (do
-           (ui/emit! (:view ctx)
-                     :menu/open
-                     {:menu-index (:menu-index ui-state)})
-           state)
-
-         (and node
-              (not (:disabled? node))
-              (:action node))
-         (do
-           (ui/emit! (:view ctx) (:action node) (:payload node))
-           state)
-
-         :default
-         state)))
-   :on {:menu/select
-        (fn [state event ctx]
-          (let [ui-state (-> ctx :view :ui-state)
-                payload (:payload event)]
-            (cond
-              (= :navigate-top (:type payload))
-              (do
-                (ui/stop-propagation! event)
-                (ui/emit! (:view ctx)
-                          :menu/navigate-top
-                          {:direction (:direction payload)
-                           :menu-index (:menu-index ui-state)})
-                state)
-
-              (and (= :action (:type payload))
-                   (not (:disabled? ui-state)))
-              (do
-                (ui/emit! (:view ctx)
-                          (:action payload)
-                          (:payload payload))
-                state)
-
-              (and (= :dismiss (:type payload))
-                   (:anchor-click? payload))
-              (do
-                (ui/update-ui-state! ctx assoc :suppress-next-open? true)
-                state)
-
-              :default
-              state)))}
-   :children [{:mode 'ui/text
-               :state {:value (ui/project-state :text)}}]})
+(def UI-STATE-KEYS
+  "Canonical UI-state keys owned by `ui/menu-bar`."
+  [:menu
+   :menu-scale
+   :active-index
+   :pending-open-index])
 
 (defcomponent ui/menu-bar
   {:style {:width :fill
            :layout {:direction :row}}
    :ui/state-keys UI-STATE-KEYS
    :update-ui open-pending-popup
-   :after-layout-ui sync-scale
+   :after-layout-ui (fn [ui-state _state ctx]
+                      (let [scale (view-scale (:view ctx))]
+                        (if (or (nil? scale)
+                                (= scale (:menu-scale ui-state)))
+                          ui-state
+                          (assoc ui-state :menu-scale scale))))
+
    :on {:menu/open
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
@@ -237,11 +104,8 @@
                             (:menu-index payload)
                             direction)]
             (ui/stop-propagation! event)
-            (ui/update-ui-state!
-             ctx
-             merge
-             {:active-index next-index
-              :pending-open-index next-index})
+            (ui/update-ui-state! ctx merge {:active-index next-index
+                                            :pending-open-index next-index})
             state))
         :menu/select
         (fn [state _event ctx]
@@ -285,48 +149,21 @@
   Returns:
   A menu-bar view specification with normalized component state."
   [opts]
-  (let [state (or (:state opts) {})
-        class (:class opts)
+  (let [class (:class opts)
         ui-state (:ui-state opts)
         component (component-state opts)]
     (cond->
       {:mode 'ui/menu-bar
-       :state (assoc state :component component)
+       :state (assoc (:state opts) :component component)
        :ui/state-policy (or (:state-policy opts) :isolated)
        :children
        (for-indexed [index item (-> component :menu :items)]
-         {:mode 'ui/menu-bar-item
-          :style {:padding [2 8]}
-          :ui/state-policy :isolated
-          :ui-state {:node item
-                     :menu-index index
-                     :disabled? (:disabled? item)
-                     :active-index (ui/project-state :active-index)
-                     :text (:display-text item)}})}
+         (menu-bar-item/make item
+                             index
+                             (ui/project-state :active-index)))}
       (contains? opts :style) (assoc :style (:style opts))
       class (assoc :class class)
       ui-state (assoc :ui-state ui-state))))
-
-(defun make-options
-  "Normalize canonical and legacy menu constructor arguments.
-
-  Args:
-  - `options`: Constructor options or legacy application-state map.
-  - `menu-definition`: Declarative menu tree and optional settings.
-  - `keymap`: Action bindings used to resolve displayed shortcuts.
-
-  Returns:
-  Canonical options accepted by `make-node`."
-  [options menu-definition keymap]
-  (merge (if (or (contains? options :state)
-                 (contains? options :style)
-                 (contains? options :class)
-                 (contains? options :ui-state)
-                 (contains? options :state-policy))
-           options
-           {:state options})
-         {:menu-definition menu-definition
-          :keymap keymap}))
 
 (defun make
   "Build a menu-bar view specification.
@@ -341,4 +178,12 @@
   only when compatibility code reads intrinsic menu fields from ordinary
   state."
   [options menu-definition keymap]
-  (make-node (make-options options menu-definition keymap)))
+  (make-node (merge (if (or (contains? options :state)
+                            (contains? options :style)
+                            (contains? options :class)
+                            (contains? options :ui-state)
+                            (contains? options :state-policy))
+                      options
+                      {:state options})
+                    {:menu-definition menu-definition
+                     :keymap keymap})))

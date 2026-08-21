@@ -1,0 +1,121 @@
+(ns pixils.ui.menu-bar-item
+  "Handles top-level menu interaction and derives highlighted state."
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.menu-model :as model]))
+
+(def UI-STATE-KEYS
+  "Canonical UI-state inputs and intrinsic fields held by `ui/menu-bar-item`."
+  [:node
+   :menu-index
+   :disabled?
+   :active-index
+   :highlighted
+   :suppress-next-open?])
+
+(defun highlight-transition
+  "Derive keyboard-active highlighting.
+
+  Args:
+  - `current`: Current derived model values.
+  - `candidate`: UI state after dependency changes.
+  - `changed-keys`: Dependencies changed by the transition.
+
+  Returns:
+  The next `:highlighted` model value."
+  [_current candidate _changed-keys]
+  {:highlighted (and (not (:disabled? candidate))
+                     (some? (:active-index candidate))
+                     (= (:menu-index candidate)
+                        (:active-index candidate)))})
+
+(defcomponent ui/menu-bar-item
+  {:class :menu/item
+   :ui/state-keys UI-STATE-KEYS
+   :ui/models [{:owns [:highlighted]
+                :depends-on [:disabled? :active-index :menu-index]
+                :transition highlight-transition}]
+   :on-mouse-down
+   (fn [state event ctx]
+     (let [ui-state (-> ctx :view :ui-state)
+           node (:node ui-state)]
+       (ui/stop-propagation! event)
+       (cond
+         (:suppress-next-open? ui-state)
+         (do
+           (ui/update-ui-state! ctx assoc :suppress-next-open? false)
+           state)
+
+         (and node
+              (not (:disabled? node))
+              (model/submenu-node? node))
+         (do
+           (ui/emit! (:view ctx)
+                     :menu/open
+                     {:menu-index (:menu-index ui-state)})
+           state)
+
+         (and node
+              (not (:disabled? node))
+              (:action node))
+         (do
+           (ui/emit! (:view ctx) (:action node) (:payload node))
+           state)
+
+         :default
+         state)))
+   :on {:menu/select
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)]
+            (cond
+              (= :navigate-top (:type payload))
+              (do
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :menu/navigate-top
+                          {:direction (:direction payload)
+                           :menu-index (:menu-index ui-state)})
+                state)
+
+              (and (= :action (:type payload))
+                   (not (:disabled? ui-state)))
+              (do
+                (ui/emit! (:view ctx)
+                          (:action payload)
+                          (:payload payload))
+                state)
+
+              (and (= :dismiss (:type payload))
+                   (:anchor-click? payload))
+              (do
+                (ui/update-ui-state! ctx assoc :suppress-next-open? true)
+                state)
+
+              :default
+              state)))}})
+
+
+
+;; Construction
+
+(defun make
+  "Build a top-level menu item view specification.
+
+  Args:
+  - `node`: Normalized menu item.
+  - `index`: Item index within the menu bar.
+  - `active-index`: Current active index or a parent-state projection.
+
+  Returns:
+  An isolated item with its stable label supplied directly to `ui/text`."
+  [node index active-index]
+  {:mode 'ui/menu-bar-item
+   :style {:padding [2 8]}
+   :ui/state-policy :isolated
+   :ui-state {:node node
+              :menu-index index
+              :disabled? (:disabled? node)
+              :active-index active-index}
+   :children [{:mode 'ui/text
+               :state {:value (:display-text node)}}]})

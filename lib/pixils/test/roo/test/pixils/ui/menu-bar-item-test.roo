@@ -1,0 +1,107 @@
+(ns pixils.ui.menu-bar-item-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [pixils.ui.menu-bar-item :as menu-bar-item]))
+
+(defun app-for [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval-file! app "pixils/test/menu-bar-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    app))
+
+
+
+;; pixils.ui.menu-bar-item/make
+
+(deftest make/supplies-the-stable-label-directly-to-the-text-child
+  (is (= {:mode 'ui/menu-bar-item
+          :style {:padding [2 8]}
+          :state-policy :isolated
+          :ui-state {:node {:display-text "File"}
+                     :menu-index 2
+                     :disabled? nil
+                     :active-index 1}
+          :children [{:mode 'ui/text
+                      :state {:value "File"}}]}
+         (let [spec (menu-bar-item/make {:display-text "File"} 2 1)]
+           {:mode (:mode spec)
+            :style (:style spec)
+            :state-policy (:ui/state-policy spec)
+            :ui-state (:ui-state spec)
+            :children (:children spec)}))))
+
+
+
+;; pixils.ui.menu-bar-item/highlight-transition
+
+(deftest highlight-transition/highlights-only-the-enabled-active-item
+  (is (= [{:highlighted true}
+          {:highlighted false}
+          {:highlighted false}
+          {:highlighted false}]
+         (for [candidate [{:menu-index 1
+                           :active-index 1}
+                          {:menu-index 1
+                           :active-index 0}
+                          {:menu-index 1
+                           :active-index 1
+                           :disabled? true}
+                          {:menu-index 1}]]
+           (menu-bar-item/highlight-transition nil candidate nil)))))
+
+
+
+;; pixils.ui/menu-bar-item
+
+(deftest menu-bar-item/gives-the-text-child-its-label
+  (s/when []
+    (let [app (app-for 'menu-action-root)
+          text (runtime/find-view app "ui/text")]
+      (runtime/view-state text)))
+
+  (s/then [state]
+    (is (= {:value "Quit"} state))))
+
+(deftest menu-bar-item/emits-leaf-actions-without-opening-a-popup
+  (s/given
+    (app-for 'menu-action-root))
+
+  (s/when [app]
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    {:mode (runtime/active-mode-name app)
+     :state (runtime/active-state app)})
+
+  (s/then [result]
+    (is (= {:mode "menu-action-root"
+            :state {:quit true
+                    :payload {:source :menu}}}
+           result))))
+
+(deftest menu-bar-item/does-not-open-an-empty-item
+  (s/given
+    (app-for 'menu-static-root))
+
+  (s/when [app]
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    {:mode (runtime/active-mode-name app)
+     :ui-state (select-keys
+                (:ui-state (runtime/find-view app "ui/menu-bar-item"))
+                [:highlighted :suppress-next-open?])})
+
+  (s/then [result]
+    (is (= {:mode "menu-static-root"
+            :ui-state {:highlighted false}}
+           result))))

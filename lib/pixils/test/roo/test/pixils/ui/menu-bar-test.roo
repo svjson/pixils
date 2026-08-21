@@ -38,9 +38,11 @@
        :child-state-policy (-> spec :children head :ui/state-policy)
        :child-application-state (-> spec :children head :state)
        :child-inputs (select-keys (-> spec :children head :ui-state)
-                                  [:menu-index :disabled? :text])
+                                  [:menu-index :disabled?])
+       :child-text-state (-> spec :children head :children head :state)
        :dead-child-inputs (select-keys (-> spec :children head :ui-state)
-                                       [:pending-open-index
+                                       [:text
+                                        :pending-open-index
                                         :menu-scale
                                         :option-state
                                         :game
@@ -56,8 +58,8 @@
             :child-modes ['ui/menu-bar-item]
             :child-state-policy :isolated
             :child-application-state nil
-            :child-inputs {:menu-index 0
-                           :text "File"}
+            :child-inputs {:menu-index 0}
+            :child-text-state {:value "File"}
             :dead-child-inputs {}}
            result))))
 
@@ -99,49 +101,6 @@
            {:state-policy :shared}
            {:items [{:label "File"}]}
            {})))))
-
-
-
-;; pixils.ui/menu-bar-item
-
-(deftest menu-bar-item/emits-leaf-actions-without-opening-a-popup
-  (s/given
-    (app-for 'menu-action-root))
-
-  (s/when [app]
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
-                            1
-                            1)
-    (runtime/update! app)
-    {:mode (runtime/active-mode-name app)
-     :state (runtime/active-state app)})
-
-  (s/then [result]
-    (is (= {:mode "menu-action-root"
-            :state {:quit true
-                    :payload {:source :menu}}}
-           result))))
-
-(deftest menu-bar-item/does-not-open-an-empty-item
-  (s/given
-    (app-for 'menu-static-root))
-
-  (s/when [app]
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
-                            1
-                            1)
-    (runtime/update! app)
-    {:mode (runtime/active-mode-name app)
-     :ui-state (select-keys
-                (:ui-state (runtime/find-view app "ui/menu-bar-item"))
-                [:active-index :pending-open-index])})
-
-  (s/then [result]
-    (is (= {:mode "menu-static-root"
-            :ui-state {}}
-           result))))
 
 
 
