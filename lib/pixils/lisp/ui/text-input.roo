@@ -141,13 +141,17 @@
       state)
 
     (key-matches? event :key/X :key/x)
-    (cond
-      (or (:read-only? state)
-          (not (text-input-has-selection? state)))
+    (cond-let
+      (:read-only? state)
       state
 
-      (clipboard/set-text! (text-input-selected-text state))
-      (drop value (:selection-start state) (:selection-end state))
+      [{:keys [start end]} (selection-bounds state)]
+      (cond
+        (clipboard/set-text! (text-input-selected-text state))
+        (text-input-change state (drop (:value state) start end) start)
+
+        :default
+        state)
 
       :default state)
 
