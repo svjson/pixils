@@ -214,6 +214,30 @@
   (ui/replace-child! (:view ctx) body-id (body-view state (:value state)))
   state)
 
+(defun sync-rendered-branch!
+  "Synchronizes an object control body with its effective structural inputs.
+
+  Args:
+  - `state`: Object-control state containing its schema, value, and render data.
+  - `ctx`: Component lifecycle context containing the object-control view.
+
+  Returns:
+  The state associated with the currently rendered object branch."
+  [state ctx]
+  (let [render-input {:value (:value state)
+                      :context (:context state)}]
+    (if (= render-input (:render-input state))
+      state
+      (let [render-key (branch-render-key (:schema state)
+                                          (:value state)
+                                          (:context state)
+                                          (:render-options state))]
+        (when (not= render-key (:render-key state))
+          (replace-body! state ctx))
+        (assoc state
+               :render-input render-input
+               :render-key render-key)))))
+
 (defun next-value [state payload]
   "Returns an object value containing a nested form edit."
   (if-let [path (:field-path payload)]
@@ -223,21 +247,15 @@
     (:form-value payload)))
 
 (defcomponent pixils/form-object-control
-  {:on {:form/edit
+  {:init sync-rendered-branch!
+   :update sync-rendered-branch!
+   :on {:form/edit
         (fn [state {:keys [payload]} ctx]
           (if (:disabled? state)
             state
-            (let [next-state (assoc state :value (next-value state payload))]
-              (when (not= (branch-render-key (:schema state)
-                                             (:value state)
-                                             (:context state)
-                                             (:render-options state))
-                          (branch-render-key (:schema next-state)
-                                             (:value next-state)
-                                             (:context next-state)
-                                             (:render-options next-state)))
-                (replace-body! next-state ctx))
-              next-state)))}})
+            (sync-rendered-branch!
+             (assoc state :value (next-value state payload))
+             ctx)))}})
 
 (defun for-field
   "Builds an object-form control for a resolved form-field context."
@@ -249,6 +267,7 @@
                               :field-path-prefix (form-field/event-path options id schema)
                               :fragment-field-id id
                               :fragment-path (form-field/event-path options id schema))
+        initial-value (:value object-options)
         state {:value value
                :disabled? disabled?
                :schema object-schema
@@ -256,7 +275,13 @@
                :field-path-prefix (:field-path-prefix object-options)
                :layout nil
                :render-options object-options
-               :object-style (:object-style options)}]
+               :object-style (:object-style options)
+               :render-input {:value initial-value
+                              :context (:context options)}
+               :render-key (branch-render-key object-schema
+                                              initial-value
+                                              (:context options)
+                                              object-options)}]
     (merge {:mode 'pixils/form-object-control
             :class [:pixils/form-control :pixils/form-object-control]
             :state state
@@ -266,14 +291,21 @@
 (defun root-view
   "Builds an object-form control for a root union schema."
   [schema options layout]
-  (let [state {:value (ui/bind-state :value)
+  (let [initial-value (:value options)
+        state {:value (ui/bind-state :value)
                :disabled? (ui/project-state :disabled?)
                :schema schema
                :context (:context options)
                :field-path-prefix nil
                :layout layout
                :render-options options
-               :object-style (:object-style options)}]
+               :object-style (:object-style options)
+               :render-input {:value initial-value
+                              :context (:context options)}
+               :render-key (branch-render-key schema
+                                              initial-value
+                                              (:context options)
+                                              options)}]
     (merge {:mode 'pixils/form-object-control
             :class [:pixils/form-control :pixils/form-object-control]
             :state state

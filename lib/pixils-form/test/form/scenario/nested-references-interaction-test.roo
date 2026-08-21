@@ -7,6 +7,24 @@
 
 ;; Nested referenced item editors
 
+(deftest nested-references/renders-initial-selected-union-branch
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 800
+                                 :buffer-height 400
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "assets/roo/pixils/form/fixture/nested-references.roo")
+      (runtime/push-mode! app 'nested-references-probe)
+      (runtime/settle-layout! app)
+      (for [field (runtime/find-views app "pixils/form-field")]
+        (-> field :state :field-id))))
+
+  (s/then [field-ids]
+    (is (= [:groups :members :name :kind :email]
+           field-ids))))
+
 (deftest nested-references/selects-through-each-array-level
   (s/given
     (let [app (runtime/make-app {:package-root "."
@@ -39,6 +57,9 @@
        :selected-indices
        (for [control (runtime/find-views app "pixils/form-array-control")]
          (select-keys (:state control) [:field-id :selected-index]))
+       :field-ids
+       (for [field (runtime/find-views app "pixils/form-field")]
+         (-> field :state :field-id))
        :selected-member
        (-> (runtime/find-view app "ui/text-input-inner") :ui-state :value)}))
 
@@ -46,5 +67,6 @@
     (is (= {:reviewer-visible? true
             :selected-indices [{:field-id :groups :selected-index 1}
                                {:field-id :members :selected-index 1}]
+            :field-ids [:groups :members :name :kind :command]
             :selected-member "Lin"}
            result))))

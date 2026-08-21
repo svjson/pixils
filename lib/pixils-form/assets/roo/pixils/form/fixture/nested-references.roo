@@ -11,8 +11,19 @@
                      :members {:type :array
                                :item-label {:path [:name]}
                                :items {:ref :member}}}}
-    :member {:type :object
-             :fields {:name {:type :text}}}}
+    :member/base {:type :object
+                  :fields {:name {:type :text}
+                           :kind {:type :keyword
+                                  :valid-values [:person :agent]}}}
+    :member/person {:extends :member/base
+                    :fields {:email {:type :text}}}
+    :member/agent {:extends :member/base
+                   :fields {:command {:type :text}}}
+    :member {:type :union
+             :discriminator :kind
+             :base {:ref :member/base}
+             :variants {:person {:ref :member/person}
+                        :agent {:ref :member/agent}}}}
    :schema {:type :object
             :fields {:groups {:type :array
                               :item-label {:path [:name]}
@@ -21,10 +32,16 @@
 (def groups
   "Group values used to exercise nested master-detail selection."
   [{:name "Maintainers"
-    :members [{:name "Ada"}]}
+    :members [{:name "Ada"
+               :kind :person
+               :email "ada@example.test"}]}
    {:name "Reviewers"
-    :members [{:name "Grace"}
-              {:name "Lin"}]}])
+    :members [{:name "Grace"
+               :kind :person
+               :email "grace@example.test"}
+              {:name "Lin"
+               :kind :agent
+               :command "review"}]}])
 
 (defmode nested-references-probe
   {:init (fn [_state _ctx]
@@ -43,7 +60,7 @@
                  [:field :members
                   {:item-editor {:layout-ref :selected-member}}]
                  {:id :selected-member}]]
-        :member [:name]}}
+        :member [:name :kind :email :command]}}
       :mode :live})]
    :on {:form/change
         (fn [state event _ctx]
