@@ -46,7 +46,7 @@
     :default state))
 
 (defun array-editor-option [editor key default-value]
-  (if (contains? (or editor {}) key)
+  (if (contains? editor key)
     (get editor key)
     default-value))
 
@@ -283,29 +283,16 @@
          (form-layout/style-map (:array-toolbar-style opts))))
 
 (defun array-item-form-view [item-schema opts]
-  (let [layout (form-layout/root-layout (:layout opts))
-        layout-fragments (or (:layout/fragments opts)
-                             (form-layout/layout-fragments (:layout opts)))
-        item-opts (form-valid-values/with-options-cache
-                    (assoc opts
-                           :schema item-schema
-                           :value (:value opts)
-                           :layout/fragments layout-fragments))]
-    (merge {:mode 'pixils/form
-            :class [:pixils/form :pixils/form-array-item-form]
-            :state {:value (or (:value-binding opts)
-                               (ui/bind-state :value))
-                    :schema item-schema
-                    :context (:context opts)
-                    :disabled? (:disabled? opts)
-                    :valid? (ui/bind-state :valid?)
-                    :errors (ui/bind-state :errors)
-                    :form/mode (or (:form/mode opts) :transient)
-                    :form/layout layout
-                    :form/render-opts item-opts}
-            :children [(apply (:form-body=> item-opts)
-                              [layout item-schema item-opts nil])]}
-           (form-layout/style-map (:array-dialog-form-style opts)))))
+  (let [view (apply (:form=> opts)
+                    [(assoc opts
+                            :schema item-schema
+                            :class :pixils/form-array-item-form
+                            :style (:array-dialog-form-style opts)
+                            :mode (or (:form/mode opts) :transient))])]
+    (assoc-in view
+              [:state :value]
+              (or (:value-binding opts)
+                  (ui/bind-state :value)))))
 
 (defun array-item-dialog-result [state event ctx]
   (let [choice (-> event :payload :choice)]
@@ -590,6 +577,7 @@
    :array-dialog-form-style (:array-dialog-form-style opts)
    :array-dialog-body-style (:array-dialog-body-style opts)
    :array-dialog-button-row-style (:array-dialog-button-row-style opts)
+   :form=> (:form=> opts)
    :form-body=> (:form-body=> opts)
    :layout/fragments (:layout/fragments opts)
    :fragment-field-id field-id

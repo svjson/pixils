@@ -1,0 +1,51 @@
+(ns pixils.form.fixture.nested-references
+  (:require pixils
+            [pixils.form :as form]
+            [pixils.ui :as ui]))
+
+(def schema
+  "Schema for groups containing selectable member arrays."
+  {:definitions
+   {:group {:type :object
+            :fields {:name {:type :text}
+                     :members {:type :array
+                               :item-label {:path [:name]}
+                               :items {:ref :member}}}}
+    :member {:type :object
+             :fields {:name {:type :text}}}}
+   :schema {:type :object
+            :fields {:groups {:type :array
+                              :item-label {:path [:name]}
+                              :items {:ref :group}}}}})
+
+(def groups
+  "Group values used to exercise nested master-detail selection."
+  [{:name "Maintainers"
+    :members [{:name "Ada"}]}
+   {:name "Reviewers"
+    :members [{:name "Grace"}
+              {:name "Lin"}]}])
+
+(defmode nested-references-probe
+  {:init (fn [_state _ctx]
+           {:form-value {:groups groups}})
+   :children
+   [(form/make
+     {:schema schema
+      :value (ui/bind-state :form-value)
+      :layout
+      {:root [[:row
+               [:field :groups
+                {:item-editor {:layout-ref :selected-group}}]
+               {:id :selected-group}]]
+       :fragments
+       {:group [[:row
+                 [:field :members
+                  {:item-editor {:layout-ref :selected-member}}]
+                 {:id :selected-member}]]
+        :member [:name]}}
+      :mode :live})]
+   :on {:form/change
+        (fn [state event _ctx]
+          (ui/stop-propagation! event)
+          (assoc state :form-value (-> event :payload :form-value)))}})

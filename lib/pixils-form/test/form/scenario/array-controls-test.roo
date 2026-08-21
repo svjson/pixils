@@ -1,5 +1,6 @@
 (ns pixils.form.scenario.array-controls-test
   (:require proof.core
+            [proof.syntax :as s]
             [pixils.form :as form]
             [pixils.form.controls.array-editor :as array-editor]
             [pixils.form.controls.list-box :as form-list-box]))
@@ -117,6 +118,65 @@
                                              :children head
                                              :state :form/render-opts
                                              :value :name)}}))))
+
+(deftest make/places-a-referenced-item-editor-inside-an-array-item-fragment
+  (s/when []
+    (let [view
+          (form/make
+           {:schema
+            {:definitions
+             {:group {:type :object
+                      :fields {:name {:type :text}
+                               :members {:type :array
+                                         :items {:ref :member}}}}
+              :member {:type :object
+                       :fields {:name {:type :text}}}}
+             :schema {:type :object
+                      :fields {:groups {:type :array
+                                        :items {:ref :group}}}}}
+            :value {:groups [{:name "Maintainers"
+                              :members [{:name "Ada"}]}]}
+            :layout
+            {:root [[:row
+                     [:field :groups
+                      {:item-editor {:layout-ref :selected-group}}]
+                     {:id :selected-group}]]
+             :fragments
+             {:group [[:row
+                       [:field :members
+                        {:item-editor {:layout-ref :selected-member}}]
+                       {:id :selected-member}]]
+              :member [:name]}}})
+          group-editor (-> view :children head :children head :children head
+                           :children (nth 1))
+          group-form (head (:children group-editor))
+          group-row (-> group-form :children head :children head :children head)
+          member-field (head (:children group-row))
+          member-array (nth (:children member-field) 1)
+          member-editor (nth (:children group-row) 1)
+          member-form (head (:children member-editor))]
+      {:group-form
+       {:item-editors (keys (-> group-form :state :form/item-editors))
+        :item-editor-state (-> group-form :state :form/item-editor-state)}
+       :member-array {:item-editor-id (-> member-array :state :item-editor-id)}
+       :member-editor {:mode (:mode member-editor)
+                       :field-path (-> member-editor :state :field-path)
+                       :selected-name (-> member-form
+                                          :state
+                                          :form/render-opts
+                                          :value
+                                          :name)}}))
+
+  (s/then [result]
+    (is (= {:group-form
+            {:item-editors [:selected-member]
+             :item-editor-state {:selected-member {:phase :selected
+                                                    :selected-index 0}}}
+            :member-array {:item-editor-id :selected-member}
+            :member-editor {:mode 'pixils/form-layout-item-editor
+                            :field-path [:members]
+                            :selected-name "Ada"}}
+           result))))
 
 (deftest make/disables-a-referenced-item-editor-without-a-selection-by-default
   (let [view (form/make

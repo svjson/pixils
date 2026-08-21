@@ -67,7 +67,7 @@
 (defun model-ref? [models value]
   (or (= (type-of value) "vector")
       (and (keyword? value)
-           (contains? (or models {}) value))))
+           (contains? models value))))
 
 (defun model-ref-value [models value]
   (if (model-ref? models value)
@@ -736,6 +736,7 @@
   (assoc opts
          :fields=> layout-item-views
          :form-body=> form-body-view
+         :form=> make
          :selection=> list-box-control/for-selection))
 
 (defun array-item-dialog-body
@@ -844,11 +845,15 @@
                     :projection projection
                     :form/selection state-selection
                     :layout/fragments layout-fragments
-                    :fragment-path [])
+                    :fragment-path (or (:fragment-path opts) []))
         state (normalized-form-state opts state-selection)
         schema (model-schema/prepare-schema (:schema state))
         item-editors (referenced-item-editors
-                      layout-root
+                      (or layout-root
+                          (default-layout schema
+                                          (assoc opts
+                                                 :schema schema
+                                                 :value (:value state))))
                       (assoc opts :schema schema))
         item-editor-state (initial-item-editor-state item-editors (:value state))
         opts (form-valid-values/with-options-cache
