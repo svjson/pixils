@@ -76,6 +76,15 @@
              :layout {:direction :column
                       :gap 8}}
 
+            :property-set/workspace {:width :fill
+                                     :height :fill}
+
+            :property-set/workspace-panels
+            {:width :fill
+             :height :fill
+             :layout {:direction :row
+                      :gap 8}}
+
             :ui/title {:text {:color accent}}
 
             :ui/muted {:text {:color text-muted}}

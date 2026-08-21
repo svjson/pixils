@@ -1,0 +1,83 @@
+(ns tilemap-editor.view.property-sets.form
+  (:require [pixils.form :as form]
+            [pixils.form.controls.combo-box :as combo-box]
+            [pixils.form.controls.text-input :as text-input]
+            [pixils.tilemap.project.schemas :as schemas]
+            [pixils.ui :as ui]
+            [tilemap-editor.components.header-panel :as hp]))
+
+(defun property-value-control
+  "Builds the form control for an unconstrained property value.
+
+  Enum defaults use the property's `:values` as selectable options. Other
+  unconstrained values use text input.
+
+  Args:
+  - `field`: Resolved Pixils Form field context.
+
+  Returns:
+  A combo-box or text-input form control view."
+  [{:keys [id schema options] :as field}]
+  (if (and (= id :default)
+           (= :enum (-> options :value :type)))
+    (combo-box/for-field
+     (assoc field
+            :schema (assoc schema
+                           :valid-values (-> options :value :values))))
+    (text-input/for-field field)))
+
+(defun make
+  "Builds the property-set workspace form.
+
+  Args:
+  None.
+
+  Returns:
+  A form view over the canonical project property-set schema."
+  []
+  (form/make
+   {:schema schemas/project-schema
+    :value (ui/project-state)
+    :controls {:any property-value-control}
+    :layout
+    {:root
+     [{:type :row
+       :class :property-set/workspace-panels
+       :children
+       [(hp/make {:title "Property Sets"
+                  :class :tm/list-wrapper
+                  :buttons [{:kind :item/add
+                             :action :property-set/add}]}
+                 [[:field :property-sets
+                   {:label false
+                    :summary false
+                    :fixed-visible-rows? false
+                    :actions
+                    [{:key :edit
+                      :label "Edit"
+                      :event :property-set/context-command
+                      :payload {:command :edit}
+                      :presentation :context-menu}
+                     {:key :delete
+                      :label "Delete"
+                      :event :property-set/context-command
+                      :payload {:command :delete}
+                      :presentation :context-menu}]
+                    :item-editor {:layout-ref :selected-property-set}}]])
+        (hp/make {:title "Fields"
+                  :buttons [{:kind :item/add
+                             :action :property-definition/add}]}
+                 [{:id :selected-property-set}])]}]
+     :fragments
+     {:property/set
+      [[:field :properties
+        {:label false
+         :summary false
+         :fixed-visible-rows? false
+         :actions false
+         :item-editor {:layout-ref :selected-property}}]
+       {:id :selected-property}]
+      :property/any [:id :label :type :default]
+      :property/number [:id :label :type :default]
+      :property/enum [:id :label :type :default :values]}}
+    :mode :live}))

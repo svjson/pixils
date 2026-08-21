@@ -1,0 +1,61 @@
+(ns tilemap-editor.view.property-sets.form-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [tilemap-editor.view.property-sets.form :as property-form]))
+
+
+
+;; tilemap-editor.view.property-sets.form/property-value-control
+
+(deftest property-value-control/uses-enum-options-only-for-enum-defaults
+  (is (= {:enum-default 'pixils/form-select-control
+          :unconstrained-default 'ui/text-input}
+         {:enum-default
+          (:mode
+           (property-form/property-value-control
+            {:id :default
+             :schema {:type :any}
+             :value :yes
+             :options {:value {:type :enum
+                               :values [:yes :no]}}}))
+          :unconstrained-default
+          (:mode
+           (property-form/property-value-control
+            {:id :default
+             :schema {:type :any}
+             :value "grass"
+             :options {:value {:type :any}}}))})))
+
+
+
+;; tilemap-editor.view.property-sets.form/make
+
+(deftest make/composes-property-set-and-property-editors
+  (s/when []
+    (let [view (property-form/make)
+          row (-> view :children head :children head :children head)
+          field-panel (nth (:children row) 1)
+          property-set-editor (-> field-panel
+                                  :children
+                                  (nth 1)
+                                  :children
+                                  head)
+          property-set-form (-> property-set-editor :children head)]
+      {:mode (:mode view)
+       :item-editors (keys (-> view :state :form/item-editors))
+       :panel-class (:class row)
+       :panel-modes (map (:children row) :mode)
+       :property-set-editor-mode (:mode property-set-editor)
+       :property-set-form-mode (:mode property-set-form)
+       :property-item-editors
+       (keys (-> property-set-form :state :form/item-editors))}))
+
+  (s/then [shape]
+    (is (= {:mode 'pixils/form
+            :item-editors [:selected-property-set]
+            :panel-class [:pixils/form-row :property-set/workspace-panels]
+            :panel-modes ['ui/header-panel 'ui/header-panel]
+            :property-set-editor-mode 'pixils/form-layout-item-editor
+            :property-set-form-mode 'pixils/form
+            :property-item-editors [:selected-property]}
+           shape))))

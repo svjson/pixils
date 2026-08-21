@@ -689,16 +689,16 @@
                        :child {:mode 'property-set-workspace
                                :style {:padding 8}
                                :state {:property-sets
-                                       (ui/bind-state :property-sets)
+                                       (ui/project-state :property-sets)
                                        :selected-property-set-index
                                        (ui/bind-state
                                         :selected-property-set-index)
                                        :selected-property-definition-index
                                        (ui/bind-state
                                         :selected-property-definition-index)
-                                       :tilesets (ui/bind-state :tilesets)
+                                       :tilesets (ui/project-state :tilesets)
                                        :terrain-sets
-                                       (ui/bind-state :terrain-sets)}}}]})
+                                       (ui/project-state :terrain-sets)}}}]})
              {:mode 'status-bar
               :state {:map-hover-cell (ui/bind-state :map-hover-cell)
                       :transition-mask-diagnostics
