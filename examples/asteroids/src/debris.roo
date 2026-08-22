@@ -61,51 +61,43 @@
 ;; Side Effects
 
 (defun make-debris [origin {:keys [particle-count velocity-mod radius move-mod]}]
-  (map (range 1 particle-count)
-       (fn [n]
-         (let [countdown (rnd 25 55)
-               dir (/ (rnd (* 100 MAX-RADIANS)) 100)]
-           {:pos (pt/+ origin
-                       (pt/rotate {:x 0 :y (- 0 (rnd radius))} dir))
-            :move
-            (pt/+
-             (pt/rotate {:x 0 :y (- 0 (+ 0.1 (/ (rnd 50) velocity-mod)))}
-                        dir)
+  (dotimes [particle-count]
+    (let [countdown (rnd 25 55)
+          dir (/ (rnd (* 100 MAX-RADIANS)) 100)]
+      {:pos (pt/+ origin
+                  (pt/rotate {:x 0 :y (- 0 (rnd radius))} dir))
+       :move
+       (pt/+ (pt/rotate {:x 0 :y (- 0 (+ 0.1 (/ (rnd 50) velocity-mod)))} dir)
              move-mod)
-            :color (rand-nth PARTICLE-COLORS)
-            :countdown-max countdown
-            :countdown countdown }))))
+       :color (rand-nth PARTICLE-COLORS)
+       :countdown-max countdown
+       :countdown countdown })))
 
 (defun make-engine-flame [strength {:keys [rotation pos acceleration]}]
-  (map (range 1 (int (* 2.5 strength)))
-       (fn [n]
-         (let [intensity (rand-nth FLAME-INTENSITY)
-               countdown (- (rnd 11 16) (:cd intensity))]
-           {:pos (pt/+ pos (pt/rotate {:x (:off intensity) :y (+ 1 (rnd 0 (int strength)))} rotation))
-            :move (pt/+ acceleration (pt/rotate {:x 0 :y (+ (* 0.5 strength) (/ (rnd 1 2) 5))} rotation))
-            :color (:color intensity)
-            :countdown-max countdown
-            :countdown countdown}))))
+  (dotimes [(int (* 2.5 strength))]
+    (let [intensity (rand-nth FLAME-INTENSITY)
+          countdown (- (rnd 11 16) (:cd intensity))]
+      {:pos (pt/+ pos (pt/rotate {:x (:off intensity) :y (+ 1 (rnd 0 (int strength)))} rotation))
+       :move (pt/+ acceleration (pt/rotate {:x 0 :y (+ (* 0.5 strength) (/ (rnd 1 2) 5))} rotation))
+       :color (:color intensity)
+       :countdown-max countdown
+       :countdown countdown})))
 
 
 
 ;; Control functions
 
 (defun tick [{:keys [particles] :as state}]
-  (assoc state :particles (keep (:particles state)
-                                (fn [part]
-                                  (let [countdown (- (:countdown part) 1)]
-                                    (when (> countdown 0)
-                                      (-> part
-                                          (assoc :countdown countdown)
-                                          (assoc :pos (pt/+ (:pos part)
-                                                            (:move part))))))))))
+  (update state :particles [keep (fn [part]
+                                   (let [countdown (- (:countdown part) 1)]
+                                     (when (> countdown 0)
+                                       (assoc part
+                                              :countdown countdown
+                                              :pos (pt/+ (:pos part)
+                                                             (:move part))))))]))
 
 
 (defun render! [particles]
-  (for [part particles]
-    (r/line! (:pos part)
-             (:pos part)
-             (c/with-alpha
-               (:color part)
-               (* 255 (/ (:countdown part) (:countdown-max part)))))))
+  (for [{:keys [pos color countdown countdown-max]} particles]
+    (r/line! pos pos (c/with-alpha color
+                                   (* 255 (/ countdown countdown-max))))))

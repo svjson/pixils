@@ -50,11 +50,11 @@
 (defun make-asteroid-shape [size points]
   (let [pt {:x 0 :y (- 0 size) }
         step-size (/ MAX-RADIANS points)]
-    (map (range 1 points)
-         (fn [i] (pt/rotate (pt/+ pt
-                                  {:x 0 :y (rnd (/ (abs (:y pt)) 2))})
-                            (+ (* i step-size)
-                               (/ (rnd (* 25 step-size)) 100)))))))
+    (dotimes [i points]
+      (pt/rotate (pt/+ pt
+                       {:x 0 :y (rnd (/ (abs (:y pt)) 2))})
+                 (+ (* i step-size)
+                    (/ (rnd (* 25 step-size)) 100))))))
 
 
 (defun make-asteroid [{:keys [type pos]} area]
@@ -92,17 +92,16 @@
 ;; Control functions
 
 (defun tick [{:keys [player] :as state} area {:keys [rotate? move?]}]
-  (assoc state :asteroids
-         (map (:asteroids state)
-              (fn [asteroid]
-                (-> asteroid
-                    (assoc :rotation (if rotate? (+ (:rotation asteroid)
-                                                    (:rotation-factor asteroid))
-                                         (:rotation asteroid)))
-                    (assoc :pos (if move?
-                                  (area/wrap-position (pt/+ (:pos asteroid)
-                                                            (:move asteroid)) area)
-                                  (:pos asteroid))))))))
+  (update state
+          :asteroids (fn [asteroids]
+                       (for [asteroid asteroids]
+                         (assoc asteroid
+                                :rotation (cond-> (:rotation asteroid)
+                                                  rotate? (+ (:rotation-factor asteroid)))
+                                :pos (if move?
+                                       (area/wrap-position (pt/+ (:pos asteroid)
+                                                                 (:move asteroid)) area)
+                                       (:pos asteroid)))))))
 
 (defun render! [asteroids mods]
   (let [scale (or (:scale mods) 1.0)

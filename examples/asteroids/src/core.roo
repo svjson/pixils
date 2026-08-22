@@ -1,7 +1,8 @@
 (ns asteroids.core
   (:require pixils
             asteroids.game-mode
-            asteroids.title-screen-mode))
+            asteroids.title-screen-mode
+            asteroids.pause-mode))
 
 (defprogram asteroids
   {:display {:resolution {:w 320 :h 200}

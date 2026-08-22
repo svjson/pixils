@@ -332,12 +332,11 @@
         low-center-line
         [{:x 5 :y 9} {:x 6 :y 9}]]
 
-   ':' [(map ring (fn [p] (pt/+ p {:x 3 :y 2})))
-        (map ring (fn [p] (pt/+ p {:x 3 :y 6})))]
+   ':' [(for [p ring] (pt/+ p {:x 3 :y 2}))
+        (for [p ring] (pt/+ p {:x 3 :y 6}))]
    '!' [[(head top!>>|<<)
          (pt/+ (head top!>>|<<) {:x 0 :y 5})]
-
-        (map ring (fn [p] (pt/+ p {:x 3 :y 7})))]})
+        (for [p ring] (pt/+ p {:x 3 :y 7}))]})
 
 
 (defun print! [{:keys [pos text scale rotation color]}]

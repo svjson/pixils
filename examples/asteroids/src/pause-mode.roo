@@ -25,15 +25,17 @@
                         (assoc :mode (if (= PAUSE-FRAMES counter) :paused :enter)))
 
                     :exit
-                    (if (= counter 0)
-                      (pop-mode!)
-                      (assoc state :counter (max 0 (- counter 1))))
+                    (case counter
+                      0 (pop-mode!)
+                      :default (assoc state :counter (max 0 (- counter 1))))
 
                     :default
                     state)]
     (case (:key-down ctx)
       :key/P
-      (assoc new-state :mode (if (= mode :exit) :enter :exit))
+      (assoc new-state :mode (case mode
+                               :exit :enter
+                               :default :exit))
 
       :default
       new-state)))

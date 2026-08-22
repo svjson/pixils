@@ -9,11 +9,9 @@
                 {:player player
                  :asteroids []
                  :new-particles []}
-                (fn [acc rock]
-                  (let [type (get asteroid/ASTEROID-TYPES (:size rock))
-                        player (:player acc)
-                        bullets (:bullets player)]
-                    (if-let [bullet-index (find-index bullets
+                (fn [{:keys [player] :as acc} rock]
+                  (let [type (get asteroid/ASTEROID-TYPES (:size rock))]
+                    (if-let [bullet-index (find-index (:bullets player)
                                                       (fn [bullet]
                                                         (<= (pt/distance (:pos rock)
                                                                          (:pos bullet))
@@ -52,12 +50,10 @@
                             (assoc :player (assoc player :destroyed true))
                             (assoc :asteroids (concat (:asteroids acc)
                                                       rock)))
-                        (assoc acc :asteroids (concat (:asteroids acc)
-                                                      rock)))))))]
-    (-> state
-        (assoc :asteroids (:asteroids result))
-        (assoc :particles (if (not-empty? (:new-particles result))
-                            (concat (:particles state)
-                                    (:new-particles result))
-                            (:particles state)))
-        (assoc :player (:player result)))))
+                        (update acc :asteroids [append rock]))))))]
+    (assoc state
+           :asteroids (:asteroids result)
+           :particles (cond-> (:particles state)
+                              (not-empty? (:new-particles result))
+                              (concat (:new-particles result)))
+           :player (:player result))))

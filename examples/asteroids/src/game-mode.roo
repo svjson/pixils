@@ -54,37 +54,30 @@ and player score to aligned to the top right."
                               (- (:w area) 140))
                         :y 5}})))
 
-(defun init! [state ctx]
-  (let [area (:buffer-size ctx)]
-    {:level 0
-     :mode :run
-     :countdown 80
-     :player (plr/make-player-state area)
-     :asteroids []
-     :particles []}))
 
-(defun apply-level-state [{:keys [player asteroids level] :as state}]
+(defun apply-level-state [{:keys [buffer-size] :as ctx}
+                          {:keys [player asteroids level] :as state}]
   (cond
     (empty? asteroids)
-    (let [next-level (+ 1 level)]
+    (let [next-level (inc level)]
       (push-mode! 'get-ready-mode {:type :next-level
                                    :level next-level
                                    :from-ship (:ship player)})
-      (-> state
-          (assoc :level next-level)
-          (assoc :mode :next-level)
-          (assoc :countdown 80)
-          (assoc :countdown-max 80)
-          (assoc :asteroids (asteroid/make-asteroids (+ 2 next-level)
-                                                     (:buffer-size ctx)))))
+      (assoc state :level next-level
+                   :mode :next-level
+                   :countdown 80
+                   :countdown-max 80
+                   :asteroids (asteroid/make-asteroids (+ 2 next-level)
+                                                       (:buffer-size ctx))))
 
     (and (> (:lives player) 1) (:destroyed player))
     (do
-      (push-mode! 'get-ready-mode {:type :lost-life :from-ship (assoc (plr/make-ship area) :pos (life-pos (- (:lives player) 1)))})
-      (-> state
-          (assoc :countdown 80)
-          (assoc :countdown-max 80)
-          (assoc :mode :lost-life)))
+      (push-mode! 'get-ready-mode {:type :lost-life
+                                   :from-ship (assoc (plr/make-ship buffer-size)
+                                                     :pos (life-pos (- (:lives player) 1)))})
+      (assoc state :countdown 80
+                   :countdown-max 80
+                   :mode :lost-life))
 
     (:destroyed player)
     (do (push-mode! 'game-over-mode)
@@ -100,7 +93,7 @@ and player score to aligned to the top right."
       (or (= :run mode)
           (= :game-over mode))
       (do
-        (when (not (:destroyed player))
+        (unless (:destroyed player)
           (for [key (:held-keys ctx)]
             (case key
               :key/left (assoc-in! state [:player :ship] (plr/rotate (-> state :player :ship) -0.1))
@@ -116,31 +109,33 @@ and player score to aligned to the top right."
                             (debris/tick)
                             (asteroid/tick area {:rotate? true :move? true})
                             (collision/handle-collisions area))]
-          (if (= :run mode)
-            (apply-level-state new-state)
-            new-state)))
+          (case mode
+            :run (apply-level-state ctx new-state)
+            :default new-state)))
 
       (or (= :next-level mode)
           (= :lost-life mode))
       (let [countdown (- (:countdown state) 1)]
         (-> state
-            (assoc :player (if (= countdown 0)
-                             (assoc player :ship (plr/make-ship area))
-                             (case mode
-                               :next-level player
-                               :lost-life (cond
-                                            (= countdown 60)
-                                            (-> player
-                                                (assoc :lives (- (:lives player) 1))
-                                                (assoc :destroyed false))
+            (assoc :player (case countdown
+                             0 (assoc player :ship (plr/make-ship area))
+                             :default (case mode
+                                        :next-level player
+                                        :lost-life (cond
+                                                     (= countdown 60)
+                                                     (assoc player
+                                                            :lives (- (:lives player) 1)
+                                                            :destroyed false)
 
-                                            (and (<= countdown 60)
-                                                 (>= countdown 20))
-                                            player
+                                                     (and (<= countdown 60)
+                                                          (>= countdown 20))
+                                                     player
 
-                                            true player))))
+                                                     true player))))
             (assoc :countdown countdown)
-            (assoc :mode (if (= countdown 0) :run mode))
+            (assoc :mode (case countdown
+                           0 :run
+                           :default mode))
             (plr/tick area)
             (debris/tick)
             (asteroid/tick area {:rotate? true :move? (= :lost-life mode)})))
@@ -148,24 +143,28 @@ and player score to aligned to the top right."
       true
       state)))
 
-(defun render! [state ctx]
-  (let [area (:buffer-size ctx)
-        mode (:mode state)
-        {:keys [player asteroids particles countdown]} state]
-    (debris/render! particles)
-    (if (= :run (:mode state))
-      (plr/render! player)
-      (plr/draw-bullets! player))
+(defun render! [{:keys [mode player asteroids particles countdown] :as state}
+                {:keys [buffer-size] :as ctx}]
+  (debris/render! particles)
+  (case (:mode state)
+    :run (plr/render! player)
+    :default (plr/draw-bullets! player))
 
-    (asteroid/render! asteroids (when (and (= mode :next-level)
-                                           (>= countdown 20))
-                                  (let [phase (- 1.0 (/ (- countdown 20)
-                                                        (- (:countdown-max state) 40)))]
-                                    {:scale phase
-                                     :opacity phase})))
-    (render-hud! player area)))
+  (asteroid/render! asteroids (when (and (= mode :next-level)
+                                         (>= countdown 20))
+                                (let [phase (- 1.0 (/ (- countdown 20)
+                                                      (- (:countdown-max state) 40)))]
+                                  {:scale phase
+                                   :opacity phase})))
+  (render-hud! player buffer-size))
 
-(defmode game-mode {:init asteroids.game-mode/init!
+(defmode game-mode {:init (fn [state ctx]
+                            {:level 0
+                             :mode :run
+                             :countdown 80
+                             :player (plr/make-player-state (:buffer-size ctx))
+                             :asteroids []
+                             :particles []})
                     :update asteroids.game-mode/tick!
                     :render asteroids.game-mode/render!})
 

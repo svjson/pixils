@@ -58,7 +58,6 @@
   (let [area (:buffer-size ctx)
         player (:player state)
         ship (:ship state)
-        type (:type state)
         countdown (:countdown state)
         level-str (str "LEVEL " (:level state))]
     (when ship (plr/draw-ship! ship))
@@ -66,7 +65,7 @@
                        (>= countdown 70) (* 255 (- 1.0 (/ (- countdown 70) 10)))
                        (<= countdown 30) (* 255 (/ countdown 30))
                        true 255)]
-      (when (= :next-level type)
+      (when (= :next-level (:type state))
         (text/print! {:text level-str
                       :color (c/with-alpha STAT-COLOR text-alpha)
                       :scale 1.5
