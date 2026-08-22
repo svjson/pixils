@@ -181,6 +181,27 @@
             :dismissed-mode "menu-unscaled-root"}
            result))))
 
+(deftest menu-bar/switches-an-open-popup-with-horizontal-arrow-keys
+  (s/given
+    (app-for 'menu-unscaled-root))
+
+  (s/when [app]
+    (runtime/mouse-down-in! app
+                            (head (runtime/find-views app "ui/menu-bar-item"))
+                            1
+                            1)
+    (runtime/update! app)
+    (runtime/settle-layout! app)
+    (runtime/press-key! app :right)
+    (runtime/settle-layout! app)
+    {:popup-mode (runtime/active-mode-name app)
+     :popup-label (-> (runtime/find-view app "ui/text") :state :value)})
+
+  (s/then [result]
+    (is (= {:popup-mode "ui/popup-menu"
+            :popup-label "Undo"}
+           result))))
+
 (deftest menu-bar/inherits-the-theme-font
   (s/when []
     (let [app (app-for 'menu-classic-blue-root)

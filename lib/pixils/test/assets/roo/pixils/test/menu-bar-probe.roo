@@ -5,7 +5,10 @@
 (def submenu-menu
   {:items [{:label "File"
             :items [{:label "Open"
-                     :action :file/open}]}]})
+                     :action :file/open}]}
+           {:label "Edit"
+            :items [{:label "Undo"
+                     :action :edit/undo}]}]})
 
 (pixils/defmode menu-action-root
   {:init (fn [_state _ctx]

@@ -55,9 +55,9 @@
   UI state with any pending request cleared."
   [ui-state state ctx]
   (if-let [index (:pending-open-index ui-state)]
-    (-> ui-state
-        (open-popup-at-index! state ctx index)
-        (assoc :pending-open-index nil))
+    (do
+      (open-popup-at-index! ui-state state ctx index)
+      (assoc ui-state :pending-open-index nil))
     ui-state))
 
 
