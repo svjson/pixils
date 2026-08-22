@@ -108,7 +108,32 @@
 
 ;; pixils.ui/popup-menu-inner
 
-(deftest popup-menu-inner/keyboard-navigation-skips-nonselectable-rows
+(deftest popup-menu-inner/mouse-open-starts-without-a-logical-selection
+  (s/given
+    (popup-app))
+
+  (s/when [app]
+    (let [inner (runtime/find-view app "ui/popup-menu-inner")
+          items (runtime/find-views app "ui/popup-menu-item")]
+      {:navigation {:input-source (-> inner :ui-state :input-source)
+                    :highlighted-index (-> inner :ui-state :highlighted-index)}
+       :row-highlights (for [item items]
+                         (select-keys (:ui-state item)
+                                      [:index :disabled? :highlighted]))}))
+
+  (s/then [result]
+    (is (= {:navigation {:input-source :mouse
+                         :highlighted-index nil}
+            :row-highlights [{:index 0
+                              :highlighted false}
+                             {:index 2
+                              :disabled? true
+                              :highlighted false}
+                             {:index 3
+                              :highlighted false}]}
+           result))))
+
+(deftest popup-menu-inner/down-selects-the-first-row-after-mouse-open
   (s/given
     (popup-app))
 
@@ -126,6 +151,33 @@
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
             :navigation {:input-source :keyboard
+                         :highlighted-index 0}
+            :row-highlights [{:index 0
+                              :highlighted true}
+                             {:index 2
+                              :disabled? true
+                              :highlighted false}
+                             {:index 3
+                              :highlighted false}]}
+           result))))
+
+(deftest popup-menu-inner/keyboard-navigation-skips-nonselectable-rows
+  (s/given
+    (popup-app))
+
+  (s/when [app]
+    (runtime/press-key! app :down)
+    (runtime/press-key! app :down)
+    (let [inner (runtime/find-view app "ui/popup-menu-inner")
+          items (runtime/find-views app "ui/popup-menu-item")]
+      {:navigation (select-keys (:ui-state inner)
+                                [:input-source :highlighted-index])
+       :row-highlights (for [item items]
+                         (select-keys (:ui-state item)
+                                      [:index :disabled? :highlighted]))}))
+
+  (s/then [result]
+    (is (= {:navigation {:input-source :keyboard
                          :highlighted-index 3}
             :row-highlights [{:index 0
                               :highlighted false}
@@ -141,6 +193,7 @@
     (popup-app))
 
   (s/when [app]
+    (runtime/press-key! app :down)
     (runtime/press-key! app :down)
     (runtime/press-key! app :enter)
     {:mode (runtime/active-mode-name app)

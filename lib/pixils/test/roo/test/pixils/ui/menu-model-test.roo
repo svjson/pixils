@@ -74,6 +74,16 @@
             :wrapped (model/move-highlight-index items 3 1)
             :backward (model/move-highlight-index items 3 -1)}))))
 
+(deftest move-highlight-index/enters-from-the-directional-edge
+  (let [items [{:node-type :item}
+               {:node-type :separator}
+               {:node-type :item :disabled? true}
+               {:node-type :item}]]
+    (is (= {:forward 0
+            :backward 3}
+           {:forward (model/move-highlight-index items nil 1)
+            :backward (model/move-highlight-index items nil -1)}))))
+
 (deftest first-selectable-index/returns-nil-when-no-item-is-selectable
   (is (nil? (model/first-selectable-index
              [{:node-type :separator}

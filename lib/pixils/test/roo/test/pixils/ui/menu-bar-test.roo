@@ -161,7 +161,7 @@
             :mirrored-state {}}
            result))))
 
-(deftest menu-bar/dismisses-an-open-popup-when-its-anchor-is-clicked
+(deftest menu-bar/reopens-with-the-next-click-after-anchor-dismissal
   (s/given
     (app-for 'menu-unscaled-root))
 
@@ -173,12 +173,89 @@
       (let [opened-mode (runtime/active-mode-name app)]
         (runtime/mouse-down-in! app item 1 1)
         (runtime/update! app)
-        {:opened-mode opened-mode
-         :dismissed-mode (runtime/active-mode-name app)})))
+        (let [dismissed-mode (runtime/active-mode-name app)
+              reopened-item (runtime/find-view app "ui/menu-bar-item")]
+          (runtime/mouse-down-in! app reopened-item 1 1)
+          (runtime/update! app)
+          (runtime/settle-layout! app)
+          {:opened-mode opened-mode
+           :dismissed-mode dismissed-mode
+           :reopened-mode (runtime/active-mode-name app)}))))
 
   (s/then [result]
     (is (= {:opened-mode "ui/popup-menu"
-            :dismissed-mode "menu-unscaled-root"}
+            :dismissed-mode "menu-unscaled-root"
+            :reopened-mode "ui/popup-menu"}
+           result))))
+
+(deftest menu-bar/switches-an-open-popup-with-one-click
+  (s/given
+    (app-for 'menu-unscaled-root))
+
+  (s/when [app]
+    (let [items (runtime/find-views app "ui/menu-bar-item")]
+      (runtime/mouse-down-in! app (head items) 1 1)
+      (runtime/update! app)
+      (runtime/render! app)
+      (runtime/mouse-down-in! app (nth items 1) 1 1)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (let [inner (runtime/find-view app "ui/popup-menu-inner")]
+        {:popup-mode (runtime/active-mode-name app)
+         :popup-label (-> (runtime/find-view app "ui/text") :state :value)
+         :navigation {:input-source (-> inner :ui-state :input-source)
+                      :highlighted-index (-> inner
+                                             :ui-state
+                                             :highlighted-index)}})))
+
+  (s/then [result]
+    (is (= {:popup-mode "ui/popup-menu"
+            :popup-label "Undo"
+            :navigation {:input-source :mouse
+                         :highlighted-index nil}}
+           result))))
+
+(deftest menu-bar/visually-follows-one-click-switches-between-open-items
+  (s/given
+    (app-for 'menu-windows-3-root))
+
+  (s/when [app]
+    (runtime/mouse-move-at! app 170 110)
+    (runtime/update! app)
+    (runtime/settle-layout! app)
+    (let [items (runtime/find-views app "ui/menu-bar-item")
+          normal-background (-> (head items) :effective-style :background)]
+      (runtime/mouse-down-in! app (head items) 1 1)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (let [selected-background (-> (head items)
+                                    :effective-style
+                                    :background)
+            after-first (for [item items]
+                          (= selected-background
+                             (-> item :effective-style :background)))]
+        (runtime/mouse-down-in! app (nth items 1) 1 1)
+        (runtime/update! app)
+        (runtime/render! app)
+        (let [after-second (for [item items]
+                             (= selected-background
+                                (-> item :effective-style :background)))]
+          (runtime/mouse-down-in! app (nth items 2) 1 1)
+          (runtime/update! app)
+          (runtime/render! app)
+          {:selected-background-differs? (not= normal-background
+                                                  selected-background)
+           :after-first after-first
+           :after-second after-second
+           :after-third (for [item items]
+                          (= selected-background
+                             (-> item :effective-style :background)))}))))
+
+  (s/then [result]
+    (is (= {:selected-background-differs? true
+            :after-first [true false false]
+            :after-second [false true false]
+            :after-third [false false true]}
            result))))
 
 (deftest menu-bar/switches-an-open-popup-with-horizontal-arrow-keys
@@ -194,12 +271,27 @@
     (runtime/settle-layout! app)
     (runtime/press-key! app :right)
     (runtime/settle-layout! app)
-    {:popup-mode (runtime/active-mode-name app)
-     :popup-label (-> (runtime/find-view app "ui/text") :state :value)})
+    (let [inner (runtime/find-view app "ui/popup-menu-inner")
+          item (runtime/find-view app "ui/popup-menu-item")]
+      {:popup-mode (runtime/active-mode-name app)
+       :popup-label (-> (runtime/find-view app "ui/text") :state :value)
+       :navigation (select-keys (:ui-state inner)
+                                [:highlighted-index :input-source])
+       :first-row (select-keys (:ui-state item)
+                               [:index
+                                :highlighted-index
+                                :input-source
+                                :highlighted])}))
 
   (s/then [result]
     (is (= {:popup-mode "ui/popup-menu"
-            :popup-label "Undo"}
+            :popup-label "Undo"
+            :navigation {:highlighted-index 0
+                         :input-source :keyboard}
+            :first-row {:index 0
+                        :highlighted-index 0
+                        :input-source :keyboard
+                        :highlighted true}}
            result))))
 
 (deftest menu-bar/inherits-the-theme-font

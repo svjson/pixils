@@ -474,10 +474,12 @@
     (if (empty? indices)
       highlighted-index
       (let [current-pos (find-index indices (fn [index]
-                                              (= index highlighted-index)))
-            start-pos (if (or (nil? current-pos)
-                              (< current-pos 0))
-                        0
-                        current-pos)
-            next-pos (wrap-index (+ start-pos direction) (count indices))]
-        (nth indices next-pos)))))
+                                              (= index highlighted-index)))]
+        (if (or (nil? current-pos)
+                (< current-pos 0))
+          (if (< direction 0)
+            (last indices)
+            (head indices))
+          (nth indices
+               (wrap-index (+ current-pos direction)
+                           (count indices))))))))

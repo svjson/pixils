@@ -21,7 +21,8 @@
   The child view, or `nil` for an invalid index."
   [view index]
   (let [children (ui/children view)]
-    (when (and (>= index 0)
+    (when (and (some? index)
+               (>= index 0)
                (< index (count children)))
       (nth children index))))
 
@@ -122,20 +123,6 @@
               :top (+ (-> anchor-view :bounds :y)
                       (-> anchor-view :bounds :h))}))
 
-(defun point-in-rect?
-  "Return whether a point lies inside a half-open rectangle.
-
-  Args:
-  - `point`: Point map with `:x` and `:y` coordinates.
-  - `rect`: Rectangle map with position and dimensions."
-  [point rect]
-  (and (some? point)
-       (some? rect)
-       (>= (:x point) (:x rect))
-       (>= (:y point) (:y rect))
-       (< (:x point) (+ (:x rect) (:w rect)))
-       (< (:y point) (+ (:y rect) (:h rect)))))
-
 (defun children
   "Build the outer and inner popup view specifications.
 
@@ -191,36 +178,38 @@
 
   Args:
   - `items`: Normalized menu nodes.
-  - `state`: Popup and application inputs.
+  - `state`: Popup and application inputs, including an optional
+    `:input-source` that defaults to `:mouse`.
   - `origin-view`: View that receives the popup result.
   - `position`: Absolute popup origin.
 
   Returns:
   The pushed mode result, or `nil` for an empty item list."
   [items state origin-view position]
-  (when (not-empty? items)
-    (push-mode!
-     (or (:popup-mode state) 'ui/popup-menu)
-     {:items items
-      :highlighted-index (model/first-selectable-index items)
-      :input-source :mouse
-      :menu-depth (or (:menu-depth state) 0)
-      :menu-scale (:menu-scale state)
-      :anchor-bounds (:anchor-bounds state)
-      :option-state (:option-state state)
-      :game (:game state)
-      :preferences (:preferences state)}
-     {:origin {:view origin-view
-               :event :menu/select}
-      :style {:scale (:menu-scale state)}
-      :children (children items state position)})))
+  (let [input-source (or (:input-source state) :mouse)]
+    (when (not-empty? items)
+      (push-mode!
+       (or (:popup-mode state) 'ui/popup-menu)
+       {:items items
+        :highlighted-index (when (not= :mouse input-source)
+                             (model/first-selectable-index items))
+        :input-source input-source
+        :menu-depth (or (:menu-depth state) 0)
+        :menu-scale (:menu-scale state)
+        :option-state (:option-state state)
+        :game (:game state)
+        :preferences (:preferences state)}
+       {:origin {:view origin-view
+                 :event :menu/select}
+        :style {:scale (:menu-scale state)}
+        :children (children items state position)}))))
 
 (defun open-at-view!
   "Open a node's submenu relative to an anchor view.
 
   Args:
   - `node`: Enabled normalized node owning submenu items.
-  - `state`: Popup and application inputs.
+  - `state`: Popup and application inputs, including an optional input source.
   - `anchor-view`: View used for placement and result routing.
   - `placement`: Relative placement keyword.
 
@@ -230,9 +219,7 @@
   (when (and (not (:disabled? node))
              (model/submenu-node? node))
     (open-at-position! (:items node)
-                             (assoc state
-                                    :anchor-bounds
-                                    (:visual-bounds anchor-view))
+                             state
                              anchor-view
                              (position anchor-view placement))))
 
@@ -250,7 +237,9 @@
   [menu-definition position state ctx]
   (let [menu (model/normalize menu-definition (:keymap state))]
     (open-at-position! (:items menu)
-                             (assoc state :popup-mode 'ui/context-menu)
+                             (merge state
+                                    {:popup-mode 'ui/context-menu
+                                     :input-source :mouse})
                              (:view ctx)
                              {:left (:x position)
                               :top (:y position)})))
@@ -707,11 +696,8 @@
 (defmode ui/popup-menu
   {:on-mouse-down
    (fn [state event _ctx]
-     (pop-mode! (if (point-in-rect? (:global-position event)
-                                    (:anchor-bounds state))
-                  {:type :dismiss
-                   :anchor-click? true}
-                  {:type :dismiss}))
+     (pop-mode! {:type :dismiss
+                 :global-position (:global-position event)})
      state)
    :on {:menu/select
         (fn [state event _ctx]

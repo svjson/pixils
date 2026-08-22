@@ -122,7 +122,7 @@
     {:mode (runtime/active-mode-name app)
      :ui-state (select-keys
                 (:ui-state (runtime/find-view app "ui/menu-bar-item"))
-                [:highlighted :suppress-next-open?])})
+                [:highlighted])})
 
   (s/then [result]
     (is (= {:mode "menu-static-root"

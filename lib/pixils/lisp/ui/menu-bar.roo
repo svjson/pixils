@@ -1,5 +1,6 @@
 (ns pixils.ui.menu-bar
   (:require pixils
+            [pixils.rect :as rect]
             [pixils.ui :as ui]
             [pixils.ui.menu-bar-item :as menu-bar-item]
             [pixils.ui.menu-model :as model]
@@ -21,6 +22,41 @@
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
 
+(defun child-index-at-point
+  "Find the menu-bar child containing a global point.
+
+  Args:
+  - `view`: Menu-bar view.
+  - `point`: Global point with `:x` and `:y` coordinates.
+
+  Returns:
+  The matching child index, or `nil`."
+  [view point]
+  (when point
+    (find-index (ui/children view)
+                (fn [child]
+                  (rect/contains? (:visual-bounds child) point)))))
+
+(defun set-active-index!
+  "Set the active menu-bar item and refresh every item highlight.
+
+  Args:
+  - `ctx`: Menu-bar hook context.
+  - `active-index`: Active top-level item index, or `nil`.
+
+  Returns:
+  `nil` after updating the menu bar and its item views."
+  [ctx active-index]
+  (ui/update-ui-state! ctx assoc :active-index active-index)
+  (doseq [child (-> ctx :view ui/children)]
+    (let [ui-state (assoc (:ui-state child) :active-index active-index)]
+      (ui/set-ui-state! child
+                        (assoc ui-state
+                               :highlighted
+                               (menu-bar-item/highlighted?
+                                ui-state
+                                (-> child :interaction :hovered)))))))
+
 (defun open-popup-at-index!
   "Open an enabled top-level submenu by index.
 
@@ -29,17 +65,21 @@
   - `state`: Current application state.
   - `ctx`: Menu-bar hook context.
   - `index`: Candidate top-level item index.
+  - `input-source`: Input source that opened the popup.
 
   Returns:
   The pushed popup result, or `nil` when the item cannot open."
-  [ui-state state ctx index]
+  [ui-state state ctx index input-source]
   (let [node (nth (-> ui-state :menu :items) index)
         child-view (nth (-> ctx :view ui/children) index)]
     (when (and node
                child-view
                (not (:disabled? node)))
+      (set-active-index! ctx index)
       (popup/open-at-view! node
-                           (merge state ui-state)
+                           (merge state
+                                  ui-state
+                                  {:input-source input-source})
                            child-view
                            :below))))
 
@@ -56,8 +96,15 @@
   [ui-state state ctx]
   (if-let [index (:pending-open-index ui-state)]
     (do
-      (open-popup-at-index! ui-state state ctx index)
-      (assoc ui-state :pending-open-index nil))
+      (open-popup-at-index! ui-state
+                            state
+                            ctx
+                            index
+                            (or (:pending-open-input-source ui-state)
+                                :keyboard))
+      (merge ui-state
+             {:pending-open-index nil
+              :pending-open-input-source nil}))
     ui-state))
 
 
@@ -69,7 +116,8 @@
   [:menu
    :menu-scale
    :active-index
-   :pending-open-index])
+   :pending-open-index
+   :pending-open-input-source])
 
 (defcomponent ui/menu-bar
   {:style {:width :fill
@@ -88,8 +136,7 @@
           (let [ui-state (-> ctx :view :ui-state)
                 index (-> event :payload :menu-index)]
             (ui/stop-propagation! event)
-            (when (open-popup-at-index! ui-state state ctx index)
-              (ui/update-ui-state! ctx assoc :active-index index))
+            (open-popup-at-index! ui-state state ctx index :mouse)
             state))
         :menu/navigate-top
         (fn [state event ctx]
@@ -104,16 +151,45 @@
                             (:menu-index payload)
                             direction)]
             (ui/stop-propagation! event)
-            (ui/update-ui-state! ctx merge {:active-index next-index
-                                            :pending-open-index next-index})
+            (set-active-index! ctx next-index)
+            (ui/update-ui-state! ctx merge
+                                 {:pending-open-index next-index
+                                  :pending-open-input-source :keyboard})
+            state))
+        :menu/dismiss
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                clicked-index (child-index-at-point
+                               (:view ctx)
+                               (:global-position payload))
+                clicked-node (when clicked-index
+                               (nth (-> ui-state :menu :items)
+                                    clicked-index))]
+            (ui/stop-propagation! event)
+            (if (and (some? clicked-index)
+                     (not= clicked-index (:menu-index payload))
+                     (not (:disabled? clicked-node))
+                     (model/submenu-node? clicked-node))
+              (do
+                (set-active-index! ctx clicked-index)
+                (ui/update-ui-state! ctx merge
+                                     {:pending-open-index clicked-index
+                                      :pending-open-input-source :mouse}))
+              (do
+                (set-active-index! ctx nil)
+                (ui/update-ui-state! ctx merge
+                                     {:pending-open-index nil
+                                      :pending-open-input-source nil})))
             state))
         :menu/select
         (fn [state _event ctx]
+          (set-active-index! ctx nil)
           (ui/update-ui-state!
            ctx
            merge
-           {:active-index nil
-            :pending-open-index nil})
+           {:pending-open-index nil
+            :pending-open-input-source nil})
           state)}})
 
 
@@ -134,7 +210,8 @@
                                          (:keymap opts))]
     (merge {:menu-scale (-> opts :style :scale)
             :active-index nil
-            :pending-open-index nil}
+            :pending-open-index nil
+            :pending-open-input-source nil}
            (select-keys state UI-STATE-KEYS)
            (:component state)
            (select-keys opts UI-STATE-KEYS)

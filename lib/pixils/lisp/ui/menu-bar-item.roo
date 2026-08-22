@@ -10,8 +10,7 @@
    :menu-index
    :disabled?
    :active-index
-   :highlighted
-   :suppress-next-open?])
+   :highlighted])
 
 (defun highlighted?
   "Determine whether a top-level menu item is highlighted.
@@ -58,11 +57,6 @@
            node (:node ui-state)]
        (ui/stop-propagation! event)
        (cond
-         (:suppress-next-open? ui-state)
-         (do
-           (ui/update-ui-state! ctx assoc :suppress-next-open? false)
-           state)
-
          (and node
               (not (:disabled? node))
               (model/submenu-node? node))
@@ -103,10 +97,13 @@
                           (:payload payload))
                 state)
 
-              (and (= :dismiss (:type payload))
-                   (:anchor-click? payload))
+              (= :dismiss (:type payload))
               (do
-                (ui/update-ui-state! ctx assoc :suppress-next-open? true)
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :menu/dismiss
+                          {:menu-index (:menu-index ui-state)
+                           :global-position (:global-position payload)})
                 state)
 
               :default

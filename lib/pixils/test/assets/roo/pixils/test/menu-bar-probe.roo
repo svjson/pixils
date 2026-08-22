@@ -8,7 +8,10 @@
                      :action :file/open}]}
            {:label "Edit"
             :items [{:label "Undo"
-                     :action :edit/undo}]}]})
+                     :action :edit/undo}]}
+           {:label "View"
+            :items [{:label "Zoom"
+                     :action :view/zoom}]}]})
 
 (pixils/defmode menu-action-root
   {:init (fn [_state _ctx]
