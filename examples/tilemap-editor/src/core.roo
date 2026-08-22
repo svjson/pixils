@@ -11,5 +11,5 @@
              :align :align/center
              :background {:r 0x10 :g 0x13 :b 0x17}}
    :target-frame-rate 0
-   :theme ['pixils/classic-blue 'tilemap-editor/theme]
+   :theme ['pixils/classic-blue 'pixils-form/base 'tilemap-editor/theme]
    :initial-mode 'main-mode})
