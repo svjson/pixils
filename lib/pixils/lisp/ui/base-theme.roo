@@ -630,7 +630,9 @@
     {:text {:color (var :disabled-text)}
      :background (var :disabled-bg)}
 
-    'ui/menu-bar {:background (var :surface)}
+    'ui/menu-bar {:height :shrink
+                  :min-height 18
+                  :background (var :surface)}
 
     'ui/popup-menu-item
     {:padding {:t 2 :r 12 :b 2 :l 2}}

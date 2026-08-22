@@ -189,3 +189,34 @@
 
   (s/then [font]
     (is (= :font/classic-blue-font font))))
+
+(deftest menu-bar/shrinks-to-its-items
+  (s/when []
+    (let [app (app-for 'menu-windows-3-root)
+          menu (runtime/find-view app "ui/menu-bar")
+          item (runtime/find-view app "ui/menu-bar-item")]
+      {:height (-> menu :effective-style :height)
+       :min-height (-> menu :effective-style :min-height)
+       :menu-height (-> menu :bounds :h)
+       :item-height (-> item :bounds :h)}))
+
+  (s/then [result]
+    (is (= {:height :shrink
+            :min-height 18
+            :menu-height 18
+            :item-height 17}
+           result))))
+
+(deftest menu-bar/keeps-an-empty-bar-visible
+  (s/when []
+    (let [app (app-for 'menu-empty-root)
+          menu (runtime/find-view app "ui/menu-bar")]
+      {:height (-> menu :effective-style :height)
+       :min-height (-> menu :effective-style :min-height)
+       :bounds-height (-> menu :bounds :h)}))
+
+  (s/then [result]
+    (is (= {:height :shrink
+            :min-height 18
+            :bounds-height 18}
+           result))))

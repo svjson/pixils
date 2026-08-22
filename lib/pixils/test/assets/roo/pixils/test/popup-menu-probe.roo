@@ -42,8 +42,7 @@
           (assoc state :last-action {:action :file/save
                                      :payload (:payload event)}))}
    :children [(menu-bar/make
-               {:style {:width 120
-                        :height 20}}
+               {:style {:width 120}}
                keyboard-menu
                {})]})
 

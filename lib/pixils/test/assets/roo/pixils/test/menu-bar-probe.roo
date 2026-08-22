@@ -17,8 +17,7 @@
                  :quit true
                  :payload (:payload event)))}
    :children [(menu-bar/make
-               {:style {:width 120
-                        :height 20}}
+               {:style {:width 120}}
                {:items [{:label "Quit"
                          :action :game/quit
                          :payload {:source :menu}}]}
@@ -26,9 +25,14 @@
 
 (pixils/defmode menu-static-root
   {:children [(menu-bar/make
-               {:style {:width 120
-                        :height 20}}
+               {:style {:width 120}}
                {:items [{:label "Static"}]}
+               {})]})
+
+(pixils/defmode menu-empty-root
+  {:children [(menu-bar/make
+               {}
+               {:items []}
                {})]})
 
 (pixils/defmode menu-scaled-root
