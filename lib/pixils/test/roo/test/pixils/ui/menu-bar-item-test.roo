@@ -37,22 +37,21 @@
 
 
 
-;; pixils.ui.menu-bar-item/highlight-transition
+;; pixils.ui.menu-bar-item/highlighted?
 
-(deftest highlight-transition/highlights-only-the-enabled-active-item
-  (is (= [{:highlighted true}
-          {:highlighted false}
-          {:highlighted false}
-          {:highlighted false}]
-         (for [candidate [{:menu-index 1
-                           :active-index 1}
-                          {:menu-index 1
-                           :active-index 0}
-                          {:menu-index 1
-                           :active-index 1
-                           :disabled? true}
-                          {:menu-index 1}]]
-           (menu-bar-item/highlight-transition nil candidate nil)))))
+(deftest highlighted?/uses-hover-until-a-menu-is-active
+  (is (= [true
+          false
+          true
+          false
+          false]
+         (for [[ui-state hovered]
+               [[{:menu-index 1} true]
+                [{:menu-index 1} false]
+                [{:menu-index 1 :active-index 1} false]
+                [{:menu-index 1 :active-index 0} true]
+                [{:menu-index 1 :disabled? true} true]]]
+           (menu-bar-item/highlighted? ui-state hovered)))))
 
 
 
@@ -66,6 +65,30 @@
 
   (s/then [state]
     (is (= {:value "Quit"} state))))
+
+(deftest menu-bar-item/highlights-hover-in-the-windows-3-theme
+  (s/given
+    (app-for 'menu-windows-3-root))
+
+  (s/when [app]
+    (runtime/mouse-move-at! app 170 110)
+    (runtime/update! app)
+    (runtime/settle-layout! app)
+    (let [item (runtime/find-view app "ui/menu-bar-item")
+          background-before (-> item :effective-style :background)]
+      (runtime/mouse-move-in! app item 1 1)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      {:hovered (-> item :interaction :hovered)
+       :highlighted (-> item :ui-state :highlighted)
+       :background-before background-before
+       :background-after (-> item :effective-style :background)}))
+
+  (s/then [result]
+    (is (= true (:hovered result)))
+    (is (= true (:highlighted result)))
+    (is (not= (:background-before result)
+              (:background-after result)))))
 
 (deftest menu-bar-item/emits-leaf-actions-without-opening-a-popup
   (s/given
@@ -103,5 +126,5 @@
 
   (s/then [result]
     (is (= {:mode "menu-static-root"
-            :ui-state {:highlighted false}}
+            :ui-state {:highlighted true}}
            result))))

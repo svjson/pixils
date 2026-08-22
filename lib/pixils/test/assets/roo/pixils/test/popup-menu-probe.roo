@@ -54,6 +54,13 @@
                keyboard-menu
                {})]})
 
+(pixils/defmode popup-windows-3-root
+  {:theme 'pixils/windows-3
+   :children [(menu-bar/make
+               {}
+               keyboard-menu
+               {})]})
+
 (pixils/defmode popup-submenu-indicator-root
   {:theme 'pixils/classic-blue
    :children [(menu-bar/make

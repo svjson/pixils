@@ -83,6 +83,29 @@
 
 
 
+;; pixils.ui.popup-menu/item-highlighted?
+
+(deftest item-highlighted?/uses-hover-for-mouse-and-index-for-keyboard
+  (is (= [true
+          false
+          true
+          false
+          false]
+         (for [[ui-state hovered]
+               [[{:input-source :mouse} true]
+                [{:input-source :mouse} false]
+                [{:input-source :keyboard
+                  :index 2
+                  :highlighted-index 2} false]
+                [{:input-source :keyboard
+                  :index 2
+                  :highlighted-index 1} true]
+                [{:input-source :mouse
+                  :disabled? true} true]]]
+           (popup-menu/item-highlighted? ui-state hovered)))))
+
+
+
 ;; pixils.ui/popup-menu-inner
 
 (deftest popup-menu-inner/keyboard-navigation-skips-nonselectable-rows
@@ -140,6 +163,31 @@
     (is (= {:mode "ui/popup-menu"
             :font :font/classic-blue-font}
            result))))
+
+
+
+;; pixils.ui/popup-menu-item
+
+(deftest popup-menu-item/highlights-hover-in-the-windows-3-theme
+  (s/given
+    (open-popup-app 'popup-windows-3-root))
+
+  (s/when [app]
+    (let [item (head (runtime/find-views app "ui/popup-menu-item"))
+          background-before (-> item :effective-style :background)]
+      (runtime/mouse-move-in! app item 2 2)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      {:hovered (-> item :interaction :hovered)
+       :highlighted (-> item :ui-state :highlighted)
+       :background-before background-before
+       :background-after (-> item :effective-style :background)}))
+
+  (s/then [result]
+    (is (= true (:hovered result)))
+    (is (= true (:highlighted result)))
+    (is (not= (:background-before result)
+              (:background-after result)))))
 
 
 

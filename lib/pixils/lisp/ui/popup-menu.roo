@@ -353,21 +353,41 @@
    :menu-depth
    :menu-scale])
 
-(defun item-highlight-transition
-  "Derive keyboard highlighting for a popup item.
+(defun item-highlighted?
+  "Determine whether a popup-menu item is highlighted.
 
   Args:
-  - `current`: Current derived model values.
-  - `candidate`: UI state after dependency changes.
-  - `changed-keys`: Dependencies changed by the transition.
+  - `ui-state`: Current popup-item UI state.
+  - `hovered`: Whether native interaction state marks the item as hovered.
 
   Returns:
-  The next `:highlighted` model value."
-  [_current candidate _changed-keys]
-  {:highlighted (and (not (:disabled? candidate))
-                     (= :keyboard (:input-source candidate))
-                     (= (:index candidate)
-                        (:highlighted-index candidate)))})
+  `true` when mouse hover or keyboard navigation highlights the item."
+  [ui-state hovered]
+  (and (not (:disabled? ui-state))
+       (case (:input-source ui-state)
+         :mouse hovered
+         :default
+         (= (:index ui-state)
+            (:highlighted-index ui-state)))))
+
+(defun update-item-highlight
+  "Update derived highlighting from navigation and native interaction state.
+
+  Args:
+  - `ui-state`: Current popup-item UI state.
+  - `state`: Ignored application state.
+  - `ctx`: Popup-item update context.
+
+  Returns:
+  The original UI state when highlighting is unchanged, otherwise updated UI
+  state."
+  [ui-state _state ctx]
+  (let [highlighted (item-highlighted?
+                     ui-state
+                     (-> ctx :view :interaction :hovered))]
+    (if (= highlighted (:highlighted ui-state))
+      ui-state
+      (assoc ui-state :highlighted highlighted))))
 
 (defun update-navigation
   "Apply popup navigation changes to UI and compatibility state.
@@ -392,12 +412,7 @@
    :style {:layout {:direction :row
                     :align-items :center}}
    :ui/state-keys ITEM-UI-STATE-KEYS
-   :ui/models [{:owns [:highlighted]
-                :depends-on [:disabled?
-                             :input-source
-                             :index
-                             :highlighted-index]
-                :transition item-highlight-transition}]
+   :update-ui update-item-highlight
    :on-mouse-motion
    (fn [state _event ctx]
      (let [ui-state (-> ctx :view :ui-state)]

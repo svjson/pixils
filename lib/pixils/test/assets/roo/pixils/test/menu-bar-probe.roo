@@ -49,3 +49,10 @@
                {}
                submenu-menu
                {})]})
+
+(pixils/defmode menu-windows-3-root
+  {:theme 'pixils/windows-3
+   :children [(menu-bar/make
+               {}
+               submenu-menu
+               {})]})
