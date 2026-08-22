@@ -7,6 +7,18 @@
 
 ;; pixils.form.controls.array-editor/array-item-dialog-body
 
+(deftest array-item-dialog-body/renders-a-scalar-item-control
+  (let [body (form/array-item-dialog-body {:type :text}
+                                          {:value "grass"})
+        item-form (head (:children body))
+        field (-> item-form :children head :children head :children head)]
+    (is (= {:field-id nil
+            :field-path nil
+            :control-mode 'ui/text-input}
+           {:field-id (-> field :state :field-id)
+            :field-path (-> field :state :field-path)
+            :control-mode (-> field :children head :mode)}))))
+
 (deftest array-item-dialog-body/renders-form-and-buttons
   (let [body (form/array-item-dialog-body
               {:type :object

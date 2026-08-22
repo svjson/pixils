@@ -21,6 +21,24 @@
   (s/then [ui-state]
     (is (= {:value "Adax"} ui-state))))
 
+(deftest scalar-text-field/emits-the-edited-root-value
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 300 :buffer-height 100
+                                 :render-backend false})]
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/text-input.roo")
+      (runtime/push-mode! app 'scalar-text-input-form-probe)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/press-key! app :end)
+    (runtime/press-key! app :x)
+    (:form-value (runtime/active-state app)))
+
+  (s/then [form-value]
+    (is (= "Adax" form-value))))
+
 (deftest keyword-field/remains-editable
   (s/given
     (let [app (runtime/make-app {:package-root "."

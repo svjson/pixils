@@ -157,10 +157,19 @@
 (defun label-for [field-id text]
   (get text field-id (str field-id)))
 
-(defun form-field-visible? [state]
-  (model-schema/field-visible? (:schema state)
-                               (:field-id state)
-                               (:value state)))
+(defun form-field-visible?
+  "Returns whether a form field is visible for the current form value.
+
+  Args:
+  - `state`: Form-field state containing its schema, identity, and value.
+
+  Returns:
+  True for a scalar-root field or a visible named schema field."
+  [state]
+  (or (nil? (:field-id state))
+      (model-schema/field-visible? (:schema state)
+                                   (:field-id state)
+                                   (:value state))))
 
 (defun form-field-style [base-style visible?]
   (cond-> (or base-style {})
@@ -272,7 +281,19 @@
     :select
     (:type field-schema)))
 
-(defun field-control [field-id field-schema field-label opts]
+(defun field-control
+  "Builds the configured control for a resolved form value.
+
+  Args:
+  - `field-id`: Named field identifier, or nil for the form root.
+  - `field-schema`: Resolved schema for the presented value.
+  - `field-label`: Human-readable label supplied to the control.
+  - `value`: State projection containing the presented value.
+  - `opts`: Form rendering options and control overrides.
+
+  Returns:
+  A form control view declaration."
+  [field-id field-schema field-label value opts]
   (let [controls (merge default-controls (:controls opts))
         control (get controls
                      (field-control-type field-schema)
@@ -280,7 +301,7 @@
     (apply control [{:id field-id
                      :schema field-schema
                      :label field-label
-                     :value (form-field/projection field-id field-schema)
+                     :value value
                      :disabled? (if (:read-only? field-schema)
                                   true
                                   (ui/project-state :disabled?))
@@ -334,10 +355,57 @@
                             true (append (field-control field-id
                                                         field-schema
                                                         field-label
+                                                        (form-field/projection
+                                                         field-id
+                                                         field-schema)
                                                         opts)))}
                (form-layout/style-map base-style)))
       {:mode 'ui/text
        :state {:value (str "Unknown form field " field-id)}})))
+
+(defun root-field-view
+  "Builds the form field that presents a scalar root value.
+
+  Args:
+  - `schema`: Prepared scalar-root schema document.
+  - `opts`: Form rendering options containing any root field layout.
+
+  Returns:
+  A pathless form-field view whose control edits the complete form value."
+  [schema opts]
+  (let [field-schema (model-schema/resolved-root-schema schema)
+        field-layout (form-layout/normalize-layout-item
+                      (head (or (:form/layout opts) [])))
+        field-label (:label field-layout)
+        base-style (:field-style opts)]
+    (merge {:mode 'pixils/form-field
+            :class :pixils/form-field
+            :state {:value (ui/project-state :value)
+                    :form-value (ui/project-state :value)
+                    :form/item-editor-state
+                    (ui/project-state :form/item-editor-state)
+                    :schema schema
+                    :field-id nil
+                    :field-path nil
+                    :local-field-path nil
+                    :field-schema field-schema
+                    :disabled? (if (:read-only? field-schema)
+                                 true
+                                 (ui/project-state :disabled?))
+                    :base-style base-style
+                    :dynamic-visibility? false
+                    :visible? true}
+            :children (cond-> []
+                        (and (some? field-label)
+                             (not= false field-label))
+                        (append (field-label-view field-label opts))
+                        true
+                        (append (field-control nil
+                                               field-schema
+                                               field-label
+                                               (ui/project-state :value)
+                                               opts)))}
+           (form-layout/style-map base-style))))
 
 (defun separator-view [opts]
   (merge {:class :pixils/form-separator}
@@ -459,19 +527,20 @@
   [editors item opts]
   (if-let [layout-ref (item-editor-layout-ref item)]
     (let [field-id (:id item)
-          field-schema (model-schema/resolved-field-schema (:schema opts) field-id)]
+          field-schema (model-schema/resolved-field-schema (:schema opts) field-id)
+          item-schema (array-editor-control/array-item-schema field-schema opts)]
       (assoc editors
              layout-ref
-             {:id layout-ref
-              :field-id field-id
-              :field-path (form-field/event-path opts field-id field-schema)
-              :field-schema field-schema
-              :no-selection (get (:item-editor item) :no-selection :disabled)
-              :new-template (or (:new-template field-schema)
-                                (:new-value item)
-                                (:new-value field-schema)
-                                {})
-              :new-value-fn (:new-value=> item)}))
+             (cond->
+              {:id layout-ref
+               :field-id field-id
+               :field-path (form-field/event-path opts field-id field-schema)
+               :field-schema field-schema
+               :schema item-schema
+               :no-selection (get (:item-editor item) :no-selection :disabled)
+               :new-value-fn (:new-value=> item)}
+               (contains? item :new-value)
+               (assoc :new-template (:new-value item)))))
     editors))
 
 (defun collect-referenced-item-editors
@@ -765,7 +834,11 @@
       (let [defaulted-layout (or layout (default-layout schema opts))
             children (case (:type root)
                        :union [(object-form-control/root-view schema opts layout)]
-                       :default (layout-item-views defaulted-layout opts))
+                       :object (layout-item-views defaulted-layout opts)
+                       nil (layout-item-views defaulted-layout opts)
+                       :default [(root-field-view
+                                  schema
+                                  (assoc opts :form/layout layout))])
             fields (fields-view children opts)]
         (cond
           (nil? selection)

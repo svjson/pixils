@@ -635,6 +635,22 @@
 
 
 
+;; pixils.form-state/schema-new-value
+
+(deftest schema-new-value/derives-stock-values-from-schema-types
+  (is (= [{} {} [] false "" "" "" nil]
+         (for [schema [{:name {:type :text}}
+                       {:type :object :fields {:name {:type :text}}}
+                       {:type :array :items {:type :text}}
+                       {:type :boolean}
+                       {:type :text}
+                       {:type :string}
+                       {:type :any}
+                       {:type :number}]]
+           (form-state/schema-new-value schema)))))
+
+
+
 ;; pixils.form-state/begin-new-state
 
 (deftest begin-new-state/uses-projection-factory

@@ -8,6 +8,15 @@
    :children [(form/make {:schema {:name {:type :text :auto-focus? true}}
                          :value (ui/bind-state :form-value)})]})
 
+(defmode scalar-text-input-form-probe
+  {:init (fn [_state _ctx] {:form-value "Ada"})
+   :children [(form/make {:schema {:type :text :auto-focus? true}
+                         :value (ui/bind-state :form-value)})]
+   :on {:form/draft-change
+        (fn [state event _ctx]
+          (ui/stop-propagation! event)
+          (assoc state :form-value (-> event :payload :form-value)))}})
+
 (defmode keyword-input-form-probe
   {:init (fn [_state _ctx] {:form-value {:name :ada}})
    :update (fn [state _ctx]

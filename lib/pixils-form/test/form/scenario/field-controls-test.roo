@@ -7,6 +7,35 @@
 
 ;; pixils.form/make
 
+(deftest make/renders-a-scalar-root-through-its-stock-control
+  (let [view (form/make {:schema {:type :text}
+                         :value "grass"})
+        field (-> view :children head :children head :children head)
+        control (head (:children field))]
+    (is (= {:field {:mode 'pixils/form-field
+                    :field-id nil
+                    :field-path nil
+                    :field-schema {:type :text}
+                    :child-count 1}
+            :control-mode 'ui/text-input}
+           {:field {:mode (:mode field)
+                    :field-id (-> field :state :field-id)
+                    :field-path (-> field :state :field-path)
+                    :field-schema (-> field :state :field-schema)
+                    :child-count (count (:children field))}
+            :control-mode (:mode control)}))))
+
+(deftest make/renders-an-optional-scalar-root-label
+  (let [view (form/make {:schema {:type :number}
+                         :value 42
+                         :layout {:root [{:type :field
+                                         :label "Value"}]}})
+        field (-> view :children head :children head :children head)]
+    (is (= {:label "Value"
+            :control-mode 'ui/number-input}
+           {:label (-> field :children head :state :value)
+            :control-mode (-> field :children (nth 1) :mode)}))))
+
 (deftest make/renders-combined-model-layout-from-resolved-schema
   (let [view (form/make {:model :person
                          :models {:person {:schema person/schema

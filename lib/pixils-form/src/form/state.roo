@@ -1,5 +1,6 @@
 (ns pixils.form.state
   (:require [zoology.canonical :as model-canonical]
+            [zoology.schema :as model-schema]
             [zoology.validation :as model-validation]))
 
 (defun validated-state [state]
@@ -92,14 +93,36 @@
          (>= index 0)
          (< index (count items))) (assoc index value)))
 
-(defun new-form-value [{:keys [new-value-fn items new-template]}]
+(defun schema-new-value
+  "Returns the stock new value for a schema root.
+
+  Args:
+  - `schema`: Schema document describing the value to construct.
+
+  Returns:
+  An empty object, array, text, boolean, or nil value appropriate for the
+  resolved schema type."
+  [schema]
+  (case (:type (model-schema/resolved-root-schema schema))
+    nil {}
+    :object {}
+    :array []
+    :boolean false
+    :text ""
+    :string ""
+    :any ""
+    :default nil))
+
+(defun new-form-value [{:keys [new-value-fn items new-template schema]}]
   (cond
     new-value-fn
     (apply new-value-fn [(count items)])
 
-    (nil? new-template) {}
+    new-template
+    new-template
 
-    :default new-template))
+    :default
+    (schema-new-value schema)))
 
 (defun begin-new-state [state]
   (let [value (new-form-value state)]

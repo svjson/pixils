@@ -735,10 +735,6 @@
                 :form-value (ui/bind-state :form-value)
                 :context (:context opts)
                 :item-opts item-opts
-                :new-template (or (:new-template field-schema)
-                                  (:new-value field-layout)
-                                  (:new-value field-schema)
-                                  {})
                 :new-value-fn (:new-value=> field-layout)
                 :item-label item-label
                 :summary-specs summary-specs
@@ -749,6 +745,8 @@
                 :toolbar-actions toolbar-actions
                 :disabled? (:disabled? opts)
                 :read-only? (:disabled? opts)}
+                (contains? field-layout :new-value)
+                (assoc :new-template (:new-value field-layout))
                 item-editor-id
                 (assoc :selected-index (ui/project-state :form/item-editor-state
                                                           item-editor-id
