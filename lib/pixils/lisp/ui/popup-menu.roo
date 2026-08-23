@@ -227,9 +227,13 @@
   (when (and (not (:disabled? node))
              (model/submenu-node? node))
     (open-at-position! (:items node)
-                             state
-                             anchor-view
-                             (position anchor-view placement))))
+                       (assoc state
+                              :menu-scale
+                              (or (-> anchor-view :effective-style :scale)
+                                  (-> anchor-view :style :scale)
+                                  (:menu-scale state)))
+                       anchor-view
+                       (position anchor-view placement))))
 
 (defun open-context!
   "Normalize and open a context-menu overlay.

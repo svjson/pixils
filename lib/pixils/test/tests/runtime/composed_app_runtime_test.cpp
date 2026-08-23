@@ -1511,7 +1511,6 @@ TEST_F(
   View& underlying_main_mode = *session().ctx_stack.back();
   View& underlying_menu_bar = keyboard_menu_windowed_menu_bar(underlying_main_mode);
   expect_int_key(underlying_menu_bar.state, "active-index", 1);
-  expect_nil_key(underlying_menu_bar.ui_state, "pending-open-index");
 }
 
 TEST_F(ComposedAppRuntimeTest,

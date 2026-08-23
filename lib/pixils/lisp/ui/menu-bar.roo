@@ -10,18 +10,6 @@
 
 ;; Menu-bar state
 
-(defun view-scale
-  "Read the effective scale inherited by a view.
-
-  Args:
-  - `view`: Menu-bar view.
-
-  Returns:
-  The effective or directly supplied scale."
-  [view]
-  (or (-> view :effective-style :scale)
-      (-> view :style :scale)))
-
 (defun child-index-at-point
   "Find the menu-bar child containing a global point.
 
@@ -79,34 +67,12 @@
       (popup/open-at-view! node
                            (merge state
                                   ui-state
-                                  {:input-source input-source})
+                                  {:input-source input-source
+                                   :menu-scale
+                                   (or (-> ctx :view :effective-style :scale)
+                                       (-> ctx :view :style :scale))})
                            child-view
                            :below))))
-
-(defun open-pending-popup
-  "Open and clear a deferred top-level popup request.
-
-  Args:
-  - `ui-state`: Current menu-bar UI state.
-  - `state`: Current application state.
-  - `ctx`: Menu-bar hook context.
-
-  Returns:
-  UI state with any pending request cleared."
-  [ui-state state ctx]
-  (if-let [index (:pending-open-index ui-state)]
-    (do
-      (open-popup-at-index! ui-state
-                            state
-                            ctx
-                            index
-                            (or (:pending-open-input-source ui-state)
-                                :keyboard))
-      (merge ui-state
-             {:pending-open-index nil
-              :pending-open-input-source nil}))
-    ui-state))
-
 
 
 ;; Menu-bar component
@@ -114,23 +80,12 @@
 (def UI-STATE-KEYS
   "Canonical UI-state keys owned by `ui/menu-bar`."
   [:menu
-   :menu-scale
-   :active-index
-   :pending-open-index
-   :pending-open-input-source])
+   :active-index])
 
 (defcomponent ui/menu-bar
   {:style {:width :fill
            :layout {:direction :row}}
    :ui/state-keys UI-STATE-KEYS
-   :update-ui open-pending-popup
-   :after-layout-ui (fn [ui-state _state ctx]
-                      (let [scale (view-scale (:view ctx))]
-                        (if (or (nil? scale)
-                                (= scale (:menu-scale ui-state)))
-                          ui-state
-                          (assoc ui-state :menu-scale scale))))
-
    :on {:menu/open
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
@@ -151,10 +106,11 @@
                             (:menu-index payload)
                             direction)]
             (ui/stop-propagation! event)
-            (set-active-index! ctx next-index)
-            (ui/update-ui-state! ctx merge
-                                 {:pending-open-index next-index
-                                  :pending-open-input-source :keyboard})
+            (open-popup-at-index! ui-state
+                                  state
+                                  ctx
+                                  next-index
+                                  :keyboard)
             state))
         :menu/dismiss
         (fn [state event ctx]
@@ -171,25 +127,16 @@
                      (not= clicked-index (:menu-index payload))
                      (not (:disabled? clicked-node))
                      (model/submenu-node? clicked-node))
-              (do
-                (set-active-index! ctx clicked-index)
-                (ui/update-ui-state! ctx merge
-                                     {:pending-open-index clicked-index
-                                      :pending-open-input-source :mouse}))
-              (do
-                (set-active-index! ctx nil)
-                (ui/update-ui-state! ctx merge
-                                     {:pending-open-index nil
-                                      :pending-open-input-source nil})))
+              (open-popup-at-index! ui-state
+                                    state
+                                    ctx
+                                    clicked-index
+                                    :mouse)
+              (set-active-index! ctx nil))
             state))
         :menu/select
         (fn [state _event ctx]
           (set-active-index! ctx nil)
-          (ui/update-ui-state!
-           ctx
-           merge
-           {:pending-open-index nil
-            :pending-open-input-source nil})
           state)}})
 
 
@@ -208,10 +155,7 @@
   (let [state (or (:state opts) {})
         normalized-menu (model/normalize (:menu-definition opts)
                                          (:keymap opts))]
-    (merge {:menu-scale (-> opts :style :scale)
-            :active-index nil
-            :pending-open-index nil
-            :pending-open-input-source nil}
+    (merge {:active-index nil}
            (select-keys state UI-STATE-KEYS)
            (:component state)
            (select-keys opts UI-STATE-KEYS)

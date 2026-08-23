@@ -31,9 +31,7 @@
        :state-policy (:ui/state-policy spec)
        :application (select-keys (:state spec) [:game])
        :component (select-keys (-> spec :state :component)
-                               [:menu-scale
-                                :active-index
-                                :pending-open-index])
+                               [:active-index])
        :child-modes (map (:children spec) :mode)
        :child-state-policy (-> spec :children head :ui/state-policy)
        :child-application-state (-> spec :children head :state)
@@ -42,8 +40,6 @@
        :child-text-state (-> spec :children head :children head :state)
        :dead-child-inputs (select-keys (-> spec :children head :ui-state)
                                        [:text
-                                        :pending-open-index
-                                        :menu-scale
                                         :option-state
                                         :game
                                         :preferences])}))
@@ -76,23 +72,15 @@
             :style-supplied? (contains? spec :style)}))))
 
 (deftest make/applies-canonical-component-input-precedence
-  (is (= {:menu-scale 4
-          :active-index 3
-          :pending-open-index 2}
+  (is (= {:active-index 3}
          (let [spec (menu-bar/make
-                     {:state {:menu-scale 1
-                              :active-index 1
-                              :component {:menu-scale 2
-                                          :active-index 2
-                                          :pending-open-index 2}}
-                      :menu-scale 4
+                     {:state {:active-index 1
+                              :component {:active-index 2}}
                       :active-index 3}
                      {:items [{:label "File"}]}
                      {})]
            (select-keys (-> spec :state :component)
-                        [:menu-scale
-                         :active-index
-                         :pending-open-index])))))
+                        [:active-index])))))
 
 (deftest make/preserves-explicit-shared-state-policy
   (is (= :shared
@@ -111,54 +99,37 @@
     (app-for 'menu-scaled-root))
 
   (s/when [app]
-    (let [menu (runtime/find-view app "ui/menu-bar")]
-      (runtime/mouse-down-in! app
-                              (runtime/find-view app "ui/menu-bar-item")
-                              1
-                              1)
-      (runtime/update! app)
-      (runtime/render! app)
-      {:mode (runtime/active-mode-name app)
-       :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)
-       :menu-ui-state (select-keys (:ui-state menu)
-                                   [:menu-scale
-                                    :active-index
-                                    :pending-open-index])
-       :mirrored-state (select-keys (:state menu)
-                                    [:menu-scale
-                                     :active-index
-                                     :pending-open-index])}))
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    (runtime/render! app)
+    {:mode (runtime/active-mode-name app)
+     :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)})
 
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
-            :popup-visual-scale 2
-            :menu-ui-state {:menu-scale 2
-                            :active-index 0}
-            :mirrored-state {}}
+            :popup-visual-scale 2}
            result))))
 
-(deftest menu-bar/omits-popup-scale-when-the-menu-has-none
+(deftest menu-bar/defaults-an-unscaled-popup-to-unit-scale
   (s/given
     (app-for 'menu-unscaled-root))
 
   (s/when [app]
-    (let [menu (runtime/find-view app "ui/menu-bar")]
-      (runtime/mouse-down-in! app
-                              (runtime/find-view app "ui/menu-bar-item")
-                              1
-                              1)
-      (runtime/update! app)
-      (runtime/render! app)
-      {:mode (runtime/active-mode-name app)
-       :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)
-       :menu-ui-state (select-keys (:ui-state menu) [:menu-scale])
-       :mirrored-state (select-keys (:state menu) [:menu-scale])}))
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/update! app)
+    (runtime/render! app)
+    {:mode (runtime/active-mode-name app)
+     :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)})
 
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
-            :popup-visual-scale 1
-            :menu-ui-state {}
-            :mirrored-state {}}
+            :popup-visual-scale 1}
            result))))
 
 (deftest menu-bar/reopens-with-the-next-click-after-anchor-dismissal
