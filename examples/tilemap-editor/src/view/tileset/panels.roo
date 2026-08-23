@@ -164,7 +164,6 @@
               :style {:width :shrink
                       :height (tileset-list-height tilesets)}
               :row-height tileset-list-row-height
-              :visible-rows (tileset-list-visible-rows tilesets)
               :disabled? (empty? tilesets)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
@@ -1076,7 +1075,7 @@
            :layout {:direction :column
                     :gap 6}}
    :children (concat [(tile-substitution-choice-header-child)]
-                     (for-indexed [index choice (or choices [])]
+                     (for-indexed [index choice choices]
                        (tile-substitution-choice-row-child index)))})
 
 (defcomponent tile-substitution-choices-editor

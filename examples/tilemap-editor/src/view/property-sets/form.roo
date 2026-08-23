@@ -56,7 +56,6 @@
                  [[:field :property-sets
                    {:label false
                     :summary false
-                    :fixed-visible-rows? false
                     :actions
                     [{:key :edit
                       :label "Edit"
@@ -78,7 +77,6 @@
       [[:field :properties
         {:label false
          :summary false
-         :fixed-visible-rows? false
          :actions false
          :item-editor {:layout-ref :selected-property}}]
        {:id :selected-property}]

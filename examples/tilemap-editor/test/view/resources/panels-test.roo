@@ -56,7 +56,6 @@
                      :name "Tiles"
                      :label ":terrain-assets/tiles"}]
           :row-height panels/resource-list-row-height
-          :visible-rows 1
           :disabled? false
           :multi-select? true
           :force-selection? true}
@@ -70,7 +69,6 @@
               :component)
           [:options
            :row-height
-           :visible-rows
            :disabled?
            :multi-select?
            :force-selection?]))))

@@ -16,7 +16,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height row/row-height
-              :visible-rows (max 1 (count options))
               :disabled? (empty? options)})))
 
 (defcomponent mask-workspace-mask-list

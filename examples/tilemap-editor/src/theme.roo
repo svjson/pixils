@@ -39,36 +39,13 @@
             ['(ui/header-panel :tm/list-wrapper) 'ui/header-panel-body]
             {:padding 0}
 
-            ['ui/header-panel 'ui/list-box]
-            {:width :fill
-             :height :fill}
+            ['(ui/header-panel :tm/list-wrapper) :pixils.form/field]
+            {:height :fill}
 
             'pixils/form {:width :fill
                           :height :fill}
 
-            :pixils/form-body {:width :fill
-                               :height :fill}
-
-            :pixils/form-fields
-            {:width :fill
-             :height :fill
-             :layout {:direction :column
-                      :gap 8}}
-
-            :pixils/form-field {:width :fill
-                                :height :fill}
-
-            :pixils/form-layout-item-editor {:width :fill
-                                             :height :fill}
-
-            :pixils/form-array-control {:width :fill
-                                        :height :fill}
-
-            :pixils/form-array-content {:width :fill
-                                        :height :fill}
-
-            :pixils/form-array-list {:width :fill
-                                     :height :fill}
+            :pixils.form/array-list {:width :fill}
 
             :terrain/selection-column
             {:width :fill

@@ -144,10 +144,7 @@
               panels/tileset-list-min-visible-rows)
            (-> one-list :style :height)))
     (is (= (* panels/tileset-list-row-height 6)
-           (-> many-list :style :height)))
-    (is (= panels/tileset-list-min-visible-rows
-           (-> empty-list :state :component :visible-rows)))
-    (is (= 6 (-> many-list :state :component :visible-rows)))))
+           (-> many-list :style :height)))))
 
 (deftest tileset-definition-list-keeps-list-box-when-nested-tiles-change
   (let [app (runtime/make-app {:package-root "."

@@ -219,7 +219,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height resource-list-row-height
-              :visible-rows (max 1 (count bundles))
               :disabled? (empty? bundles)
               :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
@@ -281,7 +280,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height resource-list-row-height
-              :visible-rows (max 1 (count resources))
               :disabled? (empty? resources)
               :selected-indices (ui/bind-state :selected-indices)
               :multi-select? true

@@ -319,7 +319,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height tile-palette-row-height
-              :visible-rows (count options)
               :disabled? (if (or disabled? (empty? options))
                             true
                             false)

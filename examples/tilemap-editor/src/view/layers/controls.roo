@@ -160,7 +160,6 @@
               :style {:width :fill
                       :height (layer-list-height layers)}
               :row-height layer-list-row-height
-              :visible-rows (count layers)
               :disabled? (empty? layers)
               :state {:layers (ui/bind-state :layers)
                       :tilesets (ui/bind-state :tilesets)

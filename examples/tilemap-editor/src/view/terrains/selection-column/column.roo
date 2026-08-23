@@ -47,7 +47,6 @@
                [[:field :terrain-sets
                  {:label false
                   :summary false
-                  :fixed-visible-rows? false
                   :actions terrain-set-actions
                   :item-editor {:layout-ref :selected-terrain-set}}]])
       (hp/make {:title "Terrains"
@@ -63,7 +62,6 @@
       [[:field :terrains
         {:label false
          :summary false
-         :fixed-visible-rows? false
          :actions terrain-actions}]]}}}))
 
 (defcomponent terrain-definition-selector-column

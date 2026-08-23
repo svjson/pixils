@@ -74,7 +74,7 @@
   (for [option (model/brush-options brushes)]
     (assoc option
            :kind-label (model/brush-kind-label
-                        (nth (or brushes []) (:value option))))))
+                        (nth brushes (:value option))))))
 
 (defun brush-list-child [brushes selected-index]
   (let [brushes (or brushes [])
@@ -83,7 +83,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height brush-list-row-height
-              :visible-rows (max 1 (count options))
               :disabled? (empty? options)
               :selected-indices (model/selected-brush-indices brushes selected-index)
               :force-selection? true
@@ -352,7 +351,7 @@
                      brush
                      (:selected-brush-layer-index state))
         layer (when-let [index layer-index]
-                (nth (or (-> brush :pattern :layers) []) index))]
+                (nth (-> brush :pattern :layers) index))]
     (if layer
       (pattern-layer-tile-size state layer)
       data/tile-dim)))
@@ -690,7 +689,7 @@
                brush
                (:selected-brush-layer-index state))]
     (when index
-      (nth (or (-> brush :pattern :layers) []) index))))
+      (nth (-> brush :pattern :layers) index))))
 
 (defun open-brush-layer-add-dialog! [state ctx]
   (let [brush (model/selected-brush (:brushes state)

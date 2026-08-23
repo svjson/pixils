@@ -169,7 +169,6 @@
               :style {:width :fill
                       :height :fill}
               :row-height row-height
-              :visible-rows 5
               :disabled? (ui/project-state :rule-list-disabled?)
               :state {:offset (ui/bind-state :terrain-rule-list-offset)}
               :selected-index (ui/project-state :selected-rule-index)
