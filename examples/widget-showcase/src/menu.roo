@@ -9,15 +9,12 @@
    :key/f5 :showcase/reset})
 
 (defun theme-item [label theme theme-label variant]
-  (merge {:label label
-          :action :showcase/theme
-          :payload {:theme theme
-                    :label theme-label}}
-         (if variant
-           {:payload {:theme theme
-                      :variant variant
-                      :label theme-label}}
-           {})))
+  (cond->
+    {:label label
+     :action :showcase/theme
+     :payload {:theme theme
+               :label theme-label}}
+    variant (assoc-in [:payload :variant] variant)))
 
 (defun theme-variant-menu [label theme light-label dark-label]
   {:label label
@@ -63,6 +60,6 @@
                                 nil)]}]})
 
 (defun make-menu []
-  (menu-bar/make {:style {:height 20}}
+  (menu-bar/make {}
                   showcase-menu
                   showcase-keymap))
