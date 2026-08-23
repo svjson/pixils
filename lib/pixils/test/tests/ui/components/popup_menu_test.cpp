@@ -6,6 +6,59 @@
 
 using PopupMenuTest = RenderFixture;
 
+namespace
+{
+  std::shared_ptr<Pixils::Runtime::View> popup_menu_content(
+    const std::shared_ptr<Pixils::Runtime::View>& inner)
+  {
+    if (!inner || inner->children.empty()) return nullptr;
+    return inner->children[0];
+  }
+} // namespace
+
+TEST_F(PopupMenuTest, popup_menu_specializes_option_list_and_option_item)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "File"
+                :items [{:label "Open"
+                         :action :file/open}]}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.menu-bar/make
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto menu_item = session.active_mode->children[0]->children[0];
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->definition->name, "ui/popup-menu");
+  auto inner = session.active_mode->children[0]->children[0];
+  ASSERT_NE(inner, nullptr);
+  EXPECT_NE(std::find(inner->definition->selector_modes.begin(),
+                      inner->definition->selector_modes.end(),
+                      "ui/option-list"),
+            inner->definition->selector_modes.end());
+
+  auto content = popup_menu_content(inner);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto item = content->children[0];
+  ASSERT_NE(item, nullptr);
+  EXPECT_NE(std::find(item->definition->selector_modes.begin(),
+                      item->definition->selector_modes.end(),
+                      "ui/option-item"),
+            item->definition->selector_modes.end());
+}
+
 TEST_F(PopupMenuTest, classic_blue_menu_option_indicator_uses_theme_text)
 {
   runtime.eval(R"(
@@ -166,9 +219,11 @@ TEST_F(PopupMenuTest, classic_blue_submenu_indicator_uses_theme_text)
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   auto inner = session.active_mode->children[0]->children[0];
-  ASSERT_EQ(inner->children.size(), 2u);
+  auto content = popup_menu_content(inner);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
 
-  auto submenu_item = inner->children[0];
+  auto submenu_item = content->children[0];
   ASSERT_EQ(submenu_item->children.size(), 3u);
 
   auto submenu_trailing = submenu_item->children[2];
@@ -228,11 +283,13 @@ TEST_F(PopupMenuTest, popup_items_share_marker_label_and_trailing_columns)
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->definition->name, "ui/popup-menu");
   auto inner = session.active_mode->children[0]->children[0];
-  ASSERT_EQ(inner->children.size(), 3u);
+  auto content = popup_menu_content(inner);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
 
-  auto plain_item = inner->children[0];
-  auto option_item = inner->children[1];
-  auto submenu_item = inner->children[2];
+  auto plain_item = content->children[0];
+  auto option_item = content->children[1];
+  auto submenu_item = content->children[2];
   ASSERT_EQ(plain_item->children.size(), 3u);
   ASSERT_EQ(option_item->children.size(), 3u);
   ASSERT_EQ(submenu_item->children.size(), 3u);

@@ -204,15 +204,13 @@
         {:popup-mode (runtime/active-mode-name app)
          :popup-label (-> (runtime/find-view app "ui/text") :state :value)
          :navigation {:input-source (-> inner :ui-state :input-source)
-                      :highlighted-index (-> inner
-                                             :ui-state
-                                             :highlighted-index)}})))
+                      :active-index (-> inner :ui-state :active-index)}})))
 
   (s/then [result]
     (is (= {:popup-mode "ui/popup-menu"
             :popup-label "Undo"
             :navigation {:input-source :mouse
-                         :highlighted-index nil}}
+                         :active-index nil}}
            result))))
 
 (deftest menu-bar/visually-follows-one-click-switches-between-open-items
@@ -276,21 +274,20 @@
       {:popup-mode (runtime/active-mode-name app)
        :popup-label (-> (runtime/find-view app "ui/text") :state :value)
        :navigation (select-keys (:ui-state inner)
-                                [:highlighted-index :input-source])
+                                [:active-index :input-source])
        :first-row (select-keys (:ui-state item)
                                [:index
-                                :highlighted-index
+                                :active-index
                                 :input-source
                                 :highlighted])}))
 
   (s/then [result]
     (is (= {:popup-mode "ui/popup-menu"
             :popup-label "Undo"
-            :navigation {:highlighted-index 0
+            :navigation {:active-index 0
                          :input-source :keyboard}
             :first-row {:index 0
-                        :highlighted-index 0
-                        :input-source :keyboard
+                        :active-index 0
                         :highlighted true}}
            result))))
 

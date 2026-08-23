@@ -635,10 +635,12 @@
                   :background (var :surface)}
 
     'ui/popup-menu-item
-    {:padding {:t 2 :r 12 :b 2 :l 2}}
+    {:height :shrink
+     :padding {:t 2 :r 12 :b 2 :l 2}}
 
     'ui/popup-menu-option-item
-    {:padding {:t 2 :r 12 :b 2 :l 2}}
+    {:height :shrink
+     :padding {:t 2 :r 12 :b 2 :l 2}}
 
     :menu/shortcut-column
     {:margin {:l 16}}

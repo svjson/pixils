@@ -14,7 +14,7 @@
   [options indices]
   (keep indices
         (fn [index]
-          (option/value (nth (or options []) index)))))
+          (option/value (nth options index)))))
 
 
 
@@ -217,11 +217,10 @@
               (assoc style :height height)))))
 
 (defun merge-item-state [child item-state]
-  (update child :state
-          (fn [state]
-            (assoc (or state {})
-                   :component
-                   (merge (:component state) item-state)))))
+  (update-in child
+             [:state :component]
+             (fn [component]
+               (merge component item-state))))
 
 (defun resolve-item [item=> index option]
   "Resolves an item provider for an option.
@@ -297,7 +296,7 @@
                                                 :selected-indices))))))
 
 (defun item-children [state]
-  (for-indexed [index item (or (:options state) [])]
+  (for-indexed [index item (:options state)]
     (make-item-child state index item)))
 
 (defun render-key [state]
@@ -332,7 +331,7 @@
         state (assoc state :computed-visible-rows computed-visible-rows)]
     (assoc state :scroll-content-size (scroll-content-size state))))
 
-(defun sync-rendered-items [state ctx]
+(defun sync-rendered-items-in [state content]
   (let [render-key (render-key state)]
     (if (= render-key (:rendered-render-key state))
       state
@@ -346,10 +345,13 @@
                                      (-> (get-in child [:state :component])
                                          (dissoc :selected)
                                          (dissoc :selected-indices))))))]
-        (when-let [content (content-view ctx)]
+        (when content
           (sync-retained-item-styles! content children)
           (ui/reconcile-children! content children))
         (assoc state :rendered-render-key render-key)))))
+
+(defun sync-rendered-items [state ctx]
+  (sync-rendered-items-in state (content-view ctx)))
 
 (defun sync-ui [ui-state state ctx]
   (-> ui-state
@@ -414,7 +416,10 @@
                          {:options (or (:options supplied-component) [])
                           :explicit-row-height? (some? (:row-height supplied-component))
                           :computed-row-height (:row-height supplied-component)
-                          :auto-row-height? (nil? (:row-height supplied-component))
+                          :auto-row-height?
+                          (if (contains? supplied-component :auto-row-height?)
+                            (:auto-row-height? supplied-component)
+                            (nil? (:row-height supplied-component)))
                           :computed-visible-rows (:visible-rows supplied-component)})]
     (assoc component
            :scroll-content-size

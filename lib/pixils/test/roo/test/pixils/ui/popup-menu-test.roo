@@ -45,64 +45,22 @@
 
 
 
-;; pixils.ui.popup-menu/option-item-state
+;; pixils.ui.popup-menu/selected-indices
 
-(deftest option-item-state/derives-selection-when-building-the-row
-  (is (= {:node {:item-type :option
-                 :value :dark
-                 :selected-path [:preferences :theme]
-                 :display-text "Dark"
-                 :shortcut-text nil
-                 :disabled? false}
-          :index 2
-          :highlighted-index 1
-          :input-source :keyboard
-          :menu-depth 0
-          :text "Dark"
-          :shortcut-text nil
-          :trailing-shortcut-text nil
-          :disabled? false
-          :has-submenu false
-          :highlighted false
-          :option-state nil
-          :game nil
-          :preferences {:theme :dark}
-          :selected true}
-         (popup-menu/option-item-state
-          {:item-type :option
-           :value :dark
-           :selected-path [:preferences :theme]
-           :display-text "Dark"
-           :shortcut-text nil
-           :disabled? false}
-          {:index 2
-           :highlighted-index 1
-           :input-source :keyboard
-           :menu-depth 0
-           :preferences {:theme :dark}}))))
-
-
-
-;; pixils.ui.popup-menu/item-highlighted?
-
-(deftest item-highlighted?/uses-hover-for-mouse-and-index-for-keyboard
-  (is (= [true
-          false
-          true
-          false
-          false]
-         (for [[ui-state hovered]
-               [[{:input-source :mouse} true]
-                [{:input-source :mouse} false]
-                [{:input-source :keyboard
-                  :index 2
-                  :highlighted-index 2} false]
-                [{:input-source :keyboard
-                  :index 2
-                  :highlighted-index 1} true]
-                [{:input-source :mouse
-                  :disabled? true} true]]]
-           (popup-menu/item-highlighted? ui-state hovered)))))
+(deftest selected-indices/derives-option-and-toggle-markers
+  (is (= [0 2]
+         (popup-menu/selected-indices
+          [{:item-type :option
+            :value :dark
+            :selected-path [:preferences :theme]}
+           {:item-type :option
+            :value :light
+            :selected-path [:preferences :theme]}
+           {:item-type :toggle
+            :selected-path [:preferences :snap]}
+           {:item-type :action}]
+          {:preferences {:theme :dark
+                         :snap true}}))))
 
 
 
@@ -116,14 +74,14 @@
     (let [inner (runtime/find-view app "ui/popup-menu-inner")
           items (runtime/find-views app "ui/popup-menu-item")]
       {:navigation {:input-source (-> inner :ui-state :input-source)
-                    :highlighted-index (-> inner :ui-state :highlighted-index)}
+                    :active-index (-> inner :ui-state :active-index)}
        :row-highlights (for [item items]
                          (select-keys (:ui-state item)
                                       [:index :disabled? :highlighted]))}))
 
   (s/then [result]
     (is (= {:navigation {:input-source :mouse
-                         :highlighted-index nil}
+                         :active-index nil}
             :row-highlights [{:index 0
                               :highlighted false}
                              {:index 2
@@ -143,7 +101,7 @@
           items (runtime/find-views app "ui/popup-menu-item")]
       {:mode (runtime/active-mode-name app)
        :navigation (select-keys (:ui-state inner)
-                                [:input-source :highlighted-index])
+                                [:input-source :active-index])
        :row-highlights (for [item items]
                          (select-keys (:ui-state item)
                                       [:index :disabled? :highlighted]))}))
@@ -151,7 +109,7 @@
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
             :navigation {:input-source :keyboard
-                         :highlighted-index 0}
+                         :active-index 0}
             :row-highlights [{:index 0
                               :highlighted true}
                              {:index 2
@@ -171,14 +129,14 @@
     (let [inner (runtime/find-view app "ui/popup-menu-inner")
           items (runtime/find-views app "ui/popup-menu-item")]
       {:navigation (select-keys (:ui-state inner)
-                                [:input-source :highlighted-index])
+                                [:input-source :active-index])
        :row-highlights (for [item items]
                          (select-keys (:ui-state item)
                                       [:index :disabled? :highlighted]))}))
 
   (s/then [result]
     (is (= {:navigation {:input-source :keyboard
-                         :highlighted-index 3}
+                         :active-index 3}
             :row-highlights [{:index 0
                               :highlighted false}
                              {:index 2
@@ -220,6 +178,21 @@
 
 
 ;; pixils.ui/popup-menu-item
+
+(deftest popup-menu-item/click-activates-the-row-through-option-item
+  (s/given
+    (popup-app))
+
+  (s/when [app]
+    (runtime/click! app (head (runtime/find-views app "ui/popup-menu-item")))
+    {:mode (runtime/active-mode-name app)
+     :last-action (:last-action (runtime/active-state app))})
+
+  (s/then [result]
+    (is (= {:mode "popup-keyboard-root"
+            :last-action {:action :file/open
+                          :payload nil}}
+           result))))
 
 (deftest popup-menu-item/highlights-hover-in-the-windows-3-theme
   (s/given
