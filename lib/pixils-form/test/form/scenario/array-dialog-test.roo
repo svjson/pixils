@@ -30,8 +30,8 @@
     (is (= {:body {:mode 'ui/dialog-body :required-state? [true true true]
                    :required-events? [true true]}
             :form {:mode 'pixils/form
-                   :class [:pixils/form :pixils/form-array-item-form]
-                   :body {:id "form-body" :class :pixils/form-body}}
+                   :class [:pixils.form/form :pixils.form/array-item-form]
+                   :body {:id "form-body" :class :pixils.form/body}}
             :buttons {:mode 'ui/dialog-button-row :count 2}}
            {:body {:mode (:mode body)
                    :required-state? (for [key [:index :new? :value]]
@@ -50,7 +50,7 @@
                                   :max 1}}}
               {})
         item-form (head (:children body))]
-    (is (= {:class [:pixils/form :pixils/form-array-item-form]}
+    (is (= {:class [:pixils.form/form :pixils.form/array-item-form]}
            (select-keys item-form [:class :style])))))
 
 (deftest array-item-dialog-body/uses-configured-layout
@@ -89,7 +89,7 @@
                :value {:field/name "Ada"}})
         item-form (head (:children body))
         section (-> item-form :children head :children head :children head)]
-    (is (= {:mode 'ui/group-box :class :pixils/form-section :title "Identity"}
+    (is (= {:mode 'ui/group-box :class :pixils.form/section :title "Identity"}
            (merge (select-keys section [:mode :class])
                   (select-keys (:state section) [:title]))))))
 

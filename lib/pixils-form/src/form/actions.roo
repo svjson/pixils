@@ -64,7 +64,7 @@
                            (:payload state)))
                state)
    :children [{:mode 'ui/button
-               :class :pixils/form-action-button
+               :class :pixils.form/action-button
                :state {:label (ui/bind-state :label)
                        :disabled? (ui/bind-state :disabled?)}}]})
 
@@ -79,5 +79,5 @@
                     :disabled? (ui/project-state :form/action-disabled
                                                  event-id)}}
            (form-layout/style-map (or (:style action) (:action-style opts)))
-           {:class (form-layout/classes :pixils/form-action
+           {:class (form-layout/classes :pixils.form/action
                                         (:class action))})))

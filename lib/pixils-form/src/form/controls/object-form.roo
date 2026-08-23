@@ -203,7 +203,7 @@
                    (fragment-layout (:schema state) options)
                    (model-schema/active-schema-field-ids (:schema state) value))]
     (merge {:id body-id
-            :class :pixils/form-object-body
+            :class :pixils.form/object-body
             :state {:value (ui/project-state :value)
                     :disabled? (ui/project-state :disabled?)}
             :children (apply (:fields=> options) [layout options])}
@@ -241,7 +241,7 @@
 (defun next-value [state payload]
   "Returns an object value containing a nested form edit."
   (if-let [path (:field-path payload)]
-    (assoc-in (or (:value state) {})
+    (assoc-in (:value state)
               (path-without-prefix path (:field-path-prefix state))
               (:value payload))
     (:form-value payload)))
@@ -283,7 +283,7 @@
                                               (:context options)
                                               object-options)}]
     (merge {:mode 'pixils/form-object-control
-            :class [:pixils/form-control :pixils/form-object-control]
+            :class [:pixils.form/control :pixils.form/object-control]
             :state state
             :children [(body-view state (:value object-options))]}
            (form-layout/style-map (:object-control-style options)))))
@@ -307,7 +307,7 @@
                                               (:context options)
                                               options)}]
     (merge {:mode 'pixils/form-object-control
-            :class [:pixils/form-control :pixils/form-object-control]
+            :class [:pixils.form/control :pixils.form/object-control]
             :state state
             :children [(body-view state (:value options))]}
            (form-layout/style-map (:object-control-style options)))))

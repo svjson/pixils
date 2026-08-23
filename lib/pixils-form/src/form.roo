@@ -46,7 +46,7 @@
       (:children entry)))
 
 (defun model-entry-at [models path index]
-  (let [entry (get (or models {}) (nth path index))]
+  (let [entry (get models (nth path index))]
     (if (or (nil? entry)
             (= index (dec (count path))))
       entry
@@ -56,7 +56,7 @@
   (cond
     (nil? model-id) nil
     (= (type-of model-id) "vector") (model-entry-at models model-id 0)
-    :default (get (or models {}) model-id)))
+    :default (get models model-id)))
 
 (defun model-value [models model-id]
   (:value (or (model-entry models model-id) {})))
@@ -79,13 +79,13 @@
       (:target projection)))
 
 (defun projection-entry-at [models path index]
-  (let [entry (get (or models {}) (nth path index))]
+  (let [entry (get models (nth path index))]
     (cond
       (nil? entry)
       nil
 
       (= index (- (count path) 2))
-      (get (or (:projections entry) {}) (nth path (dec (count path))))
+      (get (:projections entry) (nth path (dec (count path))))
 
       :default
       (projection-entry-at (child-models entry) path (inc index)))))
@@ -102,7 +102,7 @@
 
 (defun normalized-selection [models selection projection]
   (when (or selection projection)
-    (assoc (or selection {})
+    (assoc selection
            :items (selection-value models selection projection :items)
            :selected-index
            (selection-value models selection projection :selected-index)
@@ -310,8 +310,8 @@
 (defun field-label-class [opts]
   (form-layout/classes
    (if (:field-path-prefix opts)
-     [:ui/muted :pixils/form-label :pixils/form-nested-label]
-     [:ui/muted :pixils/form-label])
+     [:ui/muted :pixils.form/label :pixils.form/nested-label]
+     [:ui/muted :pixils.form/label])
    (:field-label-class opts)))
 
 (defun field-label-view [field-label opts]
@@ -332,7 +332,7 @@
     (if field-schema
       (when initial-visible?
         (merge {:mode 'pixils/form-field
-                :class :pixils/form-field
+                :class :pixils.form/field
                 :state {:value (ui/project-state :value)
                         :form-value (ui/project-state :value)
                         :form/item-editor-state
@@ -375,11 +375,11 @@
   [schema opts]
   (let [field-schema (model-schema/resolved-root-schema schema)
         field-layout (form-layout/normalize-layout-item
-                      (head (or (:form/layout opts) [])))
+                      (head (:form/layout opts)))
         field-label (:label field-layout)
         base-style (:field-style opts)]
     (merge {:mode 'pixils/form-field
-            :class :pixils/form-field
+            :class :pixils.form/field
             :state {:value (ui/project-state :value)
                     :form-value (ui/project-state :value)
                     :form/item-editor-state
@@ -408,11 +408,11 @@
            (form-layout/style-map base-style))))
 
 (defun separator-view [opts]
-  (merge {:class :pixils/form-separator}
+  (merge {:class :pixils.form/separator}
          (form-layout/style-map (:separator-style opts))))
 
 (defun row-view [items opts]
-  (merge {:class :pixils/form-row
+  (merge {:class :pixils.form/row
           :state form-state-binding
           :children (layout-item-views items opts)}
          (form-layout/style-map (:row-style opts))))
@@ -442,7 +442,7 @@
     (merge {:state form-layout-state-binding
             :children children}
            (form-layout/style-map (or (:style item) (:fields-style opts)))
-           {:class (form-layout/classes :pixils/form-fields (:class item))})))
+           {:class (form-layout/classes :pixils.form/fields (:class item))})))
 
 (defun selection-layout-view [item opts]
   (let [projection (projection-entry (:models opts)
@@ -467,8 +467,8 @@
           (or (:style item) (:row-style opts)))
          {:class (form-layout/classes
                   (case (:type item)
-                    :group [:pixils/form-row :pixils/form-group]
-                    :default :pixils/form-row)
+                    :group [:pixils.form/row :pixils.form/group]
+                    :default :pixils.form/row)
                   (:class item))}))
 
 (defun section-layout-view [item opts]
@@ -628,7 +628,7 @@
                      :default
                      (:value state))
         next-value (if (:field-path payload)
-                     (assoc-in (or base-value {})
+                     (assoc-in base-value
                                (:field-path payload)
                                (:value payload))
                      (:form-value payload))
@@ -794,7 +794,7 @@
                                ctx))))}})
 
 (defun fields-view [children opts]
-  (merge {:class :pixils/form-fields
+  (merge {:class :pixils.form/fields
           :state form-layout-state-binding
           :children children}
          (form-layout/style-map (:fields-style opts))))
@@ -852,7 +852,7 @@
 
 (defun form-body-view [layout schema opts selection]
   (merge {:id form-body-id
-          :class :pixils/form-body
+          :class :pixils.form/body
           :state form-layout-state-binding
           :children (form-children layout schema opts selection)}
          (form-layout/style-map (:body-style opts))))
@@ -955,4 +955,4 @@
                                        opts
                                        render-selection)]}
            (form-layout/style-map style)
-           {:class (form-layout/classes :pixils/form class)})))
+           {:class (form-layout/classes :pixils.form/form class)})))

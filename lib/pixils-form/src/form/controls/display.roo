@@ -5,6 +5,6 @@
   "Builds display text for a resolved form-field context."
   [{:keys [value options]}]
   (merge {:mode 'ui/text
-          :class [:pixils/form-control :pixils/form-display-control]
+          :class [:pixils.form/control :pixils.form/display]
           :state {:value value}}
          (form-layout/style-map (:display-style options))))

@@ -11,4 +11,4 @@
                   :disabled? disabled?
                   :value id}
                  (form-layout/style-map (:checkbox-style options))))
-         :class [:pixils/form-control :pixils/form-checkbox-control]))
+         :class [:pixils.form/control :pixils.form/checkbox]))

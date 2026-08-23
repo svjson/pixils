@@ -6,7 +6,7 @@
   "Builds a color picker for a resolved form-field context."
   [{:keys [schema label value disabled? options]}]
   (color-picker/make
-   (merge {:class [:pixils/form-control :pixils/form-color-control]
+   (merge {:class [:pixils.form/control :pixils.form/color-picker]
            :swatch-class (:swatch-class schema)
            :swatch-style (:swatch-style schema)
            :value value

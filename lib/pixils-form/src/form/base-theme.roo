@@ -3,143 +3,143 @@
 
 (deftheme pixils-form/base
   {:styles
-   {:pixils/form
+   {:pixils.form/form
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 8}}
 
-    :pixils/form-body
+    :pixils.form/body
     {:width :fill
      :height :shrink}
 
-    :pixils/form-fields
+    :pixils.form/fields
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 8}}
 
-    :pixils/form-field
+    :pixils.form/field
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 3}}
 
-    :pixils/form-label {:width :fill}
+    :pixils.form/label {:width :fill}
 
-    :pixils/form-row
+    :pixils.form/row
     {:width :fill
      :height :shrink
      :layout {:direction :row
               :align-items :start
               :gap 10}}
 
-    :pixils/form-separator
+    :pixils.form/separator
     {:width :fill
      :height 1
      :background {:r 0x9a :g 0x9a :b 0x92}}
 
-    :pixils/form-section
+    :pixils.form/section
     {:width :fill
      :height :shrink}
 
-    :pixils/form-section-body
+    :pixils.form/section-body
     {:width :fill
      :height :shrink
      :padding 8
      :layout {:direction :column
               :gap 8}}
 
-    :pixils/form-nested-section
+    :pixils.form/nested-section
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 4}}
 
-    :pixils/form-nested-section-title
+    :pixils.form/nested-section-title
     {:width :fill
      :height 18}
 
-    :pixils/form-nested-section-body
+    :pixils.form/nested-section-body
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 6}}
 
-    :pixils/form-nested-label {:max-width 64}
+    :pixils.form/nested-label {:max-width 64}
 
-    :pixils/form-action
+    :pixils.form/action
     {:width 96
      :height 24}
 
-    :pixils/form-action-button
+    :pixils.form/action-button
     {:width :fill
      :height :fill}
 
-    :pixils/form-checkbox-control
+    :pixils.form/checkbox
     {:width :fill
      :height 24}
 
-    :pixils/form-number-control
+    :pixils.form/number-input
     {:width :fill
      :height 24}
 
-    :pixils/form-text-control
+    :pixils.form/text-input
     {:width :fill
      :height 24}
 
-    :pixils/form-select-control
+    :pixils.form/select-control
     {:width :fill
      :height 24}
 
-    :pixils/form-select-input
+    :pixils.form/combo-box
     {:width :fill
      :height :fill}
 
-    :pixils/form-display-control
+    :pixils.form/display
     {:width :fill
      :height 18}
 
-    :pixils/form-slider-control
+    :pixils.form/slider-control
     {:width :fill
      :height 22
      :layout {:direction :row
               :align-items :center
               :gap 8}}
 
-    :pixils/form-slider
+    :pixils.form/slider
     {:width :fill
      :min-width 220
      :height 18}
 
-    :pixils/form-slider-value
+    :pixils.form/slider-value
     {:width 64
      :height 18}
 
-    :pixils/form-keyword-control
+    :pixils.form/keyword-control
     {:width :fill
      :height 24
      :layout {:direction :row
               :align-items :center
               :gap 4}}
 
-    :pixils/form-keyword-prefix {:width :shrink}
+    :pixils.form/keyword-prefix {:width :shrink}
 
-    'pixils/form-keyword-input
+    :pixils.form/keyword-input
     {:width :fill
      :height :fill}
 
-    :pixils/form-object-control
+    :pixils.form/object-control
     {:width :fill
      :height :shrink}
 
-    :pixils/form-object-body
+    :pixils.form/object-body
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 8}}
 
-    :pixils/form-selection
+    :pixils.form/selection
     {:width :fill
      :height :shrink
      :layout {:direction :column
@@ -149,35 +149,35 @@
     {:width :fill
      :visible-rows 5}
 
-    :pixils/form-selection-toolbar
+    :pixils.form/selection-toolbar
     {:width :fill
      :height :shrink
      :layout {:direction :row
               :align-items :center
               :gap 6}}
 
-    :pixils/form-selection-list-item
+    :pixils.form/list-item
     {:width :fill
      :clip true
      :layout {:direction :row
               :align-items :center}}
 
-    :pixils/form-selection-item-label {:width :fill}
+    :pixils.form/list-item-label {:width :fill}
 
-    :pixils/form-array-control
+    :pixils.form/array-control
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 8}}
 
-    :pixils/form-array-content
+    :pixils.form/array-content
     {:width :fill
      :height :shrink
      :layout {:direction :row
               :align-items :start
               :gap 8}}
 
-    :pixils/form-array-list
+    :pixils.form/array-list
     {:width 220
      :height 100}
 
@@ -185,55 +185,55 @@
     {:width :fill
      :height :fill}
 
-    :pixils/form-array-summary
+    :pixils.form/array-summary
     {:width :fill
      :height :shrink
      :layout {:direction :column
               :gap 4}}
 
-    :pixils/form-array-summary-row
+    :pixils.form/array-summary-row
     {:width :fill
      :height :shrink
      :layout {:direction :row
               :align-items :start
               :gap 6}}
 
-    :pixils/form-array-summary-label {:width 90}
+    :pixils.form/array-summary-label {:width 90}
 
-    :pixils/form-array-summary-value {:width :fill}
+    :pixils.form/array-summary-value {:width :fill}
 
-    :pixils/form-array-toolbar
+    :pixils.form/array-toolbar
     {:width :fill
      :height :shrink
      :layout {:direction :row
               :align-items :center
               :gap 6}}
 
-    :pixils/form-array-dialog
+    :pixils.form/array-dialog
     {:width 440
      :height :shrink}
 
-    :pixils/form-selection-dialog
+    :pixils.form/selection-dialog
     {:width 440
      :height :shrink}
 
-    :pixils/form-array-item-form
+    :pixils.form/array-item-form
     {:width :fill
      :height :shrink}
 
-    :pixils/form-array-dialog-body
+    :pixils.form/array-dialog-body
     {:width :fill
      :height :shrink
      :padding 12
      :layout {:direction :column
               :gap 10}}
 
-    :pixils/form-array-dialog-buttons
+    :pixils.form/array-dialog-button-row
     {:width :fill
      :height 24
      :layout {:direction :row
               :gap :space-between}}
 
-    :pixils/form-layout-item-editor
+    :pixils.form/layout-item-editor
     {:width :fill
      :height :shrink}}})

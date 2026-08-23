@@ -104,7 +104,7 @@
                                     :form/cancel-new
                                     :form/delete]}
             :item-editor {:mode 'pixils/form-layout-item-editor
-                          :class [:pixils/form-layout-item-editor :details]
+                          :class [:pixils.form/layout-item-editor :details]
                           :field-path [:people]
                           :selected-name "Ada"}}
            {:form-editor-state (-> view :state :form/item-editor-state)

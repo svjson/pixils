@@ -45,7 +45,7 @@
 
 (defcomponent pixils/form-selection-list-item
   {:extend 'ui/list-box-item
-   :class :pixils/form-selection-list-item
+   :class :pixils.form/list-item
    :ui/state-keys [:field-id :context-menu-actions]
    :on-mouse-up (fn [state event ctx]
                   (ui/stop-propagation! event)
@@ -59,7 +59,7 @@
                                    (:payload payload)))
                        state)}
    :children [{:mode 'ui/text
-               :class :pixils/form-selection-item-label
+               :class :pixils.form/list-item-label
                :state {:value (ui/bind-state :label)}}]})
 
 (defun item=>
@@ -78,7 +78,7 @@
 (defun toolbar-view
   "Builds the toolbar presented alongside a form list box."
   [selection opts actions]
-  (merge {:class :pixils/form-selection-toolbar
+  (merge {:class :pixils.form/selection-toolbar
           :state {:form/action-disabled (ui/project-state :form/action-disabled)}
           :children (for [action actions]
                       (form-actions/action-view action opts))}
@@ -161,5 +161,5 @@
             :children children}
            (form-layout/style-map
             (or (:style selection) (:selection-style opts)))
-           {:class (form-layout/classes :pixils/form-selection
+           {:class (form-layout/classes :pixils.form/selection
                                         (:class selection))}))))

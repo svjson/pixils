@@ -212,14 +212,14 @@
       (form-actions/derived-state (:toolbar-actions state))))
 
 (defun summary-row-view [opts index]
-  (merge {:class :pixils/form-array-summary-row
+  (merge {:class :pixils.form/array-summary-row
           :children [(merge {:mode 'ui/text
-                             :class [:ui/muted :pixils/form-array-summary-label]
+                             :class [:ui/muted :pixils.form/array-summary-label]
                              :state {:value (ui/bind-state :summary index :label)}}
                             (form-layout/style-map
                              (:array-summary-label-style opts)))
                      (merge {:mode 'ui/text
-                             :class :pixils/form-array-summary-value
+                             :class :pixils.form/array-summary-value
                              :state {:value (ui/bind-state :summary index :value)}}
                             (form-layout/style-map
                              (:array-summary-value-style opts)))]}
@@ -236,7 +236,7 @@
 
 (defun array-summary-view [opts summary-specs]
   (merge {:mode 'pixils/form-array-summary
-          :class :pixils/form-array-summary
+          :class :pixils.form/array-summary
           :state {:item (ui/project-state :value)
                   :summary (ui/project-state :summary)
                   :specs summary-specs}
@@ -276,7 +276,7 @@
     (array-derived-state (array-actions-state state))))
 
 (defun array-toolbar [opts actions]
-  (merge {:class :pixils/form-array-toolbar
+  (merge {:class :pixils.form/array-toolbar
           :state {:form/action-disabled (ui/project-state :form/action-disabled)}
           :children (for [action actions]
                       (form-actions/action-view action opts))}
@@ -286,7 +286,7 @@
   (let [view (apply (:form=> opts)
                     [(assoc opts
                             :schema item-schema
-                            :class :pixils/form-array-item-form
+                            :class :pixils.form/array-item-form
                             :style (:array-dialog-form-style opts)
                             :mode (or (:form/mode opts) :transient))])]
     (assoc-in view
@@ -321,9 +321,9 @@
              :new? (ui/bind-state :new?)
              :valid? (ui/bind-state :valid?)
              :errors (ui/bind-state :errors)}
-     :body-class :pixils/form-array-dialog-body
+     :body-class :pixils.form/array-dialog-body
      :body-style (:array-dialog-body-style opts)
-     :button-row-class :pixils/form-array-dialog-buttons
+     :button-row-class :pixils.form/array-dialog-button-row
      :button-row-style (:array-dialog-button-row-style opts)})
    :on {:form/draft-change (fn [state event ctx]
                               (ui/stop-propagation! event)
@@ -340,7 +340,7 @@
                          :context (:context state))]
     (dialog/open-dialog! ctx
                          {:title (if new? "Add Item" "Edit Item")
-                          :class :pixils/form-array-dialog
+                          :class :pixils.form/array-dialog
                           :style (:array-dialog-style item-opts)
                           :result-event :form/array-item-dialog-result
                           :state {:value value
@@ -382,7 +382,7 @@
                                  (:form/layout state))))]
     (dialog/open-dialog! ctx
                          {:title (or (:title dialog) "Add Item")
-                          :class :pixils/form-selection-dialog
+                          :class :pixils.form/selection-dialog
                           :style (or (:style dialog)
                                      (:selection-dialog-style opts))
                           :result-event :form/selection-dialog-result
@@ -669,7 +669,7 @@
                            :form/mode :live
                            :value-binding (ui/project-state :value))]
       (merge {:mode 'pixils/form-layout-item-editor
-              :class (form-layout/classes :pixils/form-layout-item-editor (:class item))
+              :class (form-layout/classes :pixils.form/layout-item-editor (:class item))
               :state (assoc initial-state
                             :form-value (ui/project-state :value)
                             :editor-state
@@ -701,7 +701,7 @@
         selection-opts
         (cond->
          {:item-label item-label
-          :class :pixils/form-array-list
+          :class :pixils.form/array-list
           :list-class :pixils.form/array-list-box
           :style (:array-list-style opts)
           :list-style (:array-list-box-style opts)
@@ -753,11 +753,11 @@
                        :referenced-editor-state (ui/project-state :form/item-editor-state
                                                                    item-editor-id)))]
     (merge {:mode 'pixils/form-array-control
-            :class [:pixils/form-control :pixils/form-array-control]
+            :class [:pixils.form/control :pixils.form/array-control]
             :state state
             :children
             (cond->
-             [(merge {:class :pixils/form-array-content
+             [(merge {:class :pixils.form/array-content
                       :state {:value (ui/project-state :value)
                               :selection-options
                               (ui/project-state :selection-options)

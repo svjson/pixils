@@ -18,7 +18,7 @@
               state
               (assoc state :value value))))}
    :children [(slider/make
-               {:class :pixils/form-slider
+               {:class :pixils.form/slider
                 :style (ui/bind-state :slider-style)
                 :state {:disabled? (ui/project-state :read-only?)}
                 :value (ui/bind-state :value)
@@ -27,7 +27,7 @@
                 :step (ui/bind-state :step)
                 :axis (ui/bind-state :axis)})
               {:mode 'ui/text
-               :class [:ui/muted :pixils/form-slider-value]
+               :class [:ui/muted :pixils.form/slider-value]
                :style (ui/bind-state :value-style)
                :state {:value (ui/bind-state :value)}}]})
 
@@ -37,7 +37,7 @@
   (let [control-style (or (:slider-control-style options)
                           (:control-style options))
         view {:mode 'pixils/form-slider-control
-              :class [:pixils/form-control :pixils/form-slider-control]
+              :class [:pixils.form/control :pixils.form/slider-control]
               :state {:value value
                       :min (:min schema)
                       :max (:max schema)

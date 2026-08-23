@@ -20,4 +20,4 @@
                                (:commit-on schema)
                                :blur)}
                  (form-layout/style-map (:control-style options))))
-         :class [:pixils/form-control :pixils/form-number-control]))
+         :class [:pixils.form/control :pixils.form/number-input]))

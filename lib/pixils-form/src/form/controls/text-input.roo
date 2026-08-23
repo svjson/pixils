@@ -31,9 +31,9 @@
   (text-input/make
    (merge (dissoc opts :class :style)
           {:class (form-layout/classes
-                   [:pixils/form-control :pixils/form-text-control]
+                   [:pixils.form/control :pixils.form/text-input]
                    class)
-           :ui-state (assoc (or (:ui-state opts) {})
+           :ui-state (assoc (:ui-state opts)
                             :content-policy
                             content-policy)}
           (form-layout/style-map style))))

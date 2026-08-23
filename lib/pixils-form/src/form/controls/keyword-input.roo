@@ -26,7 +26,7 @@
   [{:keys [class style] :as opts}]
   (assoc (text-input-control/make
           (assoc opts
-                 :class (form-layout/classes :pixils/form-keyword-input class)
+                 :class (form-layout/classes :pixils.form/keyword-input class)
                  :format-value value->text
                  :style style))
          :mode 'pixils/form-keyword-input))
@@ -34,11 +34,11 @@
 (defun for-field
   "Builds the prefixed keyword-input presentation for a form field."
   [{:keys [schema value disabled? options]}]
-  (merge {:class [:pixils/form-control :pixils/form-keyword-control]
+  (merge {:class [:pixils.form/control :pixils.form/keyword-control]
           :state {:value value
                   :disabled? disabled?}
           :children [{:mode 'ui/text
-                      :class [:ui/muted :pixils/form-keyword-prefix]
+                      :class [:ui/muted :pixils.form/keyword-prefix]
                       :state {:value ":"}}
                      (make {:value (ui/project-state :value)
                             :auto-focus? (:auto-focus? schema)

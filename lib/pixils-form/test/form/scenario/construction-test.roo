@@ -30,12 +30,12 @@
         field (head (:children fields))
         label (head (:children field))
         control (nth (:children field) 1)]
-    (is (= {:form {:class :pixils/form}
-            :body {:class :pixils/form-body}
-            :fields {:class :pixils/form-fields}
-            :field {:class :pixils/form-field}
-            :label {:class [:ui/muted :pixils/form-label]}
-            :control {:class [:pixils/form-control :pixils/form-text-control]}}
+    (is (= {:form {:class :pixils.form/form}
+            :body {:class :pixils.form/body}
+            :fields {:class :pixils.form/fields}
+            :field {:class :pixils.form/field}
+            :label {:class [:ui/muted :pixils.form/label]}
+            :control {:class [:pixils.form/control :pixils.form/text-input]}}
            {:form (select-keys view [:class :style])
             :body (select-keys body [:class :style])
             :fields (select-keys fields [:class :style])
@@ -52,7 +52,7 @@
         field (-> view :children head :children head :children head)
         control (nth (:children field) 1)]
     (is (= {:mode 'pixils/form-slider-control
-            :class [:pixils/form-control :pixils/form-slider-control]
+            :class [:pixils.form/control :pixils.form/slider-control]
             :state {:axis :x :min 0 :max 1 :step 0.05}}
            {:mode (:mode control)
             :class (:class control)
@@ -75,7 +75,7 @@
         field (-> view :children head :children head :children head)
         control (nth (:children field) 1)]
     (is (= {:mode 'ui/color-picker
-            :class [:pixils/form-control :pixils/form-color-control]
+            :class [:pixils.form/control :pixils.form/color-picker]
             :value? true}
            {:mode (:mode control) :class (:class control)
             :value? (some? (-> control :state :value))}))))
@@ -111,8 +111,8 @@
                                    :layout [:field/name :field/city]}]})
         section (-> view :children head :children head :children head)
         body (-> section :children head :children head)]
-    (is (= {:section {:mode 'ui/group-box :class :pixils/form-section :title "Identity"}
-            :body {:mode 'ui/group-box-body :class :pixils/form-section-body
+    (is (= {:section {:mode 'ui/group-box :class :pixils.form/section :title "Identity"}
+            :body {:mode 'ui/group-box-body :class :pixils.form/section-body
                    :child-modes ['pixils/form-field 'pixils/form-field]}}
            {:section {:mode (:mode section) :class (:class section)
                       :title (-> section :state :title)}
@@ -133,11 +133,11 @@
         inner (head (:children outer-body))
         inner-title (head (:children inner))
         inner-body (nth (:children inner) 1)]
-    (is (= {:outer {:mode 'ui/group-box :class :pixils/form-section}
-            :inner {:class :pixils/form-nested-section}
-            :title {:mode 'ui/text :class [:ui/muted :pixils/form-nested-section-title]
+    (is (= {:outer {:mode 'ui/group-box :class :pixils.form/section}
+            :inner {:class :pixils.form/nested-section}
+            :title {:mode 'ui/text :class [:ui/muted :pixils.form/nested-section-title]
                     :value "Inner"}
-            :body {:class :pixils/form-nested-section-body
+            :body {:class :pixils.form/nested-section-body
                    :child-mode 'pixils/form-field}}
            {:outer (select-keys outer [:mode :class])
             :inner (select-keys inner [:mode :class])

@@ -98,7 +98,7 @@
                  :value (:value payload)
                  :form-value (form-field/assoc-value state (:value payload))
                  :selected-index (:selected-index payload)))}
-   :children [(combo-box/make {:class :pixils/form-select-input
+   :children [(combo-box/make {:class :pixils.form/combo-box
                                :options (ui/bind-state :options)
                                :selected-index (ui/bind-state :selected-index)
                                :row-height (ui/bind-state :row-height)
@@ -109,7 +109,7 @@
   "Builds a combo-box for a resolved form-field context."
   [{:keys [id schema value disabled? options]}]
   (merge {:mode 'pixils/form-select-control
-          :class [:pixils/form-control :pixils/form-select-control]
+          :class [:pixils.form/control :pixils.form/select-control]
           :state {:value value
                   :form-value (ui/bind-state :form-value)
                   :options (selectable-options schema options)

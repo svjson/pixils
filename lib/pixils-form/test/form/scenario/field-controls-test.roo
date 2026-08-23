@@ -68,7 +68,7 @@
         control (nth (:children field-view) 1)
         prefix (head (:children control))
         editor (nth (:children control) 1)]
-    (is (= {:class [:pixils/form-control :pixils/form-keyword-control]
+    (is (= {:class [:pixils.form/control :pixils.form/keyword-control]
             :prefix ":"
             :editor-mode 'pixils/form-keyword-input
             :auto-focus? true}

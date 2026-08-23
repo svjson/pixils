@@ -80,7 +80,7 @@
                     :selected-index 0 :new-value-fn new-value-fn}
             :form-value? true
             :selection {:mode 'pixils/form-selection
-                        :class [:pixils/form-selection :person-list]
+                        :class [:pixils.form/selection :person-list]
                         :item-label [:field/name]}}
            {:state (select-keys (:state view)
                                 [:schema :value :items :selected-index :new-value-fn])
@@ -108,7 +108,7 @@
         toolbar (nth (:children selection-view) 1)]
     (is (= {:selection-child-count 2
             :list-box {:mode 'ui/list-box :item=> 'ui/list-box-item}
-            :toolbar {:class :pixils/form-selection-toolbar
+            :toolbar {:class :pixils.form/selection-toolbar
                       :events [:form/new :form/save-new :form/cancel-new :form/delete]}
             :action-events [:form/new :form/save-new :form/cancel-new :form/delete]}
            {:selection-child-count (count (:children selection-view))
@@ -260,13 +260,13 @@
         group-view (nth (:children row-view) 1)
         selection-view (head (:children group-view))
         action-view (nth (:children group-view) 1)]
-    (is (= {:form {:class [:pixils/form :person-register-form]}
-            :row {:class [:pixils/form-row :person-main-row] :value? true}
-            :fields {:class :pixils/form-fields :value? true}
-            :group {:class [:pixils/form-row :pixils/form-group :person-list-column]}
+    (is (= {:form {:class [:pixils.form/form :person-register-form]}
+            :row {:class [:pixils.form/row :person-main-row] :value? true}
+            :fields {:class :pixils.form/fields :value? true}
+            :group {:class [:pixils.form/row :pixils.form/group :person-list-column]}
             :selection {:mode 'pixils/form-selection
-                        :class [:pixils/form-selection :person-list]}
-            :action {:mode 'pixils/form-action :class [:pixils/form-action :person-new]
+                        :class [:pixils.form/selection :person-list]}
+            :action {:mode 'pixils/form-action :class [:pixils.form/action :person-new]
                      :event :person/new :disabled-when :new?}}
            {:form (select-keys view [:class])
             :row {:class (:class row-view) :value? (contains? (:state row-view) :value)}
