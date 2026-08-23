@@ -174,7 +174,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefPointerForm)
     {
       auto name =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]))->str();
       auto map_expr = Roo::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
       auto pointer = StyleDefinition::parse_image_cursor(*ctx.ctx, map_expr);
       if (!pointer)
@@ -203,7 +203,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefBundleForm)
     {
       auto name =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]))->str();
       auto map_expr = Roo::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
       auto deps_coercion = HostType::RESOURCE_DEPENDENCIES.coerce(*ctx.ctx, map_expr);
       if (!deps_coercion.success)
@@ -236,7 +236,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefBundleDynamicForm)
     {
       auto name =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]))->str();
 
       Runtime::ResourceDependencies deps;
       if (ast_node->get_children().size() > 2)
@@ -281,7 +281,7 @@ namespace Pixils::Script
                                              {"glyphs", &Roo::Type::MAP}});
 
       std::string font_name =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]))->str();
       if (font_name.find('/') == std::string::npos)
       {
         font_name = "font/" + font_name;
@@ -471,7 +471,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefProgramForm)
     {
       auto name =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]))->str();
       auto map_expr = Roo::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
 
       auto opts = program_schema.bind(*ctx.ctx, *map_expr);
@@ -530,7 +530,8 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefThemeForm)
     {
       auto themes = ctx.ctx->lookup(ID__PIXILS__THEMES);
-      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_expr =
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]));
       auto name = name_expr->str();
       auto theme_expr =
         Roo::exec(*ctx.ctx, *Roo::lower_expr(ctx, ast_node->get_children()[2]));
@@ -559,7 +560,8 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefModeForm)
     {
       auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
-      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_expr =
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]));
       auto name_str = Roo::string(name_expr->str());
 
       Roo::LowerContext lctx{ctx};
@@ -601,7 +603,8 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefComponentForm)
     {
       auto components = ctx.ctx->lookup(ID__PIXILS__COMPONENTS);
-      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_expr =
+        Roo::exec(*ctx.ctx, *Roo::lower_literal(ctx, ast_node->get_children()[1]));
       auto name_str = Roo::string(name_expr->str());
 
       Roo::LowerContext lctx{ctx};
