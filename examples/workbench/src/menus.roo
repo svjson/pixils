@@ -35,6 +35,6 @@
                      :action :icons/cleanup}]}]})
 
 (defun make-workbench-menu []
-  (menu-bar/make {:style {:height 18}}
+  (menu-bar/make {}
                   workbench-menu
                   workbench-menu-keymap))
