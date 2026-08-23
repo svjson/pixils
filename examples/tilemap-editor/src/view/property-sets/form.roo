@@ -4,6 +4,7 @@
             [pixils.form.controls.text-input :as text-input]
             [pixils.tilemap.project.schemas :as schemas]
             [pixils.ui :as ui]
+            [pixils.ui.split-pane :as split]
             [tilemap-editor.components.header-panel :as hp]))
 
 (defun property-value-control
@@ -41,8 +42,12 @@
     :controls {:any property-value-control}
     :layout
     {:root
-     [{:type :row
+     [{:view=> split/make
        :class :property-set/workspace-panels
+       :axis :x
+       :split 0.26
+       :min-first 120
+       :min-second 220
        :children
        [(hp/make {:title "Property Sets"
                   :class :tm/list-wrapper

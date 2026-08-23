@@ -33,8 +33,8 @@
 (deftest make/composes-property-set-and-property-editors
   (s/when []
     (let [view (property-form/make)
-          row (-> view :children head :children head :children head)
-          field-panel (nth (:children row) 1)
+          panels (-> view :children head :children head :children head)
+          field-panel (-> panels :children (nth 2) :children head)
           property-set-editor (-> field-panel
                                   :children
                                   (nth 1)
@@ -43,8 +43,11 @@
           property-set-form (-> property-set-editor :children head)]
       {:mode (:mode view)
        :item-editors (keys (-> view :state :form/item-editors))
-       :panel-class (:class row)
-       :panel-modes (map (:children row) :mode)
+       :panel-class (:class panels)
+       :panel-mode (:mode panels)
+       :panel-state (select-keys (:state panels)
+                                 [:axis :split :min-first :min-second])
+       :panel-modes (map (:children panels) :mode)
        :property-set-editor-mode (:mode property-set-editor)
        :property-set-form-mode (:mode property-set-form)
        :property-item-editors
@@ -53,8 +56,15 @@
   (s/then [shape]
     (is (= {:mode 'pixils/form
             :item-editors [:selected-property-set]
-            :panel-class [:pixils/form-row :property-set/workspace-panels]
-            :panel-modes ['ui/header-panel 'ui/header-panel]
+            :panel-class :property-set/workspace-panels
+            :panel-mode 'ui/split-pane
+            :panel-state {:axis :x
+                          :split 0.26
+                          :min-first 120
+                          :min-second 220}
+            :panel-modes ['ui/split-pane-primary
+                          'ui/split-pane-resizer
+                          'ui/split-pane-secondary]
             :property-set-editor-mode 'pixils/form-layout-item-editor
             :property-set-form-mode 'pixils/form
             :property-item-editors [:selected-property]}

@@ -81,9 +81,7 @@
 
             :property-set/workspace-panels
             {:width :fill
-             :height :fill
-             :layout {:direction :row
-                      :gap 8}}
+             :height :fill}
 
             :ui/title {:text {:color accent}}
 
