@@ -168,7 +168,6 @@
                  :hover-highlight-text (var :selection-text)
                  :desktop-icon-label-padding 1
                  :list-box-row-height 20
-                 :list-box-visible-rows 5
                  :list-box-item-padding {:t 3
                                          :r 5
                                          :b 3
@@ -310,11 +309,13 @@
 
     'ui/option-list {:width :shrink
                      :height :shrink
+                     :visible-rows 5
                      :background (var :field-bg)
                      :border (var :inset-border-style)}
 
     'ui/list-box {:width :shrink
                   :height :shrink
+                  :visible-rows 5
                   :background (var :field-bg)
                   :border (var :inset-border-style)}
 

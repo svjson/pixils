@@ -15,7 +15,7 @@
    :children [(list-box/make {:options options
                               :selected-indices []
                               :force-selection? false
-                              :visible-rows 2
-                              :style {:width 120}})
+                              :style {:width 120
+                                      :visible-rows 2}})
               (combo-box/make {:options options
                                :style {:width 120}})]})

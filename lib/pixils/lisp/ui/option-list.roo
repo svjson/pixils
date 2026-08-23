@@ -23,14 +23,23 @@
 (defun content-height [options row-height]
   (* (count options) row-height))
 
-(defun visible-height [options row-height visible-rows max-height fixed-visible-rows?]
-  (let [visible-height (* row-height visible-rows)
-        target-height (if fixed-visible-rows?
-                        visible-height
-                        (min visible-height
-                             (content-height options row-height)))]
-    (min (or max-height target-height)
-         target-height)))
+(defun visible-height
+  "Calculates the intrinsic height for an option collection and row policy.
+
+  Args:
+  - `options`: Option values whose complete rows contribute to the height.
+  - `row-height`: Height of one option row.
+  - `visible-rows`: Canonical `{:min ... :max ...}` row policy.
+
+  Returns:
+  The intrinsic height in pixels."
+  [options row-height visible-rows]
+  (let [target-rows (max (count options)
+                         (or (:min visible-rows) 0))]
+    (* row-height
+       (if-let [max-rows (:max visible-rows)]
+         (min target-rows max-rows)
+         target-rows))))
 
 (defun style [ctx]
   (or (-> ctx :view :effective-style)
@@ -49,9 +58,6 @@
 
 (defun theme-row-height [ctx]
   (ui/theme-var ctx :list-box-row-height nil))
-
-(defun theme-visible-rows [ctx]
-  (ui/theme-var ctx :list-box-visible-rows nil))
 
 (defun padding-side [padding side]
   (case side
@@ -89,17 +95,10 @@
       (when ctx (measured-row-height ctx))
       (:computed-row-height state)))
 
-(defun visible-rows [state ctx]
-  (or (:visible-rows state)
-      (when ctx (theme-visible-rows ctx))
-      (:computed-visible-rows state)))
-
 (defun preferred-height [state ctx]
   (visible-height (:options state)
                   (row-height state ctx)
-                  (visible-rows state ctx)
-                  (:max-height state)
-                  (:fixed-visible-rows? state)))
+                  (:visible-rows (style ctx))))
 
 (defun content-state [ui-state state]
   (merge (:content-state ui-state)
@@ -325,10 +324,7 @@
   (let [computed-row-height (if (:auto-row-height? state)
                               (measured-row-height ctx)
                               (:row-height state))
-        computed-visible-rows (or (:visible-rows state)
-                                  (theme-visible-rows ctx))
-        state (assoc state :computed-row-height computed-row-height)
-        state (assoc state :computed-visible-rows computed-visible-rows)]
+        state (assoc state :computed-row-height computed-row-height)]
     (assoc state :scroll-content-size (scroll-content-size state))))
 
 (defun sync-rendered-items-in [state content]
@@ -371,10 +367,6 @@
    :explicit-row-height?
    :computed-row-height
    :auto-row-height?
-   :visible-rows
-   :computed-visible-rows
-   :max-height
-   :fixed-visible-rows?
    :disabled?
    :item=>
    :decorate-item
@@ -419,8 +411,7 @@
                           :auto-row-height?
                           (if (contains? supplied-component :auto-row-height?)
                             (:auto-row-height? supplied-component)
-                            (nil? (:row-height supplied-component)))
-                          :computed-visible-rows (:visible-rows supplied-component)})]
+                            (nil? (:row-height supplied-component)))})]
     (assoc component
            :scroll-content-size
            (scroll-content-size component))))

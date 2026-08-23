@@ -15,9 +15,9 @@
                {:options [{:value :a :label "Alpha"}
                           {:value :b :label "Beta"}
                           {:value :c :label "Gamma"}]
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 3}
                 :row-height 10
-                :visible-rows 3
                 :reorderable? true})
               {:mode 'drop-surface
                :id "drop-surface"

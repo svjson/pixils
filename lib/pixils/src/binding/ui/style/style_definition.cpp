@@ -367,6 +367,77 @@ namespace Pixils::Script::StyleDefinition
     return Roo::keyword("auto");
   }
 
+  std::optional<UI::Style::VisibleRows> parse_visible_rows(
+    Roo::Context& ctx,
+    const Roo::sptr_val& value)
+  {
+    if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
+
+    UI::Style::VisibleRows visible_rows;
+    if (value->type == Roo::Value::Type::NUMBER)
+    {
+      int rows = std::max(0, value->num().get_int());
+      visible_rows.min = rows;
+      visible_rows.max = rows;
+      return visible_rows;
+    }
+
+    if (value->type == Roo::Value::Type::VECTOR)
+    {
+      if (Roo::count(*value) != 2) return std::nullopt;
+
+      auto min_value = Roo::get_child(*value, 0);
+      auto max_value = Roo::get_child(*value, 1);
+      if (min_value->type != Roo::Value::Type::NIL)
+      {
+        if (min_value->type != Roo::Value::Type::NUMBER) return std::nullopt;
+        visible_rows.min = std::max(0, min_value->num().get_int());
+      }
+      if (max_value->type != Roo::Value::Type::NIL)
+      {
+        if (max_value->type != Roo::Value::Type::NUMBER) return std::nullopt;
+        visible_rows.max = std::max(0, max_value->num().get_int());
+      }
+    }
+    else
+    {
+      auto source = map_like_value(value);
+      if (!source) return std::nullopt;
+
+      static Roo::MapSchema visible_rows_schema(
+        {},
+        {{"min", &Roo::Type::NUMBER}, {"max", &Roo::Type::NUMBER}});
+      auto opts = visible_rows_schema.bind(ctx, *source);
+      if (opts.contains("min")) visible_rows.min = std::max(0, opts.i32("min"));
+      if (opts.contains("max")) visible_rows.max = std::max(0, opts.i32("max"));
+    }
+
+    if (visible_rows.min && visible_rows.max)
+    {
+      visible_rows.max = std::max(*visible_rows.min, *visible_rows.max);
+    }
+    return visible_rows;
+  }
+
+  Roo::sptr_val visible_rows_to_value(
+    const std::optional<UI::Style::VisibleRows>& visible_rows)
+  {
+    if (!visible_rows) return Roo::Constant::NIL;
+
+    std::vector<Roo::sptr_val> values;
+    if (visible_rows->min)
+    {
+      values.push_back(Roo::keyword("min"));
+      values.push_back(Roo::number(*visible_rows->min));
+    }
+    if (visible_rows->max)
+    {
+      values.push_back(Roo::keyword("max"));
+      values.push_back(Roo::number(*visible_rows->max));
+    }
+    return Roo::map(values);
+  }
+
   std::optional<UI::Style::Trim> parse_trim(const Roo::sptr_val& value)
   {
     if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
@@ -1071,6 +1142,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"min-height", &Roo::Type::NUMBER},
                                            {"max-width", &Roo::Type::NUMBER},
                                            {"max-height", &Roo::Type::NUMBER},
+                                           {"visible-rows", &Roo::Type::ANY},
                                            {"position", &Roo::Type::KEYWORD},
                                            {"top", &Roo::Type::NUMBER},
                                            {"left", &Roo::Type::NUMBER},
@@ -1111,6 +1183,10 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("min-height")) style->min_height = opts.i32("min-height");
     if (opts.contains("max-width")) style->max_width = opts.i32("max-width");
     if (opts.contains("max-height")) style->max_height = opts.i32("max-height");
+    if (opts.contains("visible-rows"))
+    {
+      style->visible_rows = parse_visible_rows(ctx, opts.val("visible-rows"));
+    }
     if (opts.contains("position"))
     {
       style->position = parse_position_mode(opts.val("position"));

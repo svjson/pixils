@@ -23,6 +23,49 @@ TEST_F(StyleTest, make_minimal_style)
   EXPECT_EQ(style.width->fixed_value_or(0), 40);
 }
 
+TEST_F(StyleTest, visible_rows_accepts_exact_range_and_open_range_values)
+{
+  auto exact = Roo::obj<Pixils::UI::Style>(
+    *runtime.eval("(pixils.ui.style/make-style {:visible-rows 5})"));
+  auto range = Roo::obj<Pixils::UI::Style>(
+    *runtime.eval("(pixils.ui.style/make-style {:visible-rows [2 7]})"));
+  auto open = Roo::obj<Pixils::UI::Style>(
+    *runtime.eval("(pixils.ui.style/make-style {:visible-rows {:max 4}})"));
+
+  ASSERT_NE(exact.visible_rows, std::nullopt);
+  EXPECT_EQ(exact.visible_rows->min, 5);
+  EXPECT_EQ(exact.visible_rows->max, 5);
+  ASSERT_NE(range.visible_rows, std::nullopt);
+  EXPECT_EQ(range.visible_rows->min, 2);
+  EXPECT_EQ(range.visible_rows->max, 7);
+  ASSERT_NE(open.visible_rows, std::nullopt);
+  EXPECT_EQ(open.visible_rows->min, std::nullopt);
+  EXPECT_EQ(open.visible_rows->max, 4);
+}
+
+TEST_F(StyleTest, visible_rows_clamps_negative_and_inverted_bounds)
+{
+  auto style = Roo::obj<Pixils::UI::Style>(
+    *runtime.eval("(pixils.ui.style/make-style {:visible-rows [-3 -7]})"));
+  auto inverted = Roo::obj<Pixils::UI::Style>(
+    *runtime.eval("(pixils.ui.style/make-style {:visible-rows {:min 5 :max 2}})"));
+
+  ASSERT_NE(style.visible_rows, std::nullopt);
+  EXPECT_EQ(style.visible_rows->min, 0);
+  EXPECT_EQ(style.visible_rows->max, 0);
+  ASSERT_NE(inverted.visible_rows, std::nullopt);
+  EXPECT_EQ(inverted.visible_rows->min, 5);
+  EXPECT_EQ(inverted.visible_rows->max, 5);
+}
+
+TEST_F(StyleTest, style_adapter_exposes_canonical_visible_rows)
+{
+  auto result = runtime.eval(
+    "(:visible-rows (pixils.ui.style/make-style {:visible-rows [nil 6]}))");
+
+  EXPECT_EQ(result->to_string(), "{:max 6}");
+}
+
 TEST_F(StyleTest, make_uniform_border)
 {
   // When
@@ -757,6 +800,20 @@ TEST(StyleVariantTest, apply_style_variant_overlays_corner_radius)
 
   ASSERT_NE(base.corner_radius, std::nullopt);
   EXPECT_EQ(*base.corner_radius, (Pixils::UI::Style::CornerRadius{8, 7, 2, 1}));
+}
+
+TEST(StyleVariantTest, apply_style_variant_replaces_visible_rows_atomically)
+{
+  Pixils::UI::Style base;
+  base.visible_rows = Pixils::UI::Style::VisibleRows{5, 5};
+  Pixils::UI::Style variant;
+  variant.visible_rows = Pixils::UI::Style::VisibleRows{std::nullopt, 8};
+
+  Pixils::UI::apply_style_variant(base, variant);
+
+  ASSERT_NE(base.visible_rows, std::nullopt);
+  EXPECT_EQ(base.visible_rows->min, std::nullopt);
+  EXPECT_EQ(base.visible_rows->max, 8);
 }
 
 TEST_F(StyleTest, make_insets_with_four_value_vector)

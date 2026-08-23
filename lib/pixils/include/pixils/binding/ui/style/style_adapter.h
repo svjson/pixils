@@ -27,6 +27,7 @@ namespace Pixils::Script
      min_height,
      max_width,
      max_height,
+     visible_rows,
      position,
      top,
      left,
@@ -52,6 +53,7 @@ namespace Pixils::Script
      scale,
      top,
      visibility,
+     visible_rows,
      width));
   NATIVE_ADAPTER(LayoutAdapter,
                  UI::Style::Layout,

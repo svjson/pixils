@@ -524,14 +524,12 @@
    :force-selection? false
    :toggle-selected? false
    :row-height 20
-   :visible-rows 5
-   :max-height 120
    :item=> 'app/person-list-item
    :item-context-menu {:items [{:label \"Rename\"
                                 :action :rename}]}
    :reorderable? false
    :class :settings/list
-   :style {...}
+   :style {:visible-rows 5}
    :state {...}
    :ui-state {...}
    :state-policy :isolated}

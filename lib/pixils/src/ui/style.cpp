@@ -217,6 +217,7 @@ namespace Pixils::UI
     , min_height(other.min_height)
     , max_width(other.max_width)
     , max_height(other.max_height)
+    , visible_rows(other.visible_rows)
     , position(other.position)
     , top(other.top)
     , left(other.left)
@@ -252,6 +253,7 @@ namespace Pixils::UI
     this->min_height = other.min_height;
     this->max_width = other.max_width;
     this->max_height = other.max_height;
+    this->visible_rows = other.visible_rows;
     this->position = other.position;
     this->top = other.top;
     this->left = other.left;
@@ -522,6 +524,7 @@ namespace Pixils::UI
     if (variant.min_height) out.min_height = variant.min_height;
     if (variant.max_width) out.max_width = variant.max_width;
     if (variant.max_height) out.max_height = variant.max_height;
+    if (variant.visible_rows) out.visible_rows = variant.visible_rows;
     if (variant.position) out.position = variant.position;
     if (variant.top) out.top = variant.top;
     if (variant.left) out.left = variant.left;

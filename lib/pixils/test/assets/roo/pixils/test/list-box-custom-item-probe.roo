@@ -39,9 +39,9 @@
                  :selection-change (:payload event)))}
    :children [(list-box/make
                {:options options
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 2}
                 :row-height 10
-                :visible-rows 2
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
                 :item=> (fn [index option]
@@ -64,9 +64,9 @@
           (assoc state :custom-click (:payload event)))}
    :children [(list-box/make
                {:options options
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 2}
                 :row-height 10
-                :visible-rows 2
                 :selected-indices (ui/project-state :selected)
                 :force-selection? true
                 :item=> (fn [index option]
@@ -82,9 +82,9 @@
           (assoc state :context-action (:payload event)))}
    :children [(list-box/make
                {:options options
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 2}
                 :row-height 10
-                :visible-rows 2
                 :selected-indices [0]
                 :force-selection? true
                 :item-context-menu

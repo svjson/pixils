@@ -102,9 +102,9 @@ TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
                     :style {:width 100
-                            :height :shrink}
+                            :height :shrink
+                            :max-height 30}
                     :row-height 10
-                    :max-height 30
                     :force-selection? true})]})
   )");
 
@@ -142,7 +142,7 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_sc
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
                     :row-height 10
-                    :visible-rows 2
+                    :style {:visible-rows 2}
                     :item=> (fn [index option]
                                   {:mode 'natural-row})})]})
   )");
@@ -157,6 +157,9 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_sc
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto list_box = session.active_mode->children[0];
   ASSERT_NE(list_box, nullptr);
+  ASSERT_NE(list_box->effective_style.visible_rows, std::nullopt);
+  EXPECT_EQ(list_box->effective_style.visible_rows->min, 2);
+  EXPECT_EQ(list_box->effective_style.visible_rows->max, 2);
 
   EXPECT_EQ(list_box->bounds.h, 22);
 
@@ -185,7 +188,7 @@ TEST_F(ListBoxTest, natural_row_height_uses_default_ttf_font_metrics_without_ext
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :visible-rows 2})]})
+                    :style {:visible-rows 2}})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -230,11 +233,11 @@ TEST_F(ListBoxTest, tab_switch_natural_list_box_uses_measured_rows_on_first_fram
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :visible-rows 2})
+                    :style {:visible-rows 2}})
                   (pixils.ui.list-box/make
                    {:options [{:value :x :label "Xenon"}
                               {:value :y :label "Yttrium"}]
-                    :visible-rows 2})]})
+                    :style {:visible-rows 2}})]})
 
     (pixils/defmode root-mode
       {:theme ['pixils/windows-3 'large-text-theme]
@@ -309,8 +312,8 @@ TEST_F(ListBoxTest, list_box_item_text_does_not_wrap_when_width_is_constrained)
       {:theme ['pixils/base-theme 'test-font-theme]
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "AA AA AA"}]
-                    :style {:width 12}
-                    :visible-rows 1})]})
+                    :style {:width 12
+                            :visible-rows 1}})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -337,7 +340,7 @@ TEST_F(ListBoxTest, selected_default_item_is_marked_on_first_render)
                               {:value :b :label "Beta"}]
                     :selected-indices [1]
                     :row-height 10
-                    :visible-rows 2})]})
+                    :style {:visible-rows 2}})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -372,7 +375,7 @@ TEST_F(ListBoxTest, selected_custom_item_is_marked_on_first_render)
                               {:value :b :label "Beta"}]
                     :selected-indices [1]
                     :row-height 10
-                    :visible-rows 2
+                    :style {:visible-rows 2}
                     :item=> (fn [index option]
                                   {:mode 'custom-item})})]})
   )");
@@ -408,9 +411,9 @@ TEST_F(ListBoxTest, selected_auto_width_item_uses_measured_width_on_first_render
                    {:options [{:value :a :label "A"}
                               {:value :b :label "AAAAAAAAAA"}]
                     :selected-indices [1]
-                    :style {:text {:font :font/test-font}}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:text {:font :font/test-font}
+                            :visible-rows 2}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -447,9 +450,9 @@ TEST_F(ListBoxTest, tab_switch_selected_auto_width_item_is_stable_on_first_frame
                    {:options [{:value :a :label "A"}
                               {:value :b :label "AAAAAAAAAA"}]
                     :selected-indices [1]
-                    :style {:text {:font :font/test-font}}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:text {:font :font/test-font}
+                            :visible-rows 2}
+                    :row-height 10})]})
 
     (pixils/defmode root-mode
       {:children [(pixils.ui.tab-panel/make
@@ -539,9 +542,9 @@ TEST_F(ListBoxTest, tab_switch_bound_selected_auto_width_item_is_stable_on_first
                    {:options [{:value :a :label "A"}
                               {:value :b :label "AAAAAAAAAA"}]
                     :selected-indices (pixils.ui/bind-state :list-selected)
-                    :style {:text {:font :font/test-font}}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:text {:font :font/test-font}
+                            :visible-rows 2}
+                    :row-height 10})]})
 
     (pixils/defmode root-mode
       {:state {:selected-tab :blank
@@ -618,8 +621,7 @@ TEST_F(ListBoxTest, tab_switch_bound_selected_auto_width_item_is_stable_on_first
   EXPECT_EQ(stable_selected_text->bounds.w, first_frame_text_width);
 }
 
-TEST_F(ListBoxTest,
-       windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
+TEST_F(ListBoxTest, windows_3_max_height_clamps_list_box_border_box_and_keeps_scrollbar)
 {
   runtime.eval(R"(
     (pixils/defcomponent natural-row
@@ -633,7 +635,7 @@ TEST_F(ListBoxTest,
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
                     :row-height 10
-                    :max-height 20
+                    :style {:max-height 20}
                     :item=> (fn [index option]
                                   {:mode 'natural-row})})]})
   )");
@@ -649,7 +651,7 @@ TEST_F(ListBoxTest,
   auto list_box = session.active_mode->children[0];
   ASSERT_NE(list_box, nullptr);
 
-  EXPECT_EQ(list_box->bounds.h, 22);
+  EXPECT_EQ(list_box->bounds.h, 20);
 
   auto row = list_box_row(list_box);
   ASSERT_NE(row, nullptr);
@@ -658,7 +660,7 @@ TEST_F(ListBoxTest,
 
   auto viewport = list_box_viewport(list_box);
   ASSERT_NE(viewport, nullptr);
-  EXPECT_EQ(viewport->bounds.h, 20);
+  EXPECT_EQ(viewport->bounds.h, 18);
 }
 
 TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
@@ -670,9 +672,9 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
                     :style {:width 100
-                            :max-width 100}
+                            :max-width 100
+                            :visible-rows 2}
                     :row-height 10
-                    :visible-rows 2
                     :force-selection? true})]})
   )");
 
@@ -726,9 +728,9 @@ TEST_F(ListBoxTest, vertical_scrollbar_end_button_scrolls_list_box)
                               {:value :j :label "Kappa"}
                               {:value :k :label "Lambda"}
                               {:value :l :label "Mu"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 6})]})
+                    :style {:width 100
+                            :visible-rows 6}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -775,9 +777,9 @@ TEST_F(ListBoxTest, dragging_vertical_scrollbar_handle_scrolls_list_box_to_end)
                               {:value :j :label "Kappa"}
                               {:value :k :label "Lambda"}
                               {:value :l :label "Mu"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 6})]})
+                    :style {:width 100
+                            :visible-rows 6}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -830,9 +832,9 @@ TEST_F(ListBoxTest, list_box_component_state_survives_custom_update)
                     {:options [{:value :a :label "Alpha"}
                                {:value :b :label "Beta"}
                                {:value :c :label "Gamma"}]
-                     :style {:width 100}
+                     :style {:width 100
+                             :visible-rows 2}
                      :row-height 10
-                     :visible-rows 2
                      :selected-indices [0]})
                    :update
                    (fn [state ctx] {}))]})
@@ -869,9 +871,9 @@ TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
                         {:value :c :label "Gamma"}]})
        :children [(pixils.ui.list-box/make
                    {:options (pixils.ui/bind-state :items)
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:width 100
+                            :visible-rows 2}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -912,9 +914,9 @@ TEST_F(ListBoxTest, list_box_reconciles_rows_when_bound_options_change)
                                   {:value :d :label "Delta"}])))
        :children [(pixils.ui.list-box/make
                    {:options (pixils.ui/bind-state :items)
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 3})]})
+                    :style {:width 100
+                            :visible-rows 3}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -943,9 +945,9 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
       {:children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha" :disabled? true}
                               {:value :b :label "Beta"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 2}
                     :row-height 10
-                    :visible-rows 2
                     :force-selection? true})]})
   )");
 
@@ -979,8 +981,7 @@ TEST_F(ListBoxTest, classic_blue_disabled_list_box_styles_visible_viewport)
                     :disabled? true
                     :style {:width 100
                             :height 30}
-                    :row-height 10
-                    :visible-rows 3})]})
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -1024,14 +1025,14 @@ TEST_F(ListBoxTest, list_box_without_styled_width_shrinks_to_option_labels)
                         :gap 4}}
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "A"}]
-                    :style {:text {:font :font/test-font}}
-                    :row-height 10
-                    :visible-rows 1})
+                    :style {:text {:font :font/test-font}
+                            :visible-rows 1}
+                    :row-height 10})
                   (pixils.ui.list-box/make
                    {:options [{:value :long :label "AAAAAAAAAA"}]
-                    :style {:text {:font :font/test-font}}
-                    :row-height 10
-                    :visible-rows 1})]})
+                    :style {:text {:font :font/test-font}
+                            :visible-rows 1}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -1069,14 +1070,14 @@ TEST_F(ListBoxTest, list_box_natural_width_uses_default_ttf_font_metrics)
                         :gap 4}}
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}]
-                    :style {:text {:font :font/small-font}}
-                    :row-height 10
-                    :visible-rows 1})
+                    :style {:text {:font :font/small-font}
+                            :visible-rows 1}
+                    :row-height 10})
                   (pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}]
-                    :style {:text {:font :font/large-font}}
-                    :row-height 10
-                    :visible-rows 1})]})
+                    :style {:text {:font :font/large-font}
+                            :visible-rows 1}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -1108,9 +1109,9 @@ TEST_F(ListBoxTest, list_box_with_styled_width_fills_items)
       {:children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :style {:width 200}
+                    :style {:width 200
+                            :visible-rows 2}
                     :row-height 10
-                    :visible-rows 2
                     :item=> (fn [index option]
                                   {:mode 'custom-fixed-row
                                    :state {:index index
@@ -1147,9 +1148,9 @@ TEST_F(ListBoxTest, list_box_item_uses_theme_hover_style)
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:width 100
+                            :visible-rows 2}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -1184,9 +1185,9 @@ TEST_F(ListBoxTest, list_box_reorder_drag_is_off_by_default)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 3})]})
+                    :style {:width 100
+                            :visible-rows 3}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -1226,9 +1227,9 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :selected-indices (pixils.ui/bind-state :selected)
                     :reorderable? true})]})
   )");
@@ -1273,9 +1274,9 @@ TEST_F(ListBoxTest, reorderable_list_box_placeholder_strategy_previews_drop)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :reorderable? true})]})
   )");
 
@@ -1325,9 +1326,9 @@ TEST_F(ListBoxTest, reorderable_list_box_none_strategy_keeps_flow_positions_whil
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :reorderable? true
                     :reorder-visual-strategy :none})]})
   )");
@@ -1384,9 +1385,9 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_row_emits_reorder_drop_even
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :selected-indices (pixils.ui/bind-state :selected)
                     :reorderable? true
                     :item=> custom-row-child})]})
@@ -1427,9 +1428,9 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 2}
                     :row-height 10
-                    :visible-rows 2
                     :selected-indices (pixils.ui/bind-state :selected)})]})
   )");
 
@@ -1478,9 +1479,9 @@ TEST_F(ListBoxTest, list_box_ctrl_click_toggles_and_ctrl_shift_click_replaces_wi
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :selected-indices (pixils.ui/bind-state :selected)
                     :multi-select? true
                     :force-selection? true
@@ -1544,9 +1545,9 @@ TEST_F(ListBoxTest, list_box_shift_click_skips_disabled_items_in_range)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta" :disabled? true}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :visible-rows 3}
                     :row-height 10
-                    :visible-rows 3
                     :selected-indices (pixils.ui/bind-state :selected)
                     :multi-select? true})]})
   )");
@@ -1585,9 +1586,9 @@ TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
        :children [(pixils.ui.list-box/make
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
-                    :style {:width 100}
-                    :row-height 10
-                    :visible-rows 2})]})
+                    :style {:width 100
+                            :visible-rows 2}
+                    :row-height 10})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);

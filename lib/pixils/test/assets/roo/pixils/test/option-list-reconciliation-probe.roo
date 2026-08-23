@@ -22,5 +22,5 @@
                {:options (ui/bind-state :items)
                 :selected-indices (ui/bind-state :selected)
                 :row-height 16
-                :visible-rows 2
+                :style {:visible-rows 2}
                 :item=> 'preserved-option-row})]})

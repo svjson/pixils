@@ -7,7 +7,7 @@
    :children [(list-box/make
                {:options [{:value :a :label "Alpha"}
                           {:value :b :label "Beta"}]
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 2}
                 :row-height 10
-                :visible-rows 2
                 :selected-indices [0]})]})

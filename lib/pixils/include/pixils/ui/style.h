@@ -298,6 +298,12 @@ namespace Pixils::UI
       int fixed_value_or(int fallback = 0) const;
     };
 
+    struct VisibleRows
+    {
+      std::optional<int> min = std::nullopt;
+      std::optional<int> max = std::nullopt;
+    };
+
     Style();
     Style(const Style& other);
     Style(Style&& other) noexcept = default;
@@ -334,6 +340,7 @@ namespace Pixils::UI
     std::optional<int> min_height;
     std::optional<int> max_width;
     std::optional<int> max_height;
+    std::optional<VisibleRows> visible_rows;
 
     /** Outer flow dimensions: view box plus margins. */
     int total_width() const;

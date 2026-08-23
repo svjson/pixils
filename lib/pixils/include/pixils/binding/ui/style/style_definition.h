@@ -17,6 +17,11 @@ namespace Pixils::Script::StyleDefinition
   std::optional<UI::Style::Size> parse_size(const Roo::sptr_val& value);
   Roo::sptr_val size_to_value(const std::optional<UI::Style::Size>& size);
 
+  std::optional<UI::Style::VisibleRows> parse_visible_rows(Roo::Context& ctx,
+                                                           const Roo::sptr_val& value);
+  Roo::sptr_val visible_rows_to_value(
+    const std::optional<UI::Style::VisibleRows>& visible_rows);
+
   std::optional<UI::Style::Trim> parse_trim(const Roo::sptr_val& value);
   Roo::sptr_val trim_to_value(const std::optional<UI::Style::Trim>& trim);
 

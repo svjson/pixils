@@ -82,6 +82,7 @@ namespace Pixils::Script
                       (rw, "min-height", min_height),
                       (rw, "max-width", max_width),
                       (rw, "max-height", max_height),
+                      (rw, "visible-rows", visible_rows),
                       (rw, "position", position),
                       (rw, "top", top),
                       (rw, "left", left),
@@ -255,6 +256,16 @@ namespace Pixils::Script
   NOBJ_PROP_SET(StyleAdapter, max_height)
   {
     get_self_object().max_height = StyleDefinition::parse_optional_int(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, visible_rows)
+  {
+    return StyleDefinition::visible_rows_to_value(get_self_object().visible_rows);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, visible_rows)
+  {
+    get_self_object().visible_rows = StyleDefinition::parse_visible_rows(*ctx, value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, position)

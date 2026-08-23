@@ -123,9 +123,8 @@
    {:id "entry-list"}
    (pixils.ui.list-box/make
     {:options (entry-options entries)
-     :style {:width :fill}
-     :visible-rows 6
-     :fixed-visible-rows? true
+     :style {:width :fill
+             :visible-rows 6}
      :selected-indices (or selected-indices [])
      :multi-select? multi-select?
      :toggle-selected? false})))

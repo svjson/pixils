@@ -86,8 +86,8 @@ TEST_F(OptionListTest, option_list_uses_theme_row_height_and_visible_rows)
   runtime.eval(R"(
     (pixils/deftheme option-list-size-theme
       {:default-variant :base
-       :vars {:base {:list-box-row-height 37
-                     :list-box-visible-rows 2}}})
+       :vars {:base {:list-box-row-height 37}}
+       :styles {'ui/option-list {:visible-rows 2}}})
 
     (pixils/defmode root-mode
       {:theme ['pixils/base-theme 'option-list-size-theme]
@@ -112,7 +112,9 @@ TEST_F(OptionListTest, option_list_uses_theme_row_height_and_visible_rows)
 
   EXPECT_EQ(content->children[0]->bounds.h, 37);
   EXPECT_EQ(get_key(option_list->ui_state, "computed-row-height")->num().get_int(), 37);
-  EXPECT_EQ(get_key(option_list->ui_state, "computed-visible-rows")->num().get_int(), 2);
+  ASSERT_NE(option_list->effective_style.visible_rows, std::nullopt);
+  EXPECT_EQ(option_list->effective_style.visible_rows->min, 2);
+  EXPECT_EQ(option_list->effective_style.visible_rows->max, 2);
   EXPECT_EQ(option_list->bounds.h, 76);
 }
 
@@ -129,8 +131,7 @@ TEST_F(OptionListTest, option_list_respects_themed_fill_height)
                :layout {:direction :column}}
        :children [(pixils.ui.option-list/make
                    {:options [{:value :a :label "Alpha"}]
-                    :row-height 20
-                    :fixed-visible-rows? false})]})
+                    :row-height 20})]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -141,6 +142,54 @@ TEST_F(OptionListTest, option_list_respects_themed_fill_height)
   auto option_list = session.active_mode->children[0];
   ASSERT_NE(option_list, nullptr);
   EXPECT_EQ(option_list->bounds.h, session.active_mode->bounds.h);
+}
+
+TEST_F(OptionListTest, visible_row_ranges_control_shrink_height)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:style {:width 400
+               :height 200
+               :layout {:direction :row}}
+       :children [(pixils.ui.option-list/make
+                   {:options [{:value :a :label "Alpha"}]
+                    :row-height 20
+                    :style {:width 100
+                            :visible-rows 5}})
+                  (pixils.ui.option-list/make
+                   {:options [{:value :a :label "Alpha"}]
+                    :row-height 20
+                    :style {:width 100
+                            :visible-rows {:max 3}}})
+                  (pixils.ui.option-list/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}]
+                    :row-height 20
+                    :style {:width 100
+                            :visible-rows {:min 2}}})
+                  (pixils.ui.option-list/make
+                   {:options []
+                    :row-height 20
+                    :style {:width 100
+                            :visible-rows {:max 3}}})
+                  (pixils.ui.option-list/make
+                   {:options []
+                    :row-height 20
+                    :style {:width 100}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+  frame_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 5u);
+  EXPECT_EQ(session.active_mode->children[0]->bounds.h, 102);
+  EXPECT_EQ(session.active_mode->children[1]->bounds.h, 22);
+  EXPECT_EQ(session.active_mode->children[2]->bounds.h, 82);
+  EXPECT_EQ(session.active_mode->children[3]->bounds.h, 2);
+  EXPECT_EQ(session.active_mode->children[4]->bounds.h, 102);
 }
 
 TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
@@ -160,7 +209,7 @@ TEST_F(OptionListTest, option_list_items_fill_themed_container_width)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}]
                     :row-height 10
-                    :visible-rows 2
+                    :style {:visible-rows 2}
                     :item=> 'fixed-width-option})]})
   )");
 

@@ -3,7 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.list-box :as list-box]))
 
-(pixils/defmode root-mode
+(defmode root-mode
   {:init (fn [state ctx]
            {:options [{:value :a :label "Alpha"}
                       {:value :b :label "Beta" :disabled? true}
@@ -19,8 +19,8 @@
              (assoc state :focused? true))
    :on {:list-box/selection-change
         (fn [state event ctx]
-          (assoc (assoc state
-                        :selected (:selected-indices (:payload event)))
+          (assoc state
+                 :selected (:selected-indices (:payload event))
                  :last-change (:payload event)))}
    :on-key-down (fn [state event ctx]
                   (case (:key event)
@@ -28,8 +28,8 @@
                     :default state))
    :children [(list-box/make
                {:options (ui/project-state :options)
-                :style {:width 100}
+                :style {:width 100
+                        :visible-rows 2}
                 :row-height 10
-                :visible-rows 2
                 :force-selection? true
                 :selected-indices (ui/project-state :selected)})]})
