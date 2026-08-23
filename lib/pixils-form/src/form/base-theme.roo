@@ -11,11 +11,11 @@
 
     :pixils.form/body
     {:width :fill
-     :height :shrink}
+     :height :fill}
 
     :pixils.form/fields
     {:width :fill
-     :height :shrink
+     :height :fill
      :layout {:direction :column
               :gap 8}}
 
@@ -141,12 +141,13 @@
 
     :pixils.form/selection
     {:width :fill
-     :height :shrink
+     :height :fill
      :layout {:direction :column
               :gap 4}}
 
     :pixils.form/list-box
     {:width :fill
+     :height :fill
      :visible-rows 5}
 
     :pixils.form/selection-toolbar
@@ -166,20 +167,19 @@
 
     :pixils.form/array-control
     {:width :fill
-     :height :shrink
+     :height :fill
      :layout {:direction :column
               :gap 8}}
 
     :pixils.form/array-content
     {:width :fill
-     :height :shrink
+     :height :fill
      :layout {:direction :row
               :align-items :start
               :gap 8}}
 
     :pixils.form/array-list
-    {:width 220
-     :height 100}
+    {:width 220}
 
     :pixils.form/array-summary
     {:width :fill
@@ -215,7 +215,7 @@
 
     :pixils.form/array-item-form
     {:width :fill
-     :height :shrink}
+     :height :fill}
 
     :pixils.form/array-dialog-body
     {:width :fill

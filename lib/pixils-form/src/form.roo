@@ -332,7 +332,9 @@
     (if field-schema
       (when initial-visible?
         (merge {:mode 'pixils/form-field
-                :class :pixils.form/field
+                :class (form-layout/classes
+                        :pixils.form/field
+                        (-> opts :field/layout :class))
                 :state {:value (ui/project-state :value)
                         :form-value (ui/project-state :value)
                         :form/item-editor-state
@@ -379,7 +381,9 @@
         field-label (:label field-layout)
         base-style (:field-style opts)]
     (merge {:mode 'pixils/form-field
-            :class :pixils.form/field
+            :class (form-layout/classes
+                    :pixils.form/field
+                    (:class field-layout))
             :state {:value (ui/project-state :value)
                     :form-value (ui/project-state :value)
                     :form/item-editor-state

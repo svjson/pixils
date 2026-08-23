@@ -43,6 +43,19 @@
             :label (select-keys label [:class :style])
             :control (select-keys control [:class :style])}))))
 
+(deftest make/applies-field-layout-class
+  (s/when []
+    (let [view (form/make {:schema {:items {:type :array
+                                            :items {:type :text}}}
+                           :layout [[:field.items :items]]
+                           :value {:items ["One"]}})
+          field (-> view :children head :children head :children head)]
+      (select-keys field [:class :style])))
+
+  (s/then [field]
+    (is (= {:class [:pixils.form/field :items]}
+           field))))
+
 (deftest make/renders-slider-field-with-built-in-slider-control
   (let [view (form/make {:schema {:opacity {:type :slider
                                             :min 0

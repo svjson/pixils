@@ -1,0 +1,94 @@
+(ns pixils.form.fixture.array-layout
+  (:require pixils
+            pixils.form.base-theme
+            pixils.ui.theme.classic-blue
+            [pixils.form :as form]))
+
+(deftheme array-layout-probe/theme
+  {:styles
+   {:fill-form {:width :fill
+                :height :fill}
+    :fill-field {:height :fill}
+    :fill-editor {:height :fill}}})
+
+(def array-schema
+  "Schema for the array field used by the layout probe."
+  {:items {:type :array
+           :items {:type :text}}})
+
+(def array-value
+  "Value presented by the array layout probe."
+  {:items ["One" "Two"]})
+
+(def object-array-schema
+  "Schema for the referenced item-editor layout probe."
+  {:definitions
+   {:item {:type :object
+           :fields {:name {:type :text}}}}
+   :schema {:type :object
+            :fields {:items {:type :array
+                             :item-label {:path [:name]}
+                             :items {:ref :item}}}}})
+
+(def object-array-value
+  "Value presented by the referenced item-editor layout probe."
+  {:items [{:name "One"}]})
+
+(defmode fill-array-field-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base
+           'array-layout-probe/theme]
+   :children
+   [(form/make
+     {:schema array-schema
+      :value array-value
+      :class :fill-form
+      :layout [[:field.fill-field :items
+                {:label false
+                 :summary false
+                 :actions false}]]})]})
+
+(defmode shrink-empty-array-field-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base]
+   :children
+   [(form/make
+     {:schema array-schema
+      :value {:items []}
+      :layout [[:field :items
+                {:label false
+                 :summary false
+                 :actions false}]]})]})
+
+(defmode fill-root-array-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base
+           'array-layout-probe/theme]
+   :children
+   [(form/make
+     {:schema {:type :array
+               :items {:type :text}}
+      :value ["One" "Two"]
+      :class :fill-form
+      :layout {:label false
+               :summary false
+               :actions false}})]})
+
+(defmode fill-layout-item-editor-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base
+           'array-layout-probe/theme]
+   :children
+   [(form/make
+     {:schema object-array-schema
+      :value object-array-value
+      :class :fill-form
+      :layout
+      {:root [[:field :items
+               {:label false
+                :summary false
+                :actions false
+                :item-editor {:layout-ref :selected-item}}]
+              {:id :selected-item
+               :class :fill-editor}]
+       :fragments {:item [:name]}}})]})

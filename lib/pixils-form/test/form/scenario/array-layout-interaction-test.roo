@@ -1,0 +1,104 @@
+(ns pixils.form.scenario.array-layout-interaction-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+
+
+;; Array field layout
+
+(deftest array-field/fills-from-one-themed-field-boundary
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/array-layout.roo")
+      (runtime/push-mode! app 'fill-array-field-probe)
+      (runtime/settle-layout! app)
+      (let [field (runtime/find-view app "pixils/form-field")
+            array-control (runtime/find-view app "pixils/form-array-control")
+            selection (runtime/find-view app "pixils/form-selection")
+            list-box (runtime/find-view app "ui/list-box")]
+        {:effective-heights
+         (for [view [field array-control selection list-box]]
+           (-> view :effective-style :height))
+         :bounds-heights
+         (for [view [field array-control selection list-box]]
+           (-> view :bounds :h))})))
+
+  (s/then [result]
+    (is (= {:effective-heights [:fill :fill :fill :fill]
+            :bounds-heights [240 240 240 240]}
+           result))))
+
+(deftest array-field/keeps-visible-rows-at-a-shrink-boundary
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/array-layout.roo")
+      (runtime/push-mode! app 'shrink-empty-array-field-probe)
+      (runtime/settle-layout! app)
+      (let [form (runtime/find-view app "pixils/form")
+            field (runtime/find-view app "pixils/form-field")
+            array-control (runtime/find-view app "pixils/form-array-control")
+            list-box (runtime/find-view app "ui/list-box")]
+        {:effective-heights
+         (for [view [form field array-control list-box]]
+           (-> view :effective-style :height))
+         :bounds-heights
+         (for [view [form field array-control list-box]]
+           (-> view :bounds :h))})))
+
+  (s/then [result]
+    (is (= {:effective-heights [:shrink :shrink :fill :fill]
+            :bounds-heights [102 102 102 102]}
+           result))))
+
+(deftest root-array/fills-from-form-boundary
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/array-layout.roo")
+      (runtime/push-mode! app 'fill-root-array-probe)
+      (runtime/settle-layout! app)
+      (let [form (runtime/find-view app "pixils/form")
+            array-control (runtime/find-view app "pixils/form-array-control")
+            list-box (runtime/find-view app "ui/list-box")]
+        {:effective-heights
+         (for [view [form array-control list-box]]
+           (-> view :effective-style :height))
+         :bounds-heights
+         (for [view [form array-control list-box]]
+           (-> view :bounds :h))})))
+
+  (s/then [result]
+    (is (= {:effective-heights [:fill :fill :fill]
+            :bounds-heights [240 240 208]}
+           result))))
+
+(deftest layout-item-editor/fills-nested-form-from-one-themed-boundary
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "assets/roo/pixils/form/fixture/array-layout.roo")
+      (runtime/push-mode! app 'fill-layout-item-editor-probe)
+      (runtime/settle-layout! app)
+      (let [editor (runtime/find-view app "pixils/form-layout-item-editor")
+            forms (runtime/find-views app "pixils/form")
+            item-form (nth forms 1)]
+        {:effective-heights [(-> editor :effective-style :height)
+                             (-> item-form :effective-style :height)]
+         :bounds-heights [(-> editor :bounds :h)
+                          (-> item-form :bounds :h)]})))
+
+  (s/then [result]
+    (is (= {:effective-heights [:fill :fill]
+            :bounds-heights [130 130]}
+           result))))
