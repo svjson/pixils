@@ -26,24 +26,18 @@
                   (rect/contains? (:visual-bounds child) point)))))
 
 (defun set-active-index!
-  "Set the active menu-bar item and refresh every item highlight.
+  "Set the active index on the menu bar and its item views.
 
   Args:
   - `ctx`: Menu-bar hook context.
   - `active-index`: Active top-level item index, or `nil`.
 
   Returns:
-  `nil` after updating the menu bar and its item views."
+  `nil` after synchronizing the active index."
   [ctx active-index]
   (ui/update-ui-state! ctx assoc :active-index active-index)
   (doseq [child (-> ctx :view ui/children)]
-    (let [ui-state (assoc (:ui-state child) :active-index active-index)]
-      (ui/set-ui-state! child
-                        (assoc ui-state
-                               :highlighted
-                               (menu-bar-item/highlighted?
-                                ui-state
-                                (-> child :interaction :hovered)))))))
+    (ui/update-ui-state! child assoc :active-index active-index)))
 
 (defun open-popup-at-index!
   "Open an enabled top-level submenu by index.

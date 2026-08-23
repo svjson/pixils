@@ -1,5 +1,5 @@
 (ns pixils.ui.menu-bar-item
-  "Handles top-level menu interaction and derives highlighted state."
+  "Handles top-level menu interaction and logical highlighting."
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.menu-model :as model]))
@@ -12,45 +12,18 @@
    :active-index
    :highlighted])
 
-(defun highlighted?
-  "Determine whether a top-level menu item is highlighted.
-
-  Args:
-  - `ui-state`: Current menu-item UI state.
-  - `hovered`: Whether native interaction state marks the item as hovered.
-
-  Returns:
-  `true` when pointer hover or the active menu index highlights the item."
-  [ui-state hovered]
-  (and (not (:disabled? ui-state))
-       (if (nil? (:active-index ui-state))
-         hovered
-         (= (:menu-index ui-state)
-            (:active-index ui-state)))))
-
-(defun update-highlight
-  "Update derived highlighting from menu and native interaction state.
-
-  Args:
-  - `ui-state`: Current menu-item UI state.
-  - `state`: Ignored application state.
-  - `ctx`: Menu-item update context.
-
-  Returns:
-  The original UI state when highlighting is unchanged, otherwise updated UI
-  state."
-  [ui-state _state ctx]
-  (let [highlighted (highlighted?
-                     ui-state
-                     (-> ctx :view :interaction :hovered))]
-    (if (= highlighted (:highlighted ui-state))
-      ui-state
-      (assoc ui-state :highlighted highlighted))))
-
 (defcomponent ui/menu-bar-item
   {:class :menu/item
    :ui/state-keys UI-STATE-KEYS
-   :update-ui update-highlight
+   :ui/models
+   [{:owns [:highlighted]
+     :depends-on [:menu-index :active-index :disabled?]
+     :transition
+     (fn [_current candidate _changed-keys]
+       {:highlighted (and (not (:disabled? candidate))
+                          (some? (:active-index candidate))
+                          (= (:menu-index candidate)
+                             (:active-index candidate)))})}]
    :on-mouse-down
    (fn [state event ctx]
      (let [ui-state (-> ctx :view :ui-state)

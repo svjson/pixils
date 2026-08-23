@@ -35,25 +35,6 @@
             :ui-state (:ui-state spec)
             :children (:children spec)}))))
 
-
-
-;; pixils.ui.menu-bar-item/highlighted?
-
-(deftest highlighted?/uses-hover-until-a-menu-is-active
-  (is (= [true
-          false
-          true
-          false
-          false]
-         (for [[ui-state hovered]
-               [[{:menu-index 1} true]
-                [{:menu-index 1} false]
-                [{:menu-index 1 :active-index 1} false]
-                [{:menu-index 1 :active-index 0} true]
-                [{:menu-index 1 :disabled? true} true]]]
-           (menu-bar-item/highlighted? ui-state hovered)))))
-
-
 
 ;; pixils.ui/menu-bar-item
 
@@ -86,7 +67,7 @@
 
   (s/then [result]
     (is (= true (:hovered result)))
-    (is (= true (:highlighted result)))
+    (is (= false (:highlighted result)))
     (is (not= (:background-before result)
               (:background-after result)))))
 
@@ -119,12 +100,7 @@
                             1
                             1)
     (runtime/update! app)
-    {:mode (runtime/active-mode-name app)
-     :ui-state (select-keys
-                (:ui-state (runtime/find-view app "ui/menu-bar-item"))
-                [:highlighted])})
+    (runtime/active-mode-name app))
 
-  (s/then [result]
-    (is (= {:mode "menu-static-root"
-            :ui-state {:highlighted true}}
-           result))))
+  (s/then [mode]
+    (is (= "menu-static-root" mode))))

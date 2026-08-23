@@ -934,6 +934,11 @@
              :text {:color (var :text)
                     :marked-style {:color (var :text)}}}
 
+            '(ui/menu-bar-item:hover {:active-index nil})
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)
+                    :marked-style {:color (var :focus-text)}}}
+
             '(ui/menu-bar-item {:highlighted true})
             {:background (var :focus-bg)
              :text {:color (var :focus-text)

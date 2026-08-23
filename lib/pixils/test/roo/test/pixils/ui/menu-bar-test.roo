@@ -203,26 +203,35 @@
             after-first (for [item items]
                           (= selected-background
                              (-> item :effective-style :background)))]
-        (runtime/mouse-down-in! app (nth items 1) 1 1)
+        (runtime/mouse-move-in! app (nth items 1) 1 1)
         (runtime/update! app)
         (runtime/render! app)
-        (let [after-second (for [item items]
-                             (= selected-background
-                                (-> item :effective-style :background)))]
-          (runtime/mouse-down-in! app (nth items 2) 1 1)
+        (let [after-hovering-second
+              (for [item items]
+                (= selected-background
+                   (-> item :effective-style :background)))]
+          (runtime/mouse-down-in! app (nth items 1) 1 1)
           (runtime/update! app)
           (runtime/render! app)
-          {:selected-background-differs? (not= normal-background
-                                                  selected-background)
-           :after-first after-first
-           :after-second after-second
-           :after-third (for [item items]
-                          (= selected-background
-                             (-> item :effective-style :background)))}))))
+          (let [after-second (for [item items]
+                               (= selected-background
+                                  (-> item :effective-style :background)))]
+            (runtime/mouse-down-in! app (nth items 2) 1 1)
+            (runtime/update! app)
+            (runtime/render! app)
+            {:selected-background-differs? (not= normal-background
+                                                    selected-background)
+             :after-first after-first
+             :after-hovering-second after-hovering-second
+             :after-second after-second
+             :after-third (for [item items]
+                            (= selected-background
+                               (-> item :effective-style :background)))})))))
 
   (s/then [result]
     (is (= {:selected-background-differs? true
             :after-first [true false false]
+            :after-hovering-second [true false false]
             :after-second [false true false]
             :after-third [false false true]}
            result))))
