@@ -127,23 +127,24 @@
         (selection/actions-for-presentation selection :context-menu)
         item-provider (unless (empty? context-menu-actions)
                         (item=> context-menu-actions (:field-id selection)))
+        list-style (cond-> (or (:list-style selection)
+                               (:selection-list-style opts)
+                               {})
+                           (contains? selection :visible-rows)
+                           (assoc :visible-rows (:visible-rows selection)))
         list-box-view
         (list-box/make
          (merge {:class (form-layout/classes
-                         :pixils/form-selection-list-box
+                         :pixils.form/list-box
                          (:list-class selection))
                  :options (ui/bind-state :options)
                  :selected-indices (ui/bind-state :selected-indices)
                  :disabled? (ui/project-state :disabled?)
                  :force-selection? false
                  :row-height (:row-height selection)
-                 :visible-rows (:visible-rows selection)
-                 :fixed-visible-rows? (:fixed-visible-rows? selection)
                  :reorderable? (ui/bind-state :reorderable?)
                  :item=> item-provider}
-                (form-layout/style-map
-                 (or (:list-style selection)
-                     (:selection-list-style opts)))))
+                (form-layout/style-map list-style)))
         children (if (empty? toolbar-actions)
                    [list-box-view]
                    [list-box-view (toolbar-view selection opts toolbar-actions)])]

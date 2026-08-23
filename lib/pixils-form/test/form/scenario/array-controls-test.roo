@@ -31,7 +31,9 @@
         action-row (nth (:children array-control) 1)]
     (is (= {:array {:mode 'pixils/form-array-control :child-count 2}
             :selection {:mode 'pixils/form-selection :item-label {:path [:relation]}}
-            :list-box {:visible-rows 5 :fixed-visible-rows? true}
+            :list-box {:class [:pixils.form/list-box
+                               :pixils.form/array-list-box]
+                       :style {}}
             :summary {:mode 'pixils/form-array-summary
                       :specs [{:label "Relation" :path [:relation]}
                               {:label "Priority" :path [:priority]}]}
@@ -40,8 +42,7 @@
                     :child-count (count (:children array-control))}
             :selection {:mode (:mode selection-view)
                         :item-label (-> selection-view :state :item-label)}
-            :list-box (select-keys (-> list-box :state :component)
-                                   [:visible-rows :fixed-visible-rows?])
+            :list-box (select-keys list-box [:class :style])
             :summary {:mode (:mode summary-view) :specs (-> summary-view :state :specs)}
             :action-count (count (:children action-row))}))))
 

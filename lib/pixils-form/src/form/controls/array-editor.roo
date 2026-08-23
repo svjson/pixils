@@ -373,7 +373,7 @@
 
 (defun open-selection-new-dialog! [state ctx dialog]
   (let [value (form-state/new-form-value state)
-        opts (assoc (or (:form/render-opts state) {})
+        opts (assoc (:form/render-opts state)
                     :schema (:schema state)
                     :value value
                     :context (:context state)
@@ -698,26 +698,25 @@
         context-menu-actions
         (selection/actions-for-presentation {:actions actions} :context-menu)
         item-opts (item-form-options field-id field-schema opts)
+        selection-opts
+        (cond->
+         {:item-label item-label
+          :class :pixils/form-array-list
+          :list-class :pixils.form/array-list-box
+          :style (:array-list-style opts)
+          :list-style (:array-list-box-style opts)
+          :row-height (:row-height field-layout)
+          :reorderable? (ui/bind-state :reorderable?)
+          :disabled? (ui/project-state :read-only?)
+          :activate-event (when (nil? item-editor-id)
+                            :form/edit-item)
+          :field-id field-id
+          :actions context-menu-actions}
+          (contains? field-layout :visible-rows)
+          (assoc :visible-rows (:visible-rows field-layout)))
         selection-view
         (apply (:selection=> opts)
-               [{:item-label item-label
-                 :class :pixils/form-array-list
-                 :list-class :pixils/form-array-list-box
-                 :style (:array-list-style opts)
-                 :list-style (:array-list-box-style opts)
-                 :row-height (:row-height field-layout)
-                 :visible-rows (or (:visible-rows field-layout) 5)
-                 :fixed-visible-rows?
-                 (if (contains? field-layout :fixed-visible-rows?)
-                   (:fixed-visible-rows? field-layout)
-                   true)
-                 :reorderable? (ui/bind-state :reorderable?)
-                 :disabled? (ui/project-state :read-only?)
-                 :activate-event (when (nil? item-editor-id)
-                                   :form/edit-item)
-                 :field-id field-id
-                 :actions context-menu-actions}
-                opts])
+               [selection-opts opts])
         content-children (cond-> [selection-view]
                            (and (nil? item-editor-id)
                                 (not= false (:summary field-layout)))
