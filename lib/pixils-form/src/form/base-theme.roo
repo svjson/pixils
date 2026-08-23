@@ -181,10 +181,6 @@
     {:width 220
      :height 100}
 
-    :pixils.form/array-list-box
-    {:width :fill
-     :height :fill}
-
     :pixils.form/array-summary
     {:width :fill
      :height :shrink
