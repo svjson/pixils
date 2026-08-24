@@ -7,6 +7,29 @@
 
 using FrameCycleTest = RenderFixture;
 
+namespace
+{
+  void expect_active_frame_state(Pixils::Runtime::Session& session,
+                                 const std::string& mode_name,
+                                 const std::string& marker,
+                                 const std::string& changed_key)
+  {
+    ASSERT_NE(session.active_mode, nullptr);
+    ASSERT_NE(session.active_mode->definition, nullptr);
+    EXPECT_EQ(session.active_mode->definition->name, mode_name);
+
+    auto actual_marker =
+      Roo::Dict::get_property(session.active_mode->state, Roo::keyword("marker"));
+    ASSERT_NE(actual_marker, nullptr);
+    EXPECT_EQ(actual_marker->str(), marker);
+
+    auto changed =
+      Roo::Dict::get_property(session.active_mode->state, Roo::keyword(changed_key));
+    ASSERT_NE(changed, nullptr);
+    EXPECT_TRUE(Roo::is_truthy(*changed));
+  }
+} // namespace
+
 TEST_F(FrameCycleTest, init_hook_sets_initial_state)
 {
   // Given
@@ -121,4 +144,54 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
   ASSERT_EQ(ops.size(), 1u);
   EXPECT_EQ(ops[0].rendered_rect.w, 1);
   EXPECT_EQ(ops[0].rendered_rect.h, 1);
+}
+
+TEST_F(FrameCycleTest, three_deep_render_composition_preserves_underlying_frame_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode bottom-mode
+      {:after-layout (fn [state ctx] (assoc state :render-synced? true))})
+    (pixils/defmode middle-mode
+      {:compose {:render :pass}
+       :after-layout (fn [state ctx] (assoc state :render-synced? true))})
+    (pixils/defmode top-mode
+      {:compose {:render :pass}})
+  )");
+
+  session.push_mode("bottom-mode", runtime.eval("{:marker \"bottom\"}"));
+  session.push_mode("middle-mode", runtime.eval("{:marker \"middle\"}"));
+  session.push_mode("top-mode", runtime.eval("{:marker \"top\"}"));
+
+  session.render_mode();
+
+  session.pop_mode();
+  expect_active_frame_state(session, "middle-mode", "middle", "render-synced?");
+
+  session.pop_mode();
+  expect_active_frame_state(session, "bottom-mode", "bottom", "render-synced?");
+}
+
+TEST_F(FrameCycleTest, three_deep_update_composition_preserves_underlying_frame_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode bottom-mode
+      {:update (fn [state ctx] (assoc state :updated? true))})
+    (pixils/defmode middle-mode
+      {:compose {:update :pass}
+       :update (fn [state ctx] (assoc state :updated? true))})
+    (pixils/defmode top-mode
+      {:compose {:update :pass}})
+  )");
+
+  session.push_mode("bottom-mode", runtime.eval("{:marker \"bottom\"}"));
+  session.push_mode("middle-mode", runtime.eval("{:marker \"middle\"}"));
+  session.push_mode("top-mode", runtime.eval("{:marker \"top\"}"));
+
+  session.update_mode();
+
+  session.pop_mode();
+  expect_active_frame_state(session, "middle-mode", "middle", "updated?");
+
+  session.pop_mode();
+  expect_active_frame_state(session, "bottom-mode", "bottom", "updated?");
 }

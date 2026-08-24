@@ -13,15 +13,19 @@
  * that invokes render hooks - SDL draw calls will be recorded on the mock
  * renderer's render target and can be inspected via render_target().
  */
-class RenderFixture : public SessionFixture
+class SDLMockCleanup
+{
+ protected:
+  ~SDLMockCleanup() { SDL3Mock::reset_mocks(); }
+};
+
+class RenderFixture : private SDLMockCleanup, public SessionFixture
 {
  protected:
   RenderFixture()
     : SessionFixture(make_render_context())
   {
   }
-
-  void TearDown() override { SDL3Mock::reset_mocks(); }
 
   SDL_Texture* render_target() { return render_ctx.renderer->render_target; }
 

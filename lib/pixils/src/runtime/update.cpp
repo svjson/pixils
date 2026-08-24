@@ -62,7 +62,7 @@ namespace Pixils::Runtime
         ctx.set_state_if_changed(
           invoke_hook(roo_runtime, view, ctx.definition->update, rargs, ctx.state));
       }
-      mode_stack.update_state(ctx.state, update_stack.size() - i);
+      mode_stack.update_state(ctx.state, i);
 
       ctx.drain_events(emitted_events);
     }

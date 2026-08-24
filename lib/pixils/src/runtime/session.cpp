@@ -853,19 +853,19 @@ namespace Pixils::Runtime
                                                                empty_focus_state,
                                                                current_mouse_pos(hook_args),
                                                                roo_runtime);
-        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, i);
       }
       if (Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
                                        full,
                                        roo_runtime,
                                        hook_args.render_args[1]))
       {
-        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, i);
       }
       if (frame_meta_idx < frame_metadata.size() &&
           apply_overlay_placement(ctx_stack[ctx_idx], frame_metadata[frame_meta_idx], full))
       {
-        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, i);
       }
       Pixils::UI::render_view(render_ctx,
                               roo_runtime,

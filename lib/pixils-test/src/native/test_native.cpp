@@ -1,5 +1,6 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/console.h>
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
@@ -64,13 +65,13 @@ namespace
   class SharedRenderBackend
   {
    public:
-    SDL_Window* window = nullptr;
+    SDL_Surface* surface = nullptr;
     SDL_Renderer* renderer = nullptr;
 
     ~SharedRenderBackend()
     {
       if (renderer) SDL_DestroyRenderer(renderer);
-      if (window) SDL_DestroyWindow(window);
+      if (surface) SDL_DestroySurface(surface);
     }
 
     bool ensure(int width, int height)
@@ -79,19 +80,12 @@ namespace
       if (attempted) return false;
       attempted = true;
 
-      if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0 &&
-          !SDL_InitSubSystem(SDL_INIT_VIDEO))
-      {
-        return false;
-      }
+      surface = SDL_CreateSurface(std::max(1, width),
+                                  std::max(1, height),
+                                  SDL_PIXELFORMAT_RGBA8888);
+      if (!surface) return false;
 
-      window = SDL_CreateWindow("pixils-test",
-                                std::max(1, width),
-                                std::max(1, height),
-                                SDL_WINDOW_HIDDEN);
-      if (!window) return false;
-
-      renderer = SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER);
+      renderer = SDL_CreateSoftwareRenderer(surface);
       return renderer != nullptr;
     }
 
@@ -118,16 +112,6 @@ namespace
 
     explicit TestApp(const AppTarget& target)
       : hook_ctx{&events, &render_ctx}
-      , runtime(Pixils::make_roo_runtime(render_ctx,
-                                            "pixils.test.runtime.fixture",
-                                            [&target](Pixils::RuntimeConfiguration* cfg)
-                                            {
-                                              cfg->load_path = target.load_path;
-                                              cfg->namespace_roots = target.namespace_roots;
-                                              cfg->asset_base_path =
-                                                target.asset_base_path.string();
-                                            },
-                                            {}))
       , hook_args{Pixils::Script::HookContextAdapter::make_ref(hook_ctx)}
     {
       render_ctx.buffer_dim = {target.buffer_width, target.buffer_height};
@@ -136,7 +120,6 @@ namespace
       auto& backend = shared_render_backend();
       if (target.render_backend && backend.ensure(target.buffer_width, target.buffer_height))
       {
-        render_ctx.window = backend.window;
         render_ctx.renderer = backend.renderer;
         render_ctx.buffer_texture =
           Pixils::create_texture_nearest(render_ctx.renderer,
@@ -149,23 +132,43 @@ namespace
           SDL_SetTextureBlendMode(render_ctx.buffer_texture, SDL_BLENDMODE_BLEND);
           render_ctx.set_render_target(render_ctx.buffer_texture);
         }
-	          }
+      }
 
-	      if (target.package_plan.has_value())
-	      {
-	        native_packages =
-	          Roo::Package::load_native_libraries(*runtime, *target.package_plan);
-	      }
+      runtime = Pixils::make_roo_runtime(render_ctx,
+                                         "pixils.test.runtime.fixture",
+                                         [&target](Pixils::RuntimeConfiguration* cfg)
+                                         {
+                                           cfg->load_path = target.load_path;
+                                           cfg->namespace_roots = target.namespace_roots;
+                                           cfg->asset_base_path =
+                                             target.asset_base_path.string();
+                                         },
+                                         {});
 
-	      if (!render_ctx.asset_registry)
-	      {
-	        render_ctx.asset_registry =
+      if (!render_ctx.asset_registry)
+      {
+        render_ctx.asset_registry =
           std::make_unique<Pixils::Asset::Registry>(render_ctx,
                                                     target.asset_base_path.string());
       }
       if (!render_ctx.font_registry)
       {
         render_ctx.font_registry = std::make_unique<Pixils::FontRegistry>();
+      }
+
+      if (render_ctx.renderer)
+      {
+        render_ctx.font_registry->register_font(
+          "font/console",
+          render_ctx.asset_registry->get_image("pixils", "console-font"),
+          render_ctx.asset_registry->get_tint_mask("pixils", "console-font"),
+          Pixils::console_font_map);
+      }
+
+      if (target.package_plan.has_value())
+      {
+        native_packages =
+          Roo::Package::load_native_libraries(*runtime, *target.package_plan);
       }
 
       session = std::make_unique<Pixils::Runtime::Session>(*runtime,
