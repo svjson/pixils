@@ -27,6 +27,13 @@
 (defun popup-app []
   (open-popup-app 'popup-keyboard-root))
 
+(defun keyboard-submenu-app []
+  (let [app (open-popup-app 'popup-submenu-indicator-root)]
+    (runtime/press-key! app :down)
+    (runtime/press-key! app :right)
+    (runtime/settle-layout! app)
+    app))
+
 
 
 ;; pixils.ui.popup-menu/position
@@ -45,22 +52,23 @@
 
 
 
-;; pixils.ui.popup-menu/selected-indices
+;; pixils.ui.popup-menu/item-checked?
 
-(deftest selected-indices/derives-option-and-toggle-markers
-  (is (= [0 2]
-         (popup-menu/selected-indices
-          [{:item-type :option
-            :value :dark
-            :selected-path [:preferences :theme]}
-           {:item-type :option
-            :value :light
-            :selected-path [:preferences :theme]}
-           {:item-type :toggle
-            :selected-path [:preferences :snap]}
-           {:item-type :action}]
-          {:preferences {:theme :dark
-                         :snap true}}))))
+(deftest item-checked?/derives-option-and-toggle-state
+  (is (= [true false true false]
+         (for [item [{:item-type :option
+                      :value :dark
+                      :selected-path [:preferences :theme]}
+                     {:item-type :option
+                      :value :light
+                      :selected-path [:preferences :theme]}
+                     {:item-type :toggle
+                      :selected-path [:preferences :snap]}
+                     {:item-type :action}]]
+           (popup-menu/item-checked?
+            item
+            {:preferences {:theme :dark
+                           :snap true}})))))
 
 
 
@@ -146,6 +154,54 @@
                               :highlighted true}]}
            result))))
 
+(deftest popup-menu-inner/gives-precedence-to-the-most-recent-input-source
+  (s/given
+    (popup-app))
+
+  (s/when [app]
+    (let [inner (runtime/find-view app "ui/popup-menu-inner")
+          items (runtime/find-views app "ui/popup-menu-item")
+          first-item (head items)]
+      (runtime/mouse-move-in! app first-item 2 2)
+      (runtime/update! app)
+      (runtime/settle-layout! app)
+      (let [after-mouse
+            {:navigation (select-keys (:ui-state inner)
+                                      [:input-source :active-index])
+             :highlights (for [item items]
+                           (-> item :ui-state :highlighted))}]
+        (runtime/press-key! app :down)
+        (let [after-keyboard
+              {:navigation (select-keys (:ui-state inner)
+                                        [:input-source :active-index])
+               :highlights (for [item items]
+                             (-> item :ui-state :highlighted))}]
+          (runtime/mouse-move-in! app first-item 3 2)
+          (runtime/update! app)
+          (runtime/settle-layout! app)
+          {:after-mouse after-mouse
+           :after-keyboard after-keyboard
+           :after-mouse-return
+           {:navigation (select-keys (:ui-state inner)
+                                     [:input-source :active-index])
+            :highlights (for [item items]
+                          (-> item :ui-state :highlighted))}}))))
+
+  (s/then [result]
+    (is (= {:after-mouse
+            {:navigation {:input-source :mouse
+                          :active-index 0}
+             :highlights [true false false]}
+            :after-keyboard
+            {:navigation {:input-source :keyboard
+                          :active-index 3}
+             :highlights [false false true]}
+            :after-mouse-return
+            {:navigation {:input-source :mouse
+                          :active-index 0}
+             :highlights [true false false]}}
+           result))))
+
 (deftest popup-menu-inner/enter-activates-the-keyboard-highlight
   (s/given
     (popup-app))
@@ -161,6 +217,82 @@
     (is (= {:mode "popup-keyboard-root"
             :last-action {:action :file/save
                           :payload {:source :keyboard}}}
+           result))))
+
+(deftest popup-menu-inner/left-closes-only-the-nested-popup
+  (s/given
+    (keyboard-submenu-app))
+
+  (s/when [app]
+    (let [nested-labels (keep (runtime/find-views app "ui/text")
+                              (fn [text]
+                                (let [value (-> text :state :value)]
+                                  (unless (empty? value)
+                                    value))))]
+      (runtime/press-key! app :left)
+      (runtime/settle-layout! app)
+      {:nested-labels nested-labels
+       :mode (runtime/active-mode-name app)
+       :parent-labels (keep (runtime/find-views app "ui/text")
+                            (fn [text]
+                              (let [value (-> text :state :value)]
+                                (unless (empty? value)
+                                  value))))}))
+
+  (s/then [result]
+    (is (= {:nested-labels ["Map"]
+            :mode "ui/popup-menu"
+            :parent-labels ["Recent" "Open"]}
+           result))))
+
+(deftest popup-menu-inner/enter-activates-a-nested-keyboard-highlight
+  (s/given
+    (keyboard-submenu-app))
+
+  (s/when [app]
+    (runtime/press-key! app :enter)
+    {:mode (runtime/active-mode-name app)
+     :last-action (:last-action (runtime/active-state app))})
+
+  (s/then [result]
+    (is (= {:mode "popup-submenu-indicator-root"
+            :last-action {:action :file/open-recent
+                          :payload nil}}
+           result))))
+
+(deftest popup-menu-inner/escape-cancels-the-stack-from-a-nested-popup
+  (s/given
+    (keyboard-submenu-app))
+
+  (s/when [app]
+    (runtime/press-key! app :escape)
+    {:mode (runtime/active-mode-name app)
+     :menu-bar-label (-> (runtime/find-view app "ui/text")
+                         :state
+                         :value)})
+
+  (s/then [result]
+    (is (= {:mode "popup-submenu-indicator-root"
+            :menu-bar-label "File"}
+           result))))
+
+(deftest popup-menu-inner/opens-a-nested-popup-at-the-effective-scale
+  (s/given
+    (open-popup-app 'popup-scaled-submenu-root))
+
+  (s/when [app]
+    (let [parent-scale (-> (runtime/active-mode app) :visual-scale)]
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :right)
+      (runtime/settle-layout! app)
+      {:mode (runtime/active-mode-name app)
+       :parent-scale parent-scale
+       :nested-scale (-> (runtime/active-mode app) :visual-scale)}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :parent-scale 2
+            :nested-scale 2}
            result))))
 
 (deftest popup-menu-inner/inherits-the-theme-font
@@ -179,6 +311,28 @@
 
 ;; pixils.ui/popup-menu-item
 
+(deftest popup-menu-item/keeps-checked-state-independent-from-navigation
+  (s/given
+    (open-popup-app 'popup-checkable-root))
+
+  (s/when [app]
+    (let [item (runtime/find-view app "ui/popup-menu-option-item")
+          before (select-keys (:ui-state item)
+                              [:checked? :selected :highlighted])]
+      (runtime/press-key! app :down)
+      {:before before
+       :after (select-keys (:ui-state item)
+                           [:checked? :selected :highlighted])}))
+
+  (s/then [result]
+    (is (= {:before {:checked? true
+                     :selected false
+                     :highlighted false}
+            :after {:checked? true
+                    :selected false
+                    :highlighted true}}
+           result))))
+
 (deftest popup-menu-item/click-activates-the-row-through-option-item
   (s/given
     (popup-app))
@@ -192,6 +346,31 @@
     (is (= {:mode "popup-keyboard-root"
             :last-action {:action :file/open
                           :payload nil}}
+           result))))
+
+(deftest popup-menu-item/mouse-down-opens-a-submenu-without-a-selection
+  (s/given
+    (open-popup-app 'popup-submenu-indicator-root))
+
+  (s/when [app]
+    (runtime/press-key! app :down)
+    (runtime/mouse-down-in! app
+                            (head (runtime/find-views
+                                   app
+                                   "ui/popup-menu-item"))
+                            2
+                            2)
+    (runtime/update! app)
+    (runtime/settle-layout! app)
+    (let [inner (runtime/find-view app "ui/popup-menu-inner")]
+      {:mode (runtime/active-mode-name app)
+       :navigation {:input-source (-> inner :ui-state :input-source)
+                    :active-index (-> inner :ui-state :active-index)}}))
+
+  (s/then [result]
+    (is (= {:mode "ui/popup-menu"
+            :navigation {:input-source :mouse
+                         :active-index nil}}
            result))))
 
 (deftest popup-menu-item/highlights-hover-in-the-windows-3-theme

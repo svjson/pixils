@@ -66,9 +66,9 @@ TEST_F(PopupMenuTest, classic_blue_menu_option_indicator_uses_theme_text)
       {:theme 'pixils/classic-blue
        :style {:layout {:direction :row}}
        :children [{:mode 'ui/menu-option-indicator
-                   :state {:selected true}}
+                   :state {:checked? true}}
                   {:mode 'ui/menu-option-indicator
-                   :state {:selected false}}]})
+                   :state {:checked? false}}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -77,22 +77,22 @@ TEST_F(PopupMenuTest, classic_blue_menu_option_indicator_uses_theme_text)
 
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 2u);
-  auto selected_indicator = session.active_mode->children[0];
-  auto unselected_indicator = session.active_mode->children[1];
-  ASSERT_NE(selected_indicator, nullptr);
-  ASSERT_NE(unselected_indicator, nullptr);
-  EXPECT_EQ(selected_indicator->definition->name, "ui/menu-option-indicator");
-  EXPECT_EQ(unselected_indicator->definition->name, "ui/menu-option-indicator");
-  ASSERT_TRUE(selected_indicator->effective_style.text.has_value());
-  ASSERT_TRUE(selected_indicator->effective_style.text->font.has_value());
-  EXPECT_EQ(*selected_indicator->effective_style.text->font, "font/classic-blue-font");
-  ASSERT_TRUE(selected_indicator->effective_theme.default_variant.has_value());
-  EXPECT_EQ(*selected_indicator->effective_theme.default_variant, "dark");
-  ASSERT_TRUE(selected_indicator->effective_theme.vars.count("dark") > 0);
+  auto checked_indicator = session.active_mode->children[0];
+  auto unchecked_indicator = session.active_mode->children[1];
+  ASSERT_NE(checked_indicator, nullptr);
+  ASSERT_NE(unchecked_indicator, nullptr);
+  EXPECT_EQ(checked_indicator->definition->name, "ui/menu-option-indicator");
+  EXPECT_EQ(unchecked_indicator->definition->name, "ui/menu-option-indicator");
+  ASSERT_TRUE(checked_indicator->effective_style.text.has_value());
+  ASSERT_TRUE(checked_indicator->effective_style.text->font.has_value());
+  EXPECT_EQ(*checked_indicator->effective_style.text->font, "font/classic-blue-font");
+  ASSERT_TRUE(checked_indicator->effective_theme.default_variant.has_value());
+  EXPECT_EQ(*checked_indicator->effective_theme.default_variant, "dark");
+  ASSERT_TRUE(checked_indicator->effective_theme.vars.count("dark") > 0);
   ASSERT_TRUE(
-    selected_indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
+    checked_indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
   auto indicator_var =
-    selected_indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
+    checked_indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
   ASSERT_NE(indicator_var, nullptr);
   EXPECT_EQ(indicator_var->to_string(), "{:selected-text \"[x]\" :unselected-text \"[ ]\"}");
 }
@@ -102,7 +102,7 @@ TEST_F(PopupMenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   runtime.eval(R"(
     (pixils/defmode root-mode
       {:children [{:mode 'ui/menu-option-indicator
-                   :state {:selected true}}]})
+                   :state {:checked? true}}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);
@@ -162,7 +162,7 @@ TEST_F(PopupMenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symb
       {:theme 'pixils/windows-3
        :theme-variant :dark
        :children [{:mode 'ui/menu-option-indicator
-                   :state {:selected true}}]})
+                   :state {:checked? true}}]})
   )");
 
   session.push_mode("root-mode", Roo::Constant::NIL);

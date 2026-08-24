@@ -735,3 +735,5 @@
      :text {:color (var :text)}
      :background (var :surface)
      :border (var :inset-border-style)}}})
+
+(deftheme pixils/base-theme definition)

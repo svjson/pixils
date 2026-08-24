@@ -23,6 +23,14 @@
                     {:label "Open"
                      :action :file/open}]}]})
 
+(def checkable-menu
+  {:items [{:label "File"
+            :items [{:label "Snap"
+                     :type :toggle
+                     :selected-path [:preferences :snap?]}
+                    {:label "Open"
+                     :action :file/open}]}]})
+
 (def context-menu
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Rename"
@@ -62,8 +70,26 @@
 
 (pixils/defmode popup-submenu-indicator-root
   {:theme 'pixils/classic-blue
+   :init (fn [_state _ctx]
+           {:last-action nil})
+   :on {:file/open-recent
+        (fn [state event _ctx]
+          (assoc state :last-action {:action :file/open-recent
+                                     :payload (:payload event)}))}
    :children [(menu-bar/make
                {}
+               submenu-indicator-menu
+               {})]})
+
+(pixils/defmode popup-checkable-root
+  {:children [(menu-bar/make
+               {:state {:preferences {:snap? true}}}
+               checkable-menu
+               {})]})
+
+(pixils/defmode popup-scaled-submenu-root
+  {:children [(menu-bar/make
+               {:style {:scale 2}}
                submenu-indicator-menu
                {})]})
 

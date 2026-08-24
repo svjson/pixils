@@ -61,10 +61,7 @@
       (popup/open-at-view! node
                            (merge state
                                   ui-state
-                                  {:input-source input-source
-                                   :menu-scale
-                                   (or (-> ctx :view :effective-style :scale)
-                                       (-> ctx :view :style :scale))})
+                                  {:input-source input-source})
                            child-view
                            :below))))
 

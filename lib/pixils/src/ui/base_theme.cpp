@@ -1,18 +1,18 @@
 #include "pixils/ui/base_theme.h"
 
-#include <pixils/binding/ui/style/theme_definition.h>
+#include <pixils/binding/pixils_namespace.h>
 
-#include <roo/context.h>
+#include <roo/exception.h>
 #include <roo/namespace.h>
 #include <roo/runtime.h>
-#include <optional>
+#include <roo/runtime/dict.h>
 #include <string>
 
 namespace Pixils::UI
 {
   namespace
   {
-    constexpr const char* BASE_THEME_DEFINITION = "pixils.ui.base-theme/definition";
+    constexpr const char* BASE_THEME_NAME = "pixils/base-theme";
 
     void require_base_theme_namespace(Roo::Runtime& runtime)
     {
@@ -35,17 +35,17 @@ namespace Pixils::UI
 
   const Theme& default_base_theme(Roo::Runtime& runtime)
   {
-    static std::optional<Theme> cached_theme = std::nullopt;
-
-    if (!cached_theme)
+    auto themes = runtime.lookup(Script::ID__PIXILS__THEMES);
+    auto theme = Roo::Dict::get_property(themes, Roo::symbol(BASE_THEME_NAME));
+    if (!theme || theme->type == Roo::Value::Type::NIL)
     {
-      Roo::Context ctx(runtime);
       require_base_theme_namespace(runtime);
-      auto definition = runtime.lookup(BASE_THEME_DEFINITION);
-      cached_theme =
-        Script::build_theme_from_definition(ctx, "pixils/base-theme", definition);
+      theme = Roo::Dict::get_property(themes, Roo::symbol(BASE_THEME_NAME));
     }
-
-    return *cached_theme;
+    if (!theme || theme->type == Roo::Value::Type::NIL)
+    {
+      throw Roo::RooException("Built-in base theme was not registered");
+    }
+    return Roo::obj<Theme>(*theme);
   }
 } // namespace Pixils::UI

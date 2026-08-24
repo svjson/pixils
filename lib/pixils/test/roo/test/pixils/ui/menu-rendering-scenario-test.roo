@@ -1,0 +1,381 @@
+(ns pixils.ui.menu-rendering-scenario-test
+  "Exercises public menu rendering contracts across the standard themes."
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(def THEME-MODES
+  "Standard themes and their rendered-menu scenario modes."
+  [{:theme :base
+    :mode 'menu-rendering-base-root}
+   {:theme :classic-blue
+    :mode 'menu-rendering-classic-blue-root}
+   {:theme :windows-3
+    :mode 'menu-rendering-windows-3-root}
+   {:theme :windows-95
+    :mode 'menu-rendering-windows-95-root}])
+
+(defun app-for
+  "Start a rendered menu scenario.
+
+  Args:
+  - `mode`: Scenario root mode.
+
+  Returns:
+  A settled test application with a real render target."
+  [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 240
+                               :buffer-height 180
+                               :render-backend true})]
+    (runtime/eval-file! app "pixils/test/menu-rendering-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    app))
+
+(defun rendered-signature
+  "Sample stable interior points from a view's rendered visual bounds.
+
+  Args:
+  - `app`: Rendered test application.
+  - `view`: Semantic component view.
+
+  Returns:
+  Five rendered colors spanning the view interior."
+  [app view]
+  (let [{:keys [x y w h]} (:visual-bounds view)
+        left (+ x (min 3 (dec w)))
+        right (+ x (max 0 (- w 4)))
+        top (+ y (min 3 (dec h)))
+        bottom (+ y (max 0 (- h 4)))
+        middle-x (+ x (int (/ w 2)))
+        middle-y (+ y (int (/ h 2)))]
+    [(runtime/rendered-pixel app left top)
+     (runtime/rendered-pixel app right top)
+     (runtime/rendered-pixel app left bottom)
+     (runtime/rendered-pixel app right bottom)
+     (runtime/rendered-pixel app middle-x middle-y)]))
+
+(defun rendered-background
+  "Sample a row background away from its marker and label.
+
+  Args:
+  - `app`: Rendered test application.
+  - `view`: Semantic row view.
+
+  Returns:
+  The rendered color near the row's right edge."
+  [app {:keys [visual-bounds]}]
+  (let [{:keys [x y w]} visual-bounds]
+    (runtime/rendered-pixel app (+ x (- w 3)) (+ y 2))))
+
+(defun rendered-region-varies?
+  "Report whether a visual region contains more than one rendered color.
+
+  Args:
+  - `app`: Rendered test application.
+  - `bounds`: Visual bounds to inspect.
+
+  Returns:
+  `true` when at least one pixel differs from the first pixel."
+  [app bounds]
+  (let [{:keys [x y w h]} bounds
+        pixels
+        (apply concat
+               (for [py (range y (+ y (dec h)))]
+                 (for [px (range x (+ x (dec w)))]
+                   (runtime/rendered-pixel app px py))))
+        first-pixel (head pixels)]
+    (not-empty?
+     (filter pixels
+             (fn [pixel]
+               (not= first-pixel pixel))))))
+
+(defun open-first-popup!
+  "Open the first menu through public pointer input.
+
+  Args:
+  - `app`: Settled rendered test application.
+
+  Returns:
+  The updated application."
+  [app]
+  (runtime/mouse-down-in! app
+                          (head (runtime/find-views app "ui/menu-bar-item"))
+                          1
+                          1)
+  (runtime/settle-layout! app)
+  (runtime/render! app)
+  app)
+
+
+
+;; pixils.ui.menu-bar/make
+
+(deftest make/renders-menu-bar-hover-feedback-across-standard-themes
+  (s/when []
+    (for [{:keys [theme mode]} THEME-MODES]
+      (let [app (app-for mode)
+            item (head (runtime/find-views app "ui/menu-bar-item"))]
+        (runtime/mouse-move-at! app 220 160)
+        (runtime/update! app)
+        (runtime/render! app)
+        (let [before (rendered-signature app item)]
+          (runtime/mouse-move-in! app item 1 1)
+          (runtime/update! app)
+          (runtime/render! app)
+          {:theme theme
+           :rendering-changed? (not= before
+                                     (rendered-signature app item))}))))
+
+  (s/then [result]
+    (is (= [{:theme :base
+             :rendering-changed? true}
+            {:theme :classic-blue
+             :rendering-changed? true}
+            {:theme :windows-3
+             :rendering-changed? true}
+            {:theme :windows-95
+             :rendering-changed? true}]
+           result))))
+
+(deftest make/renders-only-the-open-menu-bar-item-as-active
+  (s/when []
+    (for [{:keys [theme mode]} THEME-MODES]
+      (let [app (app-for mode)
+            items (runtime/find-views app "ui/menu-bar-item")]
+        (runtime/mouse-move-at! app 220 160)
+        (runtime/update! app)
+        (runtime/render! app)
+        (let [normal (for [item items]
+                       (rendered-signature app item))]
+          (runtime/mouse-down-in! app (head items) 1 1)
+          (runtime/settle-layout! app)
+          (runtime/render! app)
+          (let [after-first (for-indexed [index item items]
+                              (not= (nth normal index)
+                                    (rendered-signature app item)))]
+            (runtime/mouse-down-in! app (nth items 1) 1 1)
+            (runtime/settle-layout! app)
+            (runtime/render! app)
+            {:theme theme
+             :after-first after-first
+             :after-second
+             (for-indexed [index item items]
+               (not= (nth normal index)
+                     (rendered-signature app item)))})))))
+
+  (s/then [result]
+    (is (= [{:theme :base
+             :after-first [true false false]
+             :after-second [false true false]}
+            {:theme :classic-blue
+             :after-first [true false false]
+             :after-second [false true false]}
+            {:theme :windows-3
+             :after-first [true false false]
+             :after-second [false true false]}
+            {:theme :windows-95
+             :after-first [true false false]
+             :after-second [false true false]}]
+           result))))
+
+(deftest make/renders-popup-hover-feedback-across-standard-themes
+  (s/when []
+    (for [{:keys [theme mode]} THEME-MODES]
+      (let [app (open-first-popup! (app-for mode))
+            item (head (runtime/find-views app "ui/popup-menu-item"))
+            before (rendered-signature app item)]
+        (runtime/mouse-move-in! app item 1 1)
+        (runtime/update! app)
+        (runtime/settle-layout! app)
+        (runtime/render! app)
+        {:theme theme
+         :rendering-changed? (not= before
+                                   (rendered-signature app item))})))
+
+  (s/then [result]
+    (is (= [{:theme :base
+             :rendering-changed? true}
+            {:theme :classic-blue
+             :rendering-changed? true}
+            {:theme :windows-3
+             :rendering-changed? true}
+            {:theme :windows-95
+             :rendering-changed? true}]
+           result))))
+
+(deftest make/renders-checked-and-active-popup-states-independently
+  (s/when []
+    (for [{:keys [theme mode]} THEME-MODES]
+      (let [app (open-first-popup! (app-for mode))
+            checked-item
+            (runtime/find-view app "ui/popup-menu-option-item")
+            unchecked-item
+            (head (runtime/find-views app "ui/popup-menu-item"))
+            checked-normal (rendered-background app checked-item)
+            unchecked-normal (rendered-background app unchecked-item)
+            checked-active
+            (do
+              (runtime/mouse-move-in! app checked-item 1 1)
+              (runtime/update! app)
+              (runtime/settle-layout! app)
+              (runtime/render! app)
+              (rendered-background app checked-item))
+            unchecked-while-checked-active
+            (rendered-background app unchecked-item)
+            unchecked-active
+            (do
+              (runtime/mouse-move-in! app unchecked-item 1 1)
+              (runtime/update! app)
+              (runtime/settle-layout! app)
+              (runtime/render! app)
+              (rendered-background app unchecked-item))]
+        {:theme theme
+         :normal-rows-match? (= checked-normal unchecked-normal)
+         :checked-row-activates? (not= checked-normal checked-active)
+         :unchecked-row-waits? (= unchecked-normal
+                                  unchecked-while-checked-active)
+         :checked-row-restores? (= checked-normal
+                                  (rendered-background app checked-item))
+         :unchecked-row-activates? (not= unchecked-normal unchecked-active)})))
+
+  (s/then [result]
+    (is (= [{:theme :base
+             :normal-rows-match? true
+             :checked-row-activates? true
+             :unchecked-row-waits? true
+             :checked-row-restores? true
+             :unchecked-row-activates? true}
+            {:theme :classic-blue
+             :normal-rows-match? true
+             :checked-row-activates? true
+             :unchecked-row-waits? true
+             :checked-row-restores? true
+             :unchecked-row-activates? true}
+            {:theme :windows-3
+             :normal-rows-match? true
+             :checked-row-activates? true
+             :unchecked-row-waits? true
+             :checked-row-restores? true
+             :unchecked-row-activates? true}
+            {:theme :windows-95
+             :normal-rows-match? true
+             :checked-row-activates? true
+             :unchecked-row-waits? true
+             :checked-row-restores? true
+             :unchecked-row-activates? true}]
+           result))))
+
+(deftest make/places-popups-relative-to-their-public-anchors
+  (s/when []
+    (let [app (app-for 'menu-rendering-windows-3-root)
+          menu-item (head (runtime/find-views app "ui/menu-bar-item"))
+          menu-bounds (:visual-bounds menu-item)
+          app (open-first-popup! app)
+          popup (runtime/find-view app "ui/popup-menu-outer")
+          parent-row (nth (runtime/find-views app "ui/popup-menu-item") 1)
+          popup-bounds (:visual-bounds popup)
+          parent-bounds (:visual-bounds parent-row)]
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :right)
+      (runtime/settle-layout! app)
+      {:popup-below-anchor?
+       (= (:y popup-bounds)
+          (+ (:y menu-bounds) (:h menu-bounds)))
+       :popup-aligned-with-anchor?
+       (= (:x popup-bounds) (:x menu-bounds))
+       :nested-popup-right-of-parent?
+       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+              :visual-bounds
+              :x)
+          (+ (:x parent-bounds) (:w parent-bounds)))}))
+
+  (s/then [result]
+    (is (= {:popup-below-anchor? true
+            :popup-aligned-with-anchor? true
+            :nested-popup-right-of-parent? true}
+           result))))
+
+(deftest make/keeps-parent-popup-rendered-when-leaving-a-submenu
+  (s/when []
+    (let [app (open-first-popup! (app-for 'menu-rendering-windows-3-root))
+          parent-bounds
+          (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))
+          submenu-row-bounds
+          (:visual-bounds (nth (runtime/find-views app "ui/popup-menu-item") 1))
+          nested-bounds
+          (do
+            (runtime/press-key! app :down)
+            (runtime/press-key! app :down)
+            (runtime/press-key! app :down)
+            (runtime/press-key! app :right)
+            (runtime/settle-layout! app)
+            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer")))
+          remaining-popup
+          (do
+            (runtime/press-key! app :left)
+            (runtime/settle-layout! app)
+            (runtime/render! app)
+            (runtime/find-view app "ui/popup-menu-outer"))
+          remaining-bounds (:visual-bounds remaining-popup)]
+      {:nested-popup-opened?
+       (= (:x nested-bounds)
+          (+ (:x submenu-row-bounds) (:w submenu-row-bounds)))
+       :parent-remains? (some? remaining-popup)
+       :parent-origin-retained?
+       (= (select-keys parent-bounds [:x :y])
+          (select-keys remaining-bounds [:x :y]))
+       :parent-size-retained?
+       (= (select-keys parent-bounds [:w :h])
+          (select-keys remaining-bounds [:w :h]))
+       :parent-rendered?
+       (and remaining-popup
+            (rendered-region-varies? app remaining-bounds))}))
+
+  (s/then [result]
+    (is (= {:nested-popup-opened? true
+            :parent-remains? true
+            :parent-origin-retained? true
+            :parent-size-retained? true
+            :parent-rendered? true}
+           result))))
+
+(deftest make/renders-option-and-submenu-markers-inside-their-bounds
+  (s/when []
+    (for [{:keys [theme mode]} THEME-MODES]
+      (let [app (open-first-popup! (app-for mode))
+            option-indicators
+            (runtime/find-views app "ui/menu-option-indicator")
+            submenu-indicators
+            (runtime/find-views app "ui/menu-submenu-indicator")]
+        {:theme theme
+         :option-marker-visible?
+         (not-empty?
+          (filter option-indicators
+                  (fn [indicator]
+                    (rendered-region-varies? app
+                                             (:visual-bounds indicator)))))
+         :submenu-marker-visible?
+         (not-empty?
+          (filter submenu-indicators
+                  (fn [indicator]
+                    (rendered-region-varies? app
+                                             (:visual-bounds indicator)))))})))
+
+  (s/then [result]
+    (is (= [{:theme :base
+             :option-marker-visible? true
+             :submenu-marker-visible? true}
+            {:theme :classic-blue
+             :option-marker-visible? true
+             :submenu-marker-visible? true}
+            {:theme :windows-3
+             :option-marker-visible? true
+             :submenu-marker-visible? true}
+            {:theme :windows-95
+             :option-marker-visible? true
+             :submenu-marker-visible? true}]
+           result))))

@@ -1,0 +1,60 @@
+(ns pixils.test.menu-rendering-probe
+  "Defines public menu configurations for rendered-contract scenarios."
+  (:require pixils
+            [pixils.ui.menu-bar :as menu-bar]))
+
+(def MENU
+  "Menu definition covering actions, selection markers, and nesting."
+  {:items [{:label "File"
+            :items [{:label "Snap"
+                     :type :toggle
+                     :selected-path [:preferences :snap?]}
+                    {:label "Open"
+                     :action :file/open}
+                    {:label "Recent"
+                     :items [{:label "Map"
+                              :action :file/open-recent}]}]}
+           {:label "Edit"
+            :items [{:label "Copy"
+                     :action :edit/copy}]}
+           {:label "View"
+            :items [{:label "Zoom"
+                     :action :view/zoom}]}]})
+
+(def APP-STYLE
+  "Full-buffer application geometry for rendered menu scenarios."
+  {:width :fill
+   :height :fill})
+
+(defun make-menu-bar
+  "Build the menu bar exercised by rendered-contract scenarios.
+
+  Returns:
+  A public `ui/menu-bar` declaration."
+  []
+  (menu-bar/make {:state {:preferences {:snap? true}}}
+                 MENU
+                 {}))
+
+(pixils/defmode menu-rendering-base-root
+  {:class :ui/app
+   :style APP-STYLE
+   :children [(make-menu-bar)]})
+
+(pixils/defmode menu-rendering-classic-blue-root
+  {:theme 'pixils/classic-blue
+   :class :ui/app
+   :style APP-STYLE
+   :children [(make-menu-bar)]})
+
+(pixils/defmode menu-rendering-windows-3-root
+  {:theme 'pixils/windows-3
+   :class :ui/app
+   :style APP-STYLE
+   :children [(make-menu-bar)]})
+
+(pixils/defmode menu-rendering-windows-95-root
+  {:theme 'pixils/windows-95
+   :class :ui/app
+   :style APP-STYLE
+   :children [(make-menu-bar)]})
