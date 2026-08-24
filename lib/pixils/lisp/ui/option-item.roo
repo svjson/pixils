@@ -42,8 +42,18 @@
                    :value
                    :label
                    :disabled?
+                   :active-index
+                   :active?
                    :selected
                    :selected-indices]
+   :ui/models [{:owns [:active?]
+                :depends-on [:index :active-index :disabled?]
+                :transition
+                (fn [_current candidate _changed-keys]
+                  {:active? (and (not (:disabled? candidate))
+                                 (some? (:active-index candidate))
+                                 (= (:index candidate)
+                                    (:active-index candidate)))})}]
    :style {:width :fill
            :clip true
            :layout {:direction :row

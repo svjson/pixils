@@ -1,0 +1,38 @@
+(ns pixils.ui.option-item-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+
+
+;; pixils.ui/option-item
+
+(deftest option-item/derives-active-state-independently-from-selection
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 120
+                                 :buffer-height 60
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/option-item-probe.roo")
+      (runtime/push-mode! app 'option-item-root)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (let [item-state
+          (fn []
+            (for [item (runtime/find-views app "ui/option-item")]
+              (select-keys (:ui-state item)
+                           [:index :selected :active?])))]
+      {:before (item-state)
+       :after (do
+                (runtime/set-active-state! app {:active-index 0})
+                (runtime/update! app)
+                (item-state))}))
+
+  (s/then [result]
+    (is (= {:before [{:index 0 :selected true :active? false}
+                     {:index 1 :selected false :active? true}]
+            :after [{:index 0 :selected true :active? true}
+                    {:index 1 :selected false :active? false}]}
+           result))))

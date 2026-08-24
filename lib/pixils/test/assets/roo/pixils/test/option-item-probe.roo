@@ -1,0 +1,14 @@
+(ns pixils.test.option-item-probe
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.option-list :as option-list]))
+
+(defmode option-item-root
+  {:init (fn [_state _ctx]
+           {:active-index 1})
+   :children [(option-list/make
+               {:options [{:value :alpha :label "Alpha"}
+                          {:value :beta :label "Beta"}]
+                :active-index (ui/bind-state :active-index)
+                :selected-indices [0]
+                :row-height 16})]})

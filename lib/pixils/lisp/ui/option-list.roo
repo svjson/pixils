@@ -267,9 +267,7 @@
                     (merge-item-state item-state)
                     (cond-> decorate-item (decorate-item state index item))
                     (apply-item-height item-height)
-                    (update :style
-                            (fn [style]
-                              (assoc style :width :fill))))
+                    (update :style (fn [style] (assoc style :width :fill))))
           item-ui-state (-> (get-in child [:state :component])
                             (dissoc :selected)
                             (dissoc :selected-indices))
@@ -283,16 +281,15 @@
                                                                    index
                                                                    key))))]
       (assoc child
-             :id (or (:id child)
-                     (:id item)
-                     (str "option-"
-                          index
-                          "-"
-                          (or (:component child) (:mode child))))
+             :id (or (:id child) (:id item) (str "option-"
+                                                 index
+                                                 "-"
+                                                 (or (:component child) (:mode child))))
              :ui-state (assoc projected-ui-state
-                              :selected-indices
-                              (ui/project-state :content-ui-state
-                                                :selected-indices))))))
+                              :selected-indices (ui/project-state :content-ui-state
+                                                                  :selected-indices)
+                              :active-index (ui/project-state :content-ui-state
+                                                              :active-index))))))
 
 (defun item-children [state]
   (for-indexed [index item (:options state)]

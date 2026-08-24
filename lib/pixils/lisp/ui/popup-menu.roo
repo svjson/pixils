@@ -88,11 +88,6 @@
           :checked? (item-checked? node application-state)
           :show-marker (or (= (:item-type node) :option)
                            (= (:item-type node) :toggle))})
-        (update :ui-state
-                (fn [ui-state]
-                  (assoc ui-state
-                         :active-index
-                         (ui/project-state :content-ui-state :active-index))))
         (update :state
                 (fn [row-state]
                   (merge row-state
@@ -310,7 +305,6 @@
 (def ITEM-UI-STATE-KEYS
   "Canonical UI-state keys owned by `ui/popup-menu-item`."
   [:node
-   :active-index
    :trailing-shortcut-text
    :has-submenu
    :checked?
@@ -321,21 +315,6 @@
   "Additional UI-state keys owned by `ui/popup-menu-inner`."
   [:input-source
    :nested?])
-
-(defun highlight-state-transition
-  "Derive popup row highlighting from the option-list active index.
-
-  Args:
-  - `current`: Current popup-row UI state.
-  - `candidate`: Proposed popup-row UI state.
-  - `changed-keys`: Changed keys in the proposal.
-
-  Returns:
-  The canonical derived `:highlighted` field."
-  [_current candidate _changed-keys]
-  {:highlighted (and (not (:disabled? candidate))
-                     (= (:index candidate)
-                        (:active-index candidate)))})
 
 (defun set-navigation!
   "Apply an intrinsic popup navigation transition.
@@ -362,43 +341,40 @@
                     :align-items :center}}
    :ui/state-keys ITEM-UI-STATE-KEYS
    :ui/models [{:owns [:highlighted]
-                :depends-on [:index :active-index :disabled?]
-                :transition highlight-state-transition}]
+                :depends-on [:index :active-index :disabled? :active?]
+                :transition (fn [_current candidate _changed-keys]
+                              {:highlighted (:active? candidate)})}]
    :update-ui nil
-   :on-mouse-motion
-   (fn [state _event ctx]
-     (let [ui-state (-> ctx :view :ui-state)]
-       (unless (:disabled? ui-state)
-         (ui/emit! (:view ctx)
-                   :popup-menu/hover
-                   {:index (:index ui-state)})))
-     state)
-   :on-mouse-down
-   (fn [state event ctx]
-     (let [ui-state (-> ctx :view :ui-state)]
-       (when (and (not (:disabled? ui-state))
-                  (:has-submenu ui-state))
-         (open-submenu! (:node ui-state)
-                        (merge state
-                               ui-state
-                               {:input-source :mouse})
-                        (:view ctx)))
-       (ui/stop-propagation! event)
-       state))
-   :on {:menu/select
-        (fn [state event ctx]
-          (let [ui-state (-> ctx :view :ui-state)]
-            (ui/stop-propagation! event)
-            (unless (:disabled? ui-state)
-              (ui/emit! (:view ctx) :menu/select (:payload event)))
-            state))
-        :popup-menu/submenu-result
-        (fn [state {:keys [payload] :as event} ctx]
-          (ui/stop-propagation! event)
-          (when (and payload
-                     (not= :navigate-parent (:type payload)))
-            (ui/emit! (:view ctx) :menu/select payload))
-          state)}
+   :on-mouse-motion (fn [state _event ctx]
+                      (let [ui-state (-> ctx :view :ui-state)]
+                        (unless (:disabled? ui-state)
+                          (ui/emit! (:view ctx)
+                                    :popup-menu/hover
+                                    {:index (:index ui-state)})))
+                      state)
+   :on-mouse-down (fn [state event ctx]
+                    (let [ui-state (-> ctx :view :ui-state)]
+                      (when (and (not (:disabled? ui-state))
+                                 (:has-submenu ui-state))
+                        (open-submenu! (:node ui-state)
+                                       (merge state
+                                              ui-state
+                                              {:input-source :mouse})
+                                       (:view ctx)))
+                      (ui/stop-propagation! event)
+                      state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [ui-state (-> ctx :view :ui-state)]
+                         (ui/stop-propagation! event)
+                         (unless (:disabled? ui-state)
+                           (ui/emit! (:view ctx) :menu/select (:payload event)))
+                         state))
+        :popup-menu/submenu-result (fn [state {:keys [payload] :as event} ctx]
+                                     (ui/stop-propagation! event)
+                                     (when (and payload
+                                                (not= :navigate-parent (:type payload)))
+                                       (ui/emit! (:view ctx) :menu/select payload))
+                                     state)}
    :children [{:mode 'ui/menu-option-indicator
                :state {:checked? (ui/project-state :checked?)
                        :show-marker (ui/project-state :show-marker)}}
@@ -408,8 +384,7 @@
               {:mode 'ui/menu-item-trailing
                :state {:has-submenu (ui/project-state :has-submenu)
                        :highlighted (ui/project-state :highlighted)
-                       :shortcut-text
-                       (ui/project-state :trailing-shortcut-text)}}]})
+                       :shortcut-text (ui/project-state :trailing-shortcut-text)}}]})
 
 (defcomponent ui/popup-menu-option-item
   {:extend 'ui/popup-menu-item})
@@ -518,13 +493,10 @@
   - `ctx`: Render hook context."
   [symbol text-args ctx]
   (case symbol
-    :checkmark
-    (let [x (int (/ (- (-> ctx :view :bounds :w) 8) 2))
-          y (int (/ (- (-> ctx :view :bounds :h) 10) 2))]
-      (draw-option-checkmark-symbol!
-       x
-       y
-       (or (:color text-args) c/BLACK)))
+    :checkmark (draw-option-checkmark-symbol!
+                (int (/ (- (-> ctx :view :bounds :w) 8) 2))
+                (int (/ (- (-> ctx :view :bounds :h) 10) 2))
+                (or (:color text-args) c/BLACK))
     :default nil))
 
 (defun render-option-indicator!
@@ -580,27 +552,24 @@
 ;; Popup modes and keyboard navigation
 
 (defmode ui/popup-menu
-  {:on-mouse-down
-   (fn [state event _ctx]
-     (pop-mode! {:type :dismiss
-                 :global-position (:global-position event)})
-     state)
-   :on {:menu/select
-        (fn [state event _ctx]
-          (ui/stop-propagation! event)
-          (pop-mode! (:payload event))
-          state)}
+  {:on-mouse-down (fn [state event _ctx]
+                    (pop-mode! {:type :dismiss
+                                :global-position (:global-position event)})
+                    state)
+   :on {:menu/select (fn [state event _ctx]
+                       (ui/stop-propagation! event)
+                       (pop-mode! (:payload event))
+                       state)}
    :compose {:render :pass}})
 
 (defmode ui/context-menu
   {:on-mouse-down (fn [state _event _ctx]
                     (pop-mode! {:type :dismiss})
                     state)
-   :on {:menu/select
-        (fn [state event _ctx]
-          (ui/stop-propagation! event)
-          (pop-mode! (:payload event))
-          state)}
+   :on {:menu/select (fn [state event _ctx]
+                       (ui/stop-propagation! event)
+                       (pop-mode! (:payload event))
+                       state)}
    :compose {:render :pass}})
 
 (defcomponent ui/popup-menu-outer {})
@@ -628,87 +597,69 @@
    (fn [state event ctx]
      (let [ui-state (-> ctx :view :ui-state)]
        (case (:key event)
-         :key/right
-         (let [index (:active-index ui-state)
-               next-state (assoc ui-state :input-source :keyboard)
-               node (model/highlighted-item (:options next-state) index)
-               child-view (child-view-at (:view ctx) index)]
-           (ui/stop-propagation! event)
-           (when (and node
-                      child-view
-                      (model/submenu-node? node))
-             (open-submenu! node (merge state next-state) child-view))
-           (when (and (not (:nested? next-state))
-                      (or (nil? node)
-                          (not (model/submenu-node? node))))
-             (pop-mode! {:type :navigate-top
-                         :direction :right}))
-           (set-navigation! ctx {:input-source :keyboard})
-           state)
+         :key/right (let [index (:active-index ui-state)
+                          next-state (assoc ui-state :input-source :keyboard)
+                          node (model/highlighted-item (:options next-state) index)
+                          child-view (child-view-at (:view ctx) index)]
+                      (ui/stop-propagation! event)
+                      (when (and node child-view (model/submenu-node? node))
+                        (open-submenu! node (merge state next-state) child-view))
+                      (when (and (not (:nested? next-state))
+                                 (or (nil? node)
+                                     (not (model/submenu-node? node))))
+                        (pop-mode! {:type :navigate-top
+                                    :direction :right}))
+                      (set-navigation! ctx {:input-source :keyboard})
+                      state)
 
-         :key/left
-         (do
-           (ui/stop-propagation! event)
-           (if (:nested? ui-state)
-             (pop-mode! {:type :navigate-parent})
-             (pop-mode! {:type :navigate-top
-                         :direction :left}))
-           state)
+         :key/left (do (ui/stop-propagation! event)
+                       (if (:nested? ui-state)
+                         (pop-mode! {:type :navigate-parent})
+                         (pop-mode! {:type :navigate-top
+                                     :direction :left}))
+                       state)
 
-         :key/down
-         (do
-           (ui/stop-propagation! event)
-           (set-navigation!
-            ctx
-            {:input-source :keyboard
-             :active-index (model/move-highlight-index
-                            (:options ui-state)
-                            (:active-index ui-state)
-                            1)})
-           state)
+         :key/down (do (ui/stop-propagation! event)
+                       (set-navigation!
+                        ctx
+                        {:input-source :keyboard
+                         :active-index (model/move-highlight-index
+                                        (:options ui-state)
+                                        (:active-index ui-state)
+                                        1)})
+                       state)
 
-         :key/up
-         (do
-           (ui/stop-propagation! event)
-           (set-navigation!
-            ctx
-            {:input-source :keyboard
-             :active-index (model/move-highlight-index
-                            (:options ui-state)
-                            (:active-index ui-state)
-                            -1)})
-           state)
+         :key/up (do (ui/stop-propagation! event)
+                     (set-navigation!
+                      ctx
+                      {:input-source :keyboard
+                       :active-index (model/move-highlight-index
+                                      (:options ui-state)
+                                      (:active-index ui-state)
+                                      -1)})
+                     state)
 
-         :key/escape
-         (do
-           (ui/stop-propagation! event)
-           (pop-mode! {:type :dismiss})
-           state)
+         :key/escape (do (ui/stop-propagation! event)
+                         (pop-mode! {:type :dismiss})
+                         state)
 
-         :key/enter
-         (do
-           (ui/stop-propagation! event)
-           (activate-index! (merge state
-                                   ui-state
-                                   {:input-source :keyboard})
-                             ctx
-                             (:active-index ui-state)))
+         :key/enter (do (ui/stop-propagation! event)
+                        (activate-index! (merge state
+                                                ui-state
+                                                {:input-source :keyboard})
+                                         ctx
+                                         (:active-index ui-state)))
 
-         :default
-         (let [mnemonic-char (model/event-mnemonic-char event)
-               index (model/find-mnemonic-index (:options ui-state)
-                                                mnemonic-char)]
-           (if index
-             (do
-               (ui/stop-propagation! event)
-               (activate-index!
-                (merge state
-                       ui-state
-                       {:input-source :keyboard
-                        :active-index index})
-                ctx
-                index))
-             state)))))
+         :default (if-let [index (model/find-mnemonic-index (:options ui-state)
+                                                         (model/event-mnemonic-char event))]
+                    (do (ui/stop-propagation! event)
+                        (activate-index! (merge state
+                                                ui-state
+                                                {:input-source :keyboard
+                                                 :active-index index})
+                                         ctx
+                                         index))
+                    state))))
    :on {:popup-menu/hover
         (fn [state event ctx]
           (ui/stop-propagation! event)
