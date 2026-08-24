@@ -34,6 +34,8 @@
   (s/when []
     (let [view (property-form/make)
           panels (-> view :children head :children head :children head)
+          property-set-panel (-> panels :children head :children head)
+          property-set-field (-> property-set-panel :children (nth 1) :children head)
           field-panel (-> panels :children (nth 2) :children head)
           property-set-editor (-> field-panel
                                   :children
@@ -48,6 +50,7 @@
        :panel-state (select-keys (:state panels)
                                  [:axis :split :min-first :min-second])
        :panel-modes (map (:children panels) :mode)
+       :property-set-field-class (:class property-set-field)
        :property-set-editor-mode (:mode property-set-editor)
        :property-set-form-mode (:mode property-set-form)
        :property-item-editors
@@ -65,6 +68,8 @@
             :panel-modes ['ui/split-pane-primary
                           'ui/split-pane-resizer
                           'ui/split-pane-secondary]
+            :property-set-field-class [:pixils.form/field
+                                       :tm/list-content]
             :property-set-editor-mode 'pixils/form-layout-item-editor
             :property-set-form-mode 'pixils/form
             :property-item-editors [:selected-property]}

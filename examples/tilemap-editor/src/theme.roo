@@ -39,7 +39,10 @@
             ['(ui/header-panel :tm/list-wrapper) 'ui/header-panel-body]
             {:padding 0}
 
-            ['(ui/header-panel :tm/list-wrapper) :pixils.form/field]
+            :tm/list-content {:height :fill}
+
+            ['(pixils/form-layout-item-editor :tm/list-content)
+             :pixils.form/field]
             {:height :fill}
 
             'pixils/form {:width :fill

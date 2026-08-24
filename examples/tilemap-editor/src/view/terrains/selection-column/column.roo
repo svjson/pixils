@@ -44,7 +44,7 @@
                 :class :tm/list-wrapper
                 :buttons [{:kind :item/add
                            :action :terrain/add-set}]}
-               [[:field :terrain-sets
+               [[:field.tm/list-content :terrain-sets
                  {:label false
                   :summary false
                   :actions terrain-set-actions
@@ -56,7 +56,8 @@
                            :disabled? (ui/project-state :value
                                                         :derived
                                                         :list-panel-disabled?)}]}
-               [{:id :selected-terrain-set}])]
+               [{:id :selected-terrain-set
+                 :class :tm/list-content}])]
      :fragments
      {:terrain-sets
       [[:field :terrains

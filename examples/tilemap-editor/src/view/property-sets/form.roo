@@ -53,7 +53,7 @@
                   :class :tm/list-wrapper
                   :buttons [{:kind :item/add
                              :action :property-set/add}]}
-                 [[:field :property-sets
+                 [[:field.tm/list-content :property-sets
                    {:label false
                     :summary false
                     :actions
