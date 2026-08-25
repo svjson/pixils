@@ -189,7 +189,7 @@ TEST_F(OptionListTest, visible_row_ranges_control_shrink_height)
   EXPECT_EQ(session.active_mode->children[1]->bounds.h, 22);
   EXPECT_EQ(session.active_mode->children[2]->bounds.h, 82);
   EXPECT_EQ(session.active_mode->children[3]->bounds.h, 2);
-  EXPECT_EQ(session.active_mode->children[4]->bounds.h, 102);
+  EXPECT_EQ(session.active_mode->children[4]->bounds.h, 2);
 }
 
 TEST_F(OptionListTest, option_list_items_fill_themed_container_width)

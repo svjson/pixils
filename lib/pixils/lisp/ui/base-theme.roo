@@ -309,7 +309,7 @@
 
     'ui/option-list {:width :shrink
                      :height :shrink
-                     :visible-rows 5
+                     :visible-rows {:max 5}
                      :background (var :field-bg)
                      :border (var :inset-border-style)}
 
@@ -354,6 +354,9 @@
 
     'ui/combo-box-popup-panel {:background (var :field-bg)
                                :border (var :inset-border-style)}
+
+    ['ui/combo-box-popup-panel 'ui/option-list]
+    {:visible-rows {:max 10}}
 
     'ui/checkbox {:height 16
                   :layout {:direction :row

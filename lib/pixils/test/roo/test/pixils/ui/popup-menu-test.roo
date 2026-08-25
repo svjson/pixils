@@ -318,18 +318,20 @@
   (s/when [app]
     (let [item (runtime/find-view app "ui/popup-menu-option-item")
           before (select-keys (:ui-state item)
-                              [:checked? :selected :highlighted])]
+                              [:checked? :selected :active? :highlighted])]
       (runtime/press-key! app :down)
       {:before before
        :after (select-keys (:ui-state item)
-                           [:checked? :selected :highlighted])}))
+                           [:checked? :selected :active? :highlighted])}))
 
   (s/then [result]
     (is (= {:before {:checked? true
                      :selected false
+                     :active? false
                      :highlighted false}
             :after {:checked? true
                     :selected false
+                    :active? true
                     :highlighted true}}
            result))))
 

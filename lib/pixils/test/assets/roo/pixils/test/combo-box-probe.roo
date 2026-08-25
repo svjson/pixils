@@ -1,0 +1,10 @@
+(ns pixils.test.combo-box-probe
+  (:require pixils
+            [pixils.ui.combo-box :as combo-box]))
+
+(defmode combo-box-short-options-root
+  {:children [(combo-box/make
+               {:options [{:value :alpha :label "Alpha"}
+                          {:value :beta :label "Beta"}]
+                :row-height 20
+                :style {:width 100}})]})

@@ -1,5 +1,7 @@
 (ns pixils.ui.combo-box-test
   (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
             [pixils.ui.combo-box :as combo-box]))
 
 
@@ -13,3 +15,38 @@
 (deftest popup-selected-indices/preserves-no-selection
   (is (= []
          (combo-box/popup-selected-indices {:selected-index nil}))))
+
+
+
+;; pixils.ui.combo-box/open-popup!
+
+(deftest open-popup!/shrinks-to-fewer-options-than-the-default-maximum
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file! app "pixils/test/combo-box-probe.roo")
+      (runtime/push-mode! app 'combo-box-short-options-root)
+      (runtime/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (runtime/click! app (runtime/find-view app "ui/combo-box"))
+    (runtime/settle-layout! app)
+    (let [panel (runtime/find-view app "ui/combo-box-popup-panel")
+          option-list (runtime/find-view app "ui/option-list")
+          rows (runtime/find-views app "ui/combo-box-item")]
+      {:mode (runtime/active-mode-name app)
+       :panel-height (-> panel :bounds :h)
+       :option-list-height (-> option-list :bounds :h)
+       :visible-rows (-> option-list :effective-style :visible-rows)
+       :row-heights (for [row rows] (-> row :bounds :h))}))
+
+  (s/then [result]
+    (is (= {:mode "ui/combo-box-popup"
+            :panel-height 42
+            :option-list-height 40
+            :visible-rows {:max 10}
+            :row-heights [20 20]}
+           result))))
