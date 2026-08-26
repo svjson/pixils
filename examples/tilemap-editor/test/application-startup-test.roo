@@ -1,11 +1,14 @@
 (ns tilemap-editor.application-startup-test
   (:require proof.core
+            [proof.syntax :as s]
             [roo.io :as io]
             [pixils.tilemap.project.model :as data]
             [pixils.test.runtime :as runtime]
             [pixils.test.ui.list-box :as list-box]
+            [pixils.test.ui.menu-bar :as menu-bar]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.model.tilemap :as tilemap]
+            [tilemap-editor.fixture.view.tilemap.tilemap-tab :as tilemap-tab]
             [tilemap-editor.view.brushes.model :as brush-model]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.terrains.model :as terrain-model]))
@@ -321,96 +324,104 @@
     (runtime/update! app)
     (is (= :preview (:terrain-rule-application (runtime/active-state app))))))
 
-(deftest edit-menu-enables-selection-commands-when-map-selection-exists
-  (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
+
+
+;; edit-menu
+
+(deftest edit-menu/enables-selection-commands-when-map-selection-exists
+  (s/given
+    (let [app (make-startup-app)]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/update! app)
+      (runtime/render! app)
+      (runtime/set-active-state!
+       app
+       (assoc (runtime/active-state app)
+              :workspace-tab :map
+              :map-tool :select
+              :map-width 4
+              :map-height 4
+              :tile-size 16
+              :zoom 1
+              :map-offset {:x 0 :y 0}
+              :map-clipboard nil))
+      (runtime/settle-layout! app)
+      (runtime/render! app)
+      app))
+
+  (s/when [app]
+    (tilemap-tab/select-map-region! app
+                                    {:x 0 :y 0}
+                                    {:x 1 :y 1})
+    (runtime/settle-layout! app)
     (runtime/render! app)
-    (runtime/set-active-state!
-     app
-     (assoc (runtime/active-state app)
-            :workspace-tab :map
-            :map-tool :select
-            :map-width 4
-            :map-height 4
-            :tile-size 16
-            :zoom 1
-            :map-offset {:x 0 :y 0}
-            :map-clipboard nil))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [canvas (runtime/find-view app "map-canvas")]
-      (is (some? canvas))
-      (runtime/mouse-drag-in! app canvas 2 2 24 24))
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (= {:x 0 :y 0 :w 2 :h 2}
-           (-> (runtime/active-state app) :map-selection :rect)))
-    (is (= false
-           (-> (runtime/active-state app) :map-selection :active?)))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [edit-item (runtime/find-view-containing app
-                                                  "ui/menu-bar-item"
-                                                  ":menu-index 1")
-          state (runtime/view-state edit-item)]
-      (is (some? edit-item))
-      (is (= [nil nil nil]
-             [(get-in state [:node :items 3 :disabled?])
-              (get-in state [:node :items 4 :disabled?])
-              (get-in state [:node :items 5 :disabled?])])))
+    app)
+
+  (s/then [app]
+    (is (= {:anchor {:x 0 :y 0}
+            :current {:x 1 :y 1}
+            :rect {:x 0 :y 0 :w 2 :h 2}
+            :active? false}
+           (:map-selection (runtime/active-state app))))
+    (is (= [true true true]
+           (for [action [:edit/cut :edit/copy :edit/paste]]
+             (menu-bar/command-enabled? app "Edit" action)))))
+
+  (s/when [app]
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app)
             :map-clipboard {:type :tilemap/map-region}))
-    (runtime/update! app)
+    (runtime/settle-layout! app)
     (runtime/render! app)
-    (let [edit-item (runtime/find-view-containing app
-                                                  "ui/menu-bar-item"
-                                                  ":menu-index 1")
-          state (runtime/view-state edit-item)]
-      (is (= [nil nil nil]
-             [(get-in state [:node :items 3 :disabled?])
-              (get-in state [:node :items 4 :disabled?])
-              (get-in state [:node :items 5 :disabled?])])))))
+    app)
 
-(deftest edit-menu-enables-undo-when-workbook-history-exists
-  (let [app (make-startup-app)]
+  (s/then [app]
+    (is (= {:type :tilemap/map-region}
+           (:map-clipboard (runtime/active-state app))))
+    (is (= true
+           (menu-bar/command-enabled? app "Edit" :edit/paste)))))
+
+(deftest edit-menu/reflects-workbook-history-changes
+  (s/given
+    (make-startup-app))
+
+  (s/when [app]
     (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
+    (runtime/settle-layout! app)
     (runtime/render! app)
+    app)
+
+  (s/then [app]
+    (is (= [{:text "Undo"
+             :enabled? false}
+            {:text "Redo"
+             :enabled? false}]
+           (for [action [:edit/undo :edit/redo]]
+             {:text (menu-bar/command-text app "Edit" action)
+              :enabled? (menu-bar/command-enabled? app "Edit" action)}))))
+
+  (s/when [app]
     (runtime/set-active-state!
      app
      (assoc (runtime/active-state app)
             :workbook-history {:undo [{:label "Rename layer"}]
                                :redo []}))
-    (is (= ["Rename layer"]
-           (map (get-in (runtime/active-state app)
-                        [:workbook-history :undo])
-                :label)))
-    (runtime/update! app)
-    (is (= ["Rename layer"]
-           (map (get-in (runtime/active-state app)
-                        [:workbook-history :undo])
-                :label)))
+    (runtime/settle-layout! app)
     (runtime/render! app)
-    (is (= ["Rename layer"]
-           (map (get-in (runtime/active-state app)
-                        [:workbook-history :undo])
-                :label)))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [edit-item (runtime/find-view-containing app
-                                                  "ui/menu-bar-item"
-                                                  ":menu-index 1")
-          state (runtime/view-state edit-item)]
-      (is (some? edit-item))
-      (is (= "&Undo Rename layer"
-             (get-in state [:node :items 0 :label])))
-      (is (= false
-             (get-in state [:node :items 0 :disabled?])))
-      (is (= true
-             (get-in state [:node :items 1 :disabled?]))))))
+    app)
+
+  (s/then [app]
+    (is (= {:undo [{:label "Rename layer"}]
+            :redo []}
+           (:workbook-history (runtime/active-state app))))
+    (is (= [{:text "Undo Rename layer"
+             :enabled? true}
+            {:text "Redo"
+             :enabled? false}]
+           (for [action [:edit/undo :edit/redo]]
+             {:text (menu-bar/command-text app "Edit" action)
+              :enabled? (menu-bar/command-enabled? app "Edit" action)})))))
 
 (deftest direct-project-load-keeps-existing-palette-interactive
   (cleanup-application-startup-test-files!)

@@ -2,6 +2,10 @@
   (:require proof.core
             [tilemap-editor.view.menu :as menu]))
 
+
+
+;;; tilemap-editor.view.menu/recent-project-menu-item
+
 (deftest recent-project-menu-is-inert-when-empty
   (let [item (menu/recent-project-menu-item [])]
     (is (= "Recent Projects" (:label item)))
@@ -14,6 +18,10 @@
     (is (= "Recent Projects" (:label item)))
     (is (= "map.edn" (get-in item [:items 0 :label])))
     (is (= :project/open-recent (get-in item [:items 0 :action])))))
+
+
+
+;;; tilemap-editor.view.menu/tilemap-editor-menu-keymap
 
 (deftest menu-keymap-binds-project-and-view-actions
   (is (= :project/new
@@ -45,7 +53,11 @@
           :payload :paint-baked}
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/alt :key/b]))))
 
-(deftest option-menu-reflects-current-view-state
+
+
+;;; tilemap-editor.view.menu/tilemap-editor-menu
+
+(deftest tilemap-editor-menu/option-menu-reflects-current-view-state
   (let [menu (menu/tilemap-editor-menu
               {:show-grid? false
                :show-terrain-rules? true
@@ -146,7 +158,8 @@
     (is (= 'pixils/classic-blue
            (get-in options [5 :items 3 :payload :theme])))))
 
-(deftest edit-menu-reflects-workbook-undo-and-redo-state
+
+(deftest tilemap-editor-menu/reflects-workbook-undo-and-redo-state
   (let [menu (menu/tilemap-editor-menu
               {:workbook-history
                {:undo [{:label "Rename layer"}]
