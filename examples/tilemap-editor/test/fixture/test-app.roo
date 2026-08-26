@@ -1,0 +1,27 @@
+(ns tilemap-editor.fixture.test-app
+  (:require [pixils.test.runtime :as runtime]
+            [tilemap-editor.model.project :as project]))
+
+(defun make
+  "Creates a settled Tilemap Editor application for interaction tests.
+
+  Args:
+  - `opts`: Application options containing a normalized `:project` fixture and
+    optional `:buffer-width` and `:buffer-height` dimensions.
+
+  Returns:
+  A rendered test application with the project fixture active."
+  [opts]
+  (let [app (runtime/make-app
+             {:package-root "."
+              :buffer-width (or (:buffer-width opts) 800)
+              :buffer-height (or (:buffer-height opts) 600)})]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (project/activate (runtime/active-state app)
+                       (:project opts)))
+    (runtime/settle-layout! app)
+    (runtime/render! app)
+    app))

@@ -2,7 +2,7 @@
   (:require [roo.io :as io]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
-            [tilemap-editor.model.tilemap :as tilemap]))
+            [tilemap-editor.model.project :as project]))
 
 (def default-recent-projects-path "examples/tilemap-editor/.recent-projects.edn")
 (def max-recent-projects 10)
@@ -18,12 +18,12 @@
 (defun save-project-result? [payload]
   (and (= (:type payload) :confirm)
        (= (:mode payload) :file-dialog/save)
-       (not (nil? (:path payload)))))
+       (some? (:path payload))))
 
 (defun open-project-result? [payload]
   (and (= (:type payload) :confirm)
        (= (:mode payload) :file-dialog/open)
-       (not (nil? (:path payload)))))
+       (some? (:path payload))))
 
 (defun save-project! [state payload]
   (io/spit-edn! (:path payload)
@@ -51,19 +51,19 @@
     []))
 
 (defun first-recent-projects [projects max-count]
-  (map (filter (for-indexed [index project (or projects [])]
-                 {:index index
-                  :project project})
-               (fn [entry]
-                 (< (:index entry) max-count)))
-       :project))
+  (keep (for-indexed [index project projects]
+          {:index index
+           :project project})
+        (fn [entry]
+          (when (< (:index entry) max-count)
+            (:project entry)))))
 
 (defun promote-recent-project [projects entry]
   (if (nil? (:path entry))
     (or projects [])
     (first-recent-projects
      (concat [entry]
-             (filter (or projects [])
+             (filter projects
                      (fn [project]
                        (not= (:path project) (:path entry)))))
      max-recent-projects)))
@@ -82,129 +82,21 @@
 (defun valid-project-document? [project]
   (= (:format project) data/project-format))
 
-(defun project-maps [project]
-  (if (:maps project)
-    (:maps project)
-    (:maps (data/normalize-project-document project))))
-
-(defun project-selected-map [project]
-  (data/selected-map-document (project-maps project) (:selected-map project)))
-
-(defun project-layers [project]
-  (:layers (project-selected-map project)))
-
-(defun project-layer-profiles [project]
-  (let [profiles (:layer-profiles project)]
-    (if (empty? (or profiles []))
-      (data/default-layer-profiles (project-layers project))
-      (data/normalize-layer-profiles profiles))))
-
-(defun project-tilesets [project]
-  (or (:tilesets project) []))
-
-(defun project-terrain-sets [project]
-  (or (:terrain-sets project) data/project-terrain-sets))
-
-(defun project-property-sets [project]
-  (or (:property-sets project) data/project-property-sets))
-
-(defun project-rulesets [project]
-  (or (:rulesets project) data/project-rulesets))
-
-(defun project-tile-substitution-rules [project]
-  (or (:tile-substitution-rules project) data/project-tile-substitution-rules))
-
-(defun project-mask-sets [project]
-  (or (:mask-sets project) data/project-mask-sets))
-
-(defun project-terrain-transitions [project]
-  (or (:terrain-transitions project) data/project-terrain-transitions))
-
-(defun project-brushes [project]
-  (or (:brushes project) data/project-brushes))
-
-(defun first-layer-tileset [layers]
-  (:tileset (head layers)))
-
 (defun open-project! [state payload]
   (let [project-path (:path payload)
         project-directory (payload-directory payload)
         project-filename (or (:filename payload) project-path)
-        project (data/normalize-project-document (io/slurp-edn! project-path))
-        maps (project-maps project)
-        selected-map (project-selected-map project)
-        layers (:layers selected-map)
-        layer-profiles (project-layer-profiles project)
-        layer-profile-id (data/selected-layer-profile-id
-                          layer-profiles
-                          (:layer-profile selected-map))
-        tileset (first-layer-tileset layers)
-        tilesets (project-tilesets project)
-        property-sets (project-property-sets project)
-        terrain-sets (project-terrain-sets project)
-        rulesets (project-rulesets project)
-        tile-substitution-rules (project-tile-substitution-rules project)
-        mask-sets (project-mask-sets project)
-        terrain-transitions (project-terrain-transitions project)
-        brushes (project-brushes project)]
+        project (io/slurp-edn! project-path)]
     (if (valid-project-document? project)
-      (remember-project!
-       (tilemap/rebuild-terrain-stamp-preview
-        (assoc state
-               :project-path project-path
-               :project-directory project-directory
-               :project-filename project-filename
-               :tilesets tilesets
-               :property-sets property-sets
-               :selected-property-set-index
-               (when (not-empty? property-sets) 0)
-               :selected-property-definition-index
-               (when (not-empty? (or (:properties (head property-sets)) [])) 0)
-               :terrain-sets terrain-sets
-               :rulesets rulesets
-               :tile-substitution-rules tile-substitution-rules
-               :mask-sets mask-sets
-               :terrain-transitions terrain-transitions
-               :brushes brushes
-               :maps maps
-               :map-ui-states {}
-               :selected-map-id (:id selected-map)
-	               :selected-map-label (:label selected-map)
-	               :map-width (:width selected-map)
-	               :map-height (:height selected-map)
-	               :tile-size (data/map-tile-dim (:tile-size selected-map))
-               :selected-brush-index (when (not-empty? brushes) 0)
-               :selected-brush-layer-index
-               (when (not-empty? (or (-> (head brushes) :pattern :layers) [])) 0)
-               :brush-selected-tile nil
-               :layer-profiles layer-profiles
-               :selected-layer-profile-id layer-profile-id
-               :layers layers
-               :selected-layer-index (when (not-empty? layers) 0)
-               :selected-layer-label (or (:label (head layers)) "")
-               :terrain-rule-application :preview
-               :show-terrain-rules? true
-               :terrain-stamp-layers []
-               :terrain-stamp-replacements []
-               :hidden-layer-indices []
-               :tileset tileset
-               :selected-tileset-index (when tileset
-                                         (data/tileset-index tilesets
-                                                             tileset))
-               :selected-tileset-definition-index (when (not-empty? tilesets) 0)
-               :selected-tileset-tile-index (when (not-empty? (or (:tiles (head tilesets)) [])) 0)
-               :selected-tile (data/source-layer-value-id
-                               tilesets
-                               terrain-sets
-                               (head layers)
-                               0)
-               :resources (data/normalize-project-resources
-                           (or (:resources project) data/project-resources))
-               :selected-resource-bundle nil
-               :selected-image-resource nil
-               :last-project-open-result payload
-               :last-opened-project project))
-       payload)
+      (let [project (data/normalize-project-document project)]
+        (remember-project!
+         (assoc (project/activate state project)
+                :project-path project-path
+                :project-directory project-directory
+                :project-filename project-filename
+                :last-project-open-result payload
+                :last-opened-project project)
+         payload))
       (assoc state :last-project-open-error {:reason :invalid-format
                                              :path (:path payload)}))))
 
@@ -220,18 +112,23 @@
                    payload)))
 
 (defun apply-project-file-dialog-result [state payload]
-  (if (= (:type payload) :confirm)
+  (case (:type payload)
+    :confirm
     (let [next-state (assoc state
                             :project-path (:path payload)
                             :project-directory (payload-directory payload)
                             :project-filename (:filename payload)
                             :last-project-file-dialog-result payload)]
-      (if (save-project-result? payload)
+      (cond
+        (save-project-result? payload)
         (do
           (save-project! next-state payload)
           (remember-project! (assoc next-state :last-project-save-result payload)
                              payload))
-        (if (open-project-result? payload)
-          (open-project! next-state payload)
-          next-state)))
-    state))
+
+        (open-project-result? payload)
+        (open-project! next-state payload)
+
+        :default next-state))
+
+    :default state))

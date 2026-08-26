@@ -1,0 +1,21 @@
+(ns tilemap-editor.fixture.project
+  (:require [proof.fixture :as fixture]
+            [pixils.tilemap.project.model :as data]))
+
+(def base-project
+  "Canonical metadata shared by in-memory Tilemap Editor project fixtures."
+  {:format data/project-format
+   :version data/project-format-version
+   :resources data/project-resources})
+
+(fixture/deffixture project/blank
+  {}
+  (data/normalize-project-document base-project))
+
+(fixture/deffixture project/empty-property-set
+  {}
+  (data/normalize-project-document
+   (assoc base-project
+          :property-sets [{:id :movement
+                           :label "Movement"
+                           :properties []}])))

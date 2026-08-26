@@ -1,0 +1,82 @@
+(ns tilemap-editor.fixture.view.property-sets.workspace
+  (:require proof.core
+            [pixils.ui :as ui]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.ui.list-box :as list-box]
+            [pixils.test.ui.tab-panel :as tab-panel]))
+
+(defun open!
+  "Opens the Property Sets workspace through its application tab.
+
+  Args:
+  - `app`: Running Tilemap Editor test application.
+
+  Returns:
+  The application immediately after clicking the Property Sets tab."
+  [app]
+  (let [tab (tab-panel/tab app :property-sets)]
+    (is (some? tab))
+    (runtime/click! app tab)
+    app))
+
+(defun request-add-set!
+  "Requests a new property set through the workspace header.
+
+  Args:
+  - `app`: Tilemap Editor test application showing the Property Sets workspace.
+
+  Returns:
+  The application immediately after clicking the add button."
+  [app]
+  (let [panel (runtime/find-view-containing app
+                                            "ui/header-panel"
+                                            "Property Sets")
+        header (when panel (head (ui/children panel)))
+        button (when header (nth (ui/children header) 1))]
+    (is (some? panel))
+    (is (= "ui/button" (runtime/view-mode-name button)))
+    (runtime/click! app button)
+    app))
+
+(defun request-add-property!
+  "Requests a new property through the Fields header.
+
+  Args:
+  - `app`: Tilemap Editor test application showing a property set.
+
+  Returns:
+  The application immediately after clicking the add button."
+  [app]
+  (let [panel (runtime/find-view-containing app "ui/header-panel" "Fields")
+        header (when panel (head (ui/children panel)))
+        button (when header (nth (ui/children header) 1))]
+    (is (some? panel))
+    (is (= "ui/button" (runtime/view-mode-name button)))
+    (runtime/click! app button)
+    app))
+
+(defun shows-list-item?
+  "Checks whether a list box renders `label`.
+
+  Args:
+  - `app`: Running Tilemap Editor test application.
+  - `label`: Exact item label expected in a list box.
+
+  Returns:
+  True when a list box renders `label`."
+  [app label]
+  (not-empty? (list-box/views-containing app label)))
+
+(defun project-state
+  "Returns the project state relevant to property-set acceptance tests.
+
+  Args:
+  - `app`: Running Tilemap Editor test application.
+
+  Returns:
+  A map containing the active workspace, property sets, and their selection."
+  [app]
+  (select-keys (runtime/active-state app)
+               [:workspace-tab
+                :property-sets
+                :selected-property-set-index]))

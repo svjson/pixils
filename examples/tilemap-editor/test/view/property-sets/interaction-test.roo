@@ -1,0 +1,53 @@
+(ns tilemap-editor.view.property-sets.interaction-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.interaction :as pxi]
+            [tilemap-editor.fixture.common.dialog.identity-dialog :as identity-dialog]
+            tilemap-editor.fixture.project
+            [tilemap-editor.fixture.test-app :as test-app]
+            [tilemap-editor.fixture.view.property-sets.workspace :as ws]))
+
+
+
+;; Property-set workspace interaction
+
+(deftest workspace/adds-a-property-set-to-a-blank-project
+  [[project project/blank]]
+  (s/given
+    (test-app/make {:project project}))
+
+  (s/when [app]
+    (pxi/perform! (ws/open! app))
+    (pxi/perform! (ws/request-add-set! app))
+    (pxi/perform! (identity-dialog/confirm! app)))
+
+  (s/then [app]
+    (is (= {:workspace-tab :property-sets
+            :property-sets [{:id :property-set
+                             :label "Property Set"
+                             :properties []}]
+            :selected-property-set-index 0}
+           (ws/project-state app)))
+    (is (ws/shows-list-item? app "Property Set"))))
+
+(deftest workspace/adds-the-first-property
+  [[project project/empty-property-set]]
+  (s/given
+    (test-app/make {:project project}))
+
+  (s/when [app]
+    (pxi/perform! (ws/open! app))
+    (pxi/perform! (ws/request-add-property! app))
+    (pxi/perform! (identity-dialog/confirm! app)))
+
+  (s/then [app]
+    (is (= {:workspace-tab :property-sets
+            :property-sets [{:id :movement
+                             :label "Movement"
+                             :properties [{:id :property
+                                           :label "Property"
+                                           :type :any
+                                           :default nil}]}]
+            :selected-property-set-index 0}
+           (ws/project-state app)))
+    (is (ws/shows-list-item? app "Property"))))

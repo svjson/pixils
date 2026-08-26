@@ -1,0 +1,82 @@
+(ns tilemap-editor.model.project
+  (:require [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.tilemap :as tilemap]))
+
+(defun activate
+  "Activates an in-memory project document in editor `state`.
+
+  Args:
+  - `state`: Current Tilemap Editor application state.
+  - `project`: Normalized canonical project document.
+
+  Returns:
+  Editor state populated from `project`."
+  [state {:keys [maps
+                 selected-map
+                 tilesets
+                 property-sets
+                 terrain-sets
+                 rulesets
+                 tile-substitution-rules
+                 mask-sets
+                 terrain-transitions
+                 brushes
+                 layer-profiles
+                 resources]}]
+  (let [selected-map (data/selected-map-document maps selected-map)
+        layers (:layers selected-map)
+        layer-profile-id (data/selected-layer-profile-id
+                          layer-profiles
+                          (:layer-profile selected-map))
+        tileset (:tileset (head layers))]
+    (tilemap/rebuild-terrain-stamp-preview
+     (assoc state
+            :tilesets tilesets
+            :property-sets property-sets
+            :selected-property-set-index (when (not-empty? property-sets) 0)
+            :selected-property-definition-index (when (not-empty? (:properties (head property-sets)))
+                                                  0)
+            :terrain-sets terrain-sets
+            :rulesets rulesets
+            :tile-substitution-rules tile-substitution-rules
+            :mask-sets mask-sets
+            :terrain-transitions terrain-transitions
+            :brushes brushes
+            :maps maps
+            :map-ui-states {}
+            :selected-map-id (:id selected-map)
+            :selected-map-label (:label selected-map)
+            :map-width (:width selected-map)
+            :map-height (:height selected-map)
+            :tile-size (data/map-tile-dim (:tile-size selected-map))
+            :selected-brush-index (when (not-empty? brushes)
+                                    0)
+            :selected-brush-layer-index (when (not-empty? (-> (head brushes) :pattern :layers))
+                                          0)
+            :brush-selected-tile nil
+            :layer-profiles layer-profiles
+            :selected-layer-profile-id layer-profile-id
+            :layers layers
+            :selected-layer-index (when (not-empty? layers) 0)
+            :selected-layer-label (or (:label (head layers)) "")
+            :terrain-rule-application :preview
+            :show-terrain-rules? true
+            :terrain-stamp-layers []
+            :terrain-stamp-replacements []
+            :hidden-layer-indices []
+            :tileset tileset
+            :selected-tileset-index (when tileset
+                                      (data/tileset-index tilesets tileset))
+            :selected-tileset-definition-index (when (not-empty? tilesets)
+                                                 0)
+            :selected-tileset-tile-index (when (not-empty? (:tiles (head tilesets)))
+                                           0)
+            :selected-tile (data/source-layer-value-id
+                            tilesets
+                            terrain-sets
+                            (head layers)
+                            0)
+            :resources (data/normalize-project-resources
+                        (or resources data/project-resources))
+            :selected-resource-bundle nil
+            :selected-image-resource nil))))
