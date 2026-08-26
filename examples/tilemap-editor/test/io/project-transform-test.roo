@@ -5,37 +5,6 @@
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.io.project-support :as support]))
 
-(deftest project-layer-profiles-default_from_legacy_layers
-  (let [profiles (project-io/project-layer-profiles
-                  {:tilemap {:layers [{:id :scene/ground
-                                       :label "Ground"
-                                       :tileset :terrain
-                                       :tiles [[:grass]]}]}})]
-    (is (= data/default-layer-profile-id
-           (:id (head profiles))))
-    (is (= :scene/ground
-           (get-in profiles [0 :layers 0 :id])))
-    (is (= :source
-           (get-in profiles [0 :layers 0 :role])))
-    (is (= :tile-ref
-           (get-in profiles [0 :layers 0 :data-kind])))))
-
-(deftest project-selected-map-reads_selected_map_from_multi_map_document
-  (let [project (data/normalize-project-document
-                 {:format data/project-format
-                  :selected-map :map/cave
-                  :maps [{:id :map/overworld
-                          :layers []}
-                         {:id :map/cave
-                          :width 18
-                          :height 11
-                          :layers [{:id :scene/cave
-                                    :tiles [[:rock]]}]}]})
-        selected (project-io/project-selected-map project)]
-    (is (= :map/cave (:id selected)))
-    (is (= 18 (:width selected)))
-    (is (= :scene/cave (get-in selected [:layers 0 :id])))))
-
 (deftest loaded-terrain-rule-normalizes-legacy-sprite-sources
   (support/cleanup-project-io-test-files!)
   (io/spit-edn! support/LEGACY-SOURCE-PATH

@@ -67,6 +67,29 @@
   [app label]
   (not-empty? (list-box/views-containing app label)))
 
+(defun set-property-label!
+  "Changes an existing property's label through its form field.
+
+  Args:
+  - `app`: Tilemap Editor test application showing the property editor.
+  - `current-label`: Current property label used to identify its field.
+  - `label`: Replacement property label to enter.
+
+  Returns:
+  The application immediately after entering `label`."
+  [app current-label label]
+  (let [input (find-first (runtime/find-views app "ui/text-input")
+                          (fn [view]
+                            (= current-label (-> view :ui-state :value))))]
+    (is (some? input))
+    (runtime/click! app input)
+    (runtime/press-modified-key! app :left-ctrl :a)
+    (for [character label]
+      (runtime/press-key! app (keyword (str character))))
+    (runtime/click! app
+                    (runtime/find-view-containing app "ui/text" "Fields"))
+    app))
+
 (defun project-state
   "Returns the project state relevant to property-set acceptance tests.
 

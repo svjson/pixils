@@ -51,3 +51,24 @@
             :selected-property-set-index 0}
            (ws/project-state app)))
     (is (ws/shows-list-item? app "Property"))))
+
+(deftest workspace/edits-an-existing-property
+  [[project project/property]]
+  (s/given
+    (test-app/make {:project project}))
+
+  (s/when [app]
+    (pxi/perform! (ws/open! app))
+    (pxi/perform! (ws/set-property-label! app "Walkable" "passable")))
+
+  (s/then [app]
+    (is (= {:workspace-tab :property-sets
+            :property-sets [{:id :movement
+                             :label "Movement"
+                             :properties [{:id :walkable
+                                           :label "passable"
+                                           :type :any
+                                           :default nil}]}]
+            :selected-property-set-index 0}
+           (ws/project-state app)))
+    (is (ws/shows-list-item? app "passable"))))

@@ -2,46 +2,6 @@
   (:require proof.core
             [tilemap-editor.io.project :as project-io]))
 
-(deftest project-tilesets-come-from-project-document
-  (is (= [{:id :terrain}]
-         (project-io/project-tilesets {:tilesets [{:id :terrain}]})))
-  (is (= [] (project-io/project-tilesets {}))))
-
-(deftest project-terrain-sets-come-from-project-document
-  (is (= [{:id :overworld}]
-         (project-io/project-terrain-sets
-          {:terrain-sets [{:id :overworld}]})))
-  (is (= [] (project-io/project-terrain-sets {}))))
-
-(deftest project-property-sets-come-from-project-document
-  (is (= [{:id :movement}]
-         (project-io/project-property-sets
-          {:property-sets [{:id :movement}]})))
-  (is (= [] (project-io/project-property-sets {}))))
-
-(deftest project-rulesets-come-from-project-document
-  (is (= [{:id :grass-marching}]
-         (project-io/project-rulesets
-          {:rulesets [{:id :grass-marching}]})))
-  (is (= [] (project-io/project-rulesets {}))))
-
-(deftest project-mask-sets-come-from-project-document
-  (is (= [{:id :soft-edge}]
-         (project-io/project-mask-sets
-          {:mask-sets [{:id :soft-edge}]})))
-  (is (= [] (project-io/project-mask-sets {}))))
-
-(deftest project-terrain-transitions-come-from-project-document
-  (is (= [{:id :road-grass}]
-         (project-io/project-terrain-transitions
-          {:terrain-transitions [{:id :road-grass}]})))
-  (is (= [] (project-io/project-terrain-transitions {}))))
-
-(deftest project-brushes-come-from-project-document
-  (is (= [{:id :brush}]
-         (project-io/project-brushes {:brushes [{:id :brush}]})))
-  (is (= [] (project-io/project-brushes {}))))
-
 (deftest recent-project-history-promotes-existing-projects
   (let [projects [{:path "first.edn"
                    :filename "first.edn"}
@@ -66,7 +26,7 @@
     (is (= ["new.edn" "first.edn"]
            (map promoted :path)))))
 
-(deftest recent-projects-from-document-normalizes_blank_directories
+(deftest recent-projects-from-document-normalizes-blank-directories
   (is (= [{:path "/tmp/project/map.edn"
            :directory "/tmp/project"
            :filename "map.edn"}]

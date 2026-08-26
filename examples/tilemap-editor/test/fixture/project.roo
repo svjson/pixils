@@ -19,3 +19,14 @@
           :property-sets [{:id :movement
                            :label "Movement"
                            :properties []}])))
+
+(fixture/deffixture project/property
+  {}
+  (data/normalize-project-document
+   (assoc base-project
+          :property-sets [{:id :movement
+                           :label "Movement"
+                           :properties [{:id :walkable
+                                         :label "Walkable"
+                                         :type :any
+                                         :default nil}]}])))
