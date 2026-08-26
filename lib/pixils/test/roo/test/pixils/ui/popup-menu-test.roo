@@ -20,8 +20,7 @@
                             (runtime/find-view app "ui/menu-bar-item")
                             1
                             1)
-    (runtime/update! app)
-    (runtime/settle-layout! app)
+    (runtime/frame! app)
     app))
 
 (defun popup-app []
@@ -367,11 +366,13 @@
           background-before (-> item :effective-style :background)]
       (runtime/mouse-move-in! app item 2 2)
       (runtime/update! app)
-      (runtime/settle-layout! app)
-      {:hovered (-> item :interaction :hovered)
-       :highlighted (-> item :ui-state :highlighted)
-       :background-before background-before
-       :background-after (-> item :effective-style :background)}))
+      (runtime/render! app)
+      (let [updated-item
+            (head (runtime/find-views app "ui/popup-menu-item"))]
+        {:hovered (-> updated-item :interaction :hovered)
+         :highlighted (-> updated-item :ui-state :highlighted)
+         :background-before background-before
+         :background-after (-> updated-item :effective-style :background)})))
 
   (s/then [result]
     (is (= true (:hovered result)))
@@ -414,10 +415,11 @@
     (runtime/update! app)
     (runtime/mouse-up-at! app 42 17 :right)
     (runtime/update! app)
-    (runtime/settle-layout! app)
+    (runtime/render! app)
     {:mode (runtime/active-mode-name app)
      :position (select-keys
-                (:bounds (runtime/find-view app "ui/popup-menu-outer"))
+                (:visual-bounds
+                 (runtime/find-view app "ui/popup-menu-outer"))
                 [:x :y])})
 
   (s/then [result]

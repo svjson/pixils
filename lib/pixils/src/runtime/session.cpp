@@ -578,6 +578,18 @@ namespace Pixils::Runtime
       return changed;
     }
 
+    bool layout_and_place_overlay(const std::shared_ptr<View>& root,
+                                  const Session::ModeFrameMetadata& metadata,
+                                  const Rect& viewport,
+                                  Roo::Runtime& runtime,
+                                  const Roo::sptr_val& hook_args)
+    {
+      if (!metadata.overlay) return false;
+
+      bool changed = UI::layout_view_tree(root, viewport, runtime, hook_args);
+      return apply_overlay_placement(root, metadata, viewport) || changed;
+    }
+
   } // namespace
 
   Session::Session(Roo::Runtime& roo_runtime,
@@ -860,6 +872,20 @@ namespace Pixils::Runtime
             theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names)),
             variant);
         }
+      }
+    }
+
+    if (active_frame_changed && !frame_metadata.empty() && frame_metadata.back().overlay)
+    {
+      Rect full = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
+      if (layout_and_place_overlay(active_mode,
+                                   frame_metadata.back(),
+                                   full,
+                                   roo_runtime,
+                                   hook_args.render_args[1]))
+      {
+        mode_stack.update_state(active_mode->state);
+        hook_args.update_state(active_mode->state);
       }
     }
 

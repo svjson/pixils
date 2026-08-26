@@ -104,8 +104,7 @@
                           (head (runtime/find-views app "ui/menu-bar-item"))
                           1
                           1)
-  (runtime/settle-layout! app)
-  (runtime/render! app)
+  (runtime/frame! app)
   app)
 
 
@@ -187,9 +186,7 @@
             item (head (runtime/find-views app "ui/popup-menu-item"))
             before (rendered-signature app item)]
         (runtime/mouse-move-in! app item 1 1)
-        (runtime/update! app)
-        (runtime/settle-layout! app)
-        (runtime/render! app)
+        (runtime/frame! app)
         {:theme theme
          :rendering-changed? (not= before
                                    (rendered-signature app item))})))
@@ -218,18 +215,14 @@
             checked-active
             (do
               (runtime/mouse-move-in! app checked-item 1 1)
-              (runtime/update! app)
-              (runtime/settle-layout! app)
-              (runtime/render! app)
+              (runtime/frame! app)
               (rendered-background app checked-item))
             unchecked-while-checked-active
             (rendered-background app unchecked-item)
             unchecked-active
             (do
               (runtime/mouse-move-in! app unchecked-item 1 1)
-              (runtime/update! app)
-              (runtime/settle-layout! app)
-              (runtime/render! app)
+              (runtime/frame! app)
               (rendered-background app unchecked-item))]
         {:theme theme
          :normal-rows-match? (= checked-normal unchecked-normal)
@@ -281,7 +274,7 @@
       (runtime/press-key! app :down)
       (runtime/press-key! app :down)
       (runtime/press-key! app :right)
-      (runtime/settle-layout! app)
+      (runtime/render! app)
       {:popup-below-anchor?
        (= (:y popup-bounds)
           (+ (:y menu-bounds) (:h menu-bounds)))
@@ -304,8 +297,7 @@
     (let [app (app-for 'menu-rendering-bottom-edge-root)
           anchor (runtime/find-view app "ui/menu-bar-item")]
       (runtime/mouse-down-in! app anchor 1 1)
-      (runtime/settle-layout! app)
-      (runtime/render! app)
+      (runtime/frame! app)
       (let [popup-bounds
             (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
         {:above-anchor?
@@ -327,11 +319,10 @@
     (let [app (app-for 'menu-rendering-right-edge-root)
           anchor (runtime/find-view app "ui/menu-bar-item")]
       (runtime/mouse-down-in! app anchor 1 1)
-      (runtime/settle-layout! app)
+      (runtime/frame! app)
       (runtime/press-key! app :down)
       (let [parent-row (runtime/find-view app "ui/popup-menu-item")]
         (runtime/press-key! app :right)
-        (runtime/settle-layout! app)
         (runtime/render! app)
         (let [popup-bounds
               (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
@@ -362,12 +353,11 @@
             (runtime/press-key! app :down)
             (runtime/press-key! app :down)
             (runtime/press-key! app :right)
-            (runtime/settle-layout! app)
+            (runtime/render! app)
             (:visual-bounds (runtime/find-view app "ui/popup-menu-outer")))
           remaining-popup
           (do
             (runtime/press-key! app :left)
-            (runtime/settle-layout! app)
             (runtime/render! app)
             (runtime/find-view app "ui/popup-menu-outer"))
           remaining-bounds (:visual-bounds remaining-popup)]

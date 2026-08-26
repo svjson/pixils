@@ -139,16 +139,14 @@
   (s/when [app]
     (let [item (runtime/find-view app "ui/menu-bar-item")]
       (runtime/mouse-down-in! app item 1 1)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
+      (runtime/frame! app)
       (let [opened-mode (runtime/active-mode-name app)]
         (runtime/mouse-down-in! app item 1 1)
-        (runtime/update! app)
+        (runtime/frame! app)
         (let [dismissed-mode (runtime/active-mode-name app)
               reopened-item (runtime/find-view app "ui/menu-bar-item")]
           (runtime/mouse-down-in! app reopened-item 1 1)
-          (runtime/update! app)
-          (runtime/settle-layout! app)
+          (runtime/frame! app)
           {:opened-mode opened-mode
            :dismissed-mode dismissed-mode
            :reopened-mode (runtime/active-mode-name app)}))))
