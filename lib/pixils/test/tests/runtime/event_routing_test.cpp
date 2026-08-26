@@ -358,6 +358,32 @@ TEST_F(EventRoutingTest, on_mouse_wheel_does_not_fire_mouse_motion)
             "{:wheel-count 1 :motion-count 0}");
 }
 
+TEST_F(EventRoutingTest, mouse_motion_bubbles_emitted_events_in_the_same_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode motion-source
+      {:on-mouse-motion
+       (fn [state event ctx]
+         (do
+           (pixils.ui/emit! (:view ctx) :motion/hovered :target)
+           state))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:hovered nil})
+       :on {:motion/hovered
+            (fn [state event ctx]
+              (assoc state :hovered (:payload event)))}
+       :children [{:mode 'motion-source}]})
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 100};
+  session.active_mode->children[0]->bounds = {0, 0, 100, 100};
+
+  input().mouse_move({50, 50});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:hovered :target}");
+}
+
 TEST_F(EventRoutingTest, drag_hooks_fire_on_pressed_view_chain_after_motion)
 {
   runtime.eval(R"(

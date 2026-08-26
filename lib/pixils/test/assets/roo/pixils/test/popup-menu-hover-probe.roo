@@ -1,0 +1,27 @@
+(ns pixils.test.popup-menu-hover-probe
+  "Defines Windows 95 popup-menu hover rendering scenarios."
+  (:require pixils
+            [pixils.ui.menu-bar :as menu-bar]))
+
+(def MENU
+  "Menu with marked mnemonics on adjacent popup rows."
+  {:items [{:label "&File"
+            :items [{:label "&Open"
+                     :action :file/open}
+                    {:label "&Save"
+                     :action :file/save}]}]})
+
+(defun make-menu-bar
+  "Build the menu bar used by the hover scenarios."
+  []
+  (menu-bar/make {} MENU {}))
+
+(pixils/defmode windows-95-light-root
+  {:theme 'pixils/windows-95
+   :theme-variant :light
+   :children [(make-menu-bar)]})
+
+(pixils/defmode windows-95-dark-root
+  {:theme 'pixils/windows-95
+   :theme-variant :dark
+   :children [(make-menu-bar)]})

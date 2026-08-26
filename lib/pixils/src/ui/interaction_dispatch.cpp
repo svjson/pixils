@@ -1335,6 +1335,7 @@ namespace Pixils::UI
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
         hook_args,
         rt);
+      bubble_emitted_events_from_chain(chain, hook_args, rt);
     }
 
     void handle_mouse_wheel(MouseState& mouse_state,

@@ -1,0 +1,82 @@
+(ns pixils.ui.popup-menu-interaction-test
+  "Exercises popup-menu behavior across complete interaction frames."
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]))
+
+(def SCENARIOS
+  "Windows 95 theme variants and their hover probe modes."
+  [{:variant :light
+    :mode 'windows-95-light-root}
+   {:variant :dark
+    :mode 'windows-95-dark-root}])
+
+(defun app-for
+  "Open a popup and highlight its first row using public input."
+  [mode]
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 180
+                               :buffer-height 140
+                               :render-backend true})]
+    (runtime/eval-file! app "pixils/test/popup-menu-hover-probe.roo")
+    (runtime/push-mode! app mode)
+    (runtime/settle-layout! app)
+    (runtime/mouse-down-in! app
+                            (runtime/find-view app "ui/menu-bar-item")
+                            1
+                            1)
+    (runtime/settle-layout! app)
+    (runtime/press-key! app :down)
+    (runtime/render! app)
+    app))
+
+(defun rendered-pixels
+  "Return every rendered pixel inside `bounds`."
+  [app {:keys [x y w h]}]
+  (apply concat
+         (for [py (range y (+ y h))]
+           (for [px (range x (+ x w))]
+             (runtime/rendered-pixel app px py)))))
+
+
+
+;; pixils.ui.popup-menu/make
+
+(deftest make/settles-hover-navigation-before-the-first-render
+  (s/given
+    (for [{:keys [variant mode]} SCENARIOS]
+      {:variant variant
+       :app (app-for mode)}))
+
+  (s/when [scenarios]
+    (for [{:keys [variant app]} scenarios]
+      (let [items (runtime/find-views app "ui/popup-menu-item")]
+        (runtime/mouse-move-in! app (nth items 1) 2 2)
+        (runtime/frame! app)
+        (let [inner (runtime/find-view app "ui/popup-menu-inner")
+              popup (runtime/find-view app "ui/popup-menu-outer")
+              first-render (rendered-pixels app (:visual-bounds popup))
+              navigation
+              {:active-index (-> inner :ui-state :active-index)
+               :highlighted (for [item items]
+                              (-> item :ui-state :highlighted))}]
+          (runtime/frame! app)
+          {:variant variant
+           :navigation navigation
+           :first-render-stable?
+           (= first-render
+              (rendered-pixels app
+                               (:visual-bounds
+                                (runtime/find-view app
+                                                   "ui/popup-menu-outer"))))}))))
+
+  (s/then [result]
+    (is (= [{:variant :light
+             :navigation {:active-index 1
+                          :highlighted [false true]}
+             :first-render-stable? true}
+            {:variant :dark
+             :navigation {:active-index 1
+                          :highlighted [false true]}
+             :first-render-stable? true}]
+           result))))
