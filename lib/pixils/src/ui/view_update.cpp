@@ -4,8 +4,8 @@
 #include "pixils/runtime/component_state.h"
 #include "pixils/runtime/hook_arguments.h"
 #include "pixils/runtime/hook_invocation.h"
-#include "pixils/runtime/state.h"
 #include "pixils/runtime/view.h"
+#include "pixils/runtime/view_state_binding.h"
 #include "pixils/ui/view_events.h"
 #include <pixils/hook_context.h>
 
@@ -32,23 +32,6 @@ namespace Pixils::UI
       return view.state_binding && view.state_binding->type != Roo::Value::Type::NIL;
     }
 
-    bool has_component_state_binding(const Runtime::View& view)
-    {
-      return view.component_state_binding &&
-             view.component_state_binding->type != Roo::Value::Type::NIL;
-    }
-
-    bool has_ui_state_binding(const Runtime::View& view)
-    {
-      return view.ui_state_binding && view.ui_state_binding->type != Roo::Value::Type::NIL;
-    }
-
-    bool has_any_state_binding(const Runtime::View& view)
-    {
-      return has_state_binding(view) || has_component_state_binding(view) ||
-             has_ui_state_binding(view);
-    }
-
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
                          Roo::Runtime& rt)
@@ -71,13 +54,6 @@ namespace Pixils::UI
       if (!view->has_component_ui_state()) return;
       Roo::Context exec_ctx(rt);
 
-      if (auto parent = view->parent)
-      {
-        Runtime::transition_component_ui_state(
-          *view,
-          Runtime::extract_component_ui_state(parent->state, *view),
-          exec_ctx);
-      }
       view->seed_ui_state_from_shared_state_policy(rt);
       view->sync_state_from_shared_ui_state_policy();
 
@@ -99,15 +75,6 @@ namespace Pixils::UI
       }
 
       view->sync_state_from_shared_ui_state_policy();
-    }
-
-    Roo::sptr_val merge_child_state(const Roo::sptr_val& parent_state,
-                                    const Runtime::View& child)
-    {
-      return Runtime::merge_component_ui_state(
-        Runtime::merge_state(parent_state, child, child.state),
-        child,
-        child.ui_state);
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
@@ -203,11 +170,15 @@ namespace Pixils::UI
       auto& view = *view_ptr;
       PIXILS_BENCHMARK_COUNT(update_view_tree_nodes);
 
-      if (parent_state && has_state_binding(view))
+      if (view.parent && has_state_binding(view))
       {
         PIXILS_BENCHMARK_COUNT(update_state_extract_calls);
         PIXILS_BENCHMARK_TIME_BLOCK(update_state_extract_time_ns);
-        view.set_state_if_changed(Runtime::extract_state(*parent_state, view));
+        Runtime::pull_bound_view_state(view, rt);
+      }
+      else
+      {
+        Runtime::pull_bound_view_state(view, rt);
       }
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
@@ -244,20 +215,11 @@ namespace Pixils::UI
                                        rt);
       }
 
-      if (parent_state && has_any_state_binding(view))
+      if (view.parent && Runtime::has_bound_view_state(view))
       {
         PIXILS_BENCHMARK_COUNT(update_state_merge_calls);
         PIXILS_BENCHMARK_TIME_BLOCK(update_state_merge_time_ns);
-        auto merged = merge_child_state(*parent_state, view);
-        if (parent_view)
-        {
-          parent_view->set_state_from_child_bindings(merged, rt);
-          parent_view->set_ui_state_from_child_bindings(view, rt);
-        }
-        else
-        {
-          *parent_state = merged;
-        }
+        Runtime::push_bound_view_state(view, rt);
       }
     }
 
@@ -309,17 +271,12 @@ namespace Pixils::UI
       const std::shared_ptr<Runtime::View>& view_ptr,
       const MouseState& mouse_state,
       const FocusState& focus_state,
-      Roo::sptr_val* parent_state,
-      Runtime::View* parent_view,
       const Point& mouse_pos,
       Roo::Runtime& runtime)
     {
       auto& view = *view_ptr;
 
-      if (parent_state && has_state_binding(view))
-      {
-        view.set_state_if_changed(Runtime::extract_state(*parent_state, view));
-      }
+      Runtime::pull_bound_view_state(view, runtime);
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
       if (view.has_component_ui_state())
@@ -339,25 +296,11 @@ namespace Pixils::UI
         refresh_interaction_visual_state_subtree(child,
                                                  mouse_state,
                                                  focus_state,
-                                                 &view.state,
-                                                 &view,
                                                  mouse_pos,
                                                  runtime);
       }
 
-      if (parent_state && has_any_state_binding(view))
-      {
-        auto merged = merge_child_state(*parent_state, view);
-        if (parent_view)
-        {
-          parent_view->set_state_from_child_bindings(merged, runtime);
-          parent_view->set_ui_state_from_child_bindings(view, runtime);
-        }
-        else
-        {
-          *parent_state = merged;
-        }
-      }
+      Runtime::push_bound_view_state(view, runtime);
     }
 
   } // namespace
@@ -397,8 +340,6 @@ namespace Pixils::UI
     refresh_interaction_visual_state_subtree(root,
                                              mouse_state,
                                              focus_state,
-                                             nullptr,
-                                             nullptr,
                                              mouse_pos,
                                              runtime);
   }

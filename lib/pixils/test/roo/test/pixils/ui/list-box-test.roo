@@ -461,6 +461,49 @@
 
 ;; pixils.ui.list-box/make
 
+(deftest make/stabilizes-scrollbar-handle-on-first-frame
+  (s/given
+    (let [app (runtime/make-app {:package-root "../.."
+                                 :buffer-width 160
+                                 :buffer-height 120
+                                 :render-backend false})]
+      (runtime/eval!
+       app
+       "(ns pixils.test.list-box-first-frame-probe
+          (:require pixils
+                    [pixils.ui.list-box :as list-box]))
+
+        (pixils/defmode root-mode
+          {:children [(list-box/make
+                       {:options (for [index (range 20)]
+                                   {:value index
+                                    :label (str \"Item \" index)})
+                        :style {:width 100
+                                :visible-rows {:max 5}}})]})")
+      (runtime/push-mode! app 'root-mode)
+      app))
+
+  (s/when [app]
+    (runtime/frame! app)
+    (let [first-track (:bounds (runtime/find-view app "ui/scrollbar-track"))
+          first-handle (:bounds (runtime/find-view app "ui/scrollbar-handle"))]
+      (runtime/frame! app)
+      {:first {:track (select-keys first-track [:w :h])
+               :handle (select-keys first-handle [:w :h])}
+       :second {:track (select-keys
+                        (:bounds (runtime/find-view app "ui/scrollbar-track"))
+                        [:w :h])
+                :handle (select-keys
+                         (:bounds (runtime/find-view app "ui/scrollbar-handle"))
+                         [:w :h])}}))
+
+  (s/then [geometry]
+    (is (= {:first {:track {:w 14 :h 72}
+                            :handle {:w 14 :h 15}}
+            :second {:track {:w 14 :h 72}
+                     :handle {:w 14 :h 15}}}
+           geometry))))
+
 (deftest make/uses-item-provider
   (is (= ['app/person-row 'app/person-row]
          (for [child

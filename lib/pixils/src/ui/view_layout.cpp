@@ -10,6 +10,7 @@
 #include <pixils/runtime/component_state.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
+#include <pixils/runtime/view_state_binding.h>
 #include <pixils/ui/base_theme.h>
 #include <pixils/ui/theme.h>
 #include <pixils/ui/view_geometry.h>
@@ -557,16 +558,6 @@ namespace Pixils::UI
       native_hook_ctx.available_height = parent_content.h;
       Roo::Context exec_ctx(runtime);
 
-      if (auto parent = view->parent)
-      {
-        Runtime::transition_component_ui_state(
-          *view,
-          Runtime::extract_component_ui_state(parent->state, *view),
-          exec_ctx);
-      }
-      view->seed_ui_state_from_shared_state_policy(runtime);
-      view->sync_state_from_shared_ui_state_policy();
-
       Roo::sptr_val_v args = {view->ui_state, view->state, hook_ctx};
       auto result = view->component->after_layout_ui->exec().execute(exec_ctx, args);
       auto next_ui_state =
@@ -578,13 +569,6 @@ namespace Pixils::UI
 
       Runtime::transition_component_ui_state(*view, next_ui_state, exec_ctx);
       view->sync_state_from_shared_ui_state_policy();
-      if (auto parent = view->parent)
-      {
-        parent->set_state_from_child_bindings(
-          Runtime::merge_component_ui_state(parent->state, *view, view->ui_state),
-          runtime);
-        parent->set_ui_state_from_child_bindings(*view, runtime);
-      }
 
       native_hook_ctx.current_view = previous_view;
       native_hook_ctx.available_width = previous_width;
@@ -605,7 +589,9 @@ namespace Pixils::UI
     {
       if (!view) return false;
 
-      bool changed = invoke_after_layout_hook(view, runtime, hook_ctx, parent_content);
+      bool changed = Runtime::pull_bound_view_state(*view, runtime);
+      changed =
+        invoke_after_layout_hook(view, runtime, hook_ctx, parent_content) || changed;
       changed =
         invoke_after_layout_ui_hook(view, runtime, hook_ctx, parent_content) || changed;
       Rect content = view->effective_style.content_rect(view->bounds);
@@ -613,6 +599,7 @@ namespace Pixils::UI
       {
         changed = run_after_layout_hooks(child, runtime, hook_ctx, content) || changed;
       }
+      changed = Runtime::push_bound_view_state(*view, runtime) || changed;
       return changed;
     }
 

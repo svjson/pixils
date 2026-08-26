@@ -218,6 +218,57 @@ TEST_F(StateBindingTest, component_after_layout_ui_updates_bound_component_state
   EXPECT_EQ(value->to_string(), "17");
 }
 
+TEST_F(StateBindingTest, after_layout_binding_convergence_is_state_channel_independent)
+{
+  runtime.eval(R"(
+    (pixils/defmode state-leaf
+      {:content-size (fn [state ctx]
+                       {:w 10 :h (or (:height state) 0)})})
+    (pixils/defmode state-passive
+      {:children [{:mode 'state-leaf
+                   :state {:height (pixils.ui/project-state :height)}}]})
+    (pixils/defmode state-source
+      {:init (fn [state ctx] {:height 0})
+       :after-layout (fn [state ctx] (assoc state :height 17))
+       :children [{:mode 'state-passive
+                   :state {:height (pixils.ui/project-state :height)}}]})
+
+    (pixils/defcomponent ui-state-leaf
+      {:ui/state-keys [:height]
+       :content-size (fn [state ctx]
+                       {:w 10
+                        :h (or (-> ctx :view :ui-state :height) 0)})})
+    (pixils/defcomponent ui-state-passive
+      {:ui/state-keys [:height]
+       :children [{:mode 'ui-state-leaf
+                   :ui/state-policy :isolated
+                   :ui-state {:height (pixils.ui/project-state :height)}}]})
+    (pixils/defcomponent ui-state-source
+      {:ui/state-keys [:height]
+       :init-ui (fn [ui-state state ctx] (assoc ui-state :height 0))
+       :after-layout-ui (fn [ui-state state ctx]
+                          (assoc ui-state :height 17))
+       :children [{:mode 'ui-state-passive
+                   :ui/state-policy :isolated
+                   :ui-state {:height (pixils.ui/project-state :height)}}]})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'state-source}
+                  {:mode 'ui-state-source
+                   :ui/state-policy :isolated}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto state_leaf = session.active_mode->children[0]->children[0]->children[0];
+  auto ui_state_leaf = session.active_mode->children[1]->children[0]->children[0];
+  ASSERT_NE(state_leaf, nullptr);
+  ASSERT_NE(ui_state_leaf, nullptr);
+  EXPECT_EQ(state_leaf->bounds.h, 17);
+  EXPECT_EQ(ui_state_leaf->bounds.h, 17);
+}
+
 TEST_F(StateBindingTest, component_ui_state_survives_application_update_replacement)
 {
   runtime.eval(R"(
