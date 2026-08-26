@@ -37,6 +37,8 @@ namespace Pixils::Runtime
         NONE,
         BOTTOM_START,
         TOP_START,
+        RIGHT_START,
+        LEFT_START,
       };
 
       struct Overlay

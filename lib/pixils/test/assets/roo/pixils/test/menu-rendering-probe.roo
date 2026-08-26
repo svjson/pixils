@@ -1,7 +1,8 @@
 (ns pixils.test.menu-rendering-probe
   "Defines public menu configurations for rendered-contract scenarios."
   (:require pixils
-            [pixils.ui.menu-bar :as menu-bar]))
+            [pixils.ui.menu-bar :as menu-bar]
+            [pixils.ui.popup-menu :as popup-menu]))
 
 (def MENU
   "Menu definition covering actions, selection markers, and nesting."
@@ -25,6 +26,22 @@
   "Full-buffer application geometry for rendered menu scenarios."
   {:width :fill
    :height :fill})
+
+(def EDGE-MENU
+  "Compact menu definition used to exercise viewport-edge placement."
+  {:items [{:label "File"
+            :items [{:label "Recent files"
+                     :items [{:label "Open map"
+                              :action :file/open-recent}]}
+                    {:label "Open"
+                     :action :file/open}]}]})
+
+(def EDGE-CONTEXT-MENU
+  "Context menu used to exercise point-anchored viewport placement."
+  {:items [{:label "Rename"
+            :action :item/rename}
+           {:label "Delete"
+            :action :item/delete}]})
 
 (defun make-menu-bar
   "Build the menu bar exercised by rendered-contract scenarios.
@@ -58,3 +75,37 @@
    :class :ui/app
    :style APP-STYLE
    :children [(make-menu-bar)]})
+
+(pixils/defmode menu-rendering-bottom-edge-root
+  {:class :ui/app
+   :style APP-STYLE
+   :children [(menu-bar/make
+               {:style {:position :absolute
+                        :left 0
+                        :top 162
+                        :width :shrink}}
+               EDGE-MENU
+               {})]})
+
+(pixils/defmode menu-rendering-right-edge-root
+  {:class :ui/app
+   :style APP-STYLE
+   :children [(menu-bar/make
+               {:style {:position :absolute
+                        :left 200
+                        :top 0
+                        :width :shrink}}
+               EDGE-MENU
+               {})]})
+
+(pixils/defmode menu-rendering-context-edge-root
+  {:class :ui/app
+   :style APP-STYLE
+   :on-mouse-up
+   (fn [state event ctx]
+     (when (= (:button event) :right)
+       (popup-menu/open-context! EDGE-CONTEXT-MENU
+                                 (:global-position event)
+                                 state
+                                 ctx))
+     state)})

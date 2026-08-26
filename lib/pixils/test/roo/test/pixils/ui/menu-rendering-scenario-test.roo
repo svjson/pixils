@@ -299,6 +299,56 @@
             :nested-popup-right-of-parent? true}
            result))))
 
+(deftest make/opens-a-menu-bar-popup-above-the-bottom-viewport-edge
+  (s/when []
+    (let [app (app-for 'menu-rendering-bottom-edge-root)
+          anchor (runtime/find-view app "ui/menu-bar-item")]
+      (runtime/mouse-down-in! app anchor 1 1)
+      (runtime/settle-layout! app)
+      (runtime/render! app)
+      (let [popup-bounds
+            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+        {:above-anchor?
+         (= (+ (:y popup-bounds) (:h popup-bounds))
+            (-> anchor :visual-bounds :y))
+         :inside-viewport?
+         (and (>= (:x popup-bounds) 0)
+              (>= (:y popup-bounds) 0)
+              (<= (+ (:x popup-bounds) (:w popup-bounds)) 240)
+              (<= (+ (:y popup-bounds) (:h popup-bounds)) 180))})))
+
+  (s/then [result]
+    (is (= {:above-anchor? true
+            :inside-viewport? true}
+           result))))
+
+(deftest make/opens-a-submenu-left-of-the-right-viewport-edge
+  (s/when []
+    (let [app (app-for 'menu-rendering-right-edge-root)
+          anchor (runtime/find-view app "ui/menu-bar-item")]
+      (runtime/mouse-down-in! app anchor 1 1)
+      (runtime/settle-layout! app)
+      (runtime/press-key! app :down)
+      (let [parent-row (runtime/find-view app "ui/popup-menu-item")]
+        (runtime/press-key! app :right)
+        (runtime/settle-layout! app)
+        (runtime/render! app)
+        (let [popup-bounds
+              (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+          {:left-of-parent?
+           (= (+ (:x popup-bounds) (:w popup-bounds))
+              (-> parent-row :visual-bounds :x))
+           :inside-viewport?
+           (and (>= (:x popup-bounds) 0)
+                (>= (:y popup-bounds) 0)
+                (<= (+ (:x popup-bounds) (:w popup-bounds)) 240)
+                (<= (+ (:y popup-bounds) (:h popup-bounds)) 180))}))))
+
+  (s/then [result]
+    (is (= {:left-of-parent? true
+            :inside-viewport? true}
+           result))))
+
 (deftest make/keeps-parent-popup-rendered-when-leaving-a-submenu
   (s/when []
     (let [app (open-first-popup! (app-for 'menu-rendering-windows-3-root))
@@ -378,4 +428,32 @@
             {:theme :windows-95
              :option-marker-visible? true
              :submenu-marker-visible? true}]
+           result))))
+
+
+
+;; pixils.ui.popup-menu/open-context!
+
+(deftest open-context!/keeps-a-bottom-right-context-menu-inside-the-viewport
+  (s/when []
+    (let [app (app-for 'menu-rendering-context-edge-root)]
+      (runtime/mouse-click-at! app 235 175 :right)
+      (runtime/settle-layout! app)
+      (runtime/render! app)
+      (let [popup-bounds
+            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+        {:above-pointer?
+         (= (+ (:y popup-bounds) (:h popup-bounds)) 175)
+         :right-edge-clamped?
+         (= (+ (:x popup-bounds) (:w popup-bounds)) 240)
+         :inside-viewport?
+         (and (>= (:x popup-bounds) 0)
+              (>= (:y popup-bounds) 0)
+              (<= (+ (:x popup-bounds) (:w popup-bounds)) 240)
+              (<= (+ (:y popup-bounds) (:h popup-bounds)) 180))})))
+
+  (s/then [result]
+    (is (= {:above-pointer? true
+            :right-edge-clamped? true
+            :inside-viewport? true}
            result))))

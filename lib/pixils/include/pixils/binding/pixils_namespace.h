@@ -241,7 +241,8 @@ namespace Pixils::Script
      * theme, and drag behavior. It also accepts transition metadata:
      * `:origin` controls where a later `pop-mode!` result event is delivered,
      * and `:overlay` places the pushed root relative to a view or rectangle
-     * after layout.
+     * after layout. Overlay placement accepts `:bottom-start`, `:top-start`,
+     * `:right-start`, and `:left-start`.
      *
      * Mode transitions are message-based. Calling `push-mode!` from a hook is
      * safe; the new root becomes active when the session processes queued mode

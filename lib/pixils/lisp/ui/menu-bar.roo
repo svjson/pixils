@@ -63,7 +63,7 @@
                                   ui-state
                                   {:input-source input-source})
                            child-view
-                           :below))))
+                           :bottom-start))))
 
 
 ;; Menu-bar component

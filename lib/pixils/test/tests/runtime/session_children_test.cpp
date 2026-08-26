@@ -1173,6 +1173,40 @@ TEST_F(SessionChildrenTest, pushed_overlay_can_be_placed_from_anchor_bounds)
   EXPECT_EQ(panel->bounds.h, 20);
 }
 
+TEST_F(SessionChildrenTest, pushed_overlay_uses_the_side_with_less_overflow)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent popup-panel {})
+    (pixils/defmode popup-mode
+      {:children [{:mode 'popup-panel
+                   :style {:position :absolute
+                           :left 0
+                           :top 0
+                           :width 220
+                           :height 20}}]})
+  )");
+
+  auto overlay = Roo::map({Roo::keyword("anchor-bounds"),
+                           Pixils::Script::RectAdapter::make_unique(180, 50, 0, 10),
+                           Roo::keyword("placement"),
+                           Roo::keyword("right-start"),
+                           Roo::keyword("fallback-placement"),
+                           Roo::keyword("left-start")});
+  auto overrides = Roo::map({Roo::keyword("overlay"), overlay});
+
+  session.push_mode("popup-mode", Roo::Constant::NIL, overrides);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto panel = session.active_mode->children[0];
+  ASSERT_NE(panel, nullptr);
+  EXPECT_EQ(panel->bounds.x, 0);
+  EXPECT_EQ(panel->bounds.y, 50);
+  EXPECT_EQ(panel->bounds.w, 220);
+  EXPECT_EQ(panel->bounds.h, 20);
+}
+
 TEST_F(SessionChildrenTest, interaction_pass_overlay_allows_underlying_mouse_leave)
 {
   runtime.eval(R"(

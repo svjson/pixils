@@ -2,6 +2,7 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.image :as img]
+            [pixils.rect :as rect]
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.menu-model :as model]
@@ -94,35 +95,16 @@
                          (select-keys application-state
                                       [:option-state :game :preferences])))))))
 
-(defun position
-  "Calculate an unclamped popup origin relative to an anchor view.
-
-  Args:
-  - `anchor-view`: View containing anchor bounds.
-  - `placement`: Placement keyword such as `:right` or `:below`.
-
-  Returns:
-  Absolute `:left` and `:top` coordinates."
-  [anchor-view placement]
-  (case placement
-    :right {:left (+ (-> anchor-view :bounds :x)
-                     (-> anchor-view :bounds :w))
-            :top (-> anchor-view :bounds :y)}
-    :default {:left (-> anchor-view :bounds :x)
-              :top (+ (-> anchor-view :bounds :y)
-                      (-> anchor-view :bounds :h))}))
-
 (defun children
   "Build the outer and inner popup view specifications.
 
   Args:
   - `items`: Normalized menu nodes.
   - `state`: Popup and application inputs.
-  - `position`: Absolute popup origin.
 
   Returns:
   Popup child specifications."
-  [items state position]
+  [items state]
   (let [component
         (merge (option-list/component-state
                 {:options items
@@ -142,8 +124,8 @@
       :style {:position :absolute
               :width :shrink
               :height :shrink
-              :left (:left position)
-              :top (:top position)}
+              :left 0
+              :top 0}
       :children
       [{:mode 'ui/popup-menu-inner
         :ui/state-policy :isolated
@@ -155,19 +137,18 @@
                      (ui/project-state :content-state)}
                     :children (option-list/item-children component)}]}]}]))
 
-(defun open-at-position!
-  "Open a popup overlay for normalized items at an absolute position.
+(defun open-with-overlay!
+  "Open a popup using post-layout overlay placement.
 
   Args:
   - `items`: Normalized menu nodes.
-  - `state`: Popup and application inputs, including an optional
-    `:input-source` that defaults to `:mouse`.
+  - `state`: Popup and application inputs.
   - `origin-view`: View that receives the popup result.
-  - `position`: Absolute popup origin.
+  - `overlay`: Anchor and preferred/fallback placement metadata.
 
   Returns:
   The pushed mode result, or `nil` for an empty item list."
-  [items state origin-view position]
+  [items state origin-view overlay]
   (let [input-source (or (:input-source state) :mouse)
         popup-state {:items items
                      :active-index
@@ -185,8 +166,33 @@
        popup-state
        {:origin {:view origin-view
                  :event (or (:result-event state) :menu/select)}
+        :overlay overlay
         :style {:scale (:menu-scale state)}
-        :children (children items (merge state popup-state) position)}))))
+        :children (children items (merge state popup-state))}))))
+
+(defun open-at-position!
+  "Open a popup overlay for normalized items at an absolute position.
+
+  Args:
+  - `items`: Normalized menu nodes.
+  - `state`: Popup and application inputs, including an optional
+    `:input-source` that defaults to `:mouse`.
+  - `origin-view`: View that receives the popup result.
+  - `position`: Absolute popup origin.
+
+  Returns:
+  The pushed mode result, or `nil` for an empty item list."
+  [items state origin-view position]
+  (open-with-overlay!
+   items
+   state
+   origin-view
+   {:anchor-bounds (rect/make-rect {:x (:left position)
+                                    :y (:top position)
+                                    :w 0
+                                    :h 0})
+    :placement :bottom-start
+    :fallback-placement :top-start}))
 
 (defun open-at-view!
   "Open a node's submenu relative to an anchor view.
@@ -195,20 +201,26 @@
   - `node`: Enabled normalized node owning submenu items.
   - `state`: Popup and application inputs, including an optional input source.
   - `anchor-view`: View used for placement and result routing.
-  - `placement`: Relative placement keyword.
+  - `placement`: Preferred overlay placement keyword.
 
   Returns:
   The pushed mode result, or `nil` when the node cannot open."
   [node state anchor-view placement]
   (when (and (not (:disabled? node))
              (model/submenu-node? node))
-    (open-at-position! (:items node)
-                       (assoc state
-                              :menu-scale
-                              (or (:visual-scale anchor-view)
-                                  (:menu-scale state)))
-                       anchor-view
-                       (position anchor-view placement))))
+    (open-with-overlay!
+     (:items node)
+     (assoc state
+            :menu-scale
+            (or (:visual-scale anchor-view)
+                (:menu-scale state)))
+     anchor-view
+     {:anchor anchor-view
+      :placement placement
+      :fallback-placement
+      (case placement
+        :right-start :left-start
+        :default :top-start)})))
 
 (defun open-context!
   "Normalize and open a context-menu overlay.
@@ -242,7 +254,7 @@
   Returns:
   The pushed popup mode result, or `nil`."
   [node state ctx]
-  (open-at-view! node state (:view ctx) :below))
+  (open-at-view! node state (:view ctx) :bottom-start))
 
 (defun open-submenu!
   "Open a nested popup to the right of an item view.
@@ -260,7 +272,7 @@
                         :nested? true
                         :result-event :popup-menu/submenu-result)
                  anchor-view
-                 :right))
+                 :right-start))
 
 (defun activate-index!
   "Activate the logical popup item at an index.

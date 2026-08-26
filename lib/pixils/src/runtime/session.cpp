@@ -72,6 +72,14 @@ namespace Pixils::Runtime
       {
         return Session::ModeFrameMetadata::OverlayPlacement::TOP_START;
       }
+      if (name == "right-start")
+      {
+        return Session::ModeFrameMetadata::OverlayPlacement::RIGHT_START;
+      }
+      if (name == "left-start")
+      {
+        return Session::ModeFrameMetadata::OverlayPlacement::LEFT_START;
+      }
       if (name == "none")
       {
         return Session::ModeFrameMetadata::OverlayPlacement::NONE;
@@ -401,29 +409,59 @@ namespace Pixils::Runtime
       return root;
     }
 
-    int overlay_top_for_placement(Session::ModeFrameMetadata::OverlayPlacement placement,
-                                  const Rect& anchor,
-                                  int target_visual_height)
+    struct OverlayOrigin
+    {
+      int left;
+      int top;
+    };
+
+    OverlayOrigin overlay_origin_for_placement(
+      Session::ModeFrameMetadata::OverlayPlacement placement,
+      const Rect& anchor,
+      int target_visual_width,
+      int target_visual_height)
     {
       switch (placement)
       {
       case Session::ModeFrameMetadata::OverlayPlacement::TOP_START:
-        return anchor.y - target_visual_height;
+        return {anchor.x, anchor.y - target_visual_height};
       case Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START:
-        return anchor.y + anchor.h;
+        return {anchor.x, anchor.y + anchor.h};
+      case Session::ModeFrameMetadata::OverlayPlacement::RIGHT_START:
+        return {anchor.x + anchor.w, anchor.y};
+      case Session::ModeFrameMetadata::OverlayPlacement::LEFT_START:
+        return {anchor.x - target_visual_width, anchor.y};
       case Session::ModeFrameMetadata::OverlayPlacement::NONE:
         break;
       }
-      return anchor.y + anchor.h;
+      return {anchor.x, anchor.y + anchor.h};
     }
 
-    bool placement_fits_vertically(int visual_top,
-                                   int visual_height,
-                                   const Rect& viewport,
-                                   int padding)
+    int placement_axis_overflow(Session::ModeFrameMetadata::OverlayPlacement placement,
+                                const OverlayOrigin& origin,
+                                int visual_width,
+                                int visual_height,
+                                const Rect& viewport,
+                                int padding)
     {
-      return visual_top >= viewport.y + padding &&
-             visual_top + visual_height <= viewport.y + viewport.h - padding;
+      const int min_left = viewport.x + padding;
+      const int max_right = viewport.x + viewport.w - padding;
+      const int min_top = viewport.y + padding;
+      const int max_bottom = viewport.y + viewport.h - padding;
+
+      switch (placement)
+      {
+      case Session::ModeFrameMetadata::OverlayPlacement::RIGHT_START:
+      case Session::ModeFrameMetadata::OverlayPlacement::LEFT_START:
+        return std::max(0, min_left - origin.left) +
+               std::max(0, origin.left + visual_width - max_right);
+      case Session::ModeFrameMetadata::OverlayPlacement::TOP_START:
+      case Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START:
+      case Session::ModeFrameMetadata::OverlayPlacement::NONE:
+        return std::max(0, min_top - origin.top) +
+               std::max(0, origin.top + visual_height - max_bottom);
+      }
+      return 0;
     }
 
     void offset_visual_subtree(const std::shared_ptr<View>& view,
@@ -468,27 +506,40 @@ namespace Pixils::Runtime
       const int target_visual_width =
         overlay.match_anchor_width ? anchor.w : target->visual_bounds.w;
       const int target_visual_height = target->visual_bounds.h;
-      int visual_left = anchor.x;
-      int visual_top =
-        overlay_top_for_placement(overlay.placement, anchor, target_visual_height);
+      auto origin = overlay_origin_for_placement(overlay.placement,
+                                                 anchor,
+                                                 target_visual_width,
+                                                 target_visual_height);
 
-      if (overlay.fallback_placement != Session::ModeFrameMetadata::OverlayPlacement::NONE &&
-          !placement_fits_vertically(visual_top,
-                                     target_visual_height,
-                                     viewport,
-                                     overlay.viewport_padding))
+      if (overlay.fallback_placement != Session::ModeFrameMetadata::OverlayPlacement::NONE)
       {
-        int fallback_top = overlay_top_for_placement(overlay.fallback_placement,
-                                                     anchor,
-                                                     target_visual_height);
-        if (placement_fits_vertically(fallback_top,
-                                      target_visual_height,
-                                      viewport,
-                                      overlay.viewport_padding))
+        const int preferred_overflow = placement_axis_overflow(overlay.placement,
+                                                               origin,
+                                                               target_visual_width,
+                                                               target_visual_height,
+                                                               viewport,
+                                                               overlay.viewport_padding);
+        if (preferred_overflow > 0)
         {
-          visual_top = fallback_top;
+          auto fallback_origin = overlay_origin_for_placement(overlay.fallback_placement,
+                                                              anchor,
+                                                              target_visual_width,
+                                                              target_visual_height);
+          const int fallback_overflow = placement_axis_overflow(overlay.fallback_placement,
+                                                                fallback_origin,
+                                                                target_visual_width,
+                                                                target_visual_height,
+                                                                viewport,
+                                                                overlay.viewport_padding);
+          if (fallback_overflow < preferred_overflow)
+          {
+            origin = fallback_origin;
+          }
         }
       }
+
+      int visual_left = origin.left;
+      int visual_top = origin.top;
 
       const int max_left =
         viewport.x + viewport.w - overlay.viewport_padding - target_visual_width;
