@@ -1,0 +1,19 @@
+(ns pixils.test.interaction
+  (:require [pixils.test.runtime :as runtime]))
+
+(defun perform!
+  "Settles a completed UI interaction before the test continues.
+
+  The interaction passed to this function must return its running test
+  application. Pixils Test completes the resulting update and layout work,
+  renders the frame, and returns the same application.
+
+  Args:
+  - `app`: Test application returned by an intent-level UI operation.
+
+  Returns:
+  The settled and rendered test application."
+  [app]
+  (runtime/settle-layout! app)
+  (runtime/render! app)
+  app)
