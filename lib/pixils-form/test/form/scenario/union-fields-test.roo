@@ -1,5 +1,6 @@
 (ns pixils.form.scenario.union-fields-test
   (:require proof.core
+            [proof.syntax :as s]
             [pixils.form :as form]))
 
 
@@ -7,37 +8,51 @@
 ;; pixils.form/make
 
 (deftest make/renders-active-discriminated-union-fields
-  (let [view (form/make {:schema {:definitions
-                          {:rule-base {:type :object
-                            :fields {:type {:type :keyword
-                                            :valid-values [:preferred-position :edge]}}}
-                           :preferred-position-rule {:extends :rule-base
-                            :fields {:point {:type :number}}}
-                           :edge-rule {:extends :rule-base
-                            :fields {:target {:type :keyword}}}}
-                          :schema {:type :union
-                                   :discriminator :type
-                                   :base {:ref :rule-base}
-                                   :variants {
-                                    :preferred-position {:ref :preferred-position-rule}
-                                    :edge {:ref :edge-rule}}}}
-                         :value {:type :preferred-position :point 3}})
-        union-control (-> view :children head :children head :children head)
-        union-children (-> union-control :children head :children)
-        type-view (head union-children)
-        point-view (nth union-children 1)
-        target-view (nth union-children 2)]
+  (s/given
+    {:schema {:definitions {:rule-base
+                            {:type :object
+                             :fields {:type {:type :keyword
+                                             :valid-values [:preferred-position :edge]}}}
+                            :preferred-position-rule
+                            {:extends :rule-base
+                             :fields {:point {:type :number}}}
+                            :edge-rule
+                            {:extends :rule-base
+                             :fields {:target {:type :keyword}}}}
+              :schema {:type :union
+                       :discriminator :type
+                       :base {:ref :rule-base}
+                       :variants {:preferred-position {:ref :preferred-position-rule}
+                                  :edge {:ref :edge-rule}}}}
+     :value {:type :preferred-position
+             :point 3}})
+
+  (s/when [form-options]
+    (let [view (form/make form-options)
+          union-control (-> view :children head :children head :children head)
+          union-fields (-> union-control :children head :children)
+          discriminator-field (head union-fields)
+          active-variant-field (nth union-fields 1)
+          inactive-variant-field (nth union-fields 2)]
+      {:control {:mode (:mode union-control)
+                 :field-path-prefix (-> union-control
+                                        :state
+                                        :field-path-prefix)}
+       :discriminator-field {:field-id (-> discriminator-field
+                                           :state
+                                           :field-id)}
+       :active-variant-field {:mode (:mode active-variant-field)
+                              :form-value? (contains? (:state active-variant-field)
+                                                      :form-value)}
+       :inactive-variant-field inactive-variant-field}))
+
+  (s/then [rendered]
     (is (= {:control {:mode 'pixils/form-object-control :field-path-prefix nil}
-            :children [{:field-id :type}
-                       {:mode 'pixils/form-field :form-value? true :visibility :visible}
-                       nil]}
-           {:control {:mode (:mode union-control)
-                      :field-path-prefix (-> union-control :state :field-path-prefix)}
-            :children [{:field-id (-> type-view :state :field-id)}
-                       {:mode (:mode point-view)
-                        :form-value? (contains? (:state point-view) :form-value)
-                        :visibility (get-in point-view [:style :visibility])}
-                       target-view]}))))
+            :discriminator-field {:field-id :type}
+            :active-variant-field {:mode 'pixils/form-field
+                                   :form-value? true}
+            :inactive-variant-field nil}
+           rendered))))
 
 (deftest make/renders-nested-discriminated-union-field
   (let [view (form/make {:schema {:definitions

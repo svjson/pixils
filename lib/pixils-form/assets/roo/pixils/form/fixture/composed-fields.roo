@@ -1,0 +1,42 @@
+(ns pixils.form.fixture.composed-fields
+  (:require pixils
+            pixils.form.base-theme
+            pixils.ui.theme.classic-blue
+            [pixils.form :as form]))
+
+(defun make-nested-label-form
+  "Builds the form used to verify nested-label layout.
+
+  Args:
+  - `options`: Label-style options merged into the shared form configuration.
+
+  Returns:
+  A Pixils Form view declaration containing two nested object fields."
+  [options]
+  (form/make
+   (merge
+    {:schema {:shape {:type :object
+                      :fields {:radius {:type :object
+                                        :fields {:x {:type :number}}}}}}
+     :text {:shape "Shape"
+            :radius "Radius"
+            :x "X"}
+     :layout [:shape]
+     :value {:shape {:radius {:x 1}}}
+     :field-label-style {:width 112
+                         :height 18}}
+    options)))
+
+(defmode compact-nested-labels-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base]
+   :children
+   [(make-nested-label-form {})]})
+
+(defmode explicit-nested-label-width-probe
+  {:theme ['pixils/classic-blue
+           'pixils-form/base]
+   :children
+   [(make-nested-label-form
+     {:nested-field-label-style {:width 72
+                                 :height 18}})]})

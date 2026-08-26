@@ -1,6 +1,8 @@
 (ns pixils.form.scenario.composed-fields-test
   (:require proof.core
-            [pixils.form :as form]))
+            [proof.syntax :as s]
+            [pixils.form :as form]
+            [pixils.test.runtime :as runtime]))
 
 
 
@@ -109,46 +111,42 @@
            {:mode (:mode object-control)
             :child-control-modes [(:mode place-control) (:mode anchor-editor)]}))))
 
-(deftest make/uses-compact-fixed-label-width
-  (let [view (form/make {:schema {:shape {:type :object
-                                          :fields {:radius {:type :object
-                                                            :fields {
-                                                             :x {:type :number}}}}}}
-                         :layout [:shape]
-                         :value {:shape {:radius {:x 1}}}
-                         :field-label-style {:width 112
-                                             :height 18}})
-        shape-view (-> view :children head :children head :children head)
-        shape-label (head (:children shape-view))
-        shape-control (nth (:children shape-view) 1)
-        radius-view (-> shape-control :children head :children head)
-        radius-label (head (:children radius-view))
-        radius-control (nth (:children radius-view) 1)
-        x-view (-> radius-control :children head :children head)
-        x-label (head (:children x-view))]
-    (is (= [112 64 64]
-           (for [label [shape-label radius-label x-label]]
-             (-> label :style :width))))))
+(deftest nested-label-layout/uses-compact-fixed-width
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 400
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "assets/roo/pixils/form/fixture/composed-fields.roo")
+      (runtime/push-mode! app 'compact-nested-labels-probe)
+      (runtime/settle-layout! app)
+      (for [text ["Shape" "Radius" "X"]]
+        (-> (runtime/find-view-containing app "ui/text" text)
+            :bounds
+            :w))))
 
-(deftest make/supports-explicit-label-style
-  (let [view (form/make {:schema {:shape {:type :object
-                                          :fields {:radius {:type :object
-                                                            :fields {
-                                                             :x {:type :number}}}}}}
-                         :layout [:shape]
-                         :value {:shape {:radius {:x 1}}}
-                         :field-label-style {:width 112
-                                             :height 18}
-                         :nested-field-label-style {:width 72
-                                                    :height 18}})
-        shape-view (-> view :children head :children head :children head)
-        shape-label (head (:children shape-view))
-        shape-control (nth (:children shape-view) 1)
-        radius-view (-> shape-control :children head :children head)
-        radius-label (head (:children radius-view))
-        radius-control (nth (:children radius-view) 1)
-        x-view (-> radius-control :children head :children head)
-        x-label (head (:children x-view))]
+  (s/then [widths]
+    (is (= [112 64 64]
+           widths))))
+
+(deftest nested-label-layout/respects-explicit-width
+  (s/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 400
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "assets/roo/pixils/form/fixture/composed-fields.roo")
+      (runtime/push-mode! app 'explicit-nested-label-width-probe)
+      (runtime/settle-layout! app)
+      (for [text ["Shape" "Radius" "X"]]
+        (-> (runtime/find-view-containing app "ui/text" text)
+            :bounds
+            :w))))
+
+  (s/then [widths]
     (is (= [112 72 72]
-           (for [label [shape-label radius-label x-label]]
-             (-> label :style :width))))))
+           widths))))
