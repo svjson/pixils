@@ -1,0 +1,60 @@
+(ns pixils.test.ui.menu-bar
+  (:require [pixils.test.runtime :as runtime]))
+
+(defun item
+  "Finds a top-level menu-bar item by its semantic label.
+
+  Args:
+  - `app`: Running Pixils test application.
+  - `label`: Menu label without mnemonic markup.
+
+  Returns:
+  The matching menu-bar item view, or `nil`."
+  [app label]
+  (find-first (runtime/find-views app "ui/menu-bar-item")
+              (fn [view]
+                (= label (-> view :ui-state :node :text)))))
+
+(defun command
+  "Finds a command in a top-level application menu.
+
+  Args:
+  - `app`: Running Pixils test application.
+  - `menu-label`: Top-level menu label without mnemonic markup.
+  - `action`: Command action keyword.
+
+  Returns:
+  The normalized command node, or `nil`."
+  [app menu-label action]
+  (when-let [menu-item (item app menu-label)]
+    (find-first (-> menu-item :ui-state :node :items)
+                (fn [node]
+                  (= action (:action node))))))
+
+(defun command-enabled?
+  "Returns whether a command is present and enabled.
+
+  Args:
+  - `app`: Running Pixils test application.
+  - `menu-label`: Top-level menu label without mnemonic markup.
+  - `action`: Command action keyword.
+
+  Returns:
+  `true` when the command exists and is not disabled, otherwise `nil` or
+  `false`."
+  [app menu-label action]
+  (when-let [node (command app menu-label action)]
+    (not= true (:disabled? node))))
+
+(defun command-text
+  "Returns the visible text of a command.
+
+  Args:
+  - `app`: Running Pixils test application.
+  - `menu-label`: Top-level menu label without mnemonic markup.
+  - `action`: Command action keyword.
+
+  Returns:
+  The command text without mnemonic markup, or `nil`."
+  [app menu-label action]
+  (:text (command app menu-label action)))
