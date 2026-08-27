@@ -40,8 +40,7 @@ namespace Pixils::UI
                              FocusState& focus_state,
                              FrameEvents& events,
                              Pixils::Runtime::HookArguments& hook_args,
-                             Roo::Runtime& runtime,
-                             int pass_depth = 0);
+                             Roo::Runtime& runtime);
 
   /** Return the deepest-to-root hit-chain length at a global point. */
   size_t interaction_hit_depth(const std::shared_ptr<Pixils::Runtime::View>& root,

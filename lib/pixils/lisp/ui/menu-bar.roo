@@ -66,21 +66,6 @@
                            :bottom-start
                            (:view ctx)))))
 
-(defun pop-passed-overlays!
-  "Queue removal of overlays above a passed interaction owner.
-
-  Args:
-  - `pass-depth`: Number of overlay frames above the owner.
-  - `menu-index`: Top-level menu index to open after removal."
-  [pass-depth menu-index]
-  (when (> pass-depth 0)
-    (if (= pass-depth 1)
-      (pop-mode! {:type :navigate-top-to
-                  :menu-index menu-index})
-      (do
-        (pop-mode!)
-        (pop-passed-overlays! (dec pass-depth) menu-index)))))
-
 
 ;; Menu-bar component
 
@@ -103,15 +88,18 @@
         :menu/navigate-passed
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
-                payload (:payload event)
-                index (:menu-index payload)
-                node (nth (-> ui-state :menu :items) index)]
+                index (-> event :payload :menu-index)
+                node (nth (-> ui-state :menu :items) index)
+                interaction-scope (:interaction-scope ctx)]
             (ui/stop-propagation! event)
-            (when (and node
+            (when (and interaction-scope
+                       node
                        (not= index (:active-index ui-state))
                        (not (:disabled? node))
                        (model/submenu-node? node))
-              (pop-passed-overlays! (:pass-depth payload) index))
+              (pop-to! interaction-scope
+                       {:type :navigate-top-to
+                        :menu-index index}))
             state))
         :menu/navigate-top
         (fn [state event ctx]
@@ -158,12 +146,14 @@
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
                 payload (:payload event)]
-            (if (= :navigate-top-to (:type payload))
+            (case (:type payload)
+              :navigate-top-to
               (open-popup-at-index! ui-state
                                     state
                                     ctx
                                     (:menu-index payload)
                                     :mouse)
+              :default
               (set-active-index! ctx nil)))
           state)}})
 

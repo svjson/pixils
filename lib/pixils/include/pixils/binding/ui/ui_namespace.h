@@ -443,9 +443,7 @@ namespace Pixils::Script
   NATIVE_SUB_ADAPTER(EventAdapter,
                      (CustomEventAdapter, CustomEvent),
                      (event_key, source_mode, payload));
-  NATIVE_SUB_ADAPTER(EventAdapter,
-                     (MouseEventAdapter, MouseEvent),
-                     (global_pos, local_pos, pass_depth));
+  NATIVE_SUB_ADAPTER(EventAdapter, (MouseEventAdapter, MouseEvent), (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseWheelEventAdapter, MouseWheelEvent),
                      (delta, x, y));

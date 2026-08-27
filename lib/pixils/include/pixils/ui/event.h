@@ -41,8 +41,6 @@ namespace Pixils
   {
     Point global_pos;
     Point local_pos;
-    /** Number of scoped :pass frame boundaries crossed during dispatch. */
-    int pass_depth = 0;
   };
 
   /**

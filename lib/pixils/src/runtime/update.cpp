@@ -1,5 +1,6 @@
 #include <pixils/benchmark/counters.h>
 #include <pixils/binding/ui/ui_namespace.h>
+#include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
@@ -71,7 +72,22 @@ namespace Pixils::Runtime
       UI::FocusState* focus_state = nullptr;
       std::shared_ptr<View> owner_root;
       size_t mode_offset = 0;
-      int pass_depth = 0;
+    };
+
+    struct InteractionScopeContext
+    {
+      HookContext& hook_context;
+      std::shared_ptr<View> previous_scope;
+
+      InteractionScopeContext(HookContext& hook_context,
+                              const std::shared_ptr<View>& interaction_scope)
+        : hook_context(hook_context)
+        , previous_scope(hook_context.interaction_scope)
+      {
+        hook_context.interaction_scope = interaction_scope;
+      }
+
+      ~InteractionScopeContext() { hook_context.interaction_scope = previous_scope; }
     };
 
     std::optional<ScopedInteractionTarget> scoped_interaction_target(Session& session,
@@ -88,14 +104,12 @@ namespace Pixils::Runtime
       {
         return std::nullopt;
       }
-      int pass_depth = 0;
       for (size_t child_frame = frame_count - 1; child_frame > 0; child_frame--)
       {
         auto& metadata = session.frame_metadata[child_frame];
         auto& scopes = metadata.scoped_composition.interaction_pass;
         if (scopes.empty()) break;
 
-        pass_depth++;
         if (metadata.overlay && metadata.overlay->anchor_view &&
             contains(metadata.overlay->anchor_view->visual_bounds, point))
         {
@@ -114,7 +128,6 @@ namespace Pixils::Runtime
               .focus_state = &metadata.restore_focus,
               .owner_root = std::move(owner_root),
               .mode_offset = frame_count - 1 - owner_frame,
-              .pass_depth = pass_depth,
             };
           }
         }
@@ -262,14 +275,16 @@ namespace Pixils::Runtime
                                           hook_args,
                                           roo_runtime);
 
+        auto& native_hook_context = Roo::obj<HookContext>(*hook_args.update_args[1]);
+        InteractionScopeContext interaction_scope(native_hook_context,
+                                                  scoped_target->scope->view);
         bool late_interaction_update =
           Pixils::UI::dispatch_interactions(scoped_target->scope->view,
                                             scoped_target->scope->mouse_state,
                                             *scoped_target->focus_state,
                                             *hook_args.events,
                                             hook_args,
-                                            roo_runtime,
-                                            scoped_target->pass_depth);
+                                            roo_runtime);
         if (late_interaction_update)
         {
           Pixils::UI::update_view_tree(scoped_target->scope->view,

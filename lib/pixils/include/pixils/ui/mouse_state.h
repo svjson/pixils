@@ -33,7 +33,6 @@ namespace Pixils::UI
       bool eligible = false;
       bool active = false;
       size_t source_index = 0;
-      int pass_depth = 0;
       DragPolicy policy;
     };
 

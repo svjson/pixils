@@ -746,8 +746,7 @@ namespace Pixils::Script
                           (MouseEventAdapter, MouseEvent),
                           &HostType::MOUSE_MOTION_EVENT,
                           ("global-position", global_pos),
-                          ("position", local_pos),
-                          ("pass-depth", pass_depth))
+                          ("position", local_pos))
 
   NOBJ_PROP_GET(MouseEventAdapter, global_pos)
   {
@@ -759,11 +758,6 @@ namespace Pixils::Script
   {
     const Point& point = get_self_object().local_pos;
     return PointAdapter::make_unique(point.x, point.y);
-  }
-
-  NOBJ_PROP_GET(MouseEventAdapter, pass_depth)
-  {
-    return Roo::number(get_self_object().pass_depth);
   }
 
   NATIVE_SUB_ADAPTER_IMPL(MouseEventAdapter,

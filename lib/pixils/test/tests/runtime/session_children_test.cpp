@@ -1270,7 +1270,9 @@ TEST_F(SessionChildrenTest,
          state)
        :on-mouse-motion
        (fn [state event ctx]
-         (assoc state :pass-depth (:pass-depth event)))})
+         (merge state
+                {:motion-received? true
+                 :scoped? (some? (:interaction-scope ctx))}))})
 
     (pixils/defcomponent scope-outsider
       {:update (fn [state ctx]
@@ -1303,9 +1305,10 @@ TEST_F(SessionChildrenTest,
   input().mouse_move({6, 6});
   update_cycle();
 
-  EXPECT_EQ(
-    Roo::Dict::get_property(owner->state, Roo::keyword("pass-depth"))->num().get_int(),
-    1);
+  EXPECT_TRUE(Roo::is_truthy(
+    *Roo::Dict::get_property(owner->state, Roo::keyword("motion-received?"))));
+  EXPECT_TRUE(
+    Roo::is_truthy(*Roo::Dict::get_property(owner->state, Roo::keyword("scoped?"))));
   EXPECT_GT(Roo::Dict::get_property(owner->state, Roo::keyword("updates"))->num().get_int(),
             owner_updates_before);
   EXPECT_EQ(
@@ -1313,6 +1316,43 @@ TEST_F(SessionChildrenTest,
     outsider_updates_before);
   EXPECT_EQ(Roo::Dict::get_property(outsider->state, Roo::keyword("motion-received?"))->type,
             Roo::Value::Type::NIL);
+}
+
+TEST_F(SessionChildrenTest, pop_to_unwinds_to_the_target_frame_with_one_final_payload)
+{
+  runtime.eval(R"(
+    (pixils/defmode pop-target-root
+      {:on {:pop/result
+            (fn [state event ctx]
+              (assoc state :result (:payload event)))}
+       :children [{:id "target"
+                   :style {:width 20 :height 20}}]})
+
+    (pixils/defmode intermediate-mode {})
+
+    (pixils/defmode pop-request-mode
+      {:update
+       (fn [state ctx]
+         (unless (:requested? state)
+           (pixils/pop-to! (:target state) {:returned? true}))
+         (assoc state :requested? true))})
+  )");
+
+  session.push_mode("pop-target-root", Roo::Constant::NIL);
+  auto target = session.active_mode->children[0];
+  session.push_mode("intermediate-mode", Roo::Constant::NIL);
+  session.push_mode(
+    "pop-request-mode",
+    Roo::map({Roo::keyword("target"), Pixils::Script::ViewAdapter::make_ref(*target)}));
+
+  session.update_mode();
+  ASSERT_TRUE(session.process_messages());
+
+  ASSERT_EQ(session.mode_stack.size(), 1u);
+  ASSERT_EQ(session.active_mode->definition->name, "pop-target-root");
+  auto result = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
+  ASSERT_NE(result, nullptr);
+  EXPECT_TRUE(Roo::is_truthy(*Roo::Dict::get_property(result, Roo::keyword("returned?"))));
 }
 
 TEST_F(SessionChildrenTest,

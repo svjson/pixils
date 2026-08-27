@@ -846,6 +846,28 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
+    /* PopToBangFunction - pop-to! */
+    FUNC_IMPL(PopToBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::VIEW)),
+                         EXEC_DISPATCH(&PopToBangFunction::exec_pop_to)),
+                        (FN_ARGS((&HostType::VIEW), (&Roo::Type::ANY)),
+                         EXEC_DISPATCH(&PopToBangFunction::exec_pop_to))));
+
+    EXEC_BODY(PopToBangFunction, exec_pop_to)
+    {
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
+
+      Roo::append(*message_queue,
+                  Roo::map({Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                            Roo::keyword("pop-to"),
+                            Roo::keyword("target"),
+                            args[0],
+                            Roo::keyword("payload"),
+                            args.size() > 1 ? args[1] : Roo::Constant::NIL}));
+
+      return Roo::Constant::NIL;
+    }
+
     /* QuitBangFunction - quit! */
     FUNC_IMPL(QuitBangFunction, SIG((NO_ARGS, EXEC_DISPATCH(&QuitBangFunction::exec_quit))));
 
@@ -1059,7 +1081,8 @@ namespace Pixils::Script
                       ("buffer-size", buffer_dim),
                       ("available-width", available_width),
                       ("available-height", available_height),
-                      (view));
+                      (view),
+                      ("interaction-scope", interaction_scope));
 
   NOBJ_PROP_GET(HookContextAdapter, key_down)
   {
@@ -1124,6 +1147,13 @@ namespace Pixils::Script
     auto view_ptr = object->get_object().current_view;
     if (!view_ptr) return Roo::Constant::NIL;
     return ViewAdapter::make_ref(*view_ptr);
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, interaction_scope)
+  {
+    auto scope = object->get_object().interaction_scope;
+    if (!scope) return Roo::Constant::NIL;
+    return ViewAdapter::make_ref(*scope);
   }
 
   /* InteractionStateAdapter */
@@ -1356,6 +1386,7 @@ namespace Pixils::Script
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Roo::map({}));
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
+    values.emplace(FN__POP_TO_BANG, Function::PopToBangFunction::make());
     values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
     values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());
     values.emplace(FN__SET_THEME_BANG, Function::SetThemeBangFunction::make());

@@ -338,6 +338,29 @@ namespace Pixils::Runtime
       return false;
     }
 
+    std::optional<size_t> frame_containing_view(
+      const std::shared_ptr<View>& active_mode,
+      const std::vector<std::shared_ptr<View>>& ctx_stack,
+      View* target)
+    {
+      std::vector<std::shared_ptr<View>> path;
+      if (find_view_path(active_mode, target, path))
+      {
+        return ctx_stack.size();
+      }
+
+      for (size_t frame = ctx_stack.size(); frame > 0; frame--)
+      {
+        path.clear();
+        if (find_view_path(ctx_stack[frame - 1], target, path))
+        {
+          return frame - 1;
+        }
+      }
+
+      return std::nullopt;
+    }
+
     void store_focus_chain(UI::FocusState& focus_state,
                            const std::vector<std::shared_ptr<View>>& chain)
     {
@@ -934,6 +957,24 @@ namespace Pixils::Runtime
           auto payload = Roo::Dict::get_property(message, Roo::keyword("payload"));
           pop_mode(payload ? payload : Roo::Constant::NIL);
           active_frame_changed = true;
+        }
+        else if (type == "pop-to")
+        {
+          auto target =
+            resolve_target_view(Roo::Dict::get_property(message, KEYWORD__TARGET));
+          auto target_frame = frame_containing_view(active_mode, ctx_stack, target);
+          if (!target_frame)
+          {
+            throw Roo::InvocationException("pop-to! target is not in the mode stack");
+          }
+
+          auto payload = Roo::Dict::get_property(message, Roo::keyword("payload"));
+          while (mode_stack.size() - 1 > *target_frame)
+          {
+            const bool final_pop = mode_stack.size() - 2 == *target_frame;
+            pop_mode(final_pop && payload ? payload : Roo::Constant::NIL);
+            active_frame_changed = true;
+          }
         }
         else if (type == "focus")
         {

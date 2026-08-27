@@ -65,6 +65,7 @@ namespace Pixils::Script
   inline const std::string FN__MAKE_DISPLAY = "display";
   inline const std::string FN__MAKE_RESOLUTION = "pixils/make-resolution";
   inline const std::string FN__POP_MODE_BANG = "pop-mode!";
+  inline const std::string FN__POP_TO_BANG = "pop-to!";
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
   inline const std::string FN__QUIT_BANG = "quit!";
   inline const std::string FN__SET_THEME_BANG = "set-theme!";
@@ -276,6 +277,29 @@ namespace Pixils::Script
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */
     FUNC(PopModeBangFunction, pop_mode);
+    /*!
+     * @brief Queue removal of modes above the frame containing a view.
+     * @since 0.1.0
+     *
+     * `pop-to!` finds the mode-stack frame containing `target` and queues
+     * removal of every frame above it. Intermediate pops receive `nil`; the
+     * optional payload is delivered only by the final pop into the target
+     * frame. Calling it for a view in the active frame has no effect.
+     *
+     * Usage:
+     * @code
+     * (pixils/pop-to! (:view ctx)
+     *                 {:type :navigate-parent})
+     * @endcode
+     *
+     * | Arg     | Description                                      |
+     * |---------|--------------------------------------------------|
+     * | target  | View whose containing frame should become active. |
+     * | payload | Optional payload delivered by the final pop.      |
+     *
+     * @return `nil`.
+     */
+    FUNC(PopToBangFunction, pop_to);
     /*! @brief Request application shutdown */
     FUNC(QuitBangFunction, quit);
     /*! @brief Switch the application-level theme */
@@ -308,7 +332,8 @@ namespace Pixils::Script
                   buffer_dim,
                   available_width,
                   available_height,
-                  view));
+                  view,
+                  interaction_scope));
   /*! @brief InteractionStateAdapter - engine-computed hover/focus/press state on a view */
   NATIVE_ADAPTER(InteractionStateAdapter,
                  UI::InteractionState,
