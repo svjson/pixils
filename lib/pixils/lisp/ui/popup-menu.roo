@@ -145,10 +145,12 @@
   - `state`: Popup and application inputs.
   - `origin-view`: View that receives the popup result.
   - `overlay`: Anchor and preferred/fallback placement metadata.
+  - `pass-view`: Optional concrete owner subtree allowed to update and
+    receive input.
 
   Returns:
   The pushed mode result, or `nil` for an empty item list."
-  [items state origin-view overlay]
+  [items state origin-view overlay & pass-view]
   (let [input-source (or (:input-source state) :mouse)
         popup-state {:items items
                      :active-index
@@ -164,11 +166,16 @@
       (push-mode!
        (or (:popup-mode state) 'ui/popup-menu)
        popup-state
-       {:origin {:view origin-view
-                 :event (or (:result-event state) :menu/select)}
-        :overlay overlay
-        :style {:scale (:menu-scale state)}
-        :children (children items (merge state popup-state))}))))
+       (cond->
+         {:origin {:view origin-view
+                   :event (or (:result-event state) :menu/select)}
+          :overlay overlay
+          :style {:scale (:menu-scale state)}
+          :children (children items (merge state popup-state))}
+         pass-view
+         (assoc :compose
+                {:update {:pass [{:view pass-view}]}
+                 :interaction {:pass [{:view pass-view}]}}))))))
 
 (defun open-at-position!
   "Open a popup overlay for normalized items at an absolute position.
@@ -192,7 +199,8 @@
                                     :w 0
                                     :h 0})
     :placement :bottom-start
-    :fallback-placement :top-start}))
+    :fallback-placement :top-start}
+   nil))
 
 (defun open-at-view!
   "Open a node's submenu relative to an anchor view.
@@ -202,10 +210,12 @@
   - `state`: Popup and application inputs, including an optional input source.
   - `anchor-view`: View used for placement and result routing.
   - `placement`: Preferred overlay placement keyword.
+  - `pass-view`: Optional concrete owner subtree allowed to update and
+    receive input.
 
   Returns:
   The pushed mode result, or `nil` when the node cannot open."
-  [node state anchor-view placement]
+  [node state anchor-view placement & pass-view]
   (when (and (not (:disabled? node))
              (model/submenu-node? node))
     (open-with-overlay!
@@ -220,7 +230,8 @@
       :fallback-placement
       (case placement
         :right-start :left-start
-        :default :top-start)})))
+        :default :top-start)}
+     pass-view)))
 
 (defun open-context!
   "Normalize and open a context-menu overlay.
@@ -254,7 +265,7 @@
   Returns:
   The pushed popup mode result, or `nil`."
   [node state ctx]
-  (open-at-view! node state (:view ctx) :bottom-start))
+  (open-at-view! node state (:view ctx) :bottom-start (:view ctx)))
 
 (defun open-submenu!
   "Open a nested popup to the right of an item view.
@@ -263,16 +274,19 @@
   - `node`: Normalized node owning submenu items.
   - `state`: Parent popup and application inputs.
   - `anchor-view`: Item view used for placement and result routing.
+  - `pass-view`: Optional parent popup subtree allowed to update and
+    receive input.
 
   Returns:
   The pushed popup mode result, or `nil`."
-  [node state anchor-view]
+  [node state anchor-view & pass-view]
   (open-at-view! node
                  (assoc state
                         :nested? true
                         :result-event :popup-menu/submenu-result)
                  anchor-view
-                 :right-start))
+                 :right-start
+                 pass-view))
 
 (defun activate-index!
   "Activate the logical popup item at an index.
@@ -295,7 +309,7 @@
 
       (and submenu? child-view)
       (do
-        (open-submenu! node state child-view)
+        (open-submenu! node state child-view (:view ctx))
         state)
 
       (and (not submenu?) (:action node))
@@ -342,6 +356,19 @@
                [:content-state :active-index]
                (:active-index ui-state)))))
 
+(defun pop-passed-overlays!
+  "Queue removal of overlays above a passed interaction owner.
+
+  Args:
+  - `pass-depth`: Number of overlay frames above the owner."
+  [pass-depth]
+  (when (> pass-depth 0)
+    (if (= pass-depth 1)
+      (pop-mode! {:type :navigate-parent})
+      (do
+        (pop-mode!)
+        (pop-passed-overlays! (dec pass-depth))))))
+
 
 
 ;; Popup item components
@@ -357,22 +384,22 @@
                 :transition (fn [_current candidate _changed-keys]
                               {:highlighted (:active? candidate)})}]
    :update-ui nil
-   :on-mouse-motion (fn [state _event ctx]
+   :on-mouse-motion (fn [state event ctx]
                       (let [ui-state (-> ctx :view :ui-state)]
                         (unless (:disabled? ui-state)
                           (ui/emit! (:view ctx)
                                     :popup-menu/hover
-                                    {:index (:index ui-state)})))
+                                    {:index (:index ui-state)
+                                     :pass-depth (:pass-depth event)})))
                       state)
    :on-mouse-down (fn [state event ctx]
                     (let [ui-state (-> ctx :view :ui-state)]
                       (when (and (not (:disabled? ui-state))
                                  (:has-submenu ui-state))
-                        (open-submenu! (:node ui-state)
-                                       (merge state
-                                              ui-state
-                                              {:input-source :mouse})
-                                       (:view ctx)))
+                        (ui/emit! (:view ctx)
+                                  :popup-menu/activate
+                                  {:index (:index ui-state)
+                                   :pass-depth (:pass-depth event)}))
                       (ui/stop-propagation! event)
                       state))
    :on {:menu/select (fn [state event ctx]
@@ -615,7 +642,10 @@
                           child-view (child-view-at (:view ctx) index)]
                       (ui/stop-propagation! event)
                       (when (and node child-view (model/submenu-node? node))
-                        (open-submenu! node (merge state next-state) child-view))
+                        (open-submenu! node
+                                       (merge state next-state)
+                                       child-view
+                                       (:view ctx)))
                       (when (and (not (:nested? next-state))
                                  (or (nil? node)
                                      (not (model/submenu-node? node))))
@@ -675,9 +705,39 @@
    :on {:popup-menu/hover
         (fn [state event ctx]
           (ui/stop-propagation! event)
-          (set-navigation! ctx
-                           {:input-source :mouse
-                            :active-index (-> event :payload :index)})
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                index (:index payload)
+                pass-depth (:pass-depth payload)
+                node (model/highlighted-item (:options ui-state) index)
+                child-view (when (model/submenu-node? node)
+                             (child-view-at (:view ctx) index))]
+            (set-navigation! ctx
+                             {:input-source :mouse
+                              :active-index index})
+            (when (> pass-depth 0)
+              (pop-passed-overlays! pass-depth)
+              (when child-view
+                (open-submenu! node
+                               (merge state
+                                      ui-state
+                                      {:input-source :mouse
+                                       :active-index index})
+                               child-view
+                               (:view ctx)))))
+          state)
+        :popup-menu/activate
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)]
+            (when (> (:pass-depth payload) 0)
+              (pop-passed-overlays! (:pass-depth payload)))
+            (activate-index! (merge state
+                                    ui-state
+                                    {:input-source :mouse})
+                             ctx
+                             (:index payload)))
           state)
         :option-item/click
         (fn [state event ctx]

@@ -179,6 +179,100 @@
              :after-second [false true false]}]
            result))))
 
+(deftest make/switches-an-open-top-level-popup-by-hovering-its-menu-bar-owner
+  (s/when []
+    (let [app (app-for 'menu-rendering-windows-3-root)
+          items (runtime/find-views app "ui/menu-bar-item")
+          _settled
+          (do
+            (runtime/mouse-move-at! app 220 160)
+            (runtime/update! app)
+            (runtime/render! app))
+          normal (for [item items]
+                   (rendered-signature app item))]
+      (open-first-popup! app)
+      (runtime/mouse-move-in! app (nth items 1) 1 1)
+      (runtime/frame! app)
+      {:active-items
+       (for-indexed [index item items]
+         (not= (nth normal index)
+               (rendered-signature app item)))
+       :popup-aligned-with-second?
+       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+              :visual-bounds
+              :x)
+          (-> (nth items 1) :visual-bounds :x))}))
+
+  (s/then [result]
+    (is (= {:active-items [false true false]
+            :popup-aligned-with-second? true}
+           result))))
+
+(deftest make/returns-from-a-submenu-by-hovering-a-parent-popup-row
+  (s/when []
+    (let [app (open-first-popup!
+               (app-for 'menu-rendering-windows-3-root))
+          parent-popup
+          (runtime/find-view app "ui/popup-menu-outer")
+          parent-bounds (:visual-bounds parent-popup)
+          rows (runtime/find-views app "ui/popup-menu-item")
+          open-row (head rows)
+          recent-row (nth rows 1)
+          open-normal (rendered-background app open-row)
+          recent-normal (rendered-background app recent-row)]
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :right)
+      (runtime/mouse-move-in! app open-row 1 1)
+      (runtime/frame! app)
+      {:parent-popup-restored?
+       (= (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))
+          parent-bounds)
+       :open-row-active?
+       (not= open-normal (rendered-background app open-row))
+       :recent-row-restored?
+       (= recent-normal (rendered-background app recent-row))}))
+
+  (s/then [result]
+    (is (= {:parent-popup-restored? true
+            :open-row-active? true
+            :recent-row-restored? true}
+           result))))
+
+(deftest make/switches-from-a-nested-popup-to-a-menu-bar-owner-by-hover
+  (s/when []
+    (let [app (app-for 'menu-rendering-windows-3-root)
+          items (runtime/find-views app "ui/menu-bar-item")
+          _settled
+          (do
+            (runtime/mouse-move-at! app 220 160)
+            (runtime/update! app)
+            (runtime/render! app))
+          normal (for [item items]
+                   (rendered-signature app item))]
+      (open-first-popup! app)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :down)
+      (runtime/press-key! app :right)
+      (runtime/mouse-move-in! app (nth items 1) 1 1)
+      (runtime/frame! app)
+      {:active-items
+       (for-indexed [index item items]
+         (not= (nth normal index)
+               (rendered-signature app item)))
+       :popup-aligned-with-second?
+       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+              :visual-bounds
+              :x)
+          (-> (nth items 1) :visual-bounds :x))}))
+
+  (s/then [result]
+    (is (= {:active-items [false true false]
+            :popup-aligned-with-second? true}
+           result))))
+
 (deftest make/renders-popup-hover-feedback-across-standard-themes
   (s/when []
     (for [{:keys [theme mode]} THEME-MODES]

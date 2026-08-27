@@ -63,7 +63,23 @@
                                   ui-state
                                   {:input-source input-source})
                            child-view
-                           :bottom-start))))
+                           :bottom-start
+                           (:view ctx)))))
+
+(defun pop-passed-overlays!
+  "Queue removal of overlays above a passed interaction owner.
+
+  Args:
+  - `pass-depth`: Number of overlay frames above the owner.
+  - `menu-index`: Top-level menu index to open after removal."
+  [pass-depth menu-index]
+  (when (> pass-depth 0)
+    (if (= pass-depth 1)
+      (pop-mode! {:type :navigate-top-to
+                  :menu-index menu-index})
+      (do
+        (pop-mode!)
+        (pop-passed-overlays! (dec pass-depth) menu-index)))))
 
 
 ;; Menu-bar component
@@ -83,6 +99,19 @@
                 index (-> event :payload :menu-index)]
             (ui/stop-propagation! event)
             (open-popup-at-index! ui-state state ctx index :mouse)
+            state))
+        :menu/navigate-passed
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)
+                index (:menu-index payload)
+                node (nth (-> ui-state :menu :items) index)]
+            (ui/stop-propagation! event)
+            (when (and node
+                       (not= index (:active-index ui-state))
+                       (not (:disabled? node))
+                       (model/submenu-node? node))
+              (pop-passed-overlays! (:pass-depth payload) index))
             state))
         :menu/navigate-top
         (fn [state event ctx]
@@ -126,8 +155,16 @@
               (set-active-index! ctx nil))
             state))
         :menu/select
-        (fn [state _event ctx]
-          (set-active-index! ctx nil)
+        (fn [state event ctx]
+          (let [ui-state (-> ctx :view :ui-state)
+                payload (:payload event)]
+            (if (= :navigate-top-to (:type payload))
+              (open-popup-at-index! ui-state
+                                    state
+                                    ctx
+                                    (:menu-index payload)
+                                    :mouse)
+              (set-active-index! ctx nil)))
           state)}})
 
 

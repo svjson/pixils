@@ -30,6 +30,14 @@
            node (:node ui-state)]
        (ui/stop-propagation! event)
        (cond
+         (> (:pass-depth event) 0)
+         (do
+           (ui/emit! (:view ctx)
+                     :menu/navigate-passed
+                     {:menu-index (:menu-index ui-state)
+                      :pass-depth (:pass-depth event)})
+           state)
+
          (and node
               (not (:disabled? node))
               (model/submenu-node? node))
@@ -48,6 +56,17 @@
 
          :default
          state)))
+   :on-mouse-motion
+   (fn [state event ctx]
+     (let [ui-state (-> ctx :view :ui-state)]
+       (when (and (> (:pass-depth event) 0)
+                  (not (:disabled? ui-state))
+                  (model/submenu-node? (:node ui-state)))
+         (ui/emit! (:view ctx)
+                   :menu/navigate-passed
+                   {:menu-index (:menu-index ui-state)
+                    :pass-depth (:pass-depth event)}))
+       state))
    :on {:menu/select
         (fn [state event ctx]
           (let [ui-state (-> ctx :view :ui-state)
