@@ -10,6 +10,7 @@
 #include <pixils/ui/mouse_state.h>
 #include <pixils/ui/theme.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,6 +33,18 @@ namespace Pixils::Runtime
   {
     struct ModeFrameMetadata
     {
+      struct ScopedComposition
+      {
+        struct InteractionScope
+        {
+          std::shared_ptr<View> view;
+          UI::MouseState mouse_state;
+        };
+
+        std::vector<std::shared_ptr<View>> update_pass;
+        std::vector<InteractionScope> interaction_pass;
+      };
+
       enum class OverlayPlacement
       {
         NONE,
@@ -54,6 +67,7 @@ namespace Pixils::Runtime
       View* origin_view = nullptr;
       Roo::sptr_val origin_event = Roo::Constant::NIL;
       UI::FocusState restore_focus;
+      ScopedComposition scoped_composition;
       std::optional<Overlay> overlay = std::nullopt;
     };
 

@@ -1,9 +1,11 @@
 #ifndef PIXILS__UI__INTERACTION_DISPATCH_H
 #define PIXILS__UI__INTERACTION_DISPATCH_H
 
+#include <pixils/geom.h>
 #include <pixils/ui/focus_state.h>
 #include <pixils/ui/mouse_state.h>
 
+#include <cstddef>
 #include <memory>
 
 namespace Roo
@@ -38,7 +40,12 @@ namespace Pixils::UI
                              FocusState& focus_state,
                              FrameEvents& events,
                              Pixils::Runtime::HookArguments& hook_args,
-                             Roo::Runtime& runtime);
+                             Roo::Runtime& runtime,
+                             int pass_depth = 0);
+
+  /** Return the deepest-to-root hit-chain length at a global point. */
+  size_t interaction_hit_depth(const std::shared_ptr<Pixils::Runtime::View>& root,
+                               const Point& point);
 
 } // namespace Pixils::UI
 

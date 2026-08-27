@@ -187,8 +187,7 @@ TEST_F(SessionChildrenTest, component_symbol_push_wraps_component_in_root_mode)
   ASSERT_NE(component->component, nullptr);
   ASSERT_NE(component->definition, nullptr);
   EXPECT_EQ(component->definition->name, "form-root");
-  EXPECT_EQ(component->state->to_string(),
-            "{:title \"Person\" :initialized? true}");
+  EXPECT_EQ(component->state->to_string(), "{:title \"Person\" :initialized? true}");
   EXPECT_EQ(session.active_mode->state->to_string(),
             "{:title \"Person\" :initialized? true}");
 
@@ -248,8 +247,7 @@ TEST_F(SessionChildrenTest, push_mode_bang_accepts_inline_mode_value)
   ASSERT_NE(session.active_mode->mode, nullptr);
   ASSERT_NE(session.active_mode->definition, nullptr);
   EXPECT_EQ(session.active_mode->definition->name, "inline-modal");
-  EXPECT_EQ(session.active_mode->state->to_string(),
-            "{:open? true :initialized? true}");
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:open? true :initialized? true}");
 }
 
 TEST_F(SessionChildrenTest, push_mode_bang_rejects_inline_component_value)
@@ -970,8 +968,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_compound_state_selector_to_a
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 3);
 }
 
-TEST_F(SessionChildrenTest,
-       root_component_theme_selector_applies_to_wrapped_component)
+TEST_F(SessionChildrenTest, root_component_theme_selector_applies_to_wrapped_component)
 {
   runtime.eval(R"(
     (pixils/deftheme root-theme
@@ -1253,6 +1250,72 @@ TEST_F(SessionChildrenTest, interaction_pass_overlay_allows_underlying_mouse_lea
 }
 
 TEST_F(SessionChildrenTest,
+       scoped_pass_updates_and_routes_pointer_interaction_only_to_declared_subtree)
+{
+  runtime.eval(R"(
+    (pixils/defmode scoped-popup
+      {:compose {:render :pass}})
+
+    (pixils/defcomponent scope-owner
+      {:update (fn [state ctx]
+                 (assoc state :updates (inc (or (:updates state) 0))))
+       :on-mouse-down
+       (fn [state event ctx]
+         (pixils/push-mode!
+          'scoped-popup
+          {}
+          {:compose
+           {:update {:pass [{:view (:view ctx)}]}
+            :interaction {:pass [{:view (:view ctx)}]}}})
+         state)
+       :on-mouse-motion
+       (fn [state event ctx]
+         (assoc state :pass-depth (:pass-depth event)))})
+
+    (pixils/defcomponent scope-outsider
+      {:update (fn [state ctx]
+                 (assoc state :updates (inc (or (:updates state) 0))))
+       :on-mouse-motion
+       (fn [state event ctx]
+         (assoc state :motion-received? true))})
+
+    (pixils/defmode scoped-pass-root
+      {:style {:layout {:direction :row}}
+       :children [{:component 'scope-owner
+                   :style {:width 40 :height 20}}
+                  {:component 'scope-outsider
+                   :style {:width 40 :height 20}}]})
+  )");
+
+  session.push_mode("scoped-pass-root", Roo::Constant::NIL);
+  session.render_mode();
+  auto owner = session.active_mode->children[0];
+  auto outsider = session.active_mode->children[1];
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  ASSERT_EQ(session.active_mode->definition->name, "scoped-popup");
+  const int owner_updates_before =
+    Roo::Dict::get_property(owner->state, Roo::keyword("updates"))->num().get_int();
+  const int outsider_updates_before =
+    Roo::Dict::get_property(outsider->state, Roo::keyword("updates"))->num().get_int();
+
+  input().mouse_move({6, 6});
+  update_cycle();
+
+  EXPECT_EQ(
+    Roo::Dict::get_property(owner->state, Roo::keyword("pass-depth"))->num().get_int(),
+    1);
+  EXPECT_GT(Roo::Dict::get_property(owner->state, Roo::keyword("updates"))->num().get_int(),
+            owner_updates_before);
+  EXPECT_EQ(
+    Roo::Dict::get_property(outsider->state, Roo::keyword("updates"))->num().get_int(),
+    outsider_updates_before);
+  EXPECT_EQ(Roo::Dict::get_property(outsider->state, Roo::keyword("motion-received?"))->type,
+            Roo::Value::Type::NIL);
+}
+
+TEST_F(SessionChildrenTest,
        pushed_root_mode_inherits_parent_effective_theme_for_component_selectors)
 {
   // Given
@@ -1511,8 +1574,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubble
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
-  auto result =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
+  auto result = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
   auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
@@ -1556,8 +1618,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
-  auto result =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
+  auto result = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
   auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
@@ -1600,8 +1661,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_keeps_component_root_source_name_al
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->definition->name, "root-mode");
 
-  auto result =
-    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
+  auto result = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
   auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
@@ -1677,7 +1737,8 @@ TEST_F(SessionStateTreeTest, style_bang_mutates_only_the_target_view_instance)
   ASSERT_NE(absolute_child->owned_mode, nullptr);
   ASSERT_TRUE(absolute_child->definition->style.has_value());
   ASSERT_TRUE(absolute_child->definition->style->position.has_value());
-  EXPECT_EQ(*absolute_child->definition->style->position, Pixils::UI::PositionMode::ABSOLUTE);
+  EXPECT_EQ(*absolute_child->definition->style->position,
+            Pixils::UI::PositionMode::ABSOLUTE);
   EXPECT_EQ(absolute_child->bounds.x, 24);
   EXPECT_EQ(absolute_child->bounds.y, 10);
   EXPECT_EQ(absolute_child->bounds.w, 30);
@@ -1780,8 +1841,7 @@ TEST_F(SessionStateTreeTest, append_child_bang_adds_direct_child_against_post_ho
   EXPECT_EQ(child->id, "item");
   EXPECT_EQ(child->definition->name, "child-mode");
   EXPECT_EQ(child->state->to_string(), "{:value 42}");
-  EXPECT_EQ(session.active_mode->state->to_string(),
-            "{:item {:value 42} :appended? true}");
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:item {:value 42} :appended? true}");
 }
 
 TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)

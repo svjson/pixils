@@ -368,6 +368,7 @@ namespace Pixils::UI
     {
       DragEvent ev;
       ev.global_pos = gp;
+      ev.pass_depth = drag_state.pass_depth;
       ev.button = Roo::keyword(mouse_button_name(button));
       ev.start_global_pos = drag_state.start_global_pos;
       ev.delta = gp - drag_state.last_global_pos;
@@ -1118,7 +1119,8 @@ namespace Pixils::UI
     void handle_mouse_up(MouseState& mouse_state,
                          FrameEvents& events,
                          Runtime::HookArguments& hook_args,
-                         Roo::Runtime& rt)
+                         Roo::Runtime& rt,
+                         int pass_depth)
     {
       if (mouse_state.hovered_chain.empty()) return;
 
@@ -1134,6 +1136,7 @@ namespace Pixils::UI
       {
         MouseButtonEvent ev;
         ev.global_pos = gp;
+        ev.pass_depth = pass_depth;
         ev.button = events.mouse_button_up;
         ev.click_count = events.mouse_button_up_clicks;
         auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
@@ -1191,6 +1194,7 @@ namespace Pixils::UI
         {
           MouseButtonEvent click_ev;
           click_ev.global_pos = gp;
+          click_ev.pass_depth = pass_depth;
           click_ev.button = events.mouse_button_up;
           click_ev.click_count = events.mouse_button_up_clicks;
           auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
@@ -1209,6 +1213,7 @@ namespace Pixils::UI
           {
             MouseButtonEvent double_click_ev;
             double_click_ev.global_pos = gp;
+            double_click_ev.pass_depth = pass_depth;
             double_click_ev.button = events.mouse_button_up;
             double_click_ev.click_count = events.mouse_button_up_clicks;
             auto double_click_ev_ref =
@@ -1237,7 +1242,8 @@ namespace Pixils::UI
                            FocusState& focus_state,
                            FrameEvents& events,
                            Runtime::HookArguments& hook_args,
-                           Roo::Runtime& rt)
+                           Roo::Runtime& rt,
+                           int pass_depth)
     {
       const Point& gp = Roo::obj<Point>(*events.mouse_pos);
       const FocusState previous_focus_state = focus_state;
@@ -1280,11 +1286,13 @@ namespace Pixils::UI
         .eligible = drag_policy.has_value(),
         .active = false,
         .source_index = drag_policy ? drag_policy->first : 0,
+        .pass_depth = pass_depth,
         .policy = drag_policy ? drag_policy->second : DragPolicy{},
       };
 
       MouseButtonEvent ev;
       ev.global_pos = gp;
+      ev.pass_depth = pass_depth;
       ev.button = events.mouse_button_down;
       ev.click_count = events.mouse_button_down_clicks;
       auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
@@ -1318,7 +1326,8 @@ namespace Pixils::UI
     void handle_mouse_motion(MouseState& mouse_state,
                              FrameEvents& events,
                              Runtime::HookArguments& hook_args,
-                             Roo::Runtime& rt)
+                             Roo::Runtime& rt,
+                             int pass_depth)
     {
       auto chain = lock_chain(mouse_state.hovered_chain);
       if (chain.empty()) return;
@@ -1326,6 +1335,7 @@ namespace Pixils::UI
       const Point& gp = Roo::obj<Point>(*events.mouse_pos);
       MouseEvent ev;
       ev.global_pos = gp;
+      ev.pass_depth = pass_depth;
       auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
       bubble_hook(
         chain,
@@ -1341,7 +1351,8 @@ namespace Pixils::UI
     void handle_mouse_wheel(MouseState& mouse_state,
                             FrameEvents& events,
                             Runtime::HookArguments& hook_args,
-                            Roo::Runtime& rt)
+                            Roo::Runtime& rt,
+                            int pass_depth)
     {
       auto chain = lock_chain(mouse_state.hovered_chain);
       if (chain.empty()) return;
@@ -1350,6 +1361,7 @@ namespace Pixils::UI
       const Point& wheel_delta = Roo::obj<Point>(*events.mouse_wheel);
       MouseWheelEvent ev;
       ev.global_pos = gp;
+      ev.pass_depth = pass_depth;
       ev.delta = wheel_delta;
       auto ev_ref = Script::MouseWheelEventAdapter::make_ref(ev);
       bubble_hook(
@@ -1404,7 +1416,8 @@ namespace Pixils::UI
                   const FocusState& focus_state,
                   FrameEvents& events,
                   Runtime::HookArguments& hook_args,
-                  Roo::Runtime& rt)
+                  Roo::Runtime& rt,
+                  int pass_depth)
     {
       const Point& mouse_pos = Roo::obj<Point>(*events.mouse_pos);
 
@@ -1421,6 +1434,7 @@ namespace Pixils::UI
           auto old_chain = lock_chain(mouse_state.hovered_chain);
           MouseEvent leave_ev;
           leave_ev.global_pos = mouse_pos;
+          leave_ev.pass_depth = pass_depth;
           leave_ev.local_pos = old_chain.empty()
                                  ? local_pos(mouse_pos, old_hovered->bounds)
                                  : local_pos_in_view(mouse_pos, old_chain, 0);
@@ -1441,6 +1455,7 @@ namespace Pixils::UI
         {
           MouseEvent enter_ev;
           enter_ev.global_pos = mouse_pos;
+          enter_ev.pass_depth = pass_depth;
           enter_ev.local_pos = local_pos_in_view(mouse_pos, hit_chain, 0);
           auto ev_ref = Script::MouseEventAdapter::make_ref(enter_ev);
           fire_hook_on_view(new_hovered,
@@ -1518,34 +1533,41 @@ namespace Pixils::UI
                              FocusState& focus_state,
                              FrameEvents& events,
                              Runtime::HookArguments& hook_args,
-                             Roo::Runtime& runtime)
+                             Roo::Runtime& runtime,
+                             int pass_depth)
   {
     sync_focus_state_impl(root, focus_state);
 
     if (events.mouse_button_up && events.mouse_button_up->type != Roo::Value::Type::NIL)
     {
-      handle_mouse_up(mouse_state, events, hook_args, runtime);
+      handle_mouse_up(mouse_state, events, hook_args, runtime, pass_depth);
     }
 
     if (events.mouse_button_down && events.mouse_button_down->type != Roo::Value::Type::NIL)
     {
-      handle_mouse_down(root, mouse_state, focus_state, events, hook_args, runtime);
+      handle_mouse_down(root,
+                        mouse_state,
+                        focus_state,
+                        events,
+                        hook_args,
+                        runtime,
+                        pass_depth);
     }
 
     sync_focus_state_impl(root, focus_state);
-    traverse(root, mouse_state, focus_state, events, hook_args, runtime);
+    traverse(root, mouse_state, focus_state, events, hook_args, runtime, pass_depth);
 
     const auto generation_after_traverse = root ? root->subtree_generation : 0;
 
     if (events.mouse_moved)
     {
-      handle_mouse_motion(mouse_state, events, hook_args, runtime);
+      handle_mouse_motion(mouse_state, events, hook_args, runtime, pass_depth);
       handle_drag_motion(mouse_state, events, hook_args, runtime);
     }
 
     if (events.mouse_wheel && events.mouse_wheel->type != Roo::Value::Type::NIL)
     {
-      handle_mouse_wheel(mouse_state, events, hook_args, runtime);
+      handle_mouse_wheel(mouse_state, events, hook_args, runtime, pass_depth);
     }
 
     if (mouse_state.has_pressed() &&
@@ -1579,6 +1601,15 @@ namespace Pixils::UI
     }
 
     return root && root->subtree_generation != generation_after_traverse;
+  }
+
+  size_t interaction_hit_depth(const std::shared_ptr<Runtime::View>& root,
+                               const Point& point)
+  {
+    if (!root) return 0;
+    std::vector<std::shared_ptr<Runtime::View>> chain;
+    build_hit_chain(root, point, chain);
+    return chain.size();
   }
 
 } // namespace Pixils::UI

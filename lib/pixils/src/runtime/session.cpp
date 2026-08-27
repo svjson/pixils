@@ -27,6 +27,7 @@
 #include <roo/exception.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
 
 namespace Pixils::Runtime
@@ -35,18 +36,26 @@ namespace Pixils::Runtime
   {
     const Roo::sptr_val KEYWORD__ANCHOR = Roo::keyword("anchor");
     const Roo::sptr_val KEYWORD__ANCHOR_BOUNDS = Roo::keyword("anchor-bounds");
+    const Roo::sptr_val KEYWORD__COMPOSE = Roo::keyword("compose");
     const Roo::sptr_val KEYWORD__EVENT = Roo::keyword("event");
     const Roo::sptr_val KEYWORD__FALLBACK_PLACEMENT = Roo::keyword("fallback-placement");
     const Roo::sptr_val KEYWORD__MATCH_ANCHOR_WIDTH = Roo::keyword("match-anchor-width?");
     const Roo::sptr_val KEYWORD__OVERLAY = Roo::keyword("overlay");
     const Roo::sptr_val KEYWORD__ORIGIN = Roo::keyword("origin");
+    const Roo::sptr_val KEYWORD__PASS = Roo::keyword("pass");
     const Roo::sptr_val KEYWORD__PLACEMENT = Roo::keyword("placement");
     const Roo::sptr_val KEYWORD__POP_RESULT = Roo::keyword("pop/result");
     const Roo::sptr_val KEYWORD__TARGET = Roo::keyword("target");
     const Roo::sptr_val KEYWORD__THEME = Roo::keyword("theme");
     const Roo::sptr_val KEYWORD__THEME_VARIANT = Roo::keyword("theme-variant");
+    const Roo::sptr_val KEYWORD__UPDATE = Roo::keyword("update");
     const Roo::sptr_val KEYWORD__VIEWPORT_PADDING = Roo::keyword("viewport-padding");
     const Roo::sptr_val KEYWORD__VIEW = Roo::keyword("view");
+    const Roo::sptr_val KEYWORD__INTERACTION = Roo::keyword("interaction");
+
+    bool find_view_path(const std::shared_ptr<View>& current,
+                        View* target,
+                        std::vector<std::shared_ptr<View>>& path);
 
     Session::ModeFrameMetadata::OverlayPlacement parse_overlay_placement(
       const Roo::sptr_val& value,
@@ -171,7 +180,95 @@ namespace Pixils::Runtime
       return metadata;
     }
 
-    Session::ModeFrameMetadata parse_frame_metadata(const Roo::sptr_val& overrides)
+    std::vector<std::shared_ptr<View>> parse_scoped_pass(
+      const Roo::sptr_val& compose,
+      const Roo::sptr_val& axis,
+      const char* axis_name,
+      const std::shared_ptr<View>& underlay)
+    {
+      auto value = Roo::Dict::get_property(compose, axis);
+      if (!value || value->type == Roo::Value::Type::NIL ||
+          value->type == Roo::Value::Type::KEYWORD)
+      {
+        return {};
+      }
+      if (value->type != Roo::Value::Type::MAP)
+      {
+        throw Roo::TypeError(std::string("Mode :compose :") + axis_name +
+                             " must be a keyword or scoped :pass map");
+      }
+
+      auto pass = Roo::Dict::get_property(value, KEYWORD__PASS);
+      if (!pass || pass->type != Roo::Value::Type::VECTOR)
+      {
+        throw Roo::TypeError(std::string("Mode :compose :") + axis_name +
+                             " scoped :pass must be a vector");
+      }
+      if (!underlay)
+      {
+        throw Roo::InvocationException(std::string("Mode :compose :") + axis_name +
+                                       " scoped :pass requires an underlying mode");
+      }
+
+      std::vector<std::shared_ptr<View>> scopes;
+      const size_t count = Roo::count(*pass);
+      scopes.reserve(count);
+      for (size_t i = 0; i < count; i++)
+      {
+        auto descriptor = Roo::get_child(*pass, i);
+        if (!descriptor || descriptor->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError(std::string("Mode :compose :") + axis_name +
+                               " scoped :pass entries must be maps");
+        }
+
+        auto view = Roo::Dict::get_property(descriptor, KEYWORD__VIEW);
+        if (!view || !Script::HostType::VIEW.is_type_of(*view))
+        {
+          throw Roo::TypeError(std::string("Mode :compose :") + axis_name +
+                               " scoped :pass currently requires {:view view}");
+        }
+
+        std::vector<std::shared_ptr<View>> path;
+        if (!find_view_path(underlay, &Roo::obj<View>(*view), path))
+        {
+          throw Roo::InvocationException(std::string("Mode :compose :") + axis_name +
+                                         " scoped :pass view is not in the underlying mode");
+        }
+        if (std::find(scopes.begin(), scopes.end(), path.front()) == scopes.end())
+        {
+          scopes.push_back(path.front());
+        }
+      }
+      return scopes;
+    }
+
+    Session::ModeFrameMetadata::ScopedComposition parse_scoped_composition(
+      const Roo::sptr_val& overrides,
+      const std::shared_ptr<View>& underlay)
+    {
+      Session::ModeFrameMetadata::ScopedComposition result;
+      auto compose = Roo::Dict::get_property(overrides, KEYWORD__COMPOSE);
+      if (!compose || compose->type == Roo::Value::Type::NIL)
+      {
+        return result;
+      }
+      if (compose->type != Roo::Value::Type::MAP)
+      {
+        return result;
+      }
+
+      result.update_pass = parse_scoped_pass(compose, KEYWORD__UPDATE, "update", underlay);
+      for (auto& view :
+           parse_scoped_pass(compose, KEYWORD__INTERACTION, "interaction", underlay))
+      {
+        result.interaction_pass.push_back({.view = view, .mouse_state = {}});
+      }
+      return result;
+    }
+
+    Session::ModeFrameMetadata parse_frame_metadata(const Roo::sptr_val& overrides,
+                                                    const std::shared_ptr<View>& underlay)
     {
       Session::ModeFrameMetadata metadata;
       if (!overrides || overrides->type == Roo::Value::Type::NIL)
@@ -180,6 +277,7 @@ namespace Pixils::Runtime
       }
 
       metadata.overlay = parse_overlay_metadata(overrides);
+      metadata.scoped_composition = parse_scoped_composition(overrides, underlay);
 
       auto origin = Roo::Dict::get_property(overrides, KEYWORD__ORIGIN);
       if (!origin || origin->type == Roo::Value::Type::NIL)
@@ -699,7 +797,12 @@ namespace Pixils::Runtime
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
-    auto metadata = parse_frame_metadata(overrides);
+    auto metadata =
+      parse_frame_metadata(overrides, ctx_stack.empty() ? nullptr : ctx_stack.back());
+    for (auto& scope : metadata.scoped_composition.interaction_pass)
+    {
+      scope.mouse_state = mouse_state;
+    }
     metadata.restore_focus = focus_state;
     frame_metadata.push_back(std::move(metadata));
     focus_state.clear();
