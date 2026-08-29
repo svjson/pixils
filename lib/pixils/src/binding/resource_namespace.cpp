@@ -230,7 +230,7 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /* MakeResourceDependencies */
+    /** MakeResourceDependencies - pixils.resource/make-resource-dependencies */
     FUNC_IMPL(MakeResourceDependencies,
               SIG((FN_ARGS((&Roo::Type::MAP)),
                    EXEC_DISPATCH(&MakeResourceDependencies::exec_make_deps))));
@@ -241,6 +241,7 @@ namespace Pixils::Script
         parse_resource_dependencies(ctx, args[0]));
     }
 
+    /** CreateBundleBang - pixils.resource/create-bundle! */
     FUNC_IMPL(CreateBundleBang,
               MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD)),
                          EXEC_DISPATCH(&CreateBundleBang::exec_create_bundle)),
@@ -259,6 +260,7 @@ namespace Pixils::Script
       return args[0];
     }
 
+    /** AddImageBang - pixils.resource/add-image! */
     FUNC_IMPL(AddImageBang,
               MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::STRING)),
                          EXEC_DISPATCH(&AddImageBang::exec_add_image)),
@@ -275,6 +277,7 @@ namespace Pixils::Script
       return args[0];
     }
 
+    /** CreateImageBang - pixils.resource/create-image! */
     FUNC_IMPL(CreateImageBang,
               SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP), (&Roo::Type::FUNCTION)),
                    EXEC_DISPATCH(&CreateImageBang::exec_create_image))));
@@ -348,6 +351,7 @@ namespace Pixils::Script
       return args[0];
     }
 
+    /** RedrawImageBang - pixils.resource/redraw-image! */
     FUNC_IMPL(RedrawImageBang,
               SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP), (&Roo::Type::FUNCTION)),
                    EXEC_DISPATCH(&RedrawImageBang::exec_redraw_image))));
@@ -403,6 +407,7 @@ namespace Pixils::Script
       return args[0];
     }
 
+    /** RemoveImageBang - pixils.resource/remove-image! */
     FUNC_IMPL(RemoveImageBang,
               SIG((FN_ARGS((&Roo::Type::KEYWORD)),
                    EXEC_DISPATCH(&RemoveImageBang::exec_remove_image))));
@@ -416,6 +421,7 @@ namespace Pixils::Script
       return args[0];
     }
 
+    /** ListImages - pixils.resource/list-images */
     FUNC_IMPL(ListImages,
               SIG((FN_ARGS((&Roo::Type::KEYWORD)),
                    EXEC_DISPATCH(&ListImages::exec_list_images))));
@@ -438,6 +444,7 @@ namespace Pixils::Script
       return Roo::vector(resources);
     }
 
+    /** CanCreateImages - pixils.resource/can-create-images? */
     FUNC_IMPL(CanCreateImages,
               SIG((NO_ARGS, EXEC_DISPATCH(&CanCreateImages::exec_can_create_images))));
 
