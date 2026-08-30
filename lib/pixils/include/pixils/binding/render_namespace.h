@@ -11,6 +11,7 @@ namespace Pixils::Script
 {
   inline constexpr std::string_view NS__PIXILS__RENDER = "pixils.render";
 
+  inline constexpr std::string_view FN__ONTO_IMAGE_BANG = "onto-image!";
   inline constexpr std::string_view FN__DRAW_IMAGE_BANG = "image!";
   inline constexpr std::string_view FN__DRAW_IMAGES_BANG = "images!";
   inline constexpr std::string_view FN__DRAW_CIRCLE_BANG = "circle!";
@@ -33,7 +34,49 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /**
+    /*!
+     * @brief Render onto an existing generated image.
+     * @since 0.1.0
+     * @see pixils.resource/create-image!
+     * @see pixils.render/image!
+     *
+     * The resource must identify a generated image in a dynamic bundle. The
+     * callback is invoked without arguments while that image's existing texture
+     * is the current render target. Normal `pixils.render` operations inside the
+     * callback therefore add to the image, and the previous render target is
+     * restored afterward.
+     *
+     * Existing pixels are preserved when `:clear` is omitted. Supplying a color
+     * clears the complete image to that color before invoking the callback.
+     * Omitting `:readback?` preserves the image's current readback policy;
+     * supplying it enables or disables CPU-side pixel access after this pass.
+     *
+     * Usage:
+     * @code
+     * (pixils.render/onto-image!
+     *   :project-assets/canvas
+     *   (fn []
+     *     (pixils.render/rect! {:x 2 :y 2 :w 4 :h 4}
+     *                          {:fill true :color "#ffffff"})))
+     *
+     * (pixils.render/onto-image!
+     *   :project-assets/canvas
+     *   {:clear "#00000000" :readback? false}
+     *   (fn []
+     *     (pixils.render/image! :sprites/background {:pos {:x 0 :y 0}})))
+     * @endcode
+     *
+     * | Arg      | Description                                                |
+     * | -------- | ---------------------------------------------------------- |
+     * | resource | Qualified keyword identifying an existing generated image. |
+     * | options  | Optional map with `:clear` and `:readback?` values.        |
+     * | render   | Zero-argument function that renders onto the image.        |
+     *
+     * @return The supplied resource keyword.
+     */
+    FUNC(RenderOntoImageBang, render_onto_image, render_onto_image_with_opts);
+
+    /*!
      * @brief Draw an image resource.
      *
      * Usage:

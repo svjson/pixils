@@ -177,9 +177,12 @@ namespace Pixils::Script
 
     /*!
      * @brief Redraw an existing generated image in place.
+     * @deprecated Use `pixils.render/onto-image!`. This compatibility function
+     * continues to clear the image before drawing when `:clear` is omitted.
      * @since 0.1.0
      * @see pixils.resource/create-image!
      * @see pixils.resource/can-create-images?
+     * @see pixils.render/onto-image!
      *
      * The resource must identify a generated image in a dynamic bundle. Its
      * required `:size` must match the size used when the image was created. The

@@ -1,5 +1,6 @@
 
 #include "../render_fixture.h"
+#include <pixils/asset/registry.h>
 #include <pixils/font_registry.h>
 #include <pixils/text.h>
 
@@ -1349,6 +1350,103 @@ TEST_F(RenderTest, generated_image_can_draw_base_and_apply_alpha_masks)
   EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 16);
   EXPECT_EQ(ops[0].sub_ops[1].rendered_rect.w, 16);
   EXPECT_EQ(ops[0].sub_ops[2].rendered_rect.w, 16);
+}
+
+TEST_F(RenderTest, onto_image_preserves_existing_contents_when_clear_is_omitted)
+{
+  runtime.eval(R"(
+    (pixils.resource/create-bundle! :generated)
+    (pixils.resource/create-image!
+      :generated/canvas
+      {:size {:w 8 :h 8}}
+      (fn []
+        (pixils.render/rect! {:x 0 :y 0 :w 2 :h 2}
+                             {:fill true :color "#ff0000"})))
+  )");
+
+  auto resource = runtime.eval(R"(
+    (pixils.render/onto-image!
+      :generated/canvas
+      (fn []
+        (pixils.render/rect! {:x 4 :y 4 :w 2 :h 2}
+                             {:fill true :color "#0000ff"})))
+  )");
+  runtime.eval("(pixils.render/image! :generated/canvas {:pos {:x 0 :y 0}})");
+
+  ASSERT_NE(resource, nullptr);
+  EXPECT_EQ(resource->to_string(), ":generated/canvas");
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  ASSERT_EQ(ops[0].sub_ops.size(), 2u);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].sub_ops[1].rendered_rect.x, 4);
+  EXPECT_EQ(ops[0].sub_ops[1].rendered_rect.y, 4);
+}
+
+TEST_F(RenderTest, onto_image_clears_existing_contents_when_clear_is_supplied)
+{
+  runtime.eval(R"(
+    (pixils.resource/create-bundle! :generated)
+    (pixils.resource/create-image!
+      :generated/canvas
+      {:size {:w 8 :h 8}}
+      (fn []
+        (pixils.render/rect! {:x 0 :y 0 :w 2 :h 2}
+                             {:fill true :color "#ff0000"})))
+    (pixils.render/onto-image!
+      :generated/canvas
+      {:clear "#00000000"}
+      (fn []
+        (pixils.render/rect! {:x 4 :y 4 :w 2 :h 2}
+                             {:fill true :color "#0000ff"})))
+    (pixils.render/image! :generated/canvas {:pos {:x 0 :y 0}})
+  )");
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  ASSERT_EQ(ops[0].sub_ops.size(), 1u);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.x, 4);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 4);
+}
+
+TEST_F(RenderTest, onto_image_restores_the_previous_render_target)
+{
+  runtime.eval(R"(
+    (pixils.resource/create-bundle! :generated)
+    (pixils.resource/create-image!
+      :generated/canvas
+      {:size {:w 8 :h 8}}
+      (fn [] nil))
+  )");
+  SDL_Texture* previous_target = SDL_CreateTexture(render_ctx.renderer,
+                                                   SDL_PIXELFORMAT_RGBA8888,
+                                                   SDL_TEXTUREACCESS_TARGET,
+                                                   20,
+                                                   20);
+  render_ctx.set_render_target(previous_target);
+
+  runtime.eval("(pixils.render/onto-image! :generated/canvas (fn [] nil))");
+
+  EXPECT_EQ(render_target(), previous_target);
+  EXPECT_EQ(render_ctx.current_render_target, previous_target);
+}
+
+TEST_F(RenderTest, onto_image_can_disable_the_existing_readback_policy)
+{
+  runtime.eval(R"(
+    (pixils.resource/create-bundle! :generated)
+    (pixils.resource/create-image!
+      :generated/canvas
+      {:size {:w 8 :h 8}}
+      (fn [] nil))
+    (pixils.render/onto-image!
+      :generated/canvas
+      {:readback? false}
+      (fn [] nil))
+  )");
+
+  EXPECT_EQ(render_ctx.asset_registry->get_image_surface("generated", "canvas"), nullptr);
 }
 
 TEST_F(RenderTest, image_missing_asset_is_noop)

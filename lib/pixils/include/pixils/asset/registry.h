@@ -78,6 +78,8 @@ namespace Pixils::Asset
     void remove_image(const std::string& bundle_id, const std::string& resource_id);
     std::vector<Runtime::ImageDependency> image_dependencies(
       const std::string& bundle_id) const;
+    Dimension generated_image_size(const std::string& bundle_id,
+                                   const std::string& resource_id) const;
     std::unordered_map<std::string, Dimension> generated_image_sizes(
       const std::string& bundle_id) const;
 

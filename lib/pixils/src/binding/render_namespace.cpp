@@ -13,7 +13,9 @@
 #include <pixils/sdl_render.h>
 
 #include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_version.h>
 #include <algorithm>
 #include <array>
@@ -21,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <roo/host/schema.h>
 #include <roo/namespace.h>
 #include <roo/runtime/dict.h>
@@ -69,6 +72,44 @@ namespace Pixils::Script
     namespace
     {
       constexpr double RADIANS_TO_DEGREES = 180.0 / 3.14159265358979323846;
+
+      using SurfacePtr = std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)>;
+
+      struct RenderTargetGuard
+      {
+        RenderContext& rc;
+        SDL_Texture* previous_target;
+
+        RenderTargetGuard(RenderContext& rc, SDL_Texture* target)
+          : rc(rc)
+          , previous_target(rc.current_render_target)
+        {
+          rc.set_render_target(target);
+        }
+
+        ~RenderTargetGuard() { rc.set_render_target(previous_target); }
+      };
+
+      SurfacePtr read_render_target_surface(SDL_Renderer* renderer, Dimension size)
+      {
+        SDL_Rect read_rect{0, 0, size.w, size.h};
+        SDL_Surface* readback = SDL_RenderReadPixels(renderer, &read_rect);
+        if (!readback) return SurfacePtr(nullptr, SDL_DestroySurface);
+
+        SDL_Surface* converted = SDL_ConvertSurface(readback, SDL_PIXELFORMAT_RGBA8888);
+        SDL_DestroySurface(readback);
+        return SurfacePtr(converted, SDL_DestroySurface);
+      }
+
+      std::pair<std::string, std::string> parse_resource_keyword(const Roo::sptr_val& value)
+      {
+        auto [bundle_id, resource_id] = value->qual();
+        if (bundle_id.empty() || resource_id.empty())
+        {
+          throw Roo::TypeError("Image resource must be a qualified keyword");
+        }
+        return {bundle_id, resource_id};
+      }
 
       Uint8 opacity_to_alpha(float opacity)
       {
@@ -2049,6 +2090,70 @@ namespace Pixils::Script
       }
     } // namespace
 
+    /** RenderOntoImageBang - pixils.render/onto-image! */
+    FUNC_IMPL(
+      RenderOntoImageBang,
+      MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::FUNCTION)),
+                 EXEC_DISPATCH(&RenderOntoImageBang::exec_render_onto_image)),
+                (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP), (&Roo::Type::FUNCTION)),
+                 EXEC_DISPATCH(&RenderOntoImageBang::exec_render_onto_image_with_opts))));
+
+    EXEC_BODY(RenderOntoImageBang, exec_render_onto_image)
+    {
+      Roo::sptr_val_v args_with_opts{args[0], Roo::map({}), args[1]};
+      return this->exec_render_onto_image_with_opts(ctx, args_with_opts);
+    }
+
+    EXEC_BODY(RenderOntoImageBang, exec_render_onto_image_with_opts)
+    {
+      static Roo::MapSchema onto_image_opts_schema(
+        {},
+        {{"clear", &HostType::COLOR}, {"readback?", &Roo::Type::BOOL}});
+
+      auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
+      auto opts = onto_image_opts_schema.bind(ctx, *args[1]);
+
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      if (!rc.renderer)
+      {
+        throw std::runtime_error("Cannot render onto image without an SDL renderer");
+      }
+
+      std::optional<bool> readback = opts.contains("readback?")
+                                       ? std::optional<bool>(opts.boolean("readback?"))
+                                       : std::nullopt;
+      const Dimension size = rc.asset_registry->generated_image_size(bundle_id, resource_id);
+      auto update =
+        rc.asset_registry->update_generated_image(bundle_id, resource_id, size, readback);
+
+      {
+        RenderTargetGuard target_guard(rc, update.texture);
+
+        if (auto clear = opts.optional_obj<Color>("clear"))
+        {
+          SDL_SetRenderDrawColor(rc.renderer, clear->r, clear->g, clear->b, clear->a);
+          SDL_RenderClear(rc.renderer);
+        }
+        SDL_SetRenderDrawColor(rc.renderer, 0xff, 0xff, 0xff, 0xff);
+
+        Roo::sptr_val_v callback_args;
+        args[2]->exec().execute(ctx, callback_args);
+
+        if (update.readback)
+        {
+          SurfacePtr surface = read_render_target_surface(rc.renderer, size);
+          SDL_Surface* committed_surface = surface.get();
+          rc.asset_registry->replace_generated_image_source(bundle_id,
+                                                            resource_id,
+                                                            committed_surface);
+          if (committed_surface) surface.release();
+        }
+      }
+
+      return args[0];
+    }
+
+    /** DrawImageBang - pixils.render/image! */
     FUNC_IMPL(DrawImageBang,
               MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&HostType::POINT)),
                          EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
@@ -2866,6 +2971,7 @@ namespace Pixils::Script
   RenderNamespace::RenderNamespace()
     : Roo::Namespace(std::string(NS__PIXILS__RENDER))
   {
+    values.emplace(FN__ONTO_IMAGE_BANG, Function::RenderOntoImageBang::make());
     values.emplace(FN__DRAW_IMAGE_BANG, Function::DrawImageBang::make());
     values.emplace(FN__DRAW_IMAGES_BANG, Function::DrawImagesBang::make());
     values.emplace(FN__DRAW_CIRCLE_BANG, Function::DrawCircleBang::make());

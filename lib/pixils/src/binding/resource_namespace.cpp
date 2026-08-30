@@ -358,12 +358,12 @@ namespace Pixils::Script
 
     EXEC_BODY(RedrawImageBang, exec_redraw_image)
     {
-      static Roo::MapSchema create_image_opts_schema(
+      static Roo::MapSchema redraw_image_opts_schema(
         {{"size", &HostType::DIMENSION}},
         {{"clear", &HostType::COLOR}, {"readback?", &Roo::Type::BOOL}});
 
       auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
-      auto opts = create_image_opts_schema.bind(ctx, *args[1]);
+      auto opts = redraw_image_opts_schema.bind(ctx, *args[1]);
       const Dimension& size = opts.obj<Dimension>("size");
       if (size.w <= 0 || size.h <= 0)
       {

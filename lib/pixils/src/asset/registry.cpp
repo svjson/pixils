@@ -508,6 +508,24 @@ namespace Pixils::Asset
     return record->second.declaration.images;
   }
 
+  Dimension Registry::generated_image_size(const std::string& bundle_id,
+                                           const std::string& resource_id) const
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+
+    auto image = record->second.generated_images.find(resource_id);
+    if (image == record->second.generated_images.end())
+    {
+      throw std::runtime_error("Generated image does not exist: " + bundle_id + "/" +
+                               resource_id);
+    }
+    return image->second.size;
+  }
+
   std::unordered_map<std::string, Dimension> Registry::generated_image_sizes(
     const std::string& bundle_id) const
   {
