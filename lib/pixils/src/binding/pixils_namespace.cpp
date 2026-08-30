@@ -165,7 +165,7 @@ namespace Pixils::Script
 
   namespace Macro
   {
-    /* DefPointerForm - defpointer */
+    /** DefPointerForm - pixils/defpointer */
     SPECIAL_FORM_IMPL(DefPointerForm,
                       SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                    (&Roo::Type::MAP)),
@@ -194,7 +194,7 @@ namespace Pixils::Script
       throw Roo::RooException("defpointer is lower-only");
     }
 
-    /* DefBundleForm - defbundle */
+    /** DefBundleForm - pixils/defbundle */
     SPECIAL_FORM_IMPL(DefBundleForm,
                       SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                    (&Roo::Type::MAP)),
@@ -225,7 +225,7 @@ namespace Pixils::Script
       throw Roo::RooException("defbundle is lower-only");
     }
 
-    /* DefBundleDynamicForm - defbundle-dynamic */
+    /** DefBundleDynamicForm - pixils/defbundle-dynamic */
     SPECIAL_FORM_IMPL(
       DefBundleDynamicForm,
       MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL)),
@@ -263,6 +263,7 @@ namespace Pixils::Script
       throw Roo::RooException("defbundle-dynamic is lower-only");
     }
 
+    /** DefFontForm - pixils/deffont */
     SPECIAL_FORM_IMPL(DefFontForm,
                       SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                    (&Roo::Type::MAP)),
@@ -454,7 +455,7 @@ namespace Pixils::Script
       throw Roo::RooException("Invalid invocation");
     }
 
-    /* DefProgramForm - defprogram */
+    /** DefProgramForm - pixils/defprogram */
     SPECIAL_FORM_IMPL(DefProgramForm,
                       SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                    (&Roo::Type::MAP)),
@@ -521,7 +522,7 @@ namespace Pixils::Script
       throw Roo::RooException("defmode is lower-only");
     }
 
-    /* DefThemeForm - deftheme */
+    /** DefThemeForm - pixils/deftheme */
     SPECIAL_FORM_IMPL(DefThemeForm,
                       SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                    (&Roo::Type::MAP)),
@@ -547,7 +548,7 @@ namespace Pixils::Script
       throw Roo::RooException("deftheme is lower-only");
     }
 
-    /* DefModeForm - defmode */
+    /** DefModeForm - pixils/defmode */
     SPECIAL_FORM_IMPL(DefModeForm,
                       MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
                                          (&HostType::MODE, &Roo::Eval::LITERAL)),
@@ -589,7 +590,7 @@ namespace Pixils::Script
       throw Roo::RooException("defmode is lower-only");
     }
 
-    /* DefComponentForm - defcomponent */
+    /** DefComponentForm - pixils/defcomponent */
     SPECIAL_FORM_IMPL(
       DefComponentForm,
       MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
@@ -636,7 +637,7 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /* Mode make function */
+    /** MakeMode - pixils/make-mode */
     FUNC_IMPL(MakeMode,
               SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeMode::exec_make))))
 
@@ -646,7 +647,7 @@ namespace Pixils::Script
       return ModeAdapter::make_unique(build_mode_from_definition(ctx, args[0]));
     }
 
-    /* Component make function */
+    /** MakeComponent - pixils/make-component */
     FUNC_IMPL(MakeComponent,
               SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeComponent::exec_make))))
 
@@ -655,7 +656,7 @@ namespace Pixils::Script
       return ComponentAdapter::make_unique(build_component_from_definition(ctx, args[0]));
     }
 
-    /* ModeComposition make function */
+    /** MakeModeComposition - pixils/make-mode-composition */
     FUNC_IMPL(MakeModeComposition,
               SIG((FN_ARGS((&Roo::Type::MAP)),
                    EXEC_DISPATCH(&MakeModeComposition::exec_make))));
@@ -678,7 +679,7 @@ namespace Pixils::Script
       return ModeCompositionAdapter::make_unique(composition);
     }
 
-    /* Dimension make function */
+    /** MakeDimension - pixils/make-dimension */
     FUNC_IMPL(MakeDimension,
               SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeDimension::exec_make))))
 
@@ -694,7 +695,7 @@ namespace Pixils::Script
         opts.i32(std::get<std::string>(MapKey::H->value)));
     }
 
-    /* Display make function */
+    /** MakeDisplay - pixils/make-display */
     FUNC_IMPL(MakeDisplay,
               SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeDisplay::exec_make))))
 
@@ -752,7 +753,7 @@ namespace Pixils::Script
       }
     }
 
-    /* Resolution make function */
+    /** MakeResolution - pixils/make-resolution */
     FUNC_IMPL(MakeResolution,
               MULTI_SIG((FN_ARGS((&HostType::DIMENSION)),
                          EXEC_DISPATCH(&MakeResolution::exec_make_resolution)),
@@ -792,7 +793,7 @@ namespace Pixils::Script
       throw Roo::TypeError("Could not construct Resolution from: " + args[0]->to_string());
     }
 
-    /* PushModeBangFunction - push-mode! */
+    /** PushModeBangFunction - pixils/push-mode! */
     FUNC_IMPL(
       PushModeBangFunction,
       MULTI_SIG((FN_ARGS((&HostType::MODE_REFERENCE)),
@@ -825,7 +826,7 @@ namespace Pixils::Script
       return args[0];
     }
 
-    /* PopModeBangFunction - pop-mode! */
+    /** PopModeBangFunction - pixils/pop-mode! */
     FUNC_IMPL(PopModeBangFunction,
               MULTI_SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode)),
                         (FN_ARGS((&Roo::Type::ANY)),
@@ -846,7 +847,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /* PopToBangFunction - pop-to! */
+    /** PopToBangFunction - pixils/pop-to! */
     FUNC_IMPL(PopToBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::VIEW)),
                          EXEC_DISPATCH(&PopToBangFunction::exec_pop_to)),
@@ -868,7 +869,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /* QuitBangFunction - quit! */
+    /** QuitBangFunction - pixils/quit! */
     FUNC_IMPL(QuitBangFunction, SIG((NO_ARGS, EXEC_DISPATCH(&QuitBangFunction::exec_quit))));
 
     EXEC_BODY(QuitBangFunction, exec_quit)
@@ -884,7 +885,7 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
-    /* SetThemeBangFunction - set-theme! */
+    /** SetThemeBangFunction - pixils/set-theme! */
     FUNC_IMPL(SetThemeBangFunction,
               MULTI_SIG((FN_ARGS((&Roo::Type::ANY)),
                          EXEC_DISPATCH(&SetThemeBangFunction::exec_set_theme)),
@@ -908,7 +909,7 @@ namespace Pixils::Script
       return args[0];
     }
 
-    /* ThemeVarFunction - var */
+    /** ThemeVarFunction - pixils/var */
     FUNC_IMPL(ThemeVarFunction,
               SIG((FN_ARGS((&Roo::Type::ANY)),
                    EXEC_DISPATCH(&ThemeVarFunction::exec_theme_var))));
@@ -923,7 +924,7 @@ namespace Pixils::Script
       return Roo::map({Roo::keyword("__pixils-theme-var"), key});
     }
 
-    /* WarpMouseBangFunction - warp-mouse! */
+    /** WarpMouseBangFunction - pixils/warp-mouse! */
     FUNC_IMPL(WarpMouseBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::HOOK_CONTEXT), (&HostType::POINT)),
                          EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse)),

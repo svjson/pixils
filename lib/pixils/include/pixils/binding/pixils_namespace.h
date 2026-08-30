@@ -115,18 +115,191 @@ namespace Pixils::Script
 
   namespace Macro
   {
-    /*! @brief Define a resource bundle independent of any mode */
+    /*!
+     * @brief Declare an immutable bundle of file-backed resources.
+     * @since 0.1.0
+     * @see pixils/defbundle-dynamic
+     * @see pixils.resource/make-resource-dependencies
+     *
+     * A bundle groups images, music, sounds, and fonts under a symbol. Its
+     * resources are subsequently addressed by qualified keywords whose
+     * qualifier is the bundle name. Image entries may be file-name strings or
+     * maps containing `:file-name` and optional `:transparency-color`; the
+     * other resource maps associate names with file-name strings.
+     *
+     * Bundles declared with `defbundle` are static and cannot be changed with
+     * the mutation functions in `pixils.resource`.
+     *
+     * Usage:
+     * @code
+     * (pixils/defbundle game-assets
+     *   {:images {:ship "images/ship.png"
+     *             :cursor {:file-name "images/cursor.png"
+     *                      :transparency-color "#ff00ff"}}
+     *    :sounds {:laser "audio/laser.wav"}
+     *    :music {:theme "audio/theme.ogg"}
+     *    :fonts {:body "fonts/body.ttf"}})
+     * @endcode
+     *
+     * | Arg         | Description                                             |
+     * | ----------- | ------------------------------------------------------- |
+     * | name        | Literal symbol naming the resource bundle.              |
+     * | declaration | Map describing image, music, sound, and font resources. |
+     *
+     * @return `nil` after declaring the bundle.
+     */
     SPECIAL_FORM_DECL(DefBundleForm, def_bundle);
-    /*! @brief Define a mutable resource bundle for runtime-managed assets */
+
+    /*!
+     * @brief Declare a mutable bundle for runtime-managed resources.
+     * @since 0.1.0
+     * @see pixils/defbundle
+     * @see pixils.resource/create-bundle!
+     * @see pixils.resource/add-image!
+     * @see pixils.resource/create-image!
+     *
+     * The optional declaration has the same shape as `defbundle`. Unlike a
+     * static bundle, a dynamic bundle may be populated, updated, and pruned at
+     * runtime through `pixils.resource`. Omitting the declaration creates an
+     * empty bundle.
+     *
+     * Usage:
+     * @code
+     * (pixils/defbundle-dynamic project-assets)
+     *
+     * (pixils/defbundle-dynamic session-assets
+     *   {:images {:placeholder "images/placeholder.png"}})
+     * @endcode
+     *
+     * | Arg  | Description                               |
+     * | ---- | ----------------------------------------- |
+     * | name | Literal symbol naming the dynamic bundle. |
+     *
+     * | Arg         | Description                               |
+     * | ----------- | ----------------------------------------- |
+     * | name        | Literal symbol naming the dynamic bundle. |
+     * | declaration | Initial resource declaration map.        |
+     *
+     * @return `nil` after declaring the bundle.
+     */
     SPECIAL_FORM_DECL(DefBundleDynamicForm, def_bundle_dynamic);
-    /*! @brief Define a named custom pointer */
+
+    /*!
+     * @brief Declare a named image-backed mouse pointer.
+     * @since 0.1.0
+     *
+     * The required `:image` is a qualified image-resource keyword. `:source`
+     * optionally selects a rectangle from a sprite sheet, `:hotspot` defaults
+     * to `{:x 0 :y 0}`, and `:scale` defaults to 1 and is clamped to at least 1.
+     *
+     * Custom pointers render in the Pixils application buffer by default so
+     * they follow its scaling and pixel grid. Set `:render :native` to have
+     * SDL create and display an operating-system cursor instead. The pointer is
+     * referenced from styles by a keyword with exactly the declared name.
+     *
+     * Usage:
+     * @code
+     * (pixils/defpointer workbench/pointer
+     *   {:image :workbench-assets/cursors
+     *    :source {:x 16 :y 0 :w 16 :h 16}
+     *    :hotspot {:x 8 :y 8}
+     *    :scale 2})
+     *
+     * {:style {:cursor :workbench/pointer}}
+     * @endcode
+     *
+     * | Arg        | Description                                      |
+     * | ---------- | ------------------------------------------------ |
+     * | name       | Literal symbol naming the pointer.               |
+     * | definition | Image, crop, hotspot, scale, and render options. |
+     *
+     * @return `nil` after registering the pointer.
+     */
     SPECIAL_FORM_DECL(DefPointerForm, def_pointer);
-    /*! @brief Define a custom font */
+
+    /*!
+     * @brief Declare a bitmap-atlas or TrueType font.
+     * @since 0.1.0
+     * @see pixils/defbundle
+     *
+     * `:resource` is required and identifies either an image resource for a
+     * bitmap font or a font resource for a TTF font. `:type` defaults to
+     * `:bitmap`; use `:ttf` to load TrueType data. An unqualified font name is
+     * registered in the `font` qualifier, while a qualified name is preserved.
+     *
+     * Bitmap fonts use `:glyphs` to map characters to atlas rectangles. TTF
+     * fonts use `:size`, which defaults to `:line-height` when positive and 16
+     * otherwise. `:spacing` defaults to 1 and `:line-height` defaults to 0.
+     * `:baseline` may override the inferred baseline. The optional
+     * `:styles {:underline {:offset n :thickness n}}` map defines underline
+     * metrics shared by either font type.
+     *
+     * Usage:
+     * @code
+     * (pixils/deffont digits
+     *   {:type :bitmap
+     *    :resource :game-assets/digits
+     *    :spacing 0
+     *    :glyphs {'0' {:x 0 :y 0 :w 8 :h 12}
+     *             '1' {:x 8 :y 0 :w 8 :h 12}}})
+     *
+     * (pixils/deffont ui/body
+     *   {:type :ttf
+     *    :resource :game-assets/body
+     *    :size 16})
+     * @endcode
+     *
+     * | Arg        | Description                                      |
+     * | ---------- | ------------------------------------------------ |
+     * | name       | Literal symbol naming the registered font.      |
+     * | definition | Font type, resource, metrics, and glyph options. |
+     *
+     * @return `nil` after registering the font.
+     */
     SPECIAL_FORM_DECL(DefFontForm, def_font);
-    /*! @brief Define a program/application */
+
+    /*!
+     * @brief Declare a runnable Pixils program.
+     * @since 0.1.0
+     * @see pixils/make-display
+     * @see pixils/deftheme
+     * @see pixils/defmode
+     *
+     * A program selects its initial mode and application-wide display and
+     * theme configuration. `:display` accepts a display value or coercible map
+     * and defaults to an automatic-resolution display. `:theme` accepts one
+     * theme symbol or a vector of theme symbols composed in order;
+     * `:theme-variant` selects a keyword or symbol variant. `:pointer :off`
+     * hides the pointer. `:target-frame-rate` controls frame pacing, with 0
+     * disabling the frame-rate limit.
+     *
+     * The resulting program is registered in `pixils/programs` under its
+     * literal symbol name.
+     *
+     * Usage:
+     * @code
+     * (pixils/defprogram game
+     *   {:display {:resolution {:scale 3}
+     *              :scaling :scaling/fit
+     *              :background "#000000"}
+     *    :initial-mode 'game/root
+     *    :theme ['pixils/windows-3 'game/layout]
+     *    :theme-variant :dark
+     *    :target-frame-rate 60})
+     * @endcode
+     *
+     * | Arg        | Description                                        |
+     * | ---------- | -------------------------------------------------- |
+     * | name       | Literal symbol naming the program.                 |
+     * | definition | Display, initial mode, theme, pointer, and pacing. |
+     *
+     * @return `nil` after registering the program.
+     */
     SPECIAL_FORM_DECL(DefProgramForm, def_program);
+
     /*!
      * @brief Declare a mode definition for application behaviour and state.
+     * @since 0.1.0
      *
      * A mode is a registered, reusable view definition. It may represent a
      * screen, a layout container, or another unit of application behaviour.
@@ -138,7 +311,7 @@ namespace Pixils::Script
      *
      * Usage:
      * @code
-     * (defmode game-mode
+     * (pixils/defmode game-mode
      *   {:init      (fn [state ctx] initial-state)
      *    :update    (fn [state ctx] (update-game-state state ctx))
      *    :focusable true
@@ -146,7 +319,7 @@ namespace Pixils::Script
      *    :children  [{:component 'ui/button
      *                 :state {:label "Pause"}}]})
      *
-     * (defmode pause-mode
+     * (pixils/defmode pause-mode
      *   "Pause screen and controls."
      *   {:focusable true
      *    :render (fn [state ctx] nil)})
@@ -157,12 +330,24 @@ namespace Pixils::Script
      * definition can inherit from another mode with `:extend`; the derived
      * definition replaces or merges only the fields it supplies.
      *
+     * | Arg        | Description                                  |
+     * | ---------- | -------------------------------------------- |
+     * | name       | Literal symbol naming the mode.              |
+     * | definition | Mode definition map or coercible mode value. |
+     *
+     * | Arg        | Description                                  |
+     * | ---------- | -------------------------------------------- |
+     * | name       | Literal symbol naming the mode.              |
+     * | docstring  | Literal documentation string.                |
+     * | definition | Mode definition map or coercible mode value. |
+     *
      * @return `nil` after registering the mode definition.
-     * @since 0.1.0
      */
     SPECIAL_FORM_DECL(DefModeForm, declare_mode);
+
     /*!
      * @brief Declare a reusable UI component definition.
+     * @since 0.1.0
      *
      * A component is a distinct runtime definition kind intended for reusable
      * UI elements and controls. It shares the view-definition features of a
@@ -188,12 +373,12 @@ namespace Pixils::Script
      *
      * Usage:
      * @code
-     * (defcomponent save-button
+     * (pixils/defcomponent save-button
      *   {:focusable true
      *    :render    (fn [state ctx] nil)
      *    :on-click  (fn [state ctx] (save-document state))})
      *
-     * (defcomponent toolbar-button
+     * (pixils/defcomponent toolbar-button
      *   "A button used in toolbars."
      *   {:extend 'save-button
      *    :class :toolbar-button})
@@ -203,26 +388,193 @@ namespace Pixils::Script
      * inherited definition and component UI-state contract are preserved and
      * extended by fields supplied in the derived definition.
      *
+     * | Arg        | Description                                  |
+     * | ---------- | -------------------------------------------- |
+     * | name       | Literal symbol naming the component.         |
+     * | definition | Component definition map or coercible value. |
+     *
+     * | Arg        | Description                                  |
+     * | ---------- | -------------------------------------------- |
+     * | name       | Literal symbol naming the component.         |
+     * | docstring  | Literal documentation string.                |
+     * | definition | Component definition map or coercible value. |
+     *
      * @return `nil` after registering the component definition.
-     * @since 0.1.0
      */
     SPECIAL_FORM_DECL(DefComponentForm, declare_component);
-    /*! @brief Define a named theme */
+
+    /*!
+     * @brief Declare a named theme of defaults, variables, and style rules.
+     * @since 0.1.0
+     * @see pixils/var
+     * @see pixils/set-theme!
+     *
+     * `:defaults` supplies the base style applied to themed views, while
+     * `:styles` maps component, class, compound, or pseudo-state selectors to
+     * style maps. `:extend` accepts a theme symbol or vector of theme symbols
+     * and overlays them in order before applying the new declarations.
+     *
+     * Theme variables are grouped by variant under `:vars` and referenced in
+     * declarations with `pixils/var`. A theme containing variables must name a
+     * `:default-variant`; unresolved variables are omitted from the resolved
+     * style property.
+     *
+     * Usage:
+     * @code
+     * (pixils/deftheme game/theme
+     *   {:default-variant :light
+     *    :vars {:light {:surface "#ffffff" :text "#101010"}
+     *           :dark {:surface "#202020" :text "#f0f0f0"}}
+     *    :defaults {:text {:color (pixils/var :text)}}
+     *    :styles {:ui/panel {:background (pixils/var :surface)}
+     *             :ui/button:hover {:background "#6699cc"}}})
+     * @endcode
+     *
+     * | Arg        | Description                                          |
+     * | ---------- | ---------------------------------------------------- |
+     * | name       | Literal symbol naming the theme.                     |
+     * | definition | Inheritance, variant variables, defaults, and rules. |
+     *
+     * @return `nil` after registering the theme.
+     */
     SPECIAL_FORM_DECL(DefThemeForm, declare_theme);
   } // namespace Macro
 
   namespace Function
   {
-    /*! @brief Roo make-function for Mode/ModeAdapter */
+    /*!
+     * @brief Create an unregistered mode value from a definition map.
+     * @since 0.1.0
+     * @see pixils/defmode
+     * @see pixils/push-mode!
+     *
+     * The definition accepts the same mode fields as `defmode`, including
+     * lifecycle hooks, rendering, children, style, resources, focus behavior,
+     * theme selection, and mode composition. Component-only UI-state fields
+     * are rejected. Unlike `defmode`, this function does not add the result to
+     * `pixils/modes`; the returned value can be passed directly to
+     * `push-mode!`.
+     *
+     * Usage:
+     * @code
+     * (pixils/make-mode
+     *   {:name "inline-dialog"
+     *    :focusable true
+     *    :render (fn [state ctx] nil)})
+     * => #<HMode>
+     * @endcode
+     *
+     * | Arg        | Description                           |
+     * | ---------- | ------------------------------------- |
+     * | definition | Map describing the inline mode value. |
+     *
+     * @return A new native mode value.
+     */
     FUNC(MakeMode, make);
-    /*! @brief Roo make-function for Component/ComponentAdapter */
+
+    /*!
+     * @brief Create an unregistered component value from a definition map.
+     * @since 0.1.0
+     * @see pixils/defcomponent
+     *
+     * The definition accepts the same component fields as `defcomponent`,
+     * including application-state and UI-state hooks, children, style,
+     * resources, focus behavior, and event handlers. The returned component is
+     * not added to `pixils/components` and is not itself a valid mode-stack
+     * target.
+     *
+     * Usage:
+     * @code
+     * (pixils/make-component
+     *   {:name "inline-label"
+     *    :render (fn [state ctx] nil)})
+     * => #<HComponent>
+     * @endcode
+     *
+     * | Arg        | Description                                |
+     * | ---------- | ------------------------------------------ |
+     * | definition | Map describing the inline component value. |
+     *
+     * @return A new native component value.
+     */
     FUNC(MakeComponent, make);
-    /*! @brief Roo make-function for ModeComposition/ModeCompositionAdapter */
+
+    /*!
+     * @brief Create a mode-composition policy.
+     * @since 0.1.0
+     * @see pixils/defmode
+     *
+     * Composition controls whether processing continues into modes beneath
+     * the current mode-stack frame. `:render :pass` and `:update :pass` allow
+     * lower frames to render and update. `:interaction :pass` allows lower
+     * frames to retain interaction, while `:interaction :refresh` recomputes
+     * it there. Omitted settings block their corresponding phase.
+     *
+     * Usage:
+     * @code
+     * (pixils/make-mode-composition
+     *   {:render :pass
+     *    :update :block
+     *    :interaction :refresh})
+     * => #<HModeComposition>
+     * @endcode
+     *
+     * | Arg    | Description                                      |
+     * | ------ | ------------------------------------------------ |
+     * | policy | Render, update, and interaction composition map. |
+     *
+     * @return A new native mode-composition value.
+     */
     FUNC(MakeModeComposition, make);
-    /*! @brief Roo make-function for Dimension/DimensionAdapter */
+
+    /*!
+     * @brief Create a mutable width-and-height dimension value.
+     * @since 0.1.0
+     *
+     * Usage:
+     * @code
+     * (pixils/make-dimension {:w 320 :h 180})
+     * => #<HDimension>
+     * @endcode
+     *
+     * | Arg       | Description                                  |
+     * | --------- | -------------------------------------------- |
+     * | dimension | Map containing required numeric `:w` and `:h`. |
+     *
+     * @return A new native dimension value.
+     */
     FUNC(MakeDimension, make);
-    /*! @brief Roo make-function for Display/DisplayAdapter */
+
+    /*!
+     * @brief Create a display configuration.
+     * @since 0.1.0
+     * @see pixils/make-resolution
+     * @see pixils/defprogram
+     *
+     * `:resolution` is required and accepts a resolution value or coercible
+     * resolution map. `:align :align/center` centers fixed content. `:scaling`
+     * accepts `:scaling/fit` to preserve aspect ratio or
+     * `:scaling/stretch` to fill the output; omitted settings use no alignment
+     * or scaling. `:background` defaults to opaque black.
+     *
+     * Usage:
+     * @code
+     * (pixils/make-display
+     *   {:resolution {:w 320 :h 180}
+     *    :align :align/center
+     *    :scaling :scaling/fit
+     *    :background "#101018"})
+     * => #<HDisplay>
+     * @endcode
+     *
+     * | Arg    | Description                                      |
+     * | ------ | ------------------------------------------------ |
+     * | config | Resolution, alignment, scaling, and background.  |
+     *
+     * @return A new native display value.
+     */
     FUNC(MakeDisplay, make);
+
     /*!
      * @brief Queue a mode transition onto the Pixils mode stack.
      * @since 0.1.0
@@ -251,6 +603,8 @@ namespace Pixils::Script
      *
      * Usage:
      * @code
+     * (pixils/push-mode! 'main/game)
+     *
      * (pixils/push-mode! 'main/pause-menu {:resumed-from state})
      *
      * (pixils/push-mode!
@@ -266,17 +620,56 @@ namespace Pixils::Script
      *              :viewport-padding 8}})
      * @endcode
      *
+     * | Arg  | Description                                                    |
+     * | ---- | -------------------------------------------------------------- |
+     * | mode | Mode symbol, component symbol shorthand, or inline mode value. |
+     *
+     * | Arg   | Description                                                    |
+     * | ----- | -------------------------------------------------------------- |
+     * | mode  | Mode symbol, component symbol shorthand, or inline mode value. |
+     * | state | Initial root state.                                            |
+     *
      * | Arg       | Description                                                    |
-     * |-----------|----------------------------------------------------------------|
+     * | --------- | -------------------------------------------------------------- |
      * | mode      | Mode symbol, component symbol shorthand, or inline mode value. |
-     * | state     | Optional initial root state. Defaults to nil.                  |
-     * | overrides | Optional per-push override and transition metadata map.        |
+     * | state     | Initial root state.                                            |
+     * | overrides | Per-push override and transition metadata map.                 |
      *
      * @return The supplied mode reference.
      */
     FUNC(PushModeBangFunction, push_mode);
-    /*! @brief Pop active mode */
+
+    /*!
+     * @brief Queue removal of the active mode-stack frame.
+     * @since 0.1.0
+     * @see pixils/push-mode!
+     * @see pixils/pop-to!
+     *
+     * The optional payload is delivered through the transition origin
+     * configured when the active frame was pushed. Without a payload, `nil` is
+     * delivered. Mode transitions are message-based, so calling `pop-mode!`
+     * from a hook is safe; removal occurs when the session processes queued
+     * mode messages.
+     *
+     * Usage:
+     * @code
+     * (pixils/pop-mode!)
+     *
+     * (pixils/pop-mode! {:type :confirm :value selection})
+     * @endcode
+     *
+     * | Arg | Description                      |
+     * | --- | -------------------------------- |
+     * |     | This variant takes no arguments. |
+     *
+     * | Arg     | Description                                |
+     * | ------- | ------------------------------------------ |
+     * | payload | Value delivered to the transition origin. |
+     *
+     * @return `nil`.
+     */
     FUNC(PopModeBangFunction, pop_mode);
+
     /*!
      * @brief Queue removal of modes above the frame containing a view.
      * @since 0.1.0
@@ -288,27 +681,165 @@ namespace Pixils::Script
      *
      * Usage:
      * @code
+     * (pixils/pop-to! (:view ctx))
+     *
      * (pixils/pop-to! (:view ctx)
      *                 {:type :navigate-parent})
      * @endcode
      *
-     * | Arg     | Description                                      |
-     * |---------|--------------------------------------------------|
+     * | Arg    | Description                                       |
+     * | ------ | ------------------------------------------------- |
+     * | target | View whose containing frame should become active. |
+     *
+     * | Arg     | Description                                       |
+     * | ------- | ------------------------------------------------- |
      * | target  | View whose containing frame should become active. |
-     * | payload | Optional payload delivered by the final pop.      |
+     * | payload | Payload delivered by the final pop.               |
      *
      * @return `nil`.
      */
     FUNC(PopToBangFunction, pop_to);
-    /*! @brief Request application shutdown */
+
+    /*!
+     * @brief Queue a request to stop the active Pixils session.
+     * @since 0.1.0
+     *
+     * The quit request is message-based and takes effect when the session
+     * processes its queued mode-stack messages.
+     *
+     * Usage:
+     * @code
+     * (pixils/quit!)
+     * @endcode
+     *
+     * @return `nil`.
+     */
     FUNC(QuitBangFunction, quit);
-    /*! @brief Switch the application-level theme */
+
+    /*!
+     * @brief Queue a change to the application-level theme.
+     * @since 0.1.0
+     * @see pixils/deftheme
+     * @see pixils/var
+     *
+     * `theme` may be one registered theme symbol, a vector of symbols composed
+     * in order, or `nil` to clear the application theme. The optional variant
+     * is a keyword or symbol. The change takes effect when the session
+     * processes its queued mode-stack messages.
+     *
+     * Usage:
+     * @code
+     * (pixils/set-theme! ['game/visuals 'game/compact-layout])
+     *
+     * (pixils/set-theme! 'game/theme :dark)
+     * @endcode
+     *
+     * | Arg   | Description                                      |
+     * | ----- | ------------------------------------------------ |
+     * | theme | Theme symbol, vector of theme symbols, or `nil`. |
+     *
+     * | Arg     | Description                                      |
+     * | ------- | ------------------------------------------------ |
+     * | theme   | Theme symbol, vector of theme symbols, or `nil`. |
+     * | variant | Keyword or symbol selecting a theme variant.    |
+     *
+     * @return The supplied theme value.
+     */
     FUNC(SetThemeBangFunction, set_theme);
-    /*! @brief Create a theme variable reference for deftheme styles */
+
+    /*!
+     * @brief Create a late-resolved theme-variable reference.
+     * @since 0.1.0
+     * @see pixils/deftheme
+     * @see pixils/set-theme!
+     *
+     * Place the returned reference in a `deftheme` style or defaults map. Its
+     * keyword or symbol name is resolved against the selected theme variant
+     * when declarations are materialized, so changing variants changes the
+     * resulting style without redefining it. An unresolved reference causes
+     * its containing style property to be omitted.
+     *
+     * Usage:
+     * @code
+     * (pixils/deftheme game/theme
+     *   {:default-variant :base
+     *    :vars {:base {:surface "#202020"}}
+     *    :styles {:ui/panel {:background (pixils/var :surface)}}})
+     * @endcode
+     *
+     * | Arg  | Description                               |
+     * | ---- | ----------------------------------------- |
+     * | name | Keyword or symbol naming a theme variable. |
+     *
+     * @return A theme-variable reference value.
+     */
     FUNC(ThemeVarFunction, theme_var);
-    /*! @brief Roo make-function for Resolution/ResolutionAdapter */
+
+    /*!
+     * @brief Create a fixed or automatic display resolution.
+     * @since 0.1.0
+     * @see pixils/make-display
+     *
+     * A dimension value or a map containing `:w` and `:h` creates a fixed
+     * logical buffer size. `:auto` derives the buffer from the window at a
+     * 1:1 pixel scale. A map containing `:scale` selects automatic resolution
+     * with that pixel scale.
+     *
+     * Usage:
+     * @code
+     * (pixils/make-resolution {:w 320 :h 180})
+     * => #<HResolution>
+     *
+     * (pixils/make-resolution :auto)
+     * => #<HResolution>
+     *
+     * (pixils/make-resolution {:scale 3})
+     * => #<HResolution>
+     * @endcode
+     *
+     * | Arg       | Description                       |
+     * | --------- | --------------------------------- |
+     * | dimension | Native fixed-size dimension value. |
+     *
+     * | Arg       | Description                            |
+     * | --------- | -------------------------------------- |
+     * | specifier | Keyword resolution specifier `:auto`. |
+     *
+     * | Arg        | Description                                      |
+     * | ---------- | ------------------------------------------------ |
+     * | resolution | Map containing `:w` and `:h`, or numeric `:scale`. |
+     *
+     * @return A new native resolution value.
+     */
     FUNC(MakeResolution, make_resolution);
-    /*! @brief Move the OS mouse pointer to a logical Pixils buffer point */
+
+    /*!
+     * @brief Move the mouse pointer to a logical Pixils buffer point.
+     * @since 0.1.0
+     *
+     * With a hook context, the function uses that hook's render context and
+     * also updates its frame-event mouse position immediately. With only a
+     * point, it uses the current global render context. Coordinates are in the
+     * logical Pixils buffer rather than output-window pixels.
+     *
+     * Usage:
+     * @code
+     * (pixils/warp-mouse! {:x 120 :y 64})
+     *
+     * (pixils/warp-mouse! ctx {:x 0 :y 0})
+     * @endcode
+     *
+     * | Arg   | Description                                         |
+     * | ----- | --------------------------------------------------- |
+     * | point | Logical buffer point to which the pointer is moved. |
+     *
+     * | Arg   | Description                                          |
+     * | ----- | ---------------------------------------------------- |
+     * | ctx   | Hook context whose renderer and events are used.     |
+     * | point | Logical buffer point to which the pointer is moved.  |
+     *
+     * @return A new point value containing the requested coordinates.
+     */
     FUNC(WarpMouseBangFunction, warp_mouse);
   } // namespace Function
 
