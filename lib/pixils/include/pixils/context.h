@@ -94,7 +94,9 @@ namespace Pixils
     bool enable_render_geometry = true;
 
     RenderContext();
-    RenderContext(SDL_Window* window, SDL_Renderer* renderer, MIX_Mixer* audio_mixer = nullptr);
+    RenderContext(SDL_Window* window,
+                  SDL_Renderer* renderer,
+                  MIX_Mixer* audio_mixer = nullptr);
     ~RenderContext();
     RenderContext(RenderContext&&) noexcept;
     RenderContext& operator=(RenderContext&&) noexcept;
@@ -127,9 +129,9 @@ namespace Pixils
      */
     void prepare_application_frame(Display& display);
     /*!
-     * @brief Clear the in-memory buffer
+     * @brief Clear the in-memory buffer with the display background.
      */
-    void clear_buffer();
+    void clear_buffer(const Color& background);
 
     /*!
      * @brief Renders the contents of the in-memory buffer to the screen,

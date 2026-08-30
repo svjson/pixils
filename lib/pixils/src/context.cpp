@@ -230,14 +230,14 @@ namespace Pixils
     }
 
     application_rect = application_target_rect(display);
-    clear_buffer();
+    clear_buffer(display.background);
   }
 
-  void RenderContext::clear_buffer()
+  void RenderContext::clear_buffer(const Color& background)
   {
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
     set_render_target(this->buffer_texture);
-    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
+    SDL_SetRenderDrawColor(renderer, background.r, background.g, background.b, background.a);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
   }

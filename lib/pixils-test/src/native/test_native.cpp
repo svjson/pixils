@@ -9,17 +9,19 @@
 #include <pixils/runtime/hook_arguments.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
-#include <pixils/sdl_render.h>
 #include <pixils/script.h>
+#include <pixils/sdl_render.h>
 #include <pixils/ui/view_layout.h>
 
+#include <SDL3/SDL.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
-#include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <memory>
+#include <optional>
 #include <roo-package/manifest.h>
 #include <roo-package/native_abi.h>
 #include <roo-package/native_loader.h>
@@ -30,16 +32,14 @@
 #include <roo/namespace.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace
 {
-	  struct AppTarget
-	  {
+  struct AppTarget
+  {
     std::filesystem::path root;
     std::filesystem::path asset_base_path;
     std::vector<std::string> load_path;
@@ -48,19 +48,17 @@ namespace
     std::optional<Roo::Package::LoadPlan> package_plan;
     int buffer_width = 800;
     int buffer_height = 600;
-	    bool render_backend = true;
-	  };
+    bool render_backend = true;
+  };
 
-	  Roo::Package::LoadPlan pixils_test_host_load_plan(Roo::Package::LoadPlan plan)
-	  {
-	    std::erase_if(plan.native_libraries,
-	                  [](const Roo::Package::NativeLibrary& library)
-	                  {
-	                    return library.name == "pixils-native" ||
-	                           library.name == "pixils-test-native";
-	                  });
-	    return plan;
-	  }
+  Roo::Package::LoadPlan pixils_test_host_load_plan(Roo::Package::LoadPlan plan)
+  {
+    std::erase_if(
+      plan.native_libraries,
+      [](const Roo::Package::NativeLibrary& library)
+      { return library.name == "pixils-native" || library.name == "pixils-test-native"; });
+    return plan;
+  }
 
   class SharedRenderBackend
   {
@@ -80,9 +78,8 @@ namespace
       if (attempted) return false;
       attempted = true;
 
-      surface = SDL_CreateSurface(std::max(1, width),
-                                  std::max(1, height),
-                                  SDL_PIXELFORMAT_RGBA8888);
+      surface =
+        SDL_CreateSurface(std::max(1, width), std::max(1, height), SDL_PIXELFORMAT_RGBA8888);
       if (!surface) return false;
 
       renderer = SDL_CreateSoftwareRenderer(surface);
@@ -121,12 +118,11 @@ namespace
       if (target.render_backend && backend.ensure(target.buffer_width, target.buffer_height))
       {
         render_ctx.renderer = backend.renderer;
-        render_ctx.buffer_texture =
-          Pixils::create_texture_nearest(render_ctx.renderer,
-                                         SDL_PIXELFORMAT_RGBA8888,
-                                         SDL_TEXTUREACCESS_TARGET,
-                                         render_ctx.buffer_dim.w,
-                                         render_ctx.buffer_dim.h);
+        render_ctx.buffer_texture = Pixils::create_texture_nearest(render_ctx.renderer,
+                                                                   SDL_PIXELFORMAT_RGBA8888,
+                                                                   SDL_TEXTUREACCESS_TARGET,
+                                                                   render_ctx.buffer_dim.w,
+                                                                   render_ctx.buffer_dim.h);
         if (render_ctx.buffer_texture)
         {
           SDL_SetTextureBlendMode(render_ctx.buffer_texture, SDL_BLENDMODE_BLEND);
@@ -218,7 +214,7 @@ namespace
     {
       if (render_ctx.renderer && render_ctx.buffer_texture)
       {
-        render_ctx.clear_buffer();
+        render_ctx.clear_buffer(Pixils::Color{});
       }
     }
 
@@ -310,8 +306,7 @@ namespace
     {
       throw Roo::InvocationException(label + " is required");
     }
-    if (value->type == Roo::Value::Type::STRING ||
-        value->type == Roo::Value::Type::SYMBOL)
+    if (value->type == Roo::Value::Type::STRING || value->type == Roo::Value::Type::SYMBOL)
     {
       return value->str();
     }
@@ -360,9 +355,7 @@ namespace
     return result;
   }
 
-  int optional_int_property(const Roo::sptr_val& map,
-                            const std::string& key,
-                            int fallback)
+  int optional_int_property(const Roo::sptr_val& map, const std::string& key, int fallback)
   {
     auto value = Roo::Dict::get_property(map, Roo::keyword(key));
     if (!value || value->type == Roo::Value::Type::NIL)
@@ -494,8 +487,7 @@ namespace
 
   AppTarget package_target(const Roo::sptr_val& opts)
   {
-    auto package_root_value =
-      Roo::Dict::get_property(opts, Roo::keyword("package-root"));
+    auto package_root_value = Roo::Dict::get_property(opts, Roo::keyword("package-root"));
     auto root =
       std::filesystem::canonical(required_string(package_root_value, ":package-root"));
 
@@ -523,14 +515,14 @@ namespace
     return AppTarget{
       .root = root,
       .asset_base_path = asset_base_path,
-	      .load_path =
-	        Roo::Package::merge_load_paths(plan,
-	                                          {std::filesystem::current_path().string(), "/"}),
-	      .namespace_roots = plan.namespace_roots,
-	      .entry_points = entry_points,
-	      .package_plan = pixils_test_host_load_plan(plan),
-	      .buffer_width = optional_int_property(opts, "buffer-width", 800),
-	      .buffer_height = optional_int_property(opts, "buffer-height", 600),
+      .load_path =
+        Roo::Package::merge_load_paths(plan,
+                                       {std::filesystem::current_path().string(), "/"}),
+      .namespace_roots = plan.namespace_roots,
+      .entry_points = entry_points,
+      .package_plan = pixils_test_host_load_plan(plan),
+      .buffer_width = optional_int_property(opts, "buffer-width", 800),
+      .buffer_height = optional_int_property(opts, "buffer-height", 600),
       .render_backend = optional_bool_property(opts, "render-backend", true),
     };
   }
@@ -750,11 +742,10 @@ namespace
       return args[0];
     }
 
-    FUNC_IMPL(RenderedPixelFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP),
-                           (&Roo::Type::NUMBER),
-                           (&Roo::Type::NUMBER)),
-                   EXEC_DISPATCH(&RenderedPixelFunction::exec_rendered_pixel))));
+    FUNC_IMPL(
+      RenderedPixelFunction,
+      SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+           EXEC_DISPATCH(&RenderedPixelFunction::exec_rendered_pixel))));
     EXEC_BODY(RenderedPixelFunction, exec_rendered_pixel)
     {
       return rendered_pixel(app_from(args[0]),
@@ -828,13 +819,12 @@ namespace
       return view_from(args[0]).state;
     }
 
-    FUNC_IMPL(FindViewFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
-                         EXEC_DISPATCH(&FindViewFunction::exec_find_view)),
-                        (FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::STRING),
-                                 (&Roo::Type::STRING)),
-                         EXEC_DISPATCH(&FindViewFunction::exec_find_view))));
+    FUNC_IMPL(
+      FindViewFunction,
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
+                 EXEC_DISPATCH(&FindViewFunction::exec_find_view)),
+                (FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING), (&Roo::Type::STRING)),
+                 EXEC_DISPATCH(&FindViewFunction::exec_find_view))));
     EXEC_BODY(FindViewFunction, exec_find_view)
     {
       auto& app = app_from(args[0]);
@@ -845,13 +835,12 @@ namespace
       return Pixils::Script::ViewAdapter::make_ref(*found);
     }
 
-    FUNC_IMPL(FindViewsFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
-                         EXEC_DISPATCH(&FindViewsFunction::exec_find_views)),
-                        (FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::STRING),
-                                 (&Roo::Type::STRING)),
-                         EXEC_DISPATCH(&FindViewsFunction::exec_find_views))));
+    FUNC_IMPL(
+      FindViewsFunction,
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
+                 EXEC_DISPATCH(&FindViewsFunction::exec_find_views)),
+                (FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING), (&Roo::Type::STRING)),
+                 EXEC_DISPATCH(&FindViewsFunction::exec_find_views))));
     EXEC_BODY(FindViewsFunction, exec_find_views)
     {
       auto& app = app_from(args[0]);
@@ -884,11 +873,10 @@ namespace
       return args[0];
     }
 
-    FUNC_IMPL(MouseMoveAtBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP),
-                           (&Roo::Type::NUMBER),
-                           (&Roo::Type::NUMBER)),
-                   EXEC_DISPATCH(&MouseMoveAtBangFunction::exec_mouse_move_at))));
+    FUNC_IMPL(
+      MouseMoveAtBangFunction,
+      SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+           EXEC_DISPATCH(&MouseMoveAtBangFunction::exec_mouse_move_at))));
     EXEC_BODY(MouseMoveAtBangFunction, exec_mouse_move_at)
     {
       auto& app = app_from(args[0]);
@@ -896,16 +884,15 @@ namespace
       return args[0];
     }
 
-    FUNC_IMPL(MouseDownAtBangFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER)),
-                         EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at)),
-                        (FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::ANY)),
-                         EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at))));
+    FUNC_IMPL(
+      MouseDownAtBangFunction,
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+                 EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at)),
+                (FN_ARGS((&HostType::TEST_APP),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::ANY)),
+                 EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at))));
     EXEC_BODY(MouseDownAtBangFunction, exec_mouse_down_at)
     {
       auto& app = app_from(args[0]);
@@ -914,16 +901,15 @@ namespace
       return args[0];
     }
 
-    FUNC_IMPL(MouseUpAtBangFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER)),
-                         EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at)),
-                        (FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::ANY)),
-                         EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at))));
+    FUNC_IMPL(
+      MouseUpAtBangFunction,
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+                 EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at)),
+                (FN_ARGS((&HostType::TEST_APP),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::ANY)),
+                 EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at))));
     EXEC_BODY(MouseUpAtBangFunction, exec_mouse_up_at)
     {
       auto& app = app_from(args[0]);
@@ -932,16 +918,15 @@ namespace
       return args[0];
     }
 
-    FUNC_IMPL(MouseClickAtBangFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER)),
-                         EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at)),
-                        (FN_ARGS((&HostType::TEST_APP),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::NUMBER),
-                                 (&Roo::Type::ANY)),
-                         EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at))));
+    FUNC_IMPL(
+      MouseClickAtBangFunction,
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
+                 EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at)),
+                (FN_ARGS((&HostType::TEST_APP),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::NUMBER),
+                         (&Roo::Type::ANY)),
+                 EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at))));
     EXEC_BODY(MouseClickAtBangFunction, exec_mouse_click_at)
     {
       auto& app = app_from(args[0]);
