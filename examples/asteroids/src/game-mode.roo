@@ -1,16 +1,16 @@
 (ns asteroids.game-mode
-  (:require [asteroids.area :as area]
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.point :as pt]
+            [pixils.render :as r]
+            [asteroids.area :as area]
             [asteroids.collision :as collision]
             [asteroids.debris :as debris]
             [asteroids.player :as plr]
             [asteroids.asteroid :as asteroid]
             asteroids.get-ready-mode
             [asteroids.text :as text]
-            [pixils.color :as c]
-            [pixils.point :as pt]
-            [pixils.render :as r]
-            asteroids.color
-            pixils))
+            asteroids.color))
 
 
 ;; game-mode
@@ -165,6 +165,7 @@ and player score to aligned to the top right."
                              :player (plr/make-player-state (:buffer-size ctx))
                              :asteroids []
                              :particles []})
+                    :style {:background c/BLACK}
                     :update asteroids.game-mode/tick!
                     :render asteroids.game-mode/render!})
 

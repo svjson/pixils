@@ -1,28 +1,32 @@
 (ns asteroids.title-screen-mode
   (:require pixils
+            [pixils.color :as c]
             [pixils.render :as r]
             [asteroids.text :as text]))
 
-(defun render! [state {:keys [buffer-size] :as ctx}]
-  (let [{:keys [w h] :as area} (:buffer-size ctx)]
-    (text/print! {:text "ASTEROIDS"
-                  :color {:r 255 :g 255 :b 255}
-                  :pos {:x (- (/ w 2) (* 18 4.5)) :y 20}
-                  :scale 2})
+
+;; Title Screen Mode
 
-    (text/print! {:text "PRESS CTRL TO START"
-                  :pos {:x (- (/ w 2) (* 9 10)) :y (- h 40)}})
+(defmode title-screen-mode
+  {:init (fn [state ctx] state)
+   :style {:background c/BLACK}
+   :update (fn [state ctx]
+             (case (:key-down ctx)
+               :key/left-ctrl (push-mode! 'game-mode)))
+   :render (fn [state {:keys [buffer-size] :as ctx}]
+             (let [{:keys [w h] :as area} buffer-size]
+               (text/print! {:text "ASTEROIDS"
+                             :color {:r 255 :g 255 :b 255}
+                             :pos {:x (- (/ w 2) (* 18 4.5)) :y 20}
+                             :scale 2})
 
-    (text/print! {:text "MADE WITH"
-                  :pos {:x (- w 70) :y (- h 52)}
-                  :scale 0.7})
+               (text/print! {:text "PRESS CTRL TO START"
+                             :pos {:x (- (/ w 2) (* 9 10)) :y (- h 40)}})
 
-    (r/image! :pixils/pixils-logo {:pos {:x (- w 70) :y (- h 40)}
-                                   :scale 0.5})))
+               (text/print! {:text "MADE WITH"
+                             :pos {:x (- w 70) :y (- h 52)}
+                             :scale 0.7})
 
-(defmode title-screen-mode {:init (fn [state ctx] state)
-                            :update (fn [state ctx]
-                                      (case (:key-down ctx)
-                                        :key/left-ctrl (push-mode! 'game-mode)))
-                            :render 'asteroids.title-screen-mode/render!})
+               (r/image! :pixils/pixils-logo {:pos {:x (- w 70) :y (- h 40)}
+                                              :scale 0.5})))})
 
