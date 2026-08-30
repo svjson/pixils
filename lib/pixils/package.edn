@@ -8,6 +8,7 @@
  :native-libraries [{:name "pixils-native"
                      :version "0.1.0"
                      :path "native"
+                     :source ["include" "src"]
                      :namespaces [pixils
                                   pixils.resource
                                   pixils.audio
