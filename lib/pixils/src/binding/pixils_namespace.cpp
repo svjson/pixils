@@ -463,7 +463,7 @@ namespace Pixils::Script
 
     Roo::MapSchema program_schema({},
                                   {{"display", &HostType::DISPLAY},
-                                   {"initial-mode", &Roo::Type::SYMBOL_VALUE},
+                                   {"initial-mode", &Type::SYMBOL_OR_MAP},
                                    {"theme", &Roo::Type::ANY},
                                    {"theme-variant", &Roo::Type::ANY},
                                    {"target-frame-rate", &Roo::Type::NUMBER},
@@ -478,7 +478,17 @@ namespace Pixils::Script
       auto opts = program_schema.bind(*ctx.ctx, *map_expr);
 
       auto programs = ctx.ctx->lookup(ID__PIXILS__PROGRAMS);
-      auto initial_mode = opts.str(std::get<std::string>(MapKey::INITIAL_MODE->value), "");
+      auto initial_mode_value = opts.val(std::get<std::string>(MapKey::INITIAL_MODE->value));
+      std::string initial_mode;
+      Roo::sptr_val initial_view_spec = Roo::Constant::NIL;
+      if (initial_mode_value->type == Roo::Value::Type::SYMBOL)
+      {
+        initial_mode = initial_mode_value->str();
+      }
+      else if (initial_mode_value->type == Roo::Value::Type::MAP)
+      {
+        initial_view_spec = initial_mode_value;
+      }
 
       Display display = opts.contains(std::get<std::string>(MapKey::DISPLAY->value))
                           ? opts.obj<Display>(std::get<std::string>(MapKey::DISPLAY->value))
@@ -487,7 +497,8 @@ namespace Pixils::Script
                                     Display::Scaling::NONE,
                                     Color(0, 0, 0));
 
-      auto program = ProgramAdapter::make_unique(name, display, initial_mode);
+      auto program =
+        ProgramAdapter::make_unique(name, display, initial_mode, initial_view_spec);
       if (opts.contains("theme"))
       {
         auto theme_names = parse_theme_names(opts.val("theme"), "Program :theme");
@@ -1319,6 +1330,11 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(ProgramAdapter, initial_mode)
   {
+    if (get_object().initial_view_spec &&
+        get_object().initial_view_spec->type != Roo::Value::Type::NIL)
+    {
+      return get_object().initial_view_spec;
+    }
     if (get_object().initial_mode == "")
     {
       return Roo::Constant::NIL;

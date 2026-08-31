@@ -591,6 +591,11 @@ TEST_F(DefThemeTest, defprogram_with_theme_is_created)
   EXPECT_EQ((*program.theme)[0], "app-theme");
 }
 
+TEST_F(DefThemeTest, defprogram_rejects_invalid_initial_mode_types)
+{
+  EXPECT_THROW(runtime.eval("(pixils/defprogram app {:initial-mode 42})"), Roo::TypeError);
+}
+
 TEST_F(DefThemeTest, defprogram_accepts_theme_variant)
 {
   runtime.eval(R"(

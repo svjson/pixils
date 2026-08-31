@@ -19,6 +19,8 @@ namespace Pixils::Script
 {
   namespace Type
   {
+    inline const Roo::MultiRef SYMBOL_OR_MAP({&Roo::Type::SYMBOL_VALUE, &Roo::Type::MAP},
+                                             "Symbol|Map");
     inline const Roo::MultiRef MAP_OR_STRING({&Roo::Type::MAP, &Roo::Type::STRING},
                                              "Map|String");
     inline const Roo::SeqRef VECTOR_OF_MAP_OR_STRING(&Roo::Type::VECTOR,
@@ -38,6 +40,16 @@ namespace Pixils::Script
                                const Roo::sptr_val& style_val);
   std::optional<UI::DragPolicy> parse_mode_drag_policy(Roo::Context& ctx,
                                                        const Roo::sptr_val& value);
+
+  /**
+   * @brief Parse one Roo view-spec map into its canonical runtime form.
+   *
+   * A named spec carries :mode or :component and retains the complete map as
+   * per-instance overrides. A spec without either field defines an anonymous
+   * inline mode. State bindings, literal initial state, UI state, and state
+   * policy are parsed here for every view-spec consumer.
+   */
+  Runtime::ChildSlot parse_view_spec(Roo::Context& ctx, const Roo::sptr_val& definition);
 
   /**
    * @brief Parse a Roo sequence of child entry maps into ChildSlot objects.

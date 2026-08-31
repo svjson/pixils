@@ -63,6 +63,25 @@ namespace
                                 .unit_ids = {"program-api"}}});
   }
 
+  AppFixture::AppManifest initial_view_program_manifest()
+  {
+    return AppFixture::AppManifest(
+      {inline_unit("program-api",
+                   {"pixils"},
+                   {"(pixils/defmode root-mode "
+                    "  {:init (fn [state ctx] (assoc state :source :base))})",
+                    "(pixils/defprogram app "
+                    "  {:initial-mode "
+                    "   {:mode 'root-mode "
+                    "    :state {:provided 41} "
+                    "    :focusable true "
+                    "    :init (fn [state ctx] (assoc state :source :program))}})"})},
+      {AppFixture::ManifestFile{.id = "main",
+                                .disk_path = "pixils/test/app/main.roo",
+                                .namespace_name = "pixils.test.app.main",
+                                .unit_ids = {"program-api"}}});
+  }
+
   AppFixture::AppManifest file_defined_mode_session_manifest()
   {
     return AppFixture::AppManifest(
@@ -378,6 +397,30 @@ TEST_F(ComposableAppSessionFixtureTest,
     Roo::Dict::get_property(session().active_mode->state, Roo::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
+}
+
+TEST_F(ComposableAppSessionFixtureTest,
+       load_program_accepts_an_initial_view_with_state_and_mode_overrides)
+{
+  load_app(initial_view_program_manifest(),
+           "pixils.test.app.main",
+           {"pixils/test/app/main.roo"});
+
+  Pixils::Program& program = load_program();
+
+  EXPECT_TRUE(program.initial_mode.empty());
+  ASSERT_NE(program.initial_view_spec, nullptr);
+  EXPECT_EQ(program.initial_view_spec->type, Roo::Value::Type::MAP);
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->definition->name, "root-mode");
+  EXPECT_TRUE(session().active_mode->definition->focusable);
+  EXPECT_EQ(Roo::Dict::get_property(session().active_mode->state, Roo::keyword("provided"))
+              ->num()
+              .get_int(),
+            41);
+  EXPECT_EQ(
+    Roo::Dict::get_property(session().active_mode->state, Roo::keyword("source"))->str(),
+    "program");
 }
 
 TEST_F(ComposableAppSessionFixtureTest,

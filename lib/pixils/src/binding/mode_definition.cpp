@@ -321,19 +321,77 @@ namespace Pixils::Script
     return result;
   }
 
+  Runtime::ChildSlot parse_view_spec(Roo::Context& ctx, const Roo::sptr_val& definition)
+  {
+    static Roo::MapSchema view_spec_schema({},
+                                           {{"mode", &Roo::Type::SYMBOL},
+                                            {"component", &Roo::Type::SYMBOL},
+                                            {"id", &Roo::Type::ANY},
+                                            {"state", &Roo::Type::ANY},
+                                            {"ui-state", &Roo::Type::ANY},
+                                            {"state-policy", &Roo::Type::KEYWORD},
+                                            {"ui/state-policy", &Roo::Type::KEYWORD},
+                                            {"after-layout-ui", &Roo::Type::ANY}});
+
+    auto opts = view_spec_schema.bind(ctx, *definition);
+    Runtime::ChildSlot spec;
+    if (opts.contains("mode"))
+    {
+      spec.mode_name = opts.val("mode")->str();
+      spec.overrides = definition;
+    }
+    else if (opts.contains("component"))
+    {
+      spec.component_name = opts.val("component")->str();
+      spec.overrides = definition;
+    }
+    else
+    {
+      spec.anonymous_mode =
+        std::make_shared<Runtime::Mode>(build_mode_from_definition(ctx, definition));
+    }
+
+    if (opts.contains("id"))
+    {
+      spec.id = opts.val("id")->str();
+    }
+
+    auto state_val = opts.val("state");
+    spec.raw_state = state_val;
+    auto [binding, initial] =
+      Runtime::parse_state_binding(state_without_component_channel(state_val));
+    spec.state_binding = binding;
+    spec.initial_state = initial;
+    if (has_component_state_channel(state_val))
+    {
+      spec.has_component_state = true;
+      auto [component_binding, component_initial] = Runtime::parse_state_binding(
+        Roo::Dict::get_property(state_val, Roo::keyword("component")));
+      spec.component_state_binding = component_binding;
+      spec.initial_component_state = component_initial;
+    }
+    if (opts.contains("ui-state"))
+    {
+      spec.has_initial_ui_state = true;
+      auto [ui_binding, ui_initial] =
+        Runtime::parse_state_binding(parse_ui_state(opts.val("ui-state")));
+      spec.ui_state_binding = ui_binding;
+      spec.initial_ui_state = ui_initial;
+    }
+    if (opts.contains("ui/state-policy"))
+    {
+      spec.state_policy = parse_state_policy(opts.val("ui/state-policy"));
+    }
+    else if (opts.contains("state-policy"))
+    {
+      spec.state_policy = parse_state_policy(opts.val("state-policy"));
+    }
+    return spec;
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Roo::Context& ctx,
                                                     const Roo::sptr_val& children_val)
   {
-    static Roo::MapSchema child_schema({},
-                                       {{"mode", &Roo::Type::SYMBOL},
-                                        {"component", &Roo::Type::SYMBOL},
-                                        {"id", &Roo::Type::ANY},
-                                        {"state", &Roo::Type::ANY},
-                                        {"ui-state", &Roo::Type::ANY},
-                                        {"state-policy", &Roo::Type::KEYWORD},
-                                        {"ui/state-policy", &Roo::Type::KEYWORD},
-                                        {"after-layout-ui", &Roo::Type::ANY}});
-
     std::unordered_map<std::string, int> name_counts;
     std::vector<Runtime::ChildSlot> slots;
 
@@ -347,30 +405,9 @@ namespace Pixils::Script
     for (size_t i = 0; i < n; i++)
     {
       auto child_entry = normalize_child_entry(Roo::get_child(*entries, i));
-      auto child_opts = child_schema.bind(ctx, *child_entry);
+      auto slot = parse_view_spec(ctx, child_entry);
 
-      Runtime::ChildSlot slot;
-      if (child_opts.contains("mode"))
-      {
-        slot.mode_name = child_opts.val("mode")->str();
-        slot.overrides = child_entry;
-      }
-      else if (child_opts.contains("component"))
-      {
-        slot.component_name = child_opts.val("component")->str();
-        slot.overrides = child_entry;
-      }
-      else
-      {
-        slot.anonymous_mode =
-          std::make_shared<Runtime::Mode>(build_mode_from_definition(ctx, child_entry));
-      }
-
-      if (child_opts.contains("id"))
-      {
-        slot.id = child_opts.val("id")->str();
-      }
-      else
+      if (slot.id.empty())
       {
         std::string base_name = slot.mode_name;
         if (base_name.empty()) base_name = slot.component_name;
@@ -386,37 +423,6 @@ namespace Pixils::Script
 
       if (slot.anonymous_mode && slot.anonymous_mode->name.empty())
         slot.anonymous_mode->name = slot.id;
-
-      auto state_val = child_opts.val("state");
-      slot.raw_state = state_val;
-      auto [binding, initial] =
-        Runtime::parse_state_binding(state_without_component_channel(state_val));
-      slot.state_binding = binding;
-      slot.initial_state = initial;
-      if (has_component_state_channel(state_val))
-      {
-        slot.has_component_state = true;
-        auto [component_binding, component_initial] = Runtime::parse_state_binding(
-          Roo::Dict::get_property(state_val, Roo::keyword("component")));
-        slot.component_state_binding = component_binding;
-        slot.initial_component_state = component_initial;
-      }
-      if (child_opts.contains("ui-state"))
-      {
-        slot.has_initial_ui_state = true;
-        auto [ui_binding, ui_initial] =
-          Runtime::parse_state_binding(parse_ui_state(child_opts.val("ui-state")));
-        slot.ui_state_binding = ui_binding;
-        slot.initial_ui_state = ui_initial;
-      }
-      if (child_opts.contains("ui/state-policy"))
-      {
-        slot.state_policy = parse_state_policy(child_opts.val("ui/state-policy"));
-      }
-      else if (child_opts.contains("state-policy"))
-      {
-        slot.state_policy = parse_state_policy(child_opts.val("state-policy"));
-      }
       slots.push_back(std::move(slot));
     }
     return slots;

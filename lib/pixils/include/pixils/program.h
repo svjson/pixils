@@ -5,6 +5,7 @@
 #include "display.h"
 
 #include <optional>
+#include <roo/runtime/value.h>
 #include <string>
 #include <vector>
 
@@ -29,12 +30,16 @@ namespace Pixils
 
     Display display;
     std::string initial_mode;
+    Roo::sptr_val initial_view_spec = Roo::Constant::NIL;
     std::optional<std::vector<std::string>> theme = std::nullopt;
     std::optional<std::string> theme_variant = std::nullopt;
     bool pointer_visible = true;
     int target_frame_rate = DEFAULT_TARGET_FRAME_RATE;
 
-    Program(const std::string& name, Display& display, const std::string& initial_mode);
+    Program(const std::string& name,
+            Display& display,
+            const std::string& initial_mode,
+            const Roo::sptr_val& initial_view_spec = Roo::Constant::NIL);
 
     const std::string& get_name() const;
     Display& get_display();

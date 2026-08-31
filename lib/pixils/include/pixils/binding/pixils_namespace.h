@@ -266,9 +266,12 @@ namespace Pixils::Script
      * @see pixils/defmode
      *
      * A program selects its initial mode and application-wide display and
-     * theme configuration. `:display` accepts a display value or coercible map
-     * and defaults to an automatic-resolution display. `:theme` accepts one
-     * theme symbol or a vector of theme symbols composed in order;
+     * theme configuration. `:initial-mode` accepts a mode symbol or a view
+     * spec such as `{:mode 'game/root :state {:level 1}}`; view specs may
+     * provide per-instance mode overrides without declaring a
+     * derived mode. `:display` accepts a display value or coercible map and
+     * defaults to an automatic-resolution display. `:theme` accepts one theme
+     * symbol or a vector of theme symbols composed in order;
      * `:theme-variant` selects a keyword or symbol variant. `:pointer :off`
      * hides the pointer. `:target-frame-rate` controls frame pacing, with 0
      * disabling the frame-rate limit.

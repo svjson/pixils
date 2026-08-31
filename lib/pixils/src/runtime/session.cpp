@@ -907,6 +907,20 @@ namespace Pixils::Runtime
     this->push_mode(mode, state, overrides);
   }
 
+  void Session::push_root_view(const ChildSlot& view_spec)
+  {
+    if (view_spec.anonymous_mode)
+    {
+      push_mode(Script::ModeAdapter::make_unique(*view_spec.anonymous_mode),
+                view_spec.initial_state);
+      return;
+    }
+
+    const auto& mode_name =
+      view_spec.mode_name.empty() ? view_spec.component_name : view_spec.mode_name;
+    push_mode(mode_name, view_spec.initial_state, view_spec.overrides);
+  }
+
   void Session::set_application_theme(const std::optional<std::vector<std::string>>& theme,
                                       const std::optional<std::string>& variant)
   {

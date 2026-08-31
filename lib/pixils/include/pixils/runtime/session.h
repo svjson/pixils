@@ -114,6 +114,7 @@ namespace Pixils::Runtime
     void push_mode(const std::string& mode_name,
                    const Roo::sptr_val& state,
                    const Roo::sptr_val& overrides = Roo::Constant::NIL);
+    void push_root_view(const ChildSlot& view_spec);
     void set_application_theme(const std::optional<std::vector<std::string>>& theme,
                                const std::optional<std::string>& variant = std::nullopt);
     bool process_messages();

@@ -1,6 +1,7 @@
 
 #include "pixils/program.h"
 
+#include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/runtime/session.h>
 
@@ -33,7 +34,12 @@ namespace Pixils
 
     void ensure_initial_mode(Roo::Runtime& runtime, Program& program)
     {
-      if (program.initial_mode != "") return;
+      if (program.initial_mode != "" ||
+          (program.initial_view_spec &&
+           program.initial_view_spec->type != Roo::Value::Type::NIL))
+      {
+        return;
+      }
 
       auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
       auto mode_keys = Roo::Dict::map_keys(*modes);
@@ -54,10 +60,12 @@ namespace Pixils
 
   Program::Program(const std::string& name,
                    Display& display,
-                   const std::string& initial_mode)
+                   const std::string& initial_mode,
+                   const Roo::sptr_val& initial_view_spec)
     : name(name)
     , display(display)
     , initial_mode(initial_mode)
+    , initial_view_spec(initial_view_spec)
   {
   }
 
@@ -76,7 +84,16 @@ namespace Pixils
     auto& program = resolve_program(runtime);
     ensure_initial_mode(runtime, program);
     session.set_application_theme(program.theme, program.theme_variant);
-    session.push_mode(program.initial_mode, Roo::Constant::NIL);
+    if (program.initial_view_spec &&
+        program.initial_view_spec->type != Roo::Value::Type::NIL)
+    {
+      Roo::Context ctx(runtime);
+      session.push_root_view(Script::parse_view_spec(ctx, program.initial_view_spec));
+    }
+    else
+    {
+      session.push_mode(program.initial_mode, Roo::Constant::NIL);
+    }
     return program;
   }
 } // namespace Pixils
