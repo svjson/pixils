@@ -181,17 +181,10 @@ namespace Pixils::Runtime
     }
 
     std::vector<std::shared_ptr<View>> parse_scoped_pass(
-      const Roo::sptr_val& compose,
-      const Roo::sptr_val& axis,
+      const Roo::sptr_val& value,
       const char* axis_name,
       const std::shared_ptr<View>& underlay)
     {
-      auto value = Roo::Dict::get_property(compose, axis);
-      if (!value || value->type == Roo::Value::Type::NIL ||
-          value->type == Roo::Value::Type::KEYWORD)
-      {
-        return {};
-      }
       if (value->type != Roo::Value::Type::MAP)
       {
         throw Roo::TypeError(std::string("Mode :compose :") + axis_name +
@@ -243,11 +236,44 @@ namespace Pixils::Runtime
       return scopes;
     }
 
-    Session::ModeFrameMetadata::ScopedComposition parse_scoped_composition(
+    Session::ModeFrameMetadata::FrameComposition::UpdatePass parse_update_pass(
+      const Roo::sptr_val& compose,
+      const std::shared_ptr<View>& underlay)
+    {
+      using UpdatePass = Session::ModeFrameMetadata::FrameComposition::UpdatePass;
+
+      UpdatePass result;
+      auto value = Roo::Dict::get_property(compose, KEYWORD__UPDATE);
+      if (!value || value->type == Roo::Value::Type::NIL)
+      {
+        return result;
+      }
+      if (value->type == Roo::Value::Type::KEYWORD)
+      {
+        if (value->str() == "pass")
+        {
+          result.type = UpdatePass::Type::FULL;
+          return result;
+        }
+        if (value->str() == "block")
+        {
+          result.type = UpdatePass::Type::BLOCK;
+          return result;
+        }
+        throw Roo::TypeError(
+          "Mode :compose :update must be :pass, :block, or a scoped :pass map");
+      }
+
+      result.type = UpdatePass::Type::SCOPED;
+      result.scopes = parse_scoped_pass(value, "update", underlay);
+      return result;
+    }
+
+    Session::ModeFrameMetadata::FrameComposition parse_frame_composition(
       const Roo::sptr_val& overrides,
       const std::shared_ptr<View>& underlay)
     {
-      Session::ModeFrameMetadata::ScopedComposition result;
+      Session::ModeFrameMetadata::FrameComposition result;
       auto compose = Roo::Dict::get_property(overrides, KEYWORD__COMPOSE);
       if (!compose || compose->type == Roo::Value::Type::NIL)
       {
@@ -258,9 +284,15 @@ namespace Pixils::Runtime
         return result;
       }
 
-      result.update_pass = parse_scoped_pass(compose, KEYWORD__UPDATE, "update", underlay);
-      for (auto& view :
-           parse_scoped_pass(compose, KEYWORD__INTERACTION, "interaction", underlay))
+      result.update_pass = parse_update_pass(compose, underlay);
+
+      auto interaction = Roo::Dict::get_property(compose, KEYWORD__INTERACTION);
+      if (!interaction || interaction->type == Roo::Value::Type::NIL ||
+          interaction->type == Roo::Value::Type::KEYWORD)
+      {
+        return result;
+      }
+      for (auto& view : parse_scoped_pass(interaction, "interaction", underlay))
       {
         result.interaction_pass.push_back({.view = view, .mouse_state = {}});
       }
@@ -277,7 +309,7 @@ namespace Pixils::Runtime
       }
 
       metadata.overlay = parse_overlay_metadata(overrides);
-      metadata.scoped_composition = parse_scoped_composition(overrides, underlay);
+      metadata.composition = parse_frame_composition(overrides, underlay);
 
       auto origin = Roo::Dict::get_property(overrides, KEYWORD__ORIGIN);
       if (!origin || origin->type == Roo::Value::Type::NIL)
@@ -822,7 +854,7 @@ namespace Pixils::Runtime
     }
     auto metadata =
       parse_frame_metadata(overrides, ctx_stack.empty() ? nullptr : ctx_stack.back());
-    for (auto& scope : metadata.scoped_composition.interaction_pass)
+    for (auto& scope : metadata.composition.interaction_pass)
     {
       scope.mouse_state = mouse_state;
     }

@@ -33,15 +33,29 @@ namespace Pixils::Runtime
   {
     struct ModeFrameMetadata
     {
-      struct ScopedComposition
+      struct FrameComposition
       {
+        struct UpdatePass
+        {
+          enum class Type
+          {
+            INHERIT,
+            BLOCK,
+            FULL,
+            SCOPED,
+          };
+
+          Type type = Type::INHERIT;
+          std::vector<std::shared_ptr<View>> scopes;
+        };
+
         struct InteractionScope
         {
           std::shared_ptr<View> view;
           UI::MouseState mouse_state;
         };
 
-        std::vector<std::shared_ptr<View>> update_pass;
+        UpdatePass update_pass;
         std::vector<InteractionScope> interaction_pass;
       };
 
@@ -67,7 +81,7 @@ namespace Pixils::Runtime
       View* origin_view = nullptr;
       Roo::sptr_val origin_event = Roo::Constant::NIL;
       UI::FocusState restore_focus;
-      ScopedComposition scoped_composition;
+      FrameComposition composition;
       std::optional<Overlay> overlay = std::nullopt;
     };
 

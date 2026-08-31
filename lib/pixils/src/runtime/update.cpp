@@ -68,7 +68,7 @@ namespace Pixils::Runtime
 
     struct ScopedInteractionTarget
     {
-      Session::ModeFrameMetadata::ScopedComposition::InteractionScope* scope = nullptr;
+      Session::ModeFrameMetadata::FrameComposition::InteractionScope* scope = nullptr;
       UI::FocusState* focus_state = nullptr;
       std::shared_ptr<View> owner_root;
       size_t mode_offset = 0;
@@ -90,6 +90,73 @@ namespace Pixils::Runtime
       ~InteractionScopeContext() { hook_context.interaction_scope = previous_scope; }
     };
 
+    enum class UpdateParticipation
+    {
+      TRANSPARENT,
+      FULL,
+      SCOPED,
+    };
+
+    struct UpdateFrame
+    {
+      UpdateParticipation participation = UpdateParticipation::TRANSPARENT;
+      const std::vector<std::shared_ptr<View>>* scopes = nullptr;
+      UI::FocusState* focus_state = nullptr;
+      std::shared_ptr<View> owner_root;
+      size_t mode_offset = 0;
+      Session::ModeFrameMetadata::FrameComposition* composition = nullptr;
+    };
+
+    struct UpdateCompositionPlan
+    {
+      std::vector<UpdateFrame> frames;
+    };
+
+    UpdateCompositionPlan build_update_composition_plan(Session& session)
+    {
+      using UpdatePass = Session::ModeFrameMetadata::FrameComposition::UpdatePass;
+
+      UpdateCompositionPlan plan;
+      const size_t frame_count = session.mode_stack.size();
+      if (frame_count <= 1 || session.frame_metadata.size() < frame_count ||
+          session.ctx_stack.size() + 1 < frame_count)
+      {
+        return plan;
+      }
+      plan.frames.reserve(frame_count - 1);
+
+      for (size_t child_frame = frame_count - 1; child_frame > 0; child_frame--)
+      {
+        auto& metadata = session.frame_metadata[child_frame];
+        auto type = metadata.composition.update_pass.type;
+        if (type == UpdatePass::Type::INHERIT)
+        {
+          auto child_root = child_frame == frame_count - 1 ? session.active_mode
+                                                           : session.ctx_stack[child_frame];
+          type = child_root && child_root->mode && child_root->mode->composition.update
+                   ? UpdatePass::Type::FULL
+                   : UpdatePass::Type::BLOCK;
+        }
+        if (type == UpdatePass::Type::BLOCK)
+        {
+          break;
+        }
+
+        const size_t owner_frame = child_frame - 1;
+        const auto participation = type == UpdatePass::Type::FULL ? UpdateParticipation::FULL
+                                   : metadata.composition.update_pass.scopes.empty()
+                                     ? UpdateParticipation::TRANSPARENT
+                                     : UpdateParticipation::SCOPED;
+        plan.frames.push_back({.participation = participation,
+                               .scopes = &metadata.composition.update_pass.scopes,
+                               .focus_state = &metadata.restore_focus,
+                               .owner_root = session.ctx_stack[owner_frame],
+                               .mode_offset = frame_count - 1 - owner_frame,
+                               .composition = &metadata.composition});
+      }
+      return plan;
+    }
+
     std::optional<ScopedInteractionTarget> scoped_interaction_target(Session& session,
                                                                      const Point& point)
     {
@@ -107,7 +174,7 @@ namespace Pixils::Runtime
       for (size_t child_frame = frame_count - 1; child_frame > 0; child_frame--)
       {
         auto& metadata = session.frame_metadata[child_frame];
-        auto& scopes = metadata.scoped_composition.interaction_pass;
+        auto& scopes = metadata.composition.interaction_pass;
         if (scopes.empty()) break;
 
         if (metadata.overlay && metadata.overlay->anchor_view &&
@@ -136,71 +203,111 @@ namespace Pixils::Runtime
       return std::nullopt;
     }
 
-    void update_scoped_passes(
+    void execute_update_plan(
       Session& session,
+      const UpdateCompositionPlan& plan,
       const Point& mouse_pos,
       const std::optional<ScopedInteractionTarget>& interaction_target)
     {
-      struct Target
+      std::vector<CustomEvent> emitted_events;
+      for (auto it = plan.frames.rbegin(); it != plan.frames.rend(); ++it)
       {
-        std::shared_ptr<View> scope;
-        UI::MouseState* mouse_state;
-        UI::FocusState* focus_state;
-        std::shared_ptr<View> owner_root;
-        size_t mode_offset;
-      };
+        if (it->participation != UpdateParticipation::FULL) continue;
 
-      std::vector<Target> targets;
-      const size_t frame_count = session.mode_stack.size();
-      if (frame_count <= 1 || session.frame_metadata.size() < frame_count ||
-          session.ctx_stack.size() + 1 < frame_count)
-      {
-        return;
-      }
-      for (size_t child_frame = frame_count - 1; child_frame > 0; child_frame--)
-      {
-        auto& metadata = session.frame_metadata[child_frame];
-        auto& scopes = metadata.scoped_composition.update_pass;
-        if (scopes.empty()) break;
-
-        const size_t owner_frame = child_frame - 1;
-        for (auto& scope : scopes)
+        View& root = *it->owner_root;
+        Roo::sptr_val_v args = session.hook_args.update_args;
+        auto parent_state = root.state;
+        emitted_events = UI::process_view_events(root,
+                                                 &parent_state,
+                                                 nullptr,
+                                                 args.back(),
+                                                 emitted_events,
+                                                 session.roo_runtime);
+        args[0] = root.state;
+        if (root.definition->update &&
+            root.definition->update->type != Roo::Value::Type::NIL)
         {
-          auto owner_root = session.ctx_stack[owner_frame];
-          if (!belongs_to_root(scope, owner_root)) continue;
-
-          UI::MouseState* scope_mouse_state = nullptr;
-          auto interaction_scope =
-            std::find_if(metadata.scoped_composition.interaction_pass.begin(),
-                         metadata.scoped_composition.interaction_pass.end(),
-                         [&](const auto& candidate) { return candidate.view == scope; });
-          if (interaction_scope != metadata.scoped_composition.interaction_pass.end())
-          {
-            scope_mouse_state = &interaction_scope->mouse_state;
-          }
-          targets.push_back({.scope = scope,
-                             .mouse_state = scope_mouse_state,
-                             .focus_state = &metadata.restore_focus,
-                             .owner_root = std::move(owner_root),
-                             .mode_offset = frame_count - 1 - owner_frame});
+          root.set_state_if_changed(Runtime::invoke_hook(session.roo_runtime,
+                                                         it->owner_root,
+                                                         root.definition->update,
+                                                         args,
+                                                         root.state));
         }
+        session.mode_stack.update_state(root.state, it->mode_offset);
+        root.drain_events(emitted_events);
       }
 
       UI::MouseState empty_mouse_state;
-      for (auto it = targets.rbegin(); it != targets.rend(); ++it)
+      for (auto it = plan.frames.rbegin(); it != plan.frames.rend(); ++it)
       {
-        if (interaction_target && interaction_target->scope->view == it->scope)
+        if (it->participation != UpdateParticipation::SCOPED) continue;
+
+        for (auto& scope : *it->scopes)
         {
-          continue;
+          if (!belongs_to_root(scope, it->owner_root)) continue;
+          if (interaction_target && interaction_target->scope->view == scope) continue;
+
+          UI::MouseState* scope_mouse_state = nullptr;
+          auto interaction_scope =
+            std::find_if(it->composition->interaction_pass.begin(),
+                         it->composition->interaction_pass.end(),
+                         [&](const auto& candidate) { return candidate.view == scope; });
+          if (interaction_scope != it->composition->interaction_pass.end())
+          {
+            scope_mouse_state = &interaction_scope->mouse_state;
+          }
+
+          UI::update_view_tree(scope,
+                               scope_mouse_state ? *scope_mouse_state : empty_mouse_state,
+                               *it->focus_state,
+                               mouse_pos,
+                               session.hook_args,
+                               session.roo_runtime);
+          push_scope_state_to_root(scope, session.roo_runtime);
         }
-        UI::update_view_tree(it->scope,
-                             it->mouse_state ? *it->mouse_state : empty_mouse_state,
-                             *it->focus_state,
-                             mouse_pos,
-                             session.hook_args,
-                             session.roo_runtime);
-        push_scope_state_to_root(it->scope, session.roo_runtime);
         session.mode_stack.update_state(it->owner_root->state, it->mode_offset);
+      }
+    }
+
+    void relay_events(Session& session, const UpdateCompositionPlan& plan)
+    {
+      if (plan.frames.empty()) return;
+
+      std::vector<CustomEvent> events;
+      session.active_mode->drain_events(events);
+      if (events.empty()) return;
+
+      auto context = session.hook_args.update_args[1];
+      for (auto& frame : plan.frames)
+      {
+        if (frame.participation == UpdateParticipation::FULL)
+        {
+          events = UI::process_view_events(*frame.owner_root,
+                                           nullptr,
+                                           nullptr,
+                                           context,
+                                           events,
+                                           session.roo_runtime);
+          frame.owner_root->drain_events(events);
+        }
+        else if (frame.participation == UpdateParticipation::SCOPED)
+        {
+          for (auto& scope : *frame.scopes)
+          {
+            if (!belongs_to_root(scope, frame.owner_root)) continue;
+            events = UI::process_view_events(*scope,
+                                             nullptr,
+                                             nullptr,
+                                             context,
+                                             events,
+                                             session.roo_runtime);
+            scope->drain_events(events);
+            push_scope_state_to_root(scope, session.roo_runtime);
+            if (events.empty()) break;
+          }
+        }
+        session.mode_stack.update_state(frame.owner_root->state, frame.mode_offset);
+        if (events.empty()) break;
       }
     }
 
@@ -211,37 +318,9 @@ namespace Pixils::Runtime
     PIXILS_BENCHMARK_COUNT(runtime_update_mode_calls);
     PIXILS_BENCHMARK_TIME_BLOCK(runtime_update_time_ns);
 
-    auto update_stack = mode_stack.get_update_stack();
-
-    std::vector<CustomEvent> emitted_events;
-
-    /**
-     * Update composition modes below the top, preserving the existing offset semantics.
-     */
-    for (size_t i = update_stack.size() - 1; i > 0; i--)
-    {
-      size_t ctx_idx = ctx_stack.size() - i;
-      auto view = ctx_stack[ctx_idx];
-      View& ctx = *view;
-
-      Roo::sptr_val_v rargs = this->hook_args.update_args;
-      auto ctx_parent_state = ctx.state;
-      emitted_events = UI::process_view_events(ctx,
-                                               &ctx_parent_state,
-                                               nullptr,
-                                               rargs.back(),
-                                               emitted_events,
-                                               roo_runtime);
-      rargs[0] = ctx.state;
-      if (ctx.definition->update && ctx.definition->update->type != Roo::Value::Type::NIL)
-      {
-        ctx.set_state_if_changed(
-          invoke_hook(roo_runtime, view, ctx.definition->update, rargs, ctx.state));
-      }
-      mode_stack.update_state(ctx.state, i);
-
-      ctx.drain_events(emitted_events);
-    }
+    auto update_plan = build_update_composition_plan(*this);
+    const Point mouse_pos = update_mouse_pos(hook_args);
+    std::optional<ScopedInteractionTarget> scoped_target;
 
     if (hook_args.events)
     {
@@ -258,11 +337,9 @@ namespace Pixils::Runtime
      */
     if (hook_args.events)
     {
-      const Point mouse_pos = update_mouse_pos(hook_args);
-      auto scoped_target = has_pointer_transient(*hook_args.events)
-                             ? scoped_interaction_target(*this, mouse_pos)
-                             : std::nullopt;
-      update_scoped_passes(*this, mouse_pos, scoped_target);
+      scoped_target = has_pointer_transient(*hook_args.events)
+                        ? scoped_interaction_target(*this, mouse_pos)
+                        : std::nullopt;
 
       if (scoped_target)
       {
@@ -342,6 +419,8 @@ namespace Pixils::Runtime
         }
       }
     }
+    relay_events(*this, update_plan);
+    execute_update_plan(*this, update_plan, mouse_pos, scoped_target);
     this->hook_args.update_state(active_mode->state);
   }
 

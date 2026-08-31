@@ -195,3 +195,102 @@ TEST_F(FrameCycleTest, three_deep_update_composition_preserves_underlying_frame_
   session.pop_mode();
   expect_active_frame_state(session, "bottom-mode", "bottom", "updated?");
 }
+
+TEST_F(FrameCycleTest, push_time_full_update_pass_updates_the_underlying_frame)
+{
+  runtime.eval(R"(
+    (pixils/defmode bottom-mode
+      {:update (fn [state ctx] (assoc state :updated? true))})
+    (pixils/defmode top-mode {})
+  )");
+
+  session.push_mode("bottom-mode", runtime.eval("{:marker \"bottom\"}"));
+  session.push_mode("top-mode",
+                    Roo::Constant::NIL,
+                    runtime.eval("{:compose {:update :pass}}"));
+
+  session.update_mode();
+  session.pop_mode();
+
+  expect_active_frame_state(session, "bottom-mode", "bottom", "updated?");
+}
+
+TEST_F(FrameCycleTest, push_time_update_block_overrides_definition_level_pass)
+{
+  runtime.eval(R"(
+    (pixils/defmode bottom-mode
+      {:update (fn [state ctx] (assoc state :updated? true))})
+    (pixils/defmode top-mode
+      {:compose {:update :pass}})
+  )");
+
+  session.push_mode("bottom-mode", runtime.eval("{:marker \"bottom\"}"));
+  session.push_mode("top-mode",
+                    Roo::Constant::NIL,
+                    runtime.eval("{:compose {:update :block}}"));
+
+  session.update_mode();
+  session.pop_mode();
+
+  EXPECT_EQ(
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("updated?"))->type,
+    Roo::Value::Type::NIL);
+}
+
+TEST_F(FrameCycleTest, empty_update_pass_skips_the_underlay_and_reaches_its_update_policy)
+{
+  runtime.eval(R"(
+    (pixils/defmode coordinator-mode
+      {:update (fn [state ctx]
+                 (merge state
+                        {:updated? true
+                         :event-visible-during-update?
+                         (:event-received? state)}))
+       :on {:coordinate
+            (fn [state event ctx]
+              (pixils.ui/stop-propagation! event)
+              (assoc state :event-received? true))}})
+
+    (pixils/defmode intermediate-mode
+      {:update (fn [state ctx] (assoc state :updated? true))
+       :on {:coordinate
+            (fn [state event ctx]
+              (pixils.ui/stop-propagation! event)
+              (assoc state :event-received? true))}})
+
+    (pixils/defmode top-mode
+      {:update
+       (fn [state ctx]
+         (unless (:emitted? state)
+           (pixils.ui/emit! (:view ctx) :coordinate nil))
+         (assoc state :emitted? true))})
+  )");
+
+  session.push_mode("coordinator-mode", runtime.eval("{:marker \"coordinator\"}"));
+  session.push_mode("intermediate-mode",
+                    runtime.eval("{:marker \"intermediate\"}"),
+                    runtime.eval("{:compose {:update :pass}}"));
+  session.push_mode("top-mode",
+                    Roo::Constant::NIL,
+                    runtime.eval("{:compose {:update {:pass []}}}"));
+
+  session.update_mode();
+
+  session.pop_mode();
+  EXPECT_EQ(session.active_mode->definition->name, "intermediate-mode");
+  EXPECT_EQ(
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("updated?"))->type,
+    Roo::Value::Type::NIL);
+  EXPECT_EQ(
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("event-received?"))
+      ->type,
+    Roo::Value::Type::NIL);
+
+  session.pop_mode();
+  expect_active_frame_state(session, "coordinator-mode", "coordinator", "updated?");
+  EXPECT_TRUE(Roo::is_truthy(
+    *Roo::Dict::get_property(session.active_mode->state, Roo::keyword("event-received?"))));
+  EXPECT_TRUE(Roo::is_truthy(*Roo::Dict::get_property(
+    session.active_mode->state,
+    Roo::keyword("event-visible-during-update?"))));
+}

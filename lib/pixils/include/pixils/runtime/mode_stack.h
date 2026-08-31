@@ -31,7 +31,6 @@ namespace Pixils::Runtime
     size_t size() const;
 
     std::vector<std::pair<Mode*, Roo::sptr_val>> get_render_stack();
-    std::vector<std::pair<Mode*, Roo::sptr_val>> get_update_stack();
 
     Roo::sptr_val_v drain_messages();
   };

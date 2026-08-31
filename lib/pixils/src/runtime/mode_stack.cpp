@@ -42,24 +42,6 @@ namespace Pixils::Runtime
     }
   }
 
-  std::vector<std::pair<Mode*, Roo::sptr_val>> ModeStack::get_update_stack()
-  {
-    std::vector<std::pair<Mode*, Roo::sptr_val>> update_stack;
-
-    for (int i = this->size() - 1; i >= 0; i--)
-    {
-      auto frame = Roo::get_child(*stack, i);
-      Mode* mode = &Roo::obj<Mode>(*Roo::get_child(*frame, 0));
-      update_stack.push_back(std::make_pair(mode, Roo::get_child(*frame, 1)));
-      if (!mode->composition.update)
-      {
-        break;
-      }
-    }
-
-    return update_stack;
-  }
-
   std::vector<std::pair<Mode*, Roo::sptr_val>> ModeStack::get_render_stack()
   {
     std::vector<std::pair<Mode*, Roo::sptr_val>> render_stack;

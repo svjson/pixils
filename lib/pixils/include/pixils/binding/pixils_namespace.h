@@ -597,6 +597,12 @@ namespace Pixils::Script
      * after layout. Overlay placement accepts `:bottom-start`, `:top-start`,
      * `:right-start`, and `:left-start`.
      *
+     * Per-push `:compose :update` accepts `:block`, `:pass`, or
+     * `{:pass scopes}`. Full pass updates the immediate underlay; scoped pass
+     * updates only its listed `{:view view}` subtrees. An explicitly empty
+     * scope list performs no work in the immediate underlay but continues
+     * traversal through that frame's update composition.
+     *
      * Mode transitions are message-based. Calling `push-mode!` from a hook is
      * safe; the new root becomes active when the session processes queued mode
      * messages.
@@ -606,6 +612,11 @@ namespace Pixils::Script
      * (pixils/push-mode! 'main/game)
      *
      * (pixils/push-mode! 'main/pause-menu {:resumed-from state})
+
+     * (pixils/push-mode!
+     *   'main/dialog
+     *   {}
+     *   {:compose {:update {:pass []}}})
      *
      * (pixils/push-mode!
      *   (pixils/make-mode {:name "inline-popup"
