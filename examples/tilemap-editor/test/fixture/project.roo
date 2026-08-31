@@ -30,3 +30,15 @@
                                          :label "Walkable"
                                          :type :any
                                          :default nil}]}])))
+
+(fixture/deffixture project/enum-property
+  {}
+  (data/normalize-project-document
+   (assoc base-project
+          :property-sets [{:id :movement
+                           :label "Movement"
+                           :properties [{:id :movement-type
+                                         :label "Movement Type"
+                                         :type :enum
+                                         :default "walk"
+                                         :values ["walk" "run"]}]}])))

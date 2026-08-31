@@ -72,3 +72,35 @@
             :selected-property-set-index 0}
            (ws/project-state app)))
     (is (ws/shows-list-item? app "passable"))))
+
+(deftest workspace/adds-an-enum-value-to-an-existing-property
+  [[project project/enum-property]]
+  (s/given
+    (test-app/make {:project project}))
+
+  (s/when [app]
+    (pxi/perform! (ws/open! app)))
+
+  (s/then [app]
+    (is (ws/enum-value-editor-visible? app))
+    (is (ws/enum-default-is? app "walk"))
+    (is (ws/shows-list-item? app "walk"))
+    (is (ws/shows-list-item? app "run")))
+
+  (s/when [app]
+    (pxi/perform! (ws/request-add-enum-value! app))
+    (pxi/perform! (ws/enter-enum-value! app "swim"))
+    (pxi/perform! (ws/confirm-enum-value! app)))
+
+  (s/then [app]
+    (is (= {:workspace-tab :property-sets
+            :property-sets [{:id :movement
+                             :label "Movement"
+                             :properties [{:id :movement-type
+                                           :label "Movement Type"
+                                           :type :enum
+                                           :default "walk"
+                                           :values ["walk" "run" "swim"]}]}]
+            :selected-property-set-index 0}
+           (ws/project-state app)))
+    (is (ws/shows-list-item? app "swim"))))

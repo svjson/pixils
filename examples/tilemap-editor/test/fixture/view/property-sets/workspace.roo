@@ -2,6 +2,7 @@
   (:require proof.core
             [pixils.ui :as ui]
             [pixils.test.runtime :as runtime]
+            [pixils.test.ui.combo-box :as combo-box]
             [pixils.test.ui.list-box :as list-box]
             [pixils.test.ui.tab-panel :as tab-panel]))
 
@@ -66,6 +67,78 @@
   True when a list box renders `label`."
   [app label]
   (not-empty? (list-box/views-containing app label)))
+
+(defun enum-value-editor-visible?
+  "Returns whether the selected property's enum-value editor is visible.
+
+  Args:
+  - `app`: Running Tilemap Editor test application.
+
+  Returns:
+  True when the form renders an array control for enum values."
+  [app]
+  (any? (runtime/find-views app "pixils/form-array-control")
+        (fn [view]
+          (= :values (-> view :state :field-id)))))
+
+(defun enum-default-is?
+  "Returns whether the selected enum property shows `value` as its default.
+
+  Args:
+  - `app`: Running Tilemap Editor test application.
+  - `value`: Expected visible default value.
+
+  Returns:
+  True when a combo box renders `value`."
+  [app value]
+  (not-empty? (combo-box/views-containing app value)))
+
+(defun request-add-enum-value!
+  "Requests a new value through the selected enum property's array editor.
+
+  Args:
+  - `app`: Tilemap Editor test application showing an enum property.
+
+  Returns:
+  The application immediately after clicking the Add button."
+  [app]
+  (let [button (runtime/find-view-containing app "ui/button" "Add")]
+    (is (some? button))
+    (runtime/click! app button)
+    app))
+
+(defun enter-enum-value!
+  "Enters `value` into the open enum-value dialog.
+
+  Args:
+  - `app`: Tilemap Editor test application with the enum-value dialog open.
+  - `value`: Scalar text to enter.
+
+  Returns:
+  The application immediately after entering `value`."
+  [app value]
+  (let [input (find-first (runtime/find-views app "ui/text-input")
+                          (fn [view]
+                            (= "" (-> view :ui-state :value))))]
+    (is (some? input))
+    (runtime/click! app input)
+    (for [character value]
+      (runtime/press-key! app (keyword (str character))))
+    app))
+
+(defun confirm-enum-value!
+  "Confirms the open enum-value dialog.
+
+  Args:
+  - `app`: Tilemap Editor test application with the enum-value dialog open.
+
+  Returns:
+  The application immediately after clicking the dialog's OK button."
+  [app]
+  (let [button (runtime/find-view-containing app "ui/button" "OK")]
+    (is (some? button))
+    (runtime/click! app button)
+    app))
 
 (defun set-property-label!
   "Changes an existing property's label through its form field.
