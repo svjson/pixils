@@ -4,6 +4,7 @@
  :dependencies {pixils "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src" "test"]
+ :namespace-roots {pixils.test "src"}
  :native-libraries [{:name "pixils-test-native"
                      :version "0.1.0"
                      :path "native"
