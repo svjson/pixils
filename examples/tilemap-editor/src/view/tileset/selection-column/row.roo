@@ -1,0 +1,29 @@
+(ns tilemap-editor.view.tileset.selection-column.row
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defun tile-drop-payload
+  "Builds a cross-tileset tile-move payload for a tileset row.
+
+  Args:
+  - `target-tileset-index`: Index of the tileset receiving the tile.
+  - `payload`: Drag payload presented to the row.
+
+  Returns:
+  A tile-move payload when the drag comes from another tileset; otherwise nil."
+  [target-tileset-index payload]
+  (when (and (= (:kind payload) :tileset/tile)
+             (not= (:source-tileset-index payload) target-tileset-index))
+    {:source-tileset-index (:source-tileset-index payload)
+     :target-tileset-index target-tileset-index
+     :tile-index (:tile-index payload)}))
+
+(defcomponent tileset-definition-row
+  {:extend 'ui/list-box-item
+   :on-drop
+   (fn [state event ctx]
+     (when-let [payload (tile-drop-payload (-> ctx :view :ui-state :index)
+                                           (:payload event))]
+       (ui/stop-propagation! event)
+       (ui/emit! (:view ctx) :tile/move-to-tileset payload))
+     state)})

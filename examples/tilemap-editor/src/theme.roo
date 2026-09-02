@@ -41,6 +41,9 @@
 
             :tm/list-content {:height :fill}
 
+            :tileset/selection-column {:width :shrink
+                                       :min-width 220}
+
             ['(pixils/form-layout-item-editor :tm/list-content)
              :pixils.form/field]
             {:height :fill}

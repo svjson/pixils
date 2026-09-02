@@ -74,107 +74,6 @@
                           (ui/bind-state
                            :tile-definition-panel-disabled?)}}]})")
 
-(defun tileset-list-probe-source []
-  "(ns tilemap-editor.test.tileset-list-probe
-     (:require pixils
-               [pixils.ui :as ui]
-               tilemap-editor.view.tileset.panels))
-
-   (pixils/defmode root-mode
-     {:style {:width 320
-              :height 160}
-      :init (fn [state ctx]
-              (assoc state
-                     :tilesets [{:id :terrain
-                                 :label \"Terrain\"
-                                 :tiles [{:id :grass
-                                          :type :color
-                                          :properties {:cost 4}}]}
-                                {:id :objects
-                                 :label \"Objects\"
-                                 :tiles []}]
-                     :selected-tileset-definition-index 0))
-      :children [{:mode 'tileset-definition-list
-                  :state {:selected-tileset-definition-index
-                          (ui/bind-state :selected-tileset-definition-index)
-                          :tilesets (ui/bind-state :tilesets)}}]})")
-
-
-
-;; tilemap-editor.view.tileset.panels/tileset-list-box-child
-
-(deftest tileset-list-box-child/disables-empty-options
-  (is (= {:options []
-          :disabled? true}
-         (select-keys (-> (panels/tileset-list-box-child [])
-                          :state
-                          :component)
-                      [:options :disabled?])))
-  (is (= {:options []
-          :disabled? true}
-         (select-keys (-> (panels/tileset-list-box-child nil)
-                          :state
-                          :component)
-                      [:options :disabled?])))
-  (is (= {:options [{:value 0
-                     :label "Terrain"}]
-          :disabled? false}
-         (select-keys (-> (panels/tileset-list-box-child
-                           [{:id :terrain
-                             :label "Terrain"}])
-                          :state
-                          :component)
-                      [:options :disabled?]))))
-
-(deftest tileset-list-box-child/uses-minimum-then-content-height
-  (let [empty-list (panels/tileset-list-box-child [])
-        one-list (panels/tileset-list-box-child [{:id :terrain
-                                                  :label "Terrain"}])
-        many-list (panels/tileset-list-box-child
-                   [{:id :one :label "One"}
-                    {:id :two :label "Two"}
-                    {:id :three :label "Three"}
-                    {:id :four :label "Four"}
-                    {:id :five :label "Five"}
-                    {:id :six :label "Six"}])]
-    (is (= (* panels/tileset-list-row-height
-              panels/tileset-list-min-visible-rows)
-           (-> empty-list :style :height)))
-    (is (= (* panels/tileset-list-row-height
-              panels/tileset-list-min-visible-rows)
-           (-> one-list :style :height)))
-    (is (= (* panels/tileset-list-row-height 6)
-           (-> many-list :style :height)))))
-
-(deftest tileset-definition-list-keeps-list-box-when-nested-tiles-change
-  (let [app (runtime/make-app {:package-root "."
-                               :buffer-width 320
-                               :buffer-height 160
-                               :render-backend false})]
-    (runtime/eval! app (tileset-list-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (settle-layout! app)
-    (let [list-box (runtime/find-view app "ui/list-box")]
-      (runtime/set-active-state!
-       app
-       (assoc-in (runtime/active-state app)
-                 [:tilesets 0 :tiles 0 :properties]
-                 {:cost 5}))
-      (settle-layout! app)
-      (is (= list-box
-             (runtime/find-view app "ui/list-box"))))))
-
-(deftest tileset-context-menu-includes-edit-properties-and-duplicate-commands
-  (let [edit-item (head (:items panels/tileset-context-menu))
-        properties-item (nth (:items panels/tileset-context-menu) 1)
-        duplicate-item (nth (:items panels/tileset-context-menu) 2)]
-    (is (= "Edit" (:label edit-item)))
-    (is (= :edit (-> edit-item :payload :command)))
-    (is (= "Properties" (:label properties-item)))
-    (is (= :properties (-> properties-item :payload :command)))
-    (is (= "Duplicate" (:label duplicate-item)))
-    (is (= :duplicate (-> duplicate-item :payload :command)))))
-
 (deftest tile-context-menu-includes-rename-and-delete-commands
   (let [items (:items (panels/tile-context-menu
                        {:selected-tileset-definition-index 0
@@ -215,21 +114,6 @@
           {:start-position {:x 33 :y 2}}
           {:view {:bounds {:w 96
                            :h 64}}}))))
-
-(deftest tileset-row-accepts-tile-drop-payloads
-  (is (= {:source-tileset-index 0
-          :target-tileset-index 1
-          :tile-index 2}
-         (panels/tile-drop-payload
-          1
-          {:kind :tileset/tile
-           :source-tileset-index 0
-           :tile-index 2})))
-  (is (nil? (panels/tile-drop-payload
-             0
-             {:kind :tileset/tile
-              :source-tileset-index 0
-              :tile-index 2}))))
 
 (deftest sprite-map-preview-source-rect-scales-from-full-asset
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800

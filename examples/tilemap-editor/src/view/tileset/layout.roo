@@ -4,6 +4,8 @@
             [pixils.ui.header-panel :as hp]
             [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.tileset.actions :as actions]
+            [tilemap-editor.view.tileset.selection-column.column
+             :as selection-column]
             tilemap-editor.view.tileset.model
             tilemap-editor.view.tileset.panels
             tilemap-editor.view.tileset.dialogs))
@@ -11,44 +13,11 @@
 (defun tile-drag-preview-payload [payload ctx]
   (let [position (:position payload)
         bounds (-> ctx :view :bounds)]
-    (if position
-      (assoc payload
-             :position
-             {:x (- (:x position) (or (:x bounds) 0))
-              :y (- (:y position) (or (:y bounds) 0))})
-      payload)))
-
-(defun make-tileset-list-panel []
-  (hp/make {:title "Project Tile Sets"
-            :style {:width :shrink
-                    :height :shrink
-                    :min-height 160}
-            :header-style {:layout {:direction :row
-                                    :align-items :center
-                                    :gap 4}}
-            :header-children [{:mode 'ui/button
-                               :class :ui/toolbar-button
-                               :state {:label "+"}
-                               :on-click (fn [state event ctx]
-
-                                             (ui/emit! (:view ctx)
-                                                       :tileset/add)
-                                             state)}]
-            :body-style {:padding 8
-                         :height :shrink}
-            :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
-                    :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
-                    :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
-                    :tilesets (ui/bind-state :tilesets)}
-            :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
-                         :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
-                         :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
-                         :tilesets (ui/bind-state :tilesets)}
-            :children [{:mode 'tileset-definition-list
-                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
-                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
-                                :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
-                                :tilesets (ui/bind-state :tilesets)}}]}))
+    (cond-> payload
+            position
+            (assoc :position
+                   {:x (- (:x position) (or (:x bounds) 0))
+                    :y (- (:y position) (or (:y bounds) 0))}))))
 
 (defun apply-tile-duplicate-dialog-result [state payload]
   (editor-workbook/change-to
@@ -56,12 +25,11 @@
    "Duplicate tile"
    (duplicate-tile-definition!
     state
-    (if (contains? payload :context)
-      (assoc payload
-             :tile-index (-> payload :context :tile-index)
-             :tile-id (:id payload)
-             :tile-name (:name payload))
-      payload))))
+    (cond-> payload
+            (contains? payload :context)
+            (assoc :tile-index (-> payload :context :tile-index)
+                   :tile-id (:id payload)
+                   :tile-name (:name payload))))))
 
 (defcomponent tileset-definition-workspace
   {:style {:width :fill
@@ -72,6 +40,16 @@
              (derive-tileset-workspace-state state))
    :on {:tileset/add (fn [state event ctx]
                        (open-tileset-create-dialog! state ctx))
+        :tileset/select
+        (fn [state {:keys [payload]} ctx]
+          (let [tiles (when payload
+                        (:tiles (nth (:tilesets state) payload)))
+                tile-index (unless (empty? tiles) 0)]
+            (assoc state
+                   :selected-tileset-definition-index payload
+                   :selected-tileset-tile-index tile-index
+                   :selected-tileset-tile-indices
+                   (if tile-index [tile-index] []))))
         :tileset/context-command
         (fn [state event ctx]
           (case (-> event :payload :command)
@@ -152,35 +130,34 @@
                               (add-imported-sprite-tiles! state
                                                           (:payload event)))
         :tile/file-dialog-result
-        (fn [state event ctx]
-          (let [payload (:payload event)]
-            (if (image-file-dialog-result? payload)
-              (let [paths (or (:paths payload) [(:path payload)])
-                    multiple? (> (count paths) 1)
-                    state (assoc state
-                                 :last-image-file-directory (:directory payload))
-                    state (if multiple?
-                            (import-file-resources! state paths)
-                            (import-file-resource! state payload))]
+        (fn [state {:keys [payload]} ctx]
+          (if (image-file-dialog-result? payload)
+            (let [paths (or (:paths payload) [(:path payload)])
+                  multiple? (> (count paths) 1)
+                  state (assoc state
+                               :last-image-file-directory (:directory payload))
+                  state (if multiple?
+                          (import-file-resources! state paths)
+                          (import-file-resource! state payload))]
 
-	                  (ui/emit! (:view ctx)
-	                            :project/resources-change
-	                            (select-keys
-	                             state
-	                             [:resources
-	                              :selected-resource-bundle
-	                              :selected-image-resource]))
-                  (if multiple?
-                    (add-imported-single-sprite-tiles!
-                     state
-                     (:last-imported-image-resources state))
-                    (open-tile-import-dialog!
-                     (dissoc state :last-imported-image-resources)
-                     ctx
-                     (:selected-resource-bundle state)
-                     (image-resource-key (:selected-resource-bundle state)
-                                         (:selected-image-resource state)))))
-              state)))
+	                (ui/emit! (:view ctx)
+	                          :project/resources-change
+	                          (select-keys
+	                           state
+	                           [:resources
+	                            :selected-resource-bundle
+	                            :selected-image-resource]))
+                (if multiple?
+                  (add-imported-single-sprite-tiles!
+                   state
+                   (:last-imported-image-resources state))
+                  (open-tile-import-dialog!
+                   (dissoc state :last-imported-image-resources)
+                   ctx
+                   (:selected-resource-bundle state)
+                   (image-resource-key (:selected-resource-bundle state)
+                                       (:selected-image-resource state)))))
+            state))
         :tile/add-command
         (fn [state event ctx]
                   (case (-> event :payload :command)
@@ -190,7 +167,7 @@
             :color (open-tile-create-dialog! state ctx)
             :color-range (open-color-range-dialog! state ctx)
             :default state))}
-   :children [(make-tileset-list-panel)
+   :children [(selection-column/make)
               (hp/make {:title "Tile Set"
                         :style {:width :fill
                                 :height :fill}

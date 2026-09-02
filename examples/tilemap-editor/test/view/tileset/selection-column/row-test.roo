@@ -1,0 +1,24 @@
+(ns tilemap-editor.view.tileset.selection-column.row-test
+  (:require proof.core
+            [tilemap-editor.view.tileset.selection-column.row :as row]))
+
+
+
+;; tilemap-editor.view.tileset.selection-column.row/tile-drop-payload
+
+(deftest tile-drop-payload/accepts-a-tile-from-another-tileset
+  (is (= {:source-tileset-index 0
+          :target-tileset-index 1
+          :tile-index 2}
+         (row/tile-drop-payload
+          1
+          {:kind :tileset/tile
+           :source-tileset-index 0
+           :tile-index 2}))))
+
+(deftest tile-drop-payload/rejects-a-tile-from-the-target-tileset
+  (is (nil? (row/tile-drop-payload
+             0
+             {:kind :tileset/tile
+              :source-tileset-index 0
+              :tile-index 2}))))

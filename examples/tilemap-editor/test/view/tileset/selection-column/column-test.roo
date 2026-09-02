@@ -1,0 +1,94 @@
+(ns tilemap-editor.view.tileset.selection-column.column-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test.runtime :as runtime]
+            [tilemap-editor.view.tileset.selection-column.column :as column]))
+
+(defun selection-column-probe-source
+  "Builds source for exercising the tileset selection column.
+
+  Returns:
+  Roo source defining a root mode with two tilesets and a selected-index event
+  receiver."
+  []
+  "(ns tilemap-editor.test.tileset-selection-column-probe
+     (:require pixils
+               tilemap-editor.view.tileset.selection-column.column))
+
+   (pixils/defmode root-mode
+     {:style {:width 320
+              :height 240}
+      :init (fn [state ctx]
+              (assoc state
+                     :tilesets [{:id :terrain
+                                 :label \"Terrain\"
+                                 :tiles [{:id :grass}]}
+                                {:id :objects
+                                 :label \"Objects\"
+                                 :tiles []}]
+                     :selected-tileset-definition-index 0))
+      :on {:tileset/select
+           (fn [state event ctx]
+             (assoc state
+                    :selected-tileset-definition-index
+                    (:payload event)))}
+      :children [(tilemap-editor.view.tileset.selection-column.column/make)]})")
+
+
+
+;; tilemap-editor.view.tileset.selection-column.column/make
+
+(deftest make/projects-selection-through-the-stock-list-box
+  (s/given
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 320
+                                 :buffer-height 240
+                                 :render-backend false})]
+      (runtime/eval! app (selection-column-probe-source))
+      (runtime/push-mode! app 'root-mode)
+      (runtime/settle-layout! app)))
+
+  (s/when [app]
+    (runtime/click! app
+                    (nth (runtime/find-views app
+                                             "tileset-definition-row")
+                         1))
+    (runtime/update! app)
+    app)
+
+  (s/then [app]
+    (is (= 1
+           (:selected-tileset-definition-index
+            (runtime/active-state app))))
+    (is (= [1]
+           (-> (runtime/find-view app "ui/list-box")
+               :ui-state
+               :selected-indices)))
+    (is (= true
+           (-> (nth (runtime/find-views app "tileset-definition-row") 1)
+               :ui-state
+               :selected)))))
+
+(deftest make/provides-the-tileset-context-commands
+  (let [panel (column/make)
+        body (nth (:children panel) 1)
+        list-box (head (:children body))]
+    (is (= {:settings {:mnemonics {:enabled false}}
+            :items [{:label "Edit"
+                     :action :edit}
+                    {:label "Properties"
+                     :action :properties}
+                    {:label "Duplicate"
+                     :action :duplicate}]}
+           (-> list-box
+               :state
+               :component
+               :item-context-menu)))))
+
+(deftest make/uses-sized-column-and-fill-content-classes
+  (let [panel (column/make)
+        body (nth (:children panel) 1)
+        list-box (head (:children body))]
+    (is (= [:tm/list-wrapper :tileset/selection-column]
+           (:class panel)))
+    (is (= :tm/list-content (:class list-box)))))

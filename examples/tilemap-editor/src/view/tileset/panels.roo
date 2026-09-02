@@ -3,7 +3,6 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
-            [pixils.ui.list-box :as lb]
             [pixils.ui.popup-menu :as popup-menu]
             [pixils.ui.number-input :as ni]
             [pixils.ui.slider :as sl]
@@ -15,21 +14,6 @@
             [tilemap-editor.view.tileset.sprite-source-editor :as sse]
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.tileset.model))
-
-(def tileset-list-row-height 24)
-(def tileset-list-min-visible-rows 5)
-
-(def tileset-context-menu
-  {:settings {:mnemonics {:enabled false}}
-	   :items [{:label "Edit"
-	            :action :tileset/context-dummy
-	            :payload {:command :edit}}
-	           {:label "Properties"
-	            :action :tileset/context-dummy
-	            :payload {:command :properties}}
-	           {:label "Duplicate"
-	            :action :tileset/context-dummy
-	            :payload {:command :duplicate}}]})
 
 (defun tile-context-menu [state]
   (let [single-selection? (= (count (selected-tileset-tile-selection state)) 1)]
@@ -99,104 +83,6 @@
   (assoc state
          :tile-grid-selecting? false
          :tile-grid-dragging? false))
-
-(defun tile-drop-payload [target-tileset-index payload]
-  (when (and (= (:kind payload) :tileset/tile)
-             (not= (:source-tileset-index payload) target-tileset-index))
-    {:source-tileset-index (:source-tileset-index payload)
-     :target-tileset-index target-tileset-index
-     :tile-index (:tile-index payload)}))
-
-(defcomponent tileset-definition-row
-  {:extend 'ui/list-box-item
-   :style {:width :fill
-           :height tileset-list-row-height
-           :padding [3 6]
-           :layout {:direction :row
-                    :align-items :center
-                    :gap 6}}
-   :on-drop (fn [state event ctx]
-              (when-let [payload (tile-drop-payload (:value state) (:payload event))]
-                (ui/stop-propagation! event)
-                (ui/emit! (:view ctx)
-                          :tile/move-to-tileset
-                          payload))
-              state)
-   :on-mouse-up (fn [state event ctx]
-                  (ui/stop-propagation! event)
-                  (when (= (:button event) :right)
-                    (popup-menu/open-context! tileset-context-menu
-                                             (:global-position event)
-                                             state
-                                             ctx))
-                  state)
-   :on {:menu/select (fn [state event ctx]
-                       (let [payload (:payload event)]
-                         (ui/stop-propagation! event)
-                         (when (= (:type payload) :action)
-                           (ui/emit! (:view ctx)
-                                     :tileset/context-command
-                                     {:tileset-index (:value state)
-                                      :command (-> payload :payload :command)})))
-                       state)}
-   :children [{:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :label)}}]})
-
-(defun tileset-definition-row-child [index option]
-  {:mode 'tileset-definition-row
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :selected-indices (ui/bind-state :selected-indices)}})
-
-(defun tileset-list-visible-rows [tilesets]
-  (max tileset-list-min-visible-rows
-       (count tilesets)))
-
-(defun tileset-list-height [tilesets]
-  (* tileset-list-row-height
-     (tileset-list-visible-rows tilesets)))
-
-(defun tileset-list-box-child [tilesets]
-  (let [tilesets (or tilesets [])]
-    (lb/make {:options (data/tileset-options tilesets)
-              :style {:width :shrink
-                      :height (tileset-list-height tilesets)}
-              :row-height tileset-list-row-height
-              :disabled? (empty? tilesets)
-              :selected-indices (ui/bind-state :selected-indices)
-              :force-selection? true
-              :item=> tileset-definition-row-child})))
-
-(defcomponent tileset-definition-list
-  {:style {:width :fill
-           :height :shrink}
-   :init (fn [state ctx]
-           (assoc state
-                  :tileset-list-options nil
-                  :selected-indices (selected-tileset-definition-indices state)))
-   :update (fn [state ctx]
-             (let [tilesets (or (:tilesets state) [])
-                   options (data/tileset-options tilesets)]
-               (when (not= options (:tileset-list-options state))
-                 (ui/replace-child! (:view ctx)
-                                    "list-box"
-                                    (merge {:id "list-box"}
-                                           (tileset-list-box-child tilesets))))
-               (assoc state
-                      :tileset-list-options options
-                      :selected-indices (selected-tileset-definition-indices state))))
-   :on {:list-box/selection-change (fn [state event ctx]
-                           (assoc state
-                                  :selected-tileset-definition-index
-                                  (head (-> event :payload :selected-values))
-                                  :selected-tileset-tile-index
-                                  0
-                                  :selected-tileset-tile-indices
-                                  [0]))}
-   :children [(merge {:id "list-box"}
-                     (tileset-list-box-child []))]})
 
 (defcomponent tileset-definition-summary
   {:style {:width :fill

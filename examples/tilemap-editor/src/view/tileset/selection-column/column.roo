@@ -1,0 +1,56 @@
+(ns tilemap-editor.view.tileset.selection-column.column
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            tilemap-editor.view.tileset.selection-column.row))
+
+(defun make
+  "Builds the project-tileset selection column.
+
+  Returns:
+  A header panel containing a projected, single-selection tileset list."
+  []
+  (hp/make
+   {:title "Project Tile Sets"
+    :class [:tm/list-wrapper :tileset/selection-column]
+    :state {:tilesets (ui/project-state :tilesets)
+            :selected-tileset-definition-index (ui/project-state
+                                                :selected-tileset-definition-index)}
+    :header-children
+    [{:mode 'ui/button
+      :class :ui/toolbar-button
+      :state {:label "+"}
+      :on-click (fn [state event ctx]
+                  (ui/emit! (:view ctx) :tileset/add)
+                  state)}]
+    :on {:list-box/selection-change
+         (fn [state {:keys [payload] :as event} ctx]
+           (ui/stop-propagation! event)
+           (ui/emit! (:view ctx)
+                     :tileset/select
+                     (head (:selected-indices payload)))
+           state)
+         :list-box/context-action
+         (fn [state {:keys [payload] :as event} ctx]
+           (ui/stop-propagation! event)
+           (ui/emit! (:view ctx)
+                     :tileset/context-command
+                     {:tileset-index (:index payload)
+                      :command (:action payload)})
+           state)}
+    :children
+    [(lb/make {:options (ui/project-state :tilesets)
+               :class :tm/list-content
+               :selected-index (ui/project-state
+                                :selected-tileset-definition-index)
+               :force-selection? true
+               :item=> 'tileset-definition-row
+               :item-context-menu
+               {:settings {:mnemonics {:enabled false}}
+                :items [{:label "Edit"
+                         :action :edit}
+                        {:label "Properties"
+                         :action :properties}
+                        {:label "Duplicate"
+                         :action :duplicate}]}})]}))
