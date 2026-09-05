@@ -2,31 +2,31 @@
   "Verifies the public isolated Pixils runtime test surface."
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 
 
-;; pixils.test.runtime/make-app
+;; pixils.test/make-app
 
 (deftest make-app/isolates-built-in-render-assets-between-apps
   (s/when []
     (let [renderless-app
-          (runtime/make-app {:package-root "."
-                             :buffer-width 40
-                             :buffer-height 24
-                             :render-backend false})]
-      (runtime/eval!
+          (px/make-app {:package-root "."
+                        :buffer-width 40
+                        :buffer-height 24
+                        :render-backend false})]
+      (px/eval!
        renderless-app
        "(pixils/defmode renderless-root
           {:children [{:mode 'ui/text
                        :state {:value \"A\"}}]})")
-      (runtime/push-mode! renderless-app 'renderless-root)
-      (runtime/settle-layout! renderless-app))
-    (let [app (runtime/make-app {:package-root "."
-                                 :buffer-width 40
-                                 :buffer-height 24
-                                 :render-backend true})]
-      (runtime/eval!
+      (px/push-mode! renderless-app 'renderless-root)
+      (px/settle-layout! renderless-app))
+    (let [app (px/make-app {:package-root "."
+                            :buffer-width 40
+                            :buffer-height 24
+                            :render-backend true})]
+      (px/eval!
        app
        "(pixils/defmode rendered-assets-root
           {:style {:background {:r 255 :g 255 :b 255}
@@ -35,17 +35,17 @@
                       :state {:value \"A\"}}
                       {:mode 'ui/menu-option-indicator
                        :state {:checked? true}}]})")
-      (runtime/push-mode! app 'rendered-assets-root)
-      (runtime/settle-layout! app)
-      (runtime/render! app)
-      (let [text (runtime/find-view app "ui/text")
-            indicator (runtime/find-view app "ui/menu-option-indicator")
+      (px/push-mode! app 'rendered-assets-root)
+      (px/settle-layout! app)
+      (px/render! app)
+      (let [text (px/find-view app "ui/text")
+            indicator (px/find-view app "ui/menu-option-indicator")
             {:keys [x y w h]} (:visual-bounds indicator)
             pixels
             (apply concat
                    (for [py (range y (+ y (dec h)))]
-                     (for [px (range x (+ x (dec w)))]
-                       (runtime/rendered-pixel app px py))))
+                   (for [pixel-x (range x (+ x (dec w)))]
+                     (px/rendered-pixel app pixel-x py))))
             first-pixel (head pixels)]
         {:text-sized? (and (> (-> text :bounds :w) 0)
                            (> (-> text :bounds :h) 0))

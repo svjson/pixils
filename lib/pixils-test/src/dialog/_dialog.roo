@@ -1,0 +1,35 @@
+(ns pixils.test.dialog
+  (:require [pixils.test.runtime :as runtime]))
+
+(defun payload
+  "Returns the active state's dialog payload.
+
+  Reads `:dialog/payload` from the active mode state. It does not verify that
+  the active mode is a dialog and does not advance the application.
+
+  Args:
+  - `app`: Test application whose active state is inspected.
+
+  Returns:
+  The `:dialog/payload` value, or nil when the path is absent."
+  [app]
+  (:dialog/payload (runtime/active-state app)))
+
+(defun open?
+  "Reports whether the dialog frame is active.
+
+  Requires the exact active mode name `ui/dialog-frame`. When `operation` is
+  supplied, also requires the payload's `:operation` to equal it. It does not
+  search the mode stack, assert the result, or advance the application.
+
+  Args:
+  - `app`: Test application to inspect.
+  - `operation`: Optional expected operation value.
+
+  Returns:
+  True when the active dialog matches; otherwise false or nil."
+  [app & operation]
+  (and (= "ui/dialog-frame" (runtime/active-mode-name app))
+       (if operation
+         (= operation (:operation (payload app)))
+         true)))

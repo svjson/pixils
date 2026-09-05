@@ -1,5 +1,639 @@
 (ns pixils.test
-  (:require pixils
-            proof.core))
+  (:require [pixils.test.dialog :as dialog]
+            [pixils.test.input :as input]
+            [pixils.test.resource :as resource]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.view :as view]))
 
-(def test-package-loaded? true)
+(def make-app
+  "Creates an isolated Pixils test application.
+
+  Resolves the package and constructs its Roo runtime and Pixils session. It
+  does not push a mode or run an application cycle.
+
+  Args:
+  - `opts`: Runtime option map documented by `pixils.test.runtime/make-app`.
+
+  Returns:
+  A new isolated test application."
+  runtime/make-app)
+
+(def push-mode!
+  "Pushes a mode onto the application mode stack.
+
+  Uses the mode's normal initial state and overrides. It does not update, lay
+  out, or render the application.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+
+  Returns:
+  The same test application."
+  runtime/push-mode!)
+
+(def push-mode-with-state!
+  "Pushes a mode with explicit state.
+
+  Supplies state without definition overrides. It does not update, lay out, or
+  render the application.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+  - `state`: Initial mode state.
+
+  Returns:
+  The same test application."
+  runtime/push-mode-with-state!)
+
+(def push-mode-with-overrides!
+  "Pushes a mode with explicit state and definition overrides.
+
+  Supplies both values to the mode-stack operation. It does not update, lay
+  out, or render the application.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+  - `state`: Initial mode state; may be nil.
+  - `overrides`: Definition overrides for this mode instance.
+
+  Returns:
+  The same test application."
+  runtime/push-mode-with-overrides!)
+
+(def pop-mode!
+  "Pops the active mode with a result payload.
+
+  Delivers the payload through the normal mode-stack operation. It does not
+  update, lay out, or render the receiving mode.
+
+  Args:
+  - `app`: Test application whose active mode is popped.
+  - `payload`: Result value delivered by the pop operation.
+
+  Returns:
+  The same test application."
+  runtime/pop-mode!)
+
+(def update!
+  "Runs one application update cycle.
+
+  Updates the active mode and processes queued messages, including a second
+  update when required. It does not lay out or render.
+
+  Args:
+  - `app`: Test application to update.
+
+  Returns:
+  The same test application."
+  runtime/update!)
+
+(def layout!
+  "Runs one explicit layout pass.
+
+  Lays out rendered mode view trees and writes changed state back to the mode
+  stack. It does not update or render.
+
+  Args:
+  - `app`: Test application to lay out.
+
+  Returns:
+  The same test application."
+  runtime/layout!)
+
+(def render!
+  "Renders the active application state.
+
+  Clears the off-screen buffer when available and renders the active mode
+  stack. It does not update or run an explicit layout pass.
+
+  Args:
+  - `app`: Test application to render.
+
+  Returns:
+  The same test application."
+  runtime/render!)
+
+(def frame!
+  "Runs one update-and-render frame.
+
+  Updates the session, processes messages, and renders the result. It does not
+  run an explicit layout pass.
+
+  Args:
+  - `app`: Test application to advance and render.
+
+  Returns:
+  The same test application."
+  runtime/frame!)
+
+(def settle-layout!
+  "Runs the current fixed layout-settling sequence.
+
+  Performs exactly two update-and-layout pairs. It does not detect convergence
+  and does not render the result.
+
+  Args:
+  - `app`: Test application whose layout is settled.
+
+  Returns:
+  The same test application."
+  runtime/settle-layout!)
+
+(def settle!
+  "Settles layout and renders the result.
+
+  Runs `settle-layout!` followed by one render. It does not guarantee a fixed
+  point beyond the two configured update-and-layout pairs.
+
+  Args:
+  - `app`: Test application to settle and render.
+
+  Returns:
+  The same test application."
+  runtime/settle!)
+
+(def rendered-pixel
+  "Reads one pixel from the rendered buffer.
+
+  Inspects the current off-screen target without running an application cycle.
+  No value is available when rendering is disabled or coordinates are outside
+  the buffer.
+
+  Args:
+  - `app`: Test application whose buffer is inspected.
+  - `x`: Zero-based horizontal buffer coordinate.
+  - `y`: Zero-based vertical buffer coordinate.
+
+  Returns:
+  An RGBA color map, or nil when unavailable."
+  runtime/rendered-pixel)
+
+(def active-mode
+  "Returns the active mode view.
+
+  Reads the current session without changing or advancing it.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The active runtime view, or nil when no mode is active."
+  runtime/active-mode)
+
+(def active-mode-name
+  "Returns the active mode name.
+
+  Reads the current mode definition without changing or advancing the
+  application.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The mode's string name, or nil when no defined mode is active."
+  runtime/active-mode-name)
+
+(def active-state
+  "Returns the active mode state.
+
+  Reads the state without copying it or advancing the application.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The active state value, or nil when no mode is active."
+  runtime/active-state)
+
+(def set-active-state!
+  "Replaces the active mode state.
+
+  Assigns the complete state directly. It does not update, lay out, or render,
+  and it fails when no mode is active.
+
+  Args:
+  - `app`: Test application whose active state is replaced.
+  - `state`: Complete replacement state value.
+
+  Returns:
+  The same test application."
+  runtime/set-active-state!)
+
+(def eval!
+  "Evaluates Roo source in the isolated application runtime.
+
+  Evaluation occurs inside the tested application rather than the Proof
+  runner. It does not run an application cycle afterward.
+
+  Args:
+  - `app`: Test application whose runtime evaluates the source.
+  - `source`: Roo source string.
+
+  Returns:
+  The value produced by evaluating the source."
+  runtime/eval!)
+
+(def eval-file!
+  "Evaluates a Roo source file in the isolated application runtime.
+
+  Reads the file from the test runner's filesystem context and evaluates its
+  complete contents. It does not resolve the path against `:package-root` or
+  run an application cycle afterward.
+
+  Args:
+  - `app`: Test application whose runtime evaluates the file.
+  - `path`: Source-file path visible to the test runner.
+
+  Returns:
+  The value produced by evaluating the file contents."
+  runtime/eval-file!)
+
+(def view-mode-name
+  "Returns a view's mode name.
+
+  Reads the attached definition without traversing or changing the view tree.
+
+  Args:
+  - `view`: Runtime view to inspect.
+
+  Returns:
+  The definition's string name, or nil when no definition is attached."
+  view/view-mode-name)
+
+(def view-state
+  "Returns a view's current state.
+
+  Reads the state without copying it or advancing the application.
+
+  Args:
+  - `view`: Runtime view to inspect.
+
+  Returns:
+  The view state value."
+  view/view-state)
+
+(def find-view
+  "Finds the first view with a mode name.
+
+  Traverses only the active mode's view tree in depth-first order. It does not
+  search inactive or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+
+  Returns:
+  The first matching runtime view, or nil when absent."
+  view/find-view)
+
+(def find-view-containing
+  "Finds the first named view whose printed state contains text.
+
+  Traverses the active view tree and performs substring matching against
+  serialized state. It is not structural matching and does not search inactive
+  or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+  - `state-text`: Required substring of the printed view state.
+
+  Returns:
+  The first matching runtime view, or nil when absent."
+  view/find-view-containing)
+
+(def find-views
+  "Finds every view with a mode name.
+
+  Traverses only the active mode's view tree in depth-first order. It does not
+  search inactive or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+
+  Returns:
+  A vector of matching runtime views in traversal order."
+  view/find-views)
+
+(def find-views-containing
+  "Finds named views whose printed state contains text.
+
+  Traverses the active view tree and performs substring matching against
+  serialized state. It is not structural matching and does not search inactive
+  or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+  - `state-text`: Required substring of the printed view state.
+
+  Returns:
+  A vector of matching runtime views in traversal order."
+  view/find-views-containing)
+
+(def click!
+  "Clicks the center of a view.
+
+  Sends left-button down and up events with an update after each transition. It
+  does not lay out or render after the click.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view whose bounds determine the click position.
+
+  Returns:
+  The same test application."
+  input/click!)
+
+(def mouse-move-at!
+  "Moves the pointer to application coordinates.
+
+  Queues one mouse-motion event. It does not update, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+
+  Returns:
+  The same test application."
+  input/mouse-move-at!)
+
+(def mouse-down-at!
+  "Presses a mouse button at application coordinates.
+
+  Moves the pointer and queues one down event. It does not update, release the
+  button, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-down-at!)
+
+(def mouse-up-at!
+  "Releases a mouse button at application coordinates.
+
+  Moves the pointer and queues one up event. It does not update, create a
+  preceding down event, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-up-at!)
+
+(def mouse-click-at!
+  "Clicks a mouse button at application coordinates.
+
+  Sends down and up events with an update after each transition. It does not
+  lay out or render after the click.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-click-at!)
+
+(def mouse-move-in!
+  "Moves the pointer to coordinates relative to a view.
+
+  Converts offsets from the view bounds into application coordinates and
+  queues one motion event. It does not clamp or run an application cycle.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+
+  Returns:
+  The same test application."
+  input/mouse-move-in!)
+
+(def mouse-down-in!
+  "Presses a mouse button at coordinates relative to a view.
+
+  Converts view-relative offsets and queues one down event. It does not clamp,
+  update, release the button, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-down-in!)
+
+(def mouse-up-in!
+  "Releases a mouse button at coordinates relative to a view.
+
+  Converts view-relative offsets and queues one up event. It does not clamp,
+  update, create a preceding down event, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-up-in!)
+
+(def mouse-click-in!
+  "Clicks a mouse button at coordinates relative to a view.
+
+  Converts view-relative offsets and sends down and up events with an update
+  after each. It does not clamp, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-click-in!)
+
+(def mouse-drag-in!
+  "Drags between two coordinates in one view.
+
+  Sends down, motion, and up transitions with an update after each. It does not
+  interpolate intermediate motion, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing both coordinate origins.
+  - `from-x`: Starting horizontal offset.
+  - `from-y`: Starting vertical offset.
+  - `to-x`: Ending horizontal offset.
+  - `to-y`: Ending vertical offset.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-drag-in!)
+
+(def mouse-drag-between!
+  "Drags from one view into another.
+
+  Sends down, motion, and up transitions with an update after each. It does not
+  interpolate intermediate motion, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `from-view`: View establishing the starting coordinate origin.
+  - `from-x`: Starting horizontal offset.
+  - `from-y`: Starting vertical offset.
+  - `to-view`: View establishing the ending coordinate origin.
+  - `to-x`: Ending horizontal offset.
+  - `to-y`: Ending vertical offset.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  input/mouse-drag-between!)
+
+(def key-down!
+  "Presses a keyboard key without releasing it.
+
+  Queues one key-down event. It does not update, lay out, render, or create a
+  matching release event.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  input/key-down!)
+
+(def key-up!
+  "Releases a keyboard key.
+
+  Queues one key-up event. It does not update, lay out, render, or create a
+  preceding press event.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  input/key-up!)
+
+(def press-key!
+  "Presses and releases a keyboard key.
+
+  Sends key-down and key-up events with an update after each transition. It
+  does not lay out or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  input/press-key!)
+
+(def press-modified-key!
+  "Presses and releases a key while a modifier is held.
+
+  Updates after each modifier and key transition. It accepts one modifier and
+  does not lay out or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `modifier`: Supported modifier key name.
+  - `key`: Supported key name pressed while the modifier is held.
+
+  Returns:
+  The same test application."
+  input/press-modified-key!)
+
+(def dialog-payload
+  "Returns the active state's dialog payload.
+
+  Reads `:dialog/payload` from the active mode state. It does not verify that
+  the active mode is a dialog and does not advance the application.
+
+  Args:
+  - `app`: Test application whose active state is inspected.
+
+  Returns:
+  The `:dialog/payload` value, or nil when the path is absent."
+  dialog/payload)
+
+(def dialog-open?
+  "Reports whether the dialog frame is active.
+
+  Requires the exact active mode name `ui/dialog-frame`. When `operation` is
+  supplied, also requires the payload's `:operation` to equal it. It does not
+  search the mode stack, assert the result, or advance the application.
+
+  Args:
+  - `app`: Test application to inspect.
+  - `operation`: Optional expected operation value.
+
+  Returns:
+  True when the active dialog matches; otherwise false or nil."
+  dialog/open?)
+
+(def image-resource-file-is?
+  "Asserts an image resource's source file name.
+
+  Reads the active mode state's resource-bundle data and performs a Proof
+  equality assertion against `file-name`. It does not inspect the asset
+  registry, verify that the file exists, or advance the application.
+
+  Args:
+  - `app`: Test application whose active state contains the resource data.
+  - `bundle`: Resource-bundle key under `:resources :bundles`.
+  - `image`: Image key under the selected bundle's `:images` map.
+  - `file-name`: Expected `:file-name` value.
+
+  Returns:
+  The actual file-name value, including after a failed assertion."
+  resource/image-resource-file-is?)
+
+(def image-size-is?
+  "Asserts an image's runtime dimensions.
+
+  Evaluates `pixils.image/width` and `pixils.image/height` inside the isolated
+  application runtime and performs separate Proof assertions for both values.
+  It does not render the image or advance the application. `image` is inserted
+  into generated Roo source and must be a valid source representation.
+
+  Args:
+  - `app`: Test application whose runtime owns the image.
+  - `image`: Roo source representation resolving to the image value.
+  - `width`: Expected image width.
+  - `height`: Expected image height.
+
+  Returns:
+  A map containing the actual `:width` and `:height`, including after a failed
+  assertion."
+  resource/image-size-is?)

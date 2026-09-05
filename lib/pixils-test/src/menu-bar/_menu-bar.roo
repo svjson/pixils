@@ -1,8 +1,12 @@
-(ns pixils.test.ui.menu-bar
-  (:require [pixils.test.runtime :as runtime]))
+(ns pixils.test.menu-bar
+  (:require [pixils.test.view :as view]))
 
 (defun item
   "Finds a top-level menu-bar item by its semantic label.
+
+  Searches active `ui/menu-bar-item` views and compares `label` with the
+  normalized node text stored at `:ui-state :node :text`. It does not open the
+  menu, search submenu items, assert a match, or advance the application.
 
   Args:
   - `app`: Running Pixils test application.
@@ -11,12 +15,16 @@
   Returns:
   The matching menu-bar item view, or `nil`."
   [app label]
-  (find-first (runtime/find-views app "ui/menu-bar-item")
+  (find-first (view/find-views app "ui/menu-bar-item")
               (fn [view]
                 (= label (-> view :ui-state :node :text)))))
 
 (defun command
   "Finds a command in a top-level application menu.
+
+  Finds the requested top-level item, then searches its normalized immediate
+  `:items` for an exact `:action`. It does not open the menu, recurse into nested
+  submenus, assert a match, or advance the application.
 
   Args:
   - `app`: Running Pixils test application.
@@ -34,6 +42,10 @@
 (defun command-enabled?
   "Returns whether a command is present and enabled.
 
+  Calls `command` and treats a command as enabled unless its normalized node
+  contains `:disabled? true`. It does not evaluate dynamic enablement, open the
+  menu, assert the result, or advance the application.
+
   Args:
   - `app`: Running Pixils test application.
   - `menu-label`: Top-level menu label without mnemonic markup.
@@ -48,6 +60,10 @@
 
 (defun command-text
   "Returns the visible text of a command.
+
+  Calls `command` and reads the normalized node's `:text`. It does not open or
+  render the menu, strip text itself, assert a result, or advance the
+  application.
 
   Args:
   - `app`: Running Pixils test application.

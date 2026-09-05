@@ -1,0 +1,98 @@
+(ns pixils.test.view
+  (:require [pixils.test.runtime.native :as native]))
+
+(defun view-mode-name
+  "Returns a view's mode name.
+
+  Reads the definition attached to `view` without traversing or changing the
+  view tree.
+
+  Args:
+  - `view`: Runtime view to inspect.
+
+  Returns:
+  The definition's string name, or nil when the view has no definition."
+  [view]
+  (native/view-mode-name view))
+
+(defun view-state
+  "Returns a view's current state.
+
+  Reads the state held by `view` without copying it or advancing the owning
+  application.
+
+  Args:
+  - `view`: Runtime view to inspect.
+
+  Returns:
+  The view state value."
+  [view]
+  (native/view-state view))
+
+(defun find-view
+  "Finds the first view with a mode name.
+
+  Traverses the active mode's view tree depth-first, including the active mode
+  root itself. It does not search inactive modes, underlying mode-stack views,
+  or match state.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+
+  Returns:
+  The first matching runtime view, or nil when none exists."
+  [app mode-name]
+  (native/find-view app mode-name))
+
+(defun find-view-containing
+  "Finds the first named view whose printed state contains text.
+
+  Traverses the active mode's view tree depth-first and compares `state-text`
+  with the serialized representation of each otherwise matching view state.
+  This is textual matching, not structural state matching, and it does not
+  search inactive modes or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+  - `state-text`: Substring required in the printed view state.
+
+  Returns:
+  The first matching runtime view, or nil when none exists."
+  [app mode-name state-text]
+  (native/find-view app mode-name state-text))
+
+(defun find-views
+  "Finds every view with a mode name.
+
+  Traverses the active mode's view tree depth-first, including the active mode
+  root itself. It does not search inactive modes, underlying mode-stack views,
+  or match state.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+
+  Returns:
+  A vector of matching runtime views in traversal order; empty when none exist."
+  [app mode-name]
+  (native/find-views app mode-name))
+
+(defun find-views-containing
+  "Finds named views whose printed state contains text.
+
+  Traverses the active mode's view tree depth-first and compares `state-text`
+  with each otherwise matching view's serialized state. This is textual
+  matching, not structural state matching, and it does not search inactive
+  modes or underlying mode-stack views.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `mode-name`: Exact mode-definition name as a string.
+  - `state-text`: Substring required in the printed view state.
+
+  Returns:
+  A vector of matching runtime views in traversal order; empty when none exist."
+  [app mode-name state-text]
+  (native/find-views app mode-name state-text))

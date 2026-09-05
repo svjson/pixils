@@ -2,13 +2,45 @@
   (:require proof.core
             [pixils.test.runtime :as runtime]))
 
-(defun image-resource-file-is? [app bundle image file-name]
+(defun image-resource-file-is?
+  "Asserts an image resource's source file name.
+
+  Reads the active mode state's resource-bundle data and performs a Proof
+  equality assertion against `file-name`. It does not inspect the asset
+  registry, verify that the file exists, or advance the application.
+
+  Args:
+  - `app`: Test application whose active state contains the resource data.
+  - `bundle`: Resource-bundle key under `:resources :bundles`.
+  - `image`: Image key under the selected bundle's `:images` map.
+  - `file-name`: Expected `:file-name` value.
+
+  Returns:
+  The actual file-name value, including after a failed assertion."
+  [app bundle image file-name]
   (let [actual (get-in (runtime/active-state app)
                        [:resources :bundles bundle :images image :file-name])]
     (is (= file-name actual))
     actual))
 
-(defun image-size-is? [app image width height]
+(defun image-size-is?
+  "Asserts an image's runtime dimensions.
+
+  Evaluates `pixils.image/width` and `pixils.image/height` inside the isolated
+  application runtime and performs separate Proof assertions for both values.
+  It does not render the image or advance the application. `image` is inserted
+  into generated Roo source and must be a valid source representation.
+
+  Args:
+  - `app`: Test application whose runtime owns the image.
+  - `image`: Roo source representation resolving to the image value.
+  - `width`: Expected image width.
+  - `height`: Expected image height.
+
+  Returns:
+  A map containing the actual `:width` and `:height`, including after a failed
+  assertion."
+  [app image width height]
   (let [actual-width (runtime/eval! app (str "(pixils.image/width " image ")"))
         actual-height (runtime/eval! app (str "(pixils.image/height " image ")"))]
     (is (= width actual-width))

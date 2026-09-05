@@ -2,39 +2,41 @@
   (:require proof.core
             [proof.syntax :as s]
             pixils.test
-            pixils.test.resource
-            [pixils.test.runtime :as runtime]
-            pixils.test.ui.combo-box
-            pixils.test.ui.list-box
-            pixils.test.ui.tab-panel
+            pixils.test.combo-box
+            pixils.test.list-box
+            pixils.test.menu-bar
+            pixils.test.tab-panel
             [pixils.color :as color]
             [pixils.point :as point]))
 
 
 
-;; pixils.test/test-package-loaded?
+;; pixils.test facade
 
-(deftest test-package-loaded?/loads-the-package-and-public-namespaces
+(deftest facade/re-exports-common-operations-and-loads-component-drivers
   (s/when []
-    {:loaded? pixils.test/test-package-loaded?
-     :color (color/make-color {:r 12 :g 34 :b 56 :a 78})
+    {:color (color/make-color {:r 12 :g 34 :b 56 :a 78})
      :translated-point (point/translate {:x 3 :y 5} 1 0)
-     :runtime? (some? (resolve 'pixils.test.runtime/make-app))
-     :tab-panel? (some? (resolve 'pixils.test.ui.tab-panel/switch-to!))
-     :list-box? (some? (resolve 'pixils.test.ui.list-box/has-visible-text?))
-     :combo-box? (some? (resolve 'pixils.test.ui.combo-box/has-visible-text?))
-     :image-size? (some? (resolve 'pixils.test.resource/image-size-is?))
-     :image-file? (some? (resolve
-                         'pixils.test.resource/image-resource-file-is?))})
+     :runtime? (some? (resolve 'pixils.test/make-app))
+     :view? (some? (resolve 'pixils.test/find-view))
+     :input? (some? (resolve 'pixils.test/click!))
+     :settle? (some? (resolve 'pixils.test/settle!))
+     :resource? (some? (resolve 'pixils.test/image-size-is?))
+     :tab-panel? (some? (resolve 'pixils.test.tab-panel/switch-to!))
+     :list-box? (some? (resolve 'pixils.test.list-box/has-visible-text?))
+     :combo-box? (some? (resolve 'pixils.test.combo-box/has-visible-text?))
+     :menu-bar? (some? (resolve 'pixils.test.menu-bar/command))})
 
   (s/then [loaded]
-    (is (= {:loaded? true
-            :color {:r 12 :g 34 :b 56 :a 78}
+    (is (= {:color {:r 12 :g 34 :b 56 :a 78}
             :translated-point {:x 4 :y 5}
             :runtime? true
+            :view? true
+            :input? true
+            :settle? true
+            :resource? true
             :tab-panel? true
             :list-box? true
             :combo-box? true
-            :image-size? true
-            :image-file? true}
+            :menu-bar? true}
            loaded))))

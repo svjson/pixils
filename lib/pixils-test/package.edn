@@ -9,5 +9,5 @@
                      :version "0.1.0"
                      :path "native"
                      :namespaces [pixils.test.runtime.native]}]
- :entry-points [pixils.test]
+ :entry-points []
  :config {proof {:test-roots ["test"]}}}

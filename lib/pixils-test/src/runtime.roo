@@ -2,101 +2,265 @@
   (:require [roo.io :as io]
             [pixils.test.runtime.native :as native]))
 
-(defun make-app [opts] (native/make-app opts))
-(defun push-mode! [app mode] (native/push-mode! app mode))
-(defun push-mode-with-state! [app mode state] (native/push-mode! app mode state))
-(defun push-mode-with-overrides! [app mode state overrides]
+(defun make-app
+  "Creates an isolated Pixils test application.
+
+  Resolves the package rooted at `:package-root`, creates a separate Roo
+  runtime and Pixils session, loads the package's native libraries and entry
+  points, and optionally creates a software render target. It does not push a
+  mode or run an update, layout, or render cycle.
+
+  Args:
+  - `opts`: Map containing required string `:package-root`; optional string
+    `:asset-base-path`; optional vector `:entry-points`; optional numeric
+    `:buffer-width` and `:buffer-height`, both defaulting to 800 and 600; and
+    optional boolean `:render-backend`, defaulting to true.
+
+  Returns:
+  An isolated Pixils test application."
+  [opts]
+  (native/make-app opts))
+
+(defun push-mode!
+  "Pushes a mode onto the application mode stack.
+
+  Uses the mode definition's normal initial state and overrides. It does not
+  update, lay out, or render the newly active mode.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+
+  Returns:
+  The same test application."
+  [app mode]
+  (native/push-mode! app mode))
+
+(defun push-mode-with-state!
+  "Pushes a mode with explicit state.
+
+  Supplies `state` to the mode-stack operation without definition overrides.
+  It does not update, lay out, or render the newly active mode.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+  - `state`: Initial state value supplied to the mode.
+
+  Returns:
+  The same test application."
+  [app mode state]
+  (native/push-mode! app mode state))
+
+(defun push-mode-with-overrides!
+  "Pushes a mode with explicit state and definition overrides.
+
+  Supplies both values directly to the mode-stack operation. It does not
+  update, lay out, or render the newly active mode.
+
+  Args:
+  - `app`: Test application whose mode stack is changed.
+  - `mode`: Mode name as a string, symbol, or keyword.
+  - `state`: Initial state value supplied to the mode; may be nil.
+  - `overrides`: Mode-definition overrides supplied for this instance.
+
+  Returns:
+  The same test application."
+  [app mode state overrides]
   (native/push-mode! app mode state overrides))
-(defun pop-mode! [app payload] (native/pop-mode! app payload))
-(defun update! [app] (native/update! app))
-(defun render! [app] (native/render! app))
 
-(defun frame! [app] (native/frame! app))
-(defun rendered-pixel [app x y] (native/rendered-pixel app x y))
-(defun active-mode [app] (native/active-mode app))
-(defun active-mode-name [app] (native/active-mode-name app))
-(defun active-state [app] (native/active-state app))
-(defun set-active-state! [app state] (native/set-active-state! app state))
-(defun dialog-payload [app] (:dialog/payload (active-state app)))
-(defun dialog-open? [app & operation]
-  (and (= "ui/dialog-frame" (active-mode-name app))
-       (if operation
-         (= operation (:operation (dialog-payload app)))
-         true)))
-(defun view-mode-name [view] (native/view-mode-name view))
-(defun view-state [view] (native/view-state view))
-(defun find-view [app mode-name] (native/find-view app mode-name))
-(defun find-view-containing [app mode-name state-text]
-  (native/find-view app mode-name state-text))
-(defun find-views [app mode-name] (native/find-views app mode-name))
-(defun find-views-containing [app mode-name state-text]
-  (native/find-views app mode-name state-text))
-(defun click! [app view] (native/click! app view))
-(defun mouse-move-at! [app x y] (native/mouse-move-at! app x y))
-(defun mouse-down-at! [app x y & button]
-  (if button
-    (native/mouse-down-at! app x y button)
-    (native/mouse-down-at! app x y)))
-(defun mouse-up-at! [app x y & button]
-  (if button
-    (native/mouse-up-at! app x y button)
-    (native/mouse-up-at! app x y)))
-(defun mouse-click-at! [app x y & button]
-  (if button
-    (native/mouse-click-at! app x y button)
-    (native/mouse-click-at! app x y)))
-(defun mouse-move-in! [app view x y] (native/mouse-move-in! app view x y))
-(defun mouse-down-in! [app view x y & button]
-  (if button
-    (native/mouse-down-in! app view x y button)
-    (native/mouse-down-in! app view x y)))
-(defun mouse-up-in! [app view x y & button]
-  (if button
-    (native/mouse-up-in! app view x y button)
-    (native/mouse-up-in! app view x y)))
-(defun mouse-click-in! [app view x y & button]
-  (if button
-    (native/mouse-click-in! app view x y button)
-    (native/mouse-click-in! app view x y)))
-(defun mouse-drag-in! [app view from-x from-y to-x to-y & button]
-  (let [button (or button :left)]
-    (mouse-down-in! app view from-x from-y button)
-    (update! app)
-    (mouse-move-in! app view to-x to-y)
-    (update! app)
-    (mouse-up-in! app view to-x to-y button)
-    (update! app)
-    app))
-(defun mouse-drag-between! [app from-view from-x from-y to-view to-x to-y & button]
-  (let [button (or button :left)]
-    (mouse-down-in! app from-view from-x from-y button)
-    (update! app)
-    (mouse-move-in! app to-view to-x to-y)
-    (update! app)
-    (mouse-up-in! app to-view to-x to-y button)
-    (update! app)
-    app))
+(defun pop-mode!
+  "Pops the active mode with a result payload.
 
-
-;; Code evaluation/injection
+  Queues the normal mode-pop result using `payload`. It does not run the
+  receiving mode's update, layout, or render cycle.
 
-(defun eval! [app source] (native/eval! app source))
+  Args:
+  - `app`: Test application whose active mode is popped.
+  - `payload`: Result value delivered by the mode-stack operation.
+
+  Returns:
+  The same test application."
+  [app payload]
+  (native/pop-mode! app payload))
+
+(defun update!
+  "Runs one application update cycle.
+
+  Updates the active mode, processes queued session messages, and performs a
+  second update when message processing changes the session. Transient input
+  events are cleared afterward. It does not lay out or render.
+
+  Args:
+  - `app`: Test application to update.
+
+  Returns:
+  The same test application."
+  [app]
+  (native/update! app))
+
+(defun render!
+  "Renders the active application state.
+
+  Clears the off-screen buffer when rendering is enabled, renders the active
+  mode stack, and clears transient input events. It does not update or run an
+  explicit layout pass.
+
+  Args:
+  - `app`: Test application to render.
+
+  Returns:
+  The same test application."
+  [app]
+  (native/render! app))
+
+(defun frame!
+  "Runs one update-and-render frame.
+
+  Updates the active mode, processes queued messages, updates again when
+  required, and renders the result. It does not run an explicit layout pass.
+
+  Args:
+  - `app`: Test application to advance and render.
+
+  Returns:
+  The same test application."
+  [app]
+  (native/frame! app))
+
+(defun rendered-pixel
+  "Reads one pixel from the rendered buffer.
+
+  Reads the current off-screen render target without updating, laying out, or
+  rendering the application. No pixel is available when rendering was
+  disabled, render-target creation failed, or the coordinates are outside the
+  configured buffer.
+
+  Args:
+  - `app`: Test application whose render target is inspected.
+  - `x`: Zero-based horizontal buffer coordinate.
+  - `y`: Zero-based vertical buffer coordinate.
+
+  Returns:
+  A color map with `:r`, `:g`, `:b`, and `:a`, or nil when unavailable."
+  [app x y]
+  (native/rendered-pixel app x y))
+
+(defun active-mode
+  "Returns the active mode view.
+
+  Reads the session's current active-mode reference without changing or
+  advancing the application.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The active runtime view, or nil when no mode is active."
+  [app]
+  (native/active-mode app))
+
+(defun active-mode-name
+  "Returns the active mode name.
+
+  Reads the current mode definition without changing or advancing the
+  application.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The active mode's string name, or nil when no defined mode is active."
+  [app]
+  (native/active-mode-name app))
+
+(defun active-state
+  "Returns the active mode state.
+
+  Reads the state currently held by the active runtime view. It does not copy
+  the value or run an application cycle.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  The active mode state, or nil when no mode is active."
+  [app]
+  (native/active-state app))
+
+(defun set-active-state!
+  "Replaces the active mode state.
+
+  Assigns `state` directly to the current active view. It fails when no mode is
+  active and does not update, lay out, or render after the assignment.
+
+  Args:
+  - `app`: Test application whose active state is replaced.
+  - `state`: Complete replacement state value.
+
+  Returns:
+  The same test application."
+  [app state]
+  (native/set-active-state! app state))
+
+(defun eval!
+  "Evaluates Roo source in the isolated application runtime.
+
+  Compiles and evaluates `source` inside `app` rather than the test runner's
+  runtime. Evaluation does not automatically update, lay out, or render the
+  application.
+
+  Args:
+  - `app`: Test application whose Roo runtime evaluates the source.
+  - `source`: Roo source string.
+
+  Returns:
+  The value produced by evaluating the source."
+  [app source]
+  (native/eval! app source))
+
 (defun eval-file!
-  "Evaluates the Roo source file at `path` in `app`'s isolated runtime."
+  "Evaluates a Roo source file in the isolated application runtime.
+
+  Reads the complete file at `path` through `roo.io/slurp!` and passes its
+  contents to `eval!`. It does not resolve `path` against `:package-root` and
+  does not run an application cycle afterward.
+
+  Args:
+  - `app`: Test application whose Roo runtime evaluates the file.
+  - `path`: File path resolved by the test runner's current filesystem context.
+
+  Returns:
+  The value produced by evaluating the file contents."
   [app path]
   (eval! app (io/slurp! path)))
 
+(defun layout!
+  "Runs one explicit layout pass.
 
-
-;; Layout
+  Lays out every rendered mode and writes changed view state back to the mode
+  stack. It clears transient input afterward but does not update or render.
 
-(defun layout! [app] (native/layout! app))
+  Args:
+  - `app`: Test application to lay out.
+
+  Returns:
+  The same test application."
+  [app]
+  (native/layout! app))
 
 (defun settle-layout!
-  "Runs two update and layout cycles, then returns `app`.
+  "Runs the current fixed layout-settling sequence.
 
-  Use this after creating or changing views whose measured layout needs a
-  follow-up update before assertions."
+  Performs exactly two `update!` and `layout!` pairs. This accommodates views
+  whose measured layout affects their following update, but it does not detect
+  convergence and does not render the result.
+
+  Args:
+  - `app`: Test application whose layout is settled.
+
+  Returns:
+  The same test application."
   [app]
   (update! app)
   (layout! app)
@@ -104,34 +268,19 @@
   (layout! app)
   app)
 
+(defun settle!
+  "Settles layout and renders the result.
 
-
-;; Keyboard input
+  Runs `settle-layout!` and then one `render!`. It does not perform additional
+  work after rendering or guarantee a general fixed point beyond the two
+  update-and-layout pairs used by `settle-layout!`.
 
-(defun key-down! [app key] (native/key-down! app key))
+  Args:
+  - `app`: Test application to settle and render.
 
-(defun key-up! [app key] (native/key-up! app key))
-
-(defun press-key!
-  "Presses and releases `key`, updating `app` after each input
-   transition, and returns `app`."
-  [app key]
-  (key-down! app key)
-  (update! app)
-  (key-up! app key)
-  (update! app)
-  app)
-
-(defun press-modified-key!
-  "Presses and releases `key` while `modifier` is held, updating `app`
-   after each input transition, and returns `app`."
-  [app modifier key]
-  (key-down! app modifier)
-  (update! app)
-  (key-down! app key)
-  (update! app)
-  (key-up! app key)
-  (update! app)
-  (key-up! app modifier)
-  (update! app)
+  Returns:
+  The same test application."
+  [app]
+  (settle-layout! app)
+  (render! app)
   app)

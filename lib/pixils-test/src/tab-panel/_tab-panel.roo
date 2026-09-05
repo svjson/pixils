@@ -1,0 +1,43 @@
+(ns pixils.test.tab-panel
+  (:require proof.core
+            [pixils.test.input :as input]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.view :as view]))
+
+(defun tab
+  "Finds a tab by identifier.
+
+  Searches active `ui/tab` views for the textual state fragment produced from
+  `:tab-id` and `id`. This is not structural matching; it does not assert a
+  result or advance the application.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `id`: Tab identifier included in the state-text query.
+
+  Returns:
+  The first matching runtime view, or nil when none exists."
+  [app id]
+  (view/find-view-containing app "ui/tab" (str ":tab-id " id)))
+
+(defun switch-to!
+  "Switches to a tab through pointer input.
+
+  Finds the tab, asserts that it exists, clicks its center, and renders the
+  resulting application. The click performs its own down/up updates. This
+  operation does not run an explicit layout pass. `opts` is retained for the
+  existing call shape but is not currently interpreted.
+
+  Args:
+  - `app`: Test application containing the tab panel.
+  - `id`: Identifier of the tab to activate.
+  - `opts`: Reserved interaction option map; currently ignored.
+
+  Returns:
+  The same test application."
+  [app id _opts]
+  (let [view (tab app id)]
+    (is (not (nil? view)))
+    (input/click! app view)
+    (runtime/render! app)
+    app))

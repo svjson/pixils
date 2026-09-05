@@ -1,0 +1,71 @@
+(ns pixils.test.combo-box
+  (:require proof.core
+            [pixils.test.view :as view]))
+
+(defun views
+  "Finds every active combo-box view.
+
+  Searches the active mode's view tree for the exact mode name `ui/combo-box`.
+  It does not include inactive mode-stack views or assert that any combo box
+  exists.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+
+  Returns:
+  A vector of matching runtime views in traversal order."
+  [app]
+  (view/find-views app "ui/combo-box"))
+
+(defun views-containing
+  "Finds combo boxes whose printed state contains text.
+
+  Searches active `ui/combo-box` views using the generic textual-state matcher.
+  It does not inspect rendered descendant text, perform structural matching, or
+  assert that a match exists.
+
+  Args:
+  - `app`: Test application whose active view tree is searched.
+  - `text`: Substring required in the printed combo-box state.
+
+  Returns:
+  A vector of matching runtime views in traversal order."
+  [app text]
+  (view/find-views-containing app "ui/combo-box" text))
+
+(defun has-visible-text?
+  "Asserts that a combo box's printed state contains text.
+
+  Calls `views-containing`, asserts that at least one view matched, and returns
+  the predicate result. Despite its historical name, it does not inspect
+  rendered descendant text and therefore does not prove pixel visibility.
+
+  Args:
+  - `app`: Test application whose active combo boxes are searched.
+  - `text`: Substring required in a combo-box state representation.
+
+  Returns:
+  True when at least one view matched; otherwise false after recording a failed
+  Proof assertion."
+  [app text]
+  (let [matched (views-containing app text)
+        present? (> (count matched) 0)]
+    (is (= true present?))
+    present?))
+
+(defun count-is?
+  "Asserts the active combo-box count.
+
+  Counts the views returned by `views` and performs a Proof equality assertion.
+  It does not count inactive mode-stack views or advance the application.
+
+  Args:
+  - `app`: Test application whose active combo boxes are counted.
+  - `expected`: Expected number of matching views.
+
+  Returns:
+  The actual count, including after a failed assertion."
+  [app expected]
+  (let [actual (count (views app))]
+    (is (= expected actual))
+    actual))

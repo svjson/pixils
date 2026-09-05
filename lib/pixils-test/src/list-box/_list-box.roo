@@ -1,0 +1,93 @@
+(ns pixils.test.list-box
+  (:require proof.core
+            [pixils.ui :as ui]
+            [pixils.test.view :as view]))
+
+(defun views
+  "Finds every active list-box view.
+
+  Searches the active mode's view tree for the exact mode name `ui/list-box`.
+  It does not include inactive mode-stack views or assert that any list box
+  exists.
+
+  Args:
+  - `app`: Test application to inspect.
+
+  Returns:
+  A vector of matching runtime views in traversal order."
+  [app]
+  (view/find-views app "ui/list-box"))
+
+(defun view-renders-text?
+  "Reports whether a view tree contains an exact text value.
+
+  Recursively searches `view` and its descendants for a `ui/text` view whose
+  state `:value` equals `text`. It does not render the tree, perform substring
+  matching, or record a Proof assertion.
+
+  Args:
+  - `view`: Root runtime view to inspect.
+  - `text`: Expected `ui/text` value.
+
+  Returns:
+  True when a matching text view exists; otherwise false."
+  [view text]
+  (or (and (= "ui/text" (view/view-mode-name view))
+           (= text (:value (view/view-state view))))
+      (not-empty? (filter (ui/children view)
+                          (fn [child]
+                            (view-renders-text? child text))))))
+
+(defun views-containing
+  "Finds list boxes containing an exact text value.
+
+  Filters active `ui/list-box` views using `view-renders-text?`. Text outside a
+  list box does not match, and the operation does not assert that a match
+  exists or advance the application.
+
+  Args:
+  - `app`: Test application to inspect.
+  - `text`: Expected `ui/text` value.
+
+  Returns:
+  A collection of matching list-box views."
+  [app text]
+  (filter (views app)
+          (fn [view]
+            (view-renders-text? view text))))
+
+(defun has-visible-text?
+  "Asserts that a list box contains an exact text value.
+
+  Calls `views-containing`, records a Proof assertion that at least one list
+  box matched, and returns the predicate result. It inspects view state rather
+  than rendered pixels and does not advance the application.
+
+  Args:
+  - `app`: Test application to inspect.
+  - `text`: Expected `ui/text` value.
+
+  Returns:
+  True when a matching list box exists; otherwise false."
+  [app text]
+  (let [matched (views-containing app text)
+        present? (> (count matched) 0)]
+    (is (= true present?))
+    present?))
+
+(defun count-is?
+  "Asserts the active list-box count.
+
+  Counts the views returned by `views` and performs a Proof equality assertion.
+  It does not count inactive mode-stack views or advance the application.
+
+  Args:
+  - `app`: Test application to inspect.
+  - `expected`: Required list-box count.
+
+  Returns:
+  The actual list-box count."
+  [app expected]
+  (let [actual (count (views app))]
+    (is (= expected actual))
+    actual))

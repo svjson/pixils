@@ -1,0 +1,311 @@
+(ns pixils.test.input
+  (:require [pixils.test.runtime :as runtime]
+            [pixils.test.runtime.native :as native]))
+
+
+;;; Mouse input simulation
+
+(defun click!
+  "Clicks the center of a view.
+
+  Moves the pointer to the center of `view`, sends a left-button down event,
+  updates once, sends the matching up event, and updates once more. It does not
+  lay out or render after the click.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view whose bounds determine the click coordinates.
+
+  Returns:
+  The same test application."
+  [app view]
+  (native/click! app view))
+
+(defun mouse-move-at!
+  "Moves the pointer to application coordinates.
+
+  Queues a mouse-motion event at `x`, `y`. It does not update, lay out, or
+  render the application.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+
+  Returns:
+  The same test application."
+  [app x y]
+  (native/mouse-move-at! app x y))
+
+(defun mouse-down-at!
+  "Presses a mouse button at application coordinates.
+
+  Moves the pointer to `x`, `y` and queues one button-down event. It does not
+  update, release the button, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app x y & button]
+  (if button
+    (native/mouse-down-at! app x y button)
+    (native/mouse-down-at! app x y)))
+
+(defun mouse-up-at!
+  "Releases a mouse button at application coordinates.
+
+  Moves the pointer to `x`, `y` and queues one button-up event. It does not
+  update, create a preceding down event, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app x y & button]
+  (if button
+    (native/mouse-up-at! app x y button)
+    (native/mouse-up-at! app x y)))
+
+(defun mouse-click-at!
+  "Clicks a mouse button at application coordinates.
+
+  Sends a down event at `x`, `y`, updates once, sends the matching up event,
+  and updates once more. It does not lay out or render after the click.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `x`: Horizontal application coordinate.
+  - `y`: Vertical application coordinate.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app x y & button]
+  (if button
+    (native/mouse-click-at! app x y button)
+    (native/mouse-click-at! app x y)))
+
+(defun mouse-move-in!
+  "Moves the pointer within a view.
+
+  Converts `x`, `y` from coordinates relative to the top-left of `view`'s
+  bounds into application coordinates and queues a mouse-motion event. It does
+  not clamp to the view or run an application cycle.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+
+  Returns:
+  The same test application."
+  [app view x y]
+  (native/mouse-move-in! app view x y))
+
+(defun mouse-down-in!
+  "Presses a mouse button within a view.
+
+  Converts `x`, `y` from view-relative to application coordinates and queues a
+  button-down event. It does not clamp to the view, update, release the button,
+  lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app view x y & button]
+  (if button
+    (native/mouse-down-in! app view x y button)
+    (native/mouse-down-in! app view x y)))
+
+(defun mouse-up-in!
+  "Releases a mouse button within a view.
+
+  Converts `x`, `y` from view-relative to application coordinates and queues a
+  button-up event. It does not clamp to the view, update, create a preceding
+  down event, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app view x y & button]
+  (if button
+    (native/mouse-up-in! app view x y button)
+    (native/mouse-up-in! app view x y)))
+
+(defun mouse-click-in!
+  "Clicks a mouse button within a view.
+
+  Converts `x`, `y` from view-relative to application coordinates, sends a down
+  event and update, then sends the matching up event and update. It does not
+  clamp to the view, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing the coordinate origin.
+  - `x`: Horizontal offset from the view bounds.
+  - `y`: Vertical offset from the view bounds.
+  - `button`: Optional `:left`, `:middle`, or `:right`; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app view x y & button]
+  (if button
+    (native/mouse-click-in! app view x y button)
+    (native/mouse-click-in! app view x y)))
+
+(defun mouse-drag-in!
+  "Drags between two coordinates within one view.
+
+  Sends button down at the starting offset, pointer motion to the ending
+  offset, and button up there, updating after every transition. It does not
+  interpolate intermediate motion, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `view`: Runtime view establishing both coordinate origins.
+  - `from-x`: Starting horizontal offset.
+  - `from-y`: Starting vertical offset.
+  - `to-x`: Ending horizontal offset.
+  - `to-y`: Ending vertical offset.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app view from-x from-y to-x to-y & button]
+  (let [button (or button :left)]
+    (mouse-down-in! app view from-x from-y button)
+    (runtime/update! app)
+    (mouse-move-in! app view to-x to-y)
+    (runtime/update! app)
+    (mouse-up-in! app view to-x to-y button)
+    (runtime/update! app)
+    app))
+
+(defun mouse-drag-between!
+  "Drags from one view into another.
+
+  Sends button down relative to `from-view`, pointer motion relative to
+  `to-view`, and button up at the destination, updating after every transition.
+  It does not interpolate intermediate motion, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `from-view`: Runtime view establishing the starting coordinate origin.
+  - `from-x`: Starting horizontal offset.
+  - `from-y`: Starting vertical offset.
+  - `to-view`: Runtime view establishing the ending coordinate origin.
+  - `to-x`: Ending horizontal offset.
+  - `to-y`: Ending vertical offset.
+  - `button`: Optional mouse button; defaults to `:left`.
+
+  Returns:
+  The same test application."
+  [app from-view from-x from-y to-view to-x to-y & button]
+  (let [button (or button :left)]
+    (mouse-down-in! app from-view from-x from-y button)
+    (runtime/update! app)
+    (mouse-move-in! app to-view to-x to-y)
+    (runtime/update! app)
+    (mouse-up-in! app to-view to-x to-y button)
+    (runtime/update! app)
+    app))
+
+
+
+;;; Keyboard input simulation
+
+(defun key-down!
+  "Presses a keyboard key.
+
+  Queues one key-down event after normalizing a keyword, symbol, or string key
+  name. It does not update, release the key, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  [app key]
+  (native/key-down! app key))
+
+(defun key-up!
+  "Releases a keyboard key.
+
+  Queues one key-up event after normalizing a keyword, symbol, or string key
+  name. It does not update, create a preceding down event, lay out, or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  [app key]
+  (native/key-up! app key))
+
+(defun press-key!
+  "Presses and releases a keyboard key.
+
+  Sends one key-down event and update followed by one key-up event and update.
+  It does not lay out or render after the key press.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `key`: Supported key name as a keyword, symbol, or string.
+
+  Returns:
+  The same test application."
+  [app key]
+  (key-down! app key)
+  (runtime/update! app)
+  (key-up! app key)
+  (runtime/update! app)
+  app)
+
+(defun press-modified-key!
+  "Presses and releases a modified keyboard key.
+
+  Presses the modifier, presses and releases the key, then releases the
+  modifier, updating after each transition. It does not support multiple
+  modifiers in one call and does not lay out or render.
+
+  Args:
+  - `app`: Test application receiving the input.
+  - `modifier`: Supported modifier key name.
+  - `key`: Supported key name pressed while the modifier is held.
+
+  Returns:
+  The same test application."
+  [app modifier key]
+  (key-down! app modifier)
+  (runtime/update! app)
+  (key-down! app key)
+  (runtime/update! app)
+  (key-up! app key)
+  (runtime/update! app)
+  (key-up! app modifier)
+  (runtime/update! app)
+  app)
