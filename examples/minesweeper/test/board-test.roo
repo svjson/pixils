@@ -1,21 +1,21 @@
 (ns pixils.examples.minesweeper.board-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             pixils.ui.button
             [pixils.examples.minesweeper.board :as board]
             pixils.examples.minesweeper.core))
 
 (deftest board-buttons-layout-as-square-cells
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 320
                                :buffer-height 240
                                :render-backend false})]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/layout! app)
-    (runtime/update! app)
-    (runtime/layout! app)
-    (doseq [button (runtime/find-views app "board-button")]
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/layout! app)
+    (px/update! app)
+    (px/layout! app)
+    (doseq [button (px/find-views app "board-button")]
       (is (= board/board-cell-size
              (-> button :bounds :w)))
       (is (= board/board-cell-size

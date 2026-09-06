@@ -1,6 +1,6 @@
 (ns pixils.examples.minesweeper.highscore-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             pixils.examples.minesweeper.core))
 
 (def test-highscores
@@ -15,17 +15,17 @@
             :player-name "Herr Anka"}})
 
 (deftest highscores-modal-uses-windows-3-dialog-frame-window
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 320
                                :buffer-height 240
                                :render-backend false})]
-    (runtime/push-mode-with-state! app
+    (px/push-mode-with-state! app
                                    'highscores-modal
                                    {:highscores test-highscores})
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          title-bar (runtime/find-view app "ui/window-title-bar")
-          state (runtime/view-state window)]
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          title-bar (px/find-view app "ui/window-title-bar")
+          state (px/view-state window)]
       (is (= :dialog-frame (:window/kind state)))
       (is (= :dialog-frame (:window/chrome state)))
       (is (= false (-> state :window/capabilities :movable?)))
