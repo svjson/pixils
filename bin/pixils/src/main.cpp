@@ -5,16 +5,16 @@
 #include <pixils/script.h>
 
 #include <SDL3/SDL.h>
-#include <roo-package/manifest.h>
-#include <roo-package/native_loader.h>
-#include <roo/form.h>
-#include <roo/io/dir_root_file_system.h>
-#include <roo/reader.h>
-
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <roo-package/manifest.h>
+#include <roo-package/native_loader.h>
+#include <roo-package/runtime_environment.h>
+#include <roo/form.h>
+#include <roo/io/dir_root_file_system.h>
+#include <roo/reader.h>
 #include <string>
 #include <vector>
 
@@ -32,17 +32,14 @@ namespace
 
   Roo::Package::LoadPlan pixils_host_load_plan(Roo::Package::LoadPlan plan)
   {
-    std::erase_if(plan.native_libraries,
-                  [](const Roo::Package::NativeLibrary& library)
-                  {
-                    return library.name == "pixils-native" ||
-                           library.name == "pixils-runner-native";
-                  });
+    std::erase_if(
+      plan.native_libraries,
+      [](const Roo::Package::NativeLibrary& library)
+      { return library.name == "pixils-native" || library.name == "pixils-runner-native"; });
     return plan;
   }
 
-  std::optional<std::string> configured_asset_base(
-    const Roo::Package::Manifest& manifest)
+  std::optional<std::string> configured_asset_base(const Roo::Package::Manifest& manifest)
   {
     auto config_it = manifest.config.find("pixils");
     if (config_it == manifest.config.end()) return std::nullopt;
@@ -119,9 +116,8 @@ namespace
   LaunchTarget package_launch_target(const std::filesystem::path& package_root)
   {
     Roo::DirRootFileSystem manifest_fs("/");
-    auto manifest = Roo::Package::read_manifest(
-      manifest_fs,
-      (package_root / "package.edn").string());
+    auto manifest =
+      Roo::Package::read_manifest(manifest_fs, (package_root / "package.edn").string());
     auto plan = Roo::Package::resolve_load_plan(manifest_fs, package_root.string());
     auto asset_base_path = package_root;
     if (auto asset_base = configured_asset_base(manifest))
@@ -135,13 +131,13 @@ namespace
 
     LaunchTarget target{
       .asset_base_path = asset_base_path,
-      .load_path = Roo::Package::merge_load_paths(
-        plan,
-        {std::filesystem::current_path().string(), "/"}),
+      .load_path =
+        Roo::Package::merge_load_paths(plan,
+                                       {std::filesystem::current_path().string(), "/"}),
       .namespace_roots = plan.namespace_roots,
       .source_files = {},
       .entry_points = manifest.entry_points,
-      .package_plan = pixils_host_load_plan(plan),
+      .package_plan = plan,
     };
 
     if (target.entry_points.empty())
@@ -177,6 +173,20 @@ namespace
     if (!script_path.has_value()) return std::nullopt;
 
     return script_launch_target(*script_path);
+  }
+
+  void register_application_worker_environment(Roo::Runtime& runtime,
+                                               const LaunchTarget& target)
+  {
+    if (!target.package_plan.has_value()) return;
+
+    Roo::Package::ApplicationRuntimeSpec runtime_spec =
+      Roo::Package::make_directory_application_runtime_spec(*target.package_plan,
+                                                            target.load_path);
+    Roo::WorkerEnvironmentFactory environment_factory =
+      Roo::Package::make_application_runtime_factory(std::move(runtime_spec));
+    runtime.worker_registry().register_environment("application",
+                                                   std::move(environment_factory));
   }
 } // namespace
 
@@ -220,21 +230,21 @@ int main(int argc, char** argv)
     Roo::Package::LoadedNativePackages native_packages;
     Roo::Runtime runtime =
       Pixils::init_roo_runtime(ctx,
-                                  "main",
-                                  [&target](Pixils::RuntimeConfiguration* cfg)
-                                  {
-                                    cfg->load_path = target->load_path;
-                                    cfg->namespace_roots = target->namespace_roots;
-                                    cfg->asset_base_path =
-                                      target->asset_base_path.string();
-                                  },
-                                  {});
+                               "main",
+                               [&target](Pixils::RuntimeConfiguration* cfg)
+                               {
+                                 cfg->load_path = target->load_path;
+                                 cfg->namespace_roots = target->namespace_roots;
+                                 cfg->asset_base_path = target->asset_base_path.string();
+                               },
+                               {});
 
     if (target->package_plan.has_value())
     {
-      native_packages =
-        Roo::Package::load_native_libraries(runtime, *target->package_plan);
-      Roo::Package::load_autoloads(runtime, *target->package_plan);
+      Roo::Package::LoadPlan host_plan = pixils_host_load_plan(*target->package_plan);
+      native_packages = Roo::Package::load_native_libraries(runtime, host_plan);
+      register_application_worker_environment(runtime, *target);
+      Roo::Package::load_autoloads(runtime, host_plan);
     }
 
     for (const auto& source_file : target->source_files)

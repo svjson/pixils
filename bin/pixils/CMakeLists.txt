@@ -33,3 +33,17 @@ foreach(example IN LISTS PIXILS_EXAMPLE_APPS)
       LABELS core
   )
 endforeach()
+
+add_test(
+  NAME pixils_launch_application_worker
+  COMMAND ${CMAKE_COMMAND}
+    -DPIXILS_BIN=$<TARGET_FILE:pixils_bin>
+    -DPIXILS_REPO_ROOT=${CMAKE_SOURCE_DIR}
+    -DPIXILS_EXAMPLE_PATH=bin/pixils/test/assets/application-worker
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/test/launch_example.cmake
+)
+set_tests_properties(
+  pixils_launch_application_worker
+  PROPERTIES
+    LABELS core
+)

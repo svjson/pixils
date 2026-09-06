@@ -1,0 +1,5 @@
+(ns pixils.application-worker-test.worker)
+
+(def initialized?
+  "Indicates that the application worker loaded its requested namespace."
+  true)

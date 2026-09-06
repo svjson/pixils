@@ -1,0 +1,15 @@
+(ns pixils.application-worker-test.core
+  (:require pixils))
+
+(roo.worker/create!
+ :pixils-test/application-worker
+ {:environment :application
+  :autoloads ["pixils.application-worker-test.worker"]})
+
+(defmode root-mode
+  {:update (fn [state _ctx] state)})
+
+(defprogram application-worker-test
+  {:display {:resolution {:w 16 :h 16}}
+   :target-frame-rate 30
+   :initial-mode 'root-mode})

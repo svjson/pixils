@@ -1,0 +1,8 @@
+{:name pixils-application-worker-test
+ :version "0.1.0"
+ :dependencies {pixils-runner {:path "../../../../../lib/pixils-runner"}}
+ :run pixils-runner
+ :load-roots ["src"]
+ :namespace-roots {pixils.application-worker-test ["src"]}
+ :config {pixils {:asset-base "."}}
+ :entry-points [pixils.application-worker-test.core]}
