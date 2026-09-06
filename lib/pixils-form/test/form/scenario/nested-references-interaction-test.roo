@@ -1,7 +1,7 @@
 (ns pixils.form.scenario.nested-references-interaction-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 
 
@@ -9,16 +9,16 @@
 
 (deftest nested-references/renders-initial-selected-union-branch
   (s/when []
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800
                                  :buffer-height 400
                                  :render-backend false})]
-      (runtime/eval-file!
+      (px/eval-file!
        app
        "assets/roo/pixils/form/fixture/nested-references.roo")
-      (runtime/push-mode! app 'nested-references-probe)
-      (runtime/settle-layout! app)
-      (for [field (runtime/find-views app "pixils/form-field")]
+      (px/push-mode! app 'nested-references-probe)
+      (px/settle-layout! app)
+      (for [field (px/find-views app "pixils/form-field")]
         (-> field :state :field-id))))
 
   (s/then [field-ids]
@@ -27,41 +27,41 @@
 
 (deftest nested-references/selects-through-each-array-level
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800
                                  :buffer-height 400
                                  :render-backend false})]
-      (runtime/eval-file!
+      (px/eval-file!
        app
        "assets/roo/pixils/form/fixture/nested-references.roo")
-      (runtime/push-mode! app 'nested-references-probe)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'nested-references-probe)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app
-                    (runtime/find-view-containing app
+    (px/click! app
+                    (px/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Reviewers"))
-    (runtime/settle-layout! app)
+    (px/settle-layout! app)
     (let [reviewer-visible?
-          (some? (runtime/find-view-containing app
+          (some? (px/find-view-containing app
                                                 "ui/list-box-item"
                                                 "Grace"))]
-      (runtime/click! app
-                      (runtime/find-view-containing app
+      (px/click! app
+                      (px/find-view-containing app
                                                     "ui/list-box-item"
                                                     "Lin"))
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       {:reviewer-visible? reviewer-visible?
        :selected-indices
-       (for [control (runtime/find-views app "pixils/form-array-control")]
+       (for [control (px/find-views app "pixils/form-array-control")]
          (select-keys (:state control) [:field-id :selected-index]))
        :field-ids
-       (for [field (runtime/find-views app "pixils/form-field")]
+       (for [field (px/find-views app "pixils/form-field")]
          (-> field :state :field-id))
        :selected-member
-       (-> (runtime/find-view app "ui/text-input-inner") :ui-state :value)}))
+       (-> (px/find-view app "ui/text-input-inner") :ui-state :value)}))
 
   (s/then [result]
     (is (= {:reviewer-visible? true

@@ -2,7 +2,7 @@
   (:require proof.core
             [proof.syntax :as s]
             [pixils.form :as form]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 
 
@@ -113,17 +113,17 @@
 
 (deftest nested-label-layout/uses-compact-fixed-width
   (s/when []
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 400
                                  :buffer-height 240
                                  :render-backend false})]
-      (runtime/eval-file!
+      (px/eval-file!
        app
        "assets/roo/pixils/form/fixture/composed-fields.roo")
-      (runtime/push-mode! app 'compact-nested-labels-probe)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'compact-nested-labels-probe)
+      (px/settle-layout! app)
       (for [text ["Shape" "Radius" "X"]]
-        (-> (runtime/find-view-containing app "ui/text" text)
+        (-> (px/find-view-containing app "ui/text" text)
             :bounds
             :w))))
 
@@ -133,17 +133,17 @@
 
 (deftest nested-label-layout/respects-explicit-width
   (s/when []
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 400
                                  :buffer-height 240
                                  :render-backend false})]
-      (runtime/eval-file!
+      (px/eval-file!
        app
        "assets/roo/pixils/form/fixture/composed-fields.roo")
-      (runtime/push-mode! app 'explicit-nested-label-width-probe)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'explicit-nested-label-width-probe)
+      (px/settle-layout! app)
       (for [text ["Shape" "Radius" "X"]]
-        (-> (runtime/find-view-containing app "ui/text" text)
+        (-> (px/find-view-containing app "ui/text" text)
             :bounds
             :w))))
 

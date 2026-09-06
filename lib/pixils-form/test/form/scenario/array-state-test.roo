@@ -9,6 +9,18 @@
 
 ;; pixils.form.controls.array-editor/array-dialog-result-state
 
+(deftest new-form-value/can-use-complete-array-context
+  (is (= {:id :person-2
+          :source :directory}
+         (form-state/new-form-value
+          {:items [{:id :person-1}]
+           :form-value {:people [{:id :person-1}]}
+           :context {:source :directory}
+           :new-value-from-fn
+           (fn [{:keys [index context]}]
+             {:id (keyword (str "person-" (inc index)))
+              :source (:source context)})}))))
+
 (deftest array-dialog-result-state/appends-and-projects-new-item
   (let [new-value-fn (fn [index]
                        {:field/name ""
