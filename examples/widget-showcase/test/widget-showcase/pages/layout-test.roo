@@ -1,7 +1,7 @@
 (ns widget-showcase.pages.layout-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [widget-showcase.fixture :as fixture]))
 
 
@@ -13,19 +13,19 @@
     (fixture/open-tab! (fixture/start! {}) :layout))
 
   (s/when [app]
-    (let [collapsible (runtime/find-view app "ui/collapsible")
-          content (runtime/find-view app "ui/collapsible-content")
-          header (runtime/find-view app "ui/collapsible-header")
+    (let [collapsible (px/find-view app "ui/collapsible")
+          content (px/find-view app "ui/collapsible-content")
+          header (px/find-view app "ui/collapsible-header")
           before {:collapsible? (some? collapsible)
                   :expanded? (:layout-collapsible-expanded?
-                              (runtime/active-state app))
+                              (px/active-state app))
                   :content-height (-> content :bounds :h)}]
-      (runtime/click! app header)
-      (runtime/settle-layout! app)
+      (px/click! app header)
+      (px/settle-layout! app)
       {:before before
        :after {:expanded? (:layout-collapsible-expanded?
-                           (runtime/active-state app))
-               :content-height (-> (runtime/find-view app "ui/collapsible-content")
+                           (px/active-state app))
+               :content-height (-> (px/find-view app "ui/collapsible-content")
                                    :bounds
                                    :h)}}))
 
@@ -40,8 +40,8 @@
 (deftest make/renders-structured-rich-text
   (s/when []
     (let [app (fixture/open-tab! (fixture/start! {}) :layout)
-          rich-text (runtime/find-view app "ui/rich-text")
-          state (runtime/view-state rich-text)]
+          rich-text (px/find-view app "ui/rich-text")
+          state (px/view-state rich-text)]
       {:present? (some? rich-text)
        :height (-> rich-text :bounds :h)
        :run-count (count (:runs state))

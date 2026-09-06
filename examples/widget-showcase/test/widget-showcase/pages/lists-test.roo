@@ -1,7 +1,7 @@
 (ns widget-showcase.pages.lists-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [widget-showcase.fixture :as fixture]))
 
 
@@ -15,12 +15,12 @@
                        :lists))
 
   (s/when [app]
-    (runtime/render! app)
-    (let [list-box (runtime/find-view app "ui/list-box")
+    (px/render! app)
+    (let [list-box (px/find-view app "ui/list-box")
           {:keys [x y w h]} (:bounds list-box)
           middle-x (+ x (int (/ w 2)))]
-      {:bottom-border (runtime/rendered-pixel app middle-x (+ y h -1))
-       :surrounding-surface (runtime/rendered-pixel app middle-x (+ y h))}))
+      {:bottom-border (px/rendered-pixel app middle-x (+ y h -1))
+       :surrounding-surface (px/rendered-pixel app middle-x (+ y h))}))
 
   (s/then [{:keys [bottom-border surrounding-surface]}]
     (is (not= surrounding-surface bottom-border))))
@@ -30,16 +30,16 @@
     (fixture/open-tab! (fixture/start! {}) :lists))
 
   (s/when [app]
-    (let [row (runtime/find-view-containing app
+    (let [row (px/find-view-containing app
                                             "ui/list-box-item"
                                             ":value :four")]
-      (runtime/mouse-click-in! app
+      (px/mouse-click-in! app
                                row
                                (int (/ (-> row :bounds :w) 2))
                                (max 0 (- (-> row :bounds :h) 3)))
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       (:selected (:ui-state
-                  (runtime/find-view-containing app
+                  (px/find-view-containing app
                                                 "ui/list-box-item"
                                                 ":value :four")))))
 
@@ -51,16 +51,16 @@
     (fixture/open-tab! (fixture/start! {}) :lists))
 
   (s/when [app]
-    (let [row (runtime/find-view-containing app
+    (let [row (px/find-view-containing app
                                             "ui/list-box-item"
                                             ":value :four")]
-      (runtime/mouse-click-in! app
+      (px/mouse-click-in! app
                                row
                                (int (/ (-> row :bounds :w) 2))
                                2)
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       (:selected (:ui-state
-                  (runtime/find-view-containing app
+                  (px/find-view-containing app
                                                 "ui/list-box-item"
                                                 ":value :four")))))
 
@@ -72,14 +72,14 @@
     (fixture/open-tab! (fixture/start! {}) :lists))
 
   (s/when [app]
-    (runtime/click! app
-                    (nth (runtime/find-views-containing app
+    (px/click! app
+                    (nth (px/find-views-containing app
                                                         "ui/list-box-item"
                                                         ":reorderable? true")
                          2))
-    (runtime/settle-layout! app)
-    (let [lists (runtime/find-views app "ui/list-box")
-          reorder-rows (runtime/find-views-containing app
+    (px/settle-layout! app)
+    (let [lists (px/find-views app "ui/list-box")
+          reorder-rows (px/find-views-containing app
                                                        "ui/list-box-item"
                                                        ":reorderable? true")]
       {:left-selection (:selected-indices (:ui-state (head lists)))
@@ -99,8 +99,8 @@
     (fixture/open-tab! (fixture/start! {}) :lists))
 
   (s/when [app]
-    (let [list-box (nth (runtime/find-views app "ui/list-box") 1)
-          row (nth (filter (runtime/find-views app "ui/list-box-item")
+    (let [list-box (nth (px/find-views app "ui/list-box") 1)
+          row (nth (filter (px/find-views app "ui/list-box-item")
                            (fn [row]
                              (>= (-> row :bounds :x)
                                  (-> list-box :bounds :x))))
@@ -109,22 +109,22 @@
           x (+ (:x bounds) (int (/ (:w bounds) 2)))
           y (+ (:y bounds) (int (/ (:h bounds) 2)))
           drop-y (- y 7)]
-      (runtime/mouse-down-at! app x y)
-      (runtime/update! app)
-      (runtime/mouse-move-at! app x drop-y)
-      (runtime/update! app)
+      (px/mouse-down-at! app x y)
+      (px/update! app)
+      (px/mouse-move-at! app x drop-y)
+      (px/update! app)
       (let [preview (-> list-box :ui-state :reorder)]
-        (runtime/mouse-up-at! app x drop-y)
-        (runtime/update! app)
-        (runtime/settle-layout! app)
+        (px/mouse-up-at! app x drop-y)
+        (px/update! app)
+        (px/settle-layout! app)
         {:application-values
-         (for [option (:list-reorder-options (runtime/active-state app))]
+         (for [option (:list-reorder-options (px/active-state app))]
            (:value option))
          :component-values
          (for [option (:options (:ui-state list-box))]
            (:value option))
          :rendered-values
-         (for [row (filter (runtime/find-views app "ui/list-box-item")
+         (for [row (filter (px/find-views app "ui/list-box-item")
                            (fn [row]
                              (>= (-> row :bounds :x)
                                  (-> list-box :bounds :x))))]
@@ -144,11 +144,11 @@
 (deftest make/renders-the-tree-view-from-bound-state
   (s/when []
     (let [app (fixture/open-tab! (fixture/start! {}) :lists)
-          tree (runtime/find-view app "ui/tree-view")]
+          tree (px/find-view app "ui/tree-view")]
       {:tree? (some? tree)
-       :expanded (:tree-expanded (runtime/active-state app))
-       :selected (:tree-selected (runtime/active-state app))
-       :row-ids (for [row (:rows (runtime/view-state tree))]
+       :expanded (:tree-expanded (px/active-state app))
+       :selected (:tree-selected (px/active-state app))
+       :row-ids (for [row (:rows (px/view-state tree))]
                   (:id row))}))
 
   (s/then [rendered]

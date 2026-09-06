@@ -1,7 +1,7 @@
 (ns widget-showcase.pages.inputs-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [widget-showcase.fixture :as fixture]))
 
 
@@ -11,9 +11,9 @@
 (deftest make/renders-the-bound-color-picker
   (s/when []
     (let [app (fixture/start! {})
-          pickers (runtime/find-views app "ui/color-picker")]
+          pickers (px/find-views app "ui/color-picker")]
       {:count (count pickers)
-       :value (:value (runtime/view-state (head pickers)))}))
+       :value (:value (px/view-state (head pickers)))}))
 
   (s/then [rendered]
     (is (= {:count 1
@@ -23,8 +23,8 @@
 (deftest make/expands-the-choices-group-to-contain-the-combo-box
   (s/when []
     (let [app (fixture/start! {})
-          choices-body (nth (runtime/find-views app "ui/group-box-body") 1)
-          combo (runtime/find-view app "ui/combo-box")]
+          choices-body (nth (px/find-views app "ui/group-box-body") 1)
+          combo (px/find-view app "ui/combo-box")]
       {:combo-bottom (+ (-> combo :bounds :y)
                         (-> combo :bounds :h))
        :choices-bottom (+ (-> choices-body :bounds :y)
@@ -39,25 +39,25 @@
       {:app app
        :body-state-before
        (:rendered-body-state
-        (runtime/view-state (runtime/find-view app "ui/tab-panel")))}))
+        (px/view-state (px/find-view app "ui/tab-panel")))}))
 
   (s/when [{:keys [app body-state-before]}]
-    (let [slider (runtime/find-view app "ui/slider")
+    (let [slider (px/find-view app "ui/slider")
           center-y (int (/ (-> slider :bounds :h) 2))]
-      (runtime/mouse-down-in! app slider 102 center-y)
-      (runtime/update! app)
-      (runtime/mouse-move-in! app slider 140 center-y)
-      (runtime/update! app)
-      (runtime/mouse-move-in! app slider (- (-> slider :bounds :w) 2) center-y)
-      (runtime/update! app)
-      (runtime/mouse-up-in! app slider (- (-> slider :bounds :w) 2) center-y)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
+      (px/mouse-down-in! app slider 102 center-y)
+      (px/update! app)
+      (px/mouse-move-in! app slider 140 center-y)
+      (px/update! app)
+      (px/mouse-move-in! app slider (- (-> slider :bounds :w) 2) center-y)
+      (px/update! app)
+      (px/mouse-up-in! app slider (- (-> slider :bounds :w) 2) center-y)
+      (px/update! app)
+      (px/settle-layout! app)
       {:body-state-before body-state-before
        :body-state-after (:rendered-body-state
-                          (runtime/view-state
-                           (runtime/find-view app "ui/tab-panel")))
-       :slider-value (:slider-value (runtime/active-state app))}))
+                          (px/view-state
+                           (px/find-view app "ui/tab-panel")))
+       :slider-value (:slider-value (px/active-state app))}))
 
   (s/then [result]
     (is (= (:body-state-before result)
@@ -70,26 +70,26 @@
 
   (s/when [app]
     (let [min-limit-slider
-          (find-first (runtime/find-views app "ui/slider")
+          (find-first (px/find-views app "ui/slider")
                       (fn [slider]
-                        (= 20 (:value (runtime/view-state slider)))))]
-      (runtime/mouse-click-in! app
+                        (= 20 (:value (px/view-state slider)))))]
+      (px/mouse-click-in! app
                                min-limit-slider
                                (- (-> min-limit-slider :bounds :w) 2)
                                (int (/ (-> min-limit-slider :bounds :h) 2)))
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       (let [max-limit-slider
-            (find-first (runtime/find-views app "ui/slider")
+            (find-first (px/find-views app "ui/slider")
                         (fn [slider]
-                          (let [state (runtime/view-state slider)]
+                          (let [state (px/view-state slider)]
                             (and (= 85 (:value state))
                                  (some? (:limit-min state))))))]
-        (runtime/mouse-click-in! app
+        (px/mouse-click-in! app
                                  max-limit-slider
                                  2
                                  (int (/ (-> max-limit-slider :bounds :h) 2)))
-        {:minimum (:slider-limit-min (runtime/active-state app))
-         :maximum (:slider-limit-max (runtime/active-state app))})))
+        {:minimum (:slider-limit-min (px/active-state app))
+         :maximum (:slider-limit-max (px/active-state app))})))
 
   (s/then [limits]
     (is (= {:minimum 85
@@ -101,15 +101,15 @@
     (fixture/start! {}))
 
   (s/when [app]
-    (let [button (runtime/find-view-containing app
+    (let [button (px/find-view-containing app
                                                "ui/button"
                                                ":label \"Normal\"")]
-      (runtime/mouse-move-in! app
+      (px/mouse-move-in! app
                               button
                               (int (/ (-> button :bounds :w) 2))
                               (int (/ (-> button :bounds :h) 2)))
-      (runtime/update! app)
-      (-> (runtime/find-view-containing app
+      (px/update! app)
+      (-> (px/find-view-containing app
                                         "ui/button"
                                         ":label \"Normal\"")
           :interaction
@@ -123,12 +123,12 @@
     (fixture/start! {}))
 
   (s/when [app]
-    (let [combo (runtime/find-view app "ui/combo-box")]
-      (runtime/mouse-click-in! app
+    (let [combo (px/find-view app "ui/combo-box")]
+      (px/mouse-click-in! app
                                combo
                                (int (/ (-> combo :bounds :w) 2))
                                (max 0 (- (-> combo :bounds :h) 3)))
-      (runtime/active-mode-name app)))
+      (px/active-mode-name app)))
 
   (s/then [mode]
     (is (= "ui/combo-box-popup" mode))))
@@ -138,12 +138,12 @@
     (fixture/start! {}))
 
   (s/when [app]
-    (let [combo (runtime/find-view app "ui/combo-box")]
-      (runtime/mouse-click-in! app
+    (let [combo (px/find-view app "ui/combo-box")]
+      (px/mouse-click-in! app
                                combo
                                (int (/ (-> combo :bounds :w) 2))
                                2)
-      (runtime/active-mode-name app)))
+      (px/active-mode-name app)))
 
   (s/then [mode]
     (is (= "ui/combo-box-popup" mode))))

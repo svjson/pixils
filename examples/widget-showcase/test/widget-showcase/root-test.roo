@@ -1,7 +1,7 @@
 (ns widget-showcase.root-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [widget-showcase.fixture :as fixture]))
 
 
@@ -11,13 +11,13 @@
 (deftest main-mode/renders-the-main-window-and-inputs-page
   (s/when []
     (let [app (fixture/start! {})
-          progress (runtime/find-view app "ui/progress-bar")]
-      {:window? (some? (runtime/find-view app "ui/window"))
-       :tab-panel? (some? (runtime/find-view app "ui/tab-panel"))
-       :scroll-pane? (some? (runtime/find-view app "ui/scroll-pane"))
-       :button? (some? (runtime/find-view app "ui/button"))
-       :text-input? (some? (runtime/find-view app "ui/text-input"))
-       :progress-value (:value (runtime/view-state progress))}))
+          progress (px/find-view app "ui/progress-bar")]
+      {:window? (some? (px/find-view app "ui/window"))
+       :tab-panel? (some? (px/find-view app "ui/tab-panel"))
+       :scroll-pane? (some? (px/find-view app "ui/scroll-pane"))
+       :button? (some? (px/find-view app "ui/button"))
+       :text-input? (some? (px/find-view app "ui/text-input"))
+       :progress-value (:value (px/view-state progress))}))
 
   (s/then [rendered]
     (is (= {:window? true
@@ -30,41 +30,41 @@
 
 (deftest main-mode/handles-rich-text-hover-and-leave
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800
                                  :buffer-height 600
                                  :render-backend true})]
-      (runtime/eval! app "(pixils/set-theme! 'pixils/windows-3)")
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/eval! app "(pixils/set-theme! 'pixils/windows-3)")
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       (fixture/open-tab! app :layout)))
 
   (s/when [app]
-    (let [rich-text (runtime/find-view app "ui/rich-text")]
-      (runtime/mouse-move-in! app rich-text 8 8)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
-      (let [popover (runtime/find-view app "ui/popover")
-            hovered {:mode (runtime/active-mode-name app)
+    (let [rich-text (px/find-view app "ui/rich-text")]
+      (px/mouse-move-in! app rich-text 8 8)
+      (px/update! app)
+      (px/settle-layout! app)
+      (let [popover (px/find-view app "ui/popover")
+            hovered {:mode (px/active-mode-name app)
                      :popover? (some? popover)
-                     :popover-open? (:open? (runtime/view-state popover))
+                     :popover-open? (:open? (px/view-state popover))
                      :popover-above-rich-text?
                      (< (-> popover :bounds :y)
                         (+ (-> rich-text :bounds :y)
                            (-> rich-text :bounds :h)))
-                     :title? (some? (runtime/find-view-containing app
+                     :title? (some? (px/find-view-containing app
                                                                   "ui/text"
                                                                   "Marked Metadata"))}]
-        (runtime/mouse-move-at! app
+        (px/mouse-move-at! app
                                 (+ (-> rich-text :bounds :x) 4)
                                 (+ (-> rich-text :bounds :y)
                                    (-> rich-text :bounds :h)
                                    8))
-        (runtime/update! app)
-        (runtime/settle-layout! app)
+        (px/update! app)
+        (px/settle-layout! app)
         {:hovered hovered
-         :after-leave {:mode (runtime/active-mode-name app)
-                       :message (:message (runtime/active-state app))}})))
+         :after-leave {:mode (px/active-mode-name app)
+                       :message (:message (px/active-state app))}})))
 
   (s/then [result]
     (is (= {:hovered {:mode "ui/popover-overlay"

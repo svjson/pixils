@@ -1,7 +1,7 @@
 (ns widget-showcase.showcase-window-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [widget-showcase.fixture :as fixture]))
 
 
@@ -10,22 +10,22 @@
 
 (defun visible-view-pixel [app view]
   (let [bounds (:bounds view)
-        background (runtime/rendered-pixel app 1 1)
+        background (px/rendered-pixel app 1 1)
         left (clamp 4 0 (max 0 (- (:w bounds) 2)))
         right (max 0 (- (:w bounds) 4))
         top (clamp 4 0 (max 0 (- (:h bounds) 2)))
         middle-x (int (/ (:w bounds) 2))
         middle-y (int (/ (:h bounds) 2))
-        pixels [(runtime/rendered-pixel app
+        pixels [(px/rendered-pixel app
                                         (+ (:x bounds) left)
                                         (+ (:y bounds) top))
-                (runtime/rendered-pixel app
+                (px/rendered-pixel app
                                         (+ (:x bounds) right)
                                         (+ (:y bounds) top))
-                (runtime/rendered-pixel app
+                (px/rendered-pixel app
                                         (+ (:x bounds) middle-x)
                                         (+ (:y bounds) top))
-                (runtime/rendered-pixel app
+                (px/rendered-pixel app
                                         (+ (:x bounds) middle-x)
                                         (+ (:y bounds) middle-y))]]
     (find-first pixels
@@ -42,12 +42,12 @@
               (-> outer :bounds :h)))))
 
 (defun window-chrome-snapshot [app]
-  (let [window (runtime/find-view app "ui/window")
-        title-bar (runtime/find-view app "ui/window-title-bar")
-        body (runtime/find-view app "ui/window-body")
-        control (runtime/find-view app "ui/window-control-button")
-        minimize (runtime/find-view app "ui/window-minimize-button")
-        title-text (runtime/find-view-containing app
+  (let [window (px/find-view app "ui/window")
+        title-bar (px/find-view app "ui/window-title-bar")
+        body (px/find-view app "ui/window-body")
+        control (px/find-view app "ui/window-control-button")
+        minimize (px/find-view app "ui/window-minimize-button")
+        title-text (px/find-view-containing app
                                                  "ui/text"
                                                  "Pixils Widget Showcase")]
     {:window-bounds (:bounds window)
@@ -68,11 +68,11 @@
 (deftest make/scrolls-the-body-inside-the-fixed-window
   (s/when []
     (let [app (fixture/start! {})
-          window (runtime/find-view app "ui/window")
-          body (runtime/find-view app "ui/window-body")
-          scroll-pane (runtime/find-view app "ui/scroll-pane")
-          viewport (runtime/find-view app "ui/scroll-pane-viewport")
-          tab-panel (runtime/find-view app "ui/tab-panel")]
+          window (px/find-view app "ui/window")
+          body (px/find-view app "ui/window-body")
+          scroll-pane (px/find-view app "ui/scroll-pane")
+          viewport (px/find-view app "ui/scroll-pane-viewport")
+          tab-panel (px/find-view app "ui/tab-panel")]
       {:window (:bounds window)
        :body-height (-> body :bounds :h)
        :scroll-pane-height (-> scroll-pane :bounds :h)
@@ -94,18 +94,18 @@
   (s/given
     (let [app (fixture/start! {:render-backend true
                                :theme 'pixils/windows-3})]
-      (runtime/frame! app)
+      (px/frame! app)
       app))
 
   (s/when [app]
-    (let [title-bar (runtime/find-view app "ui/window-title-bar")
+    (let [title-bar (px/find-view app "ui/window-title-bar")
           initial (window-chrome-snapshot app)]
-      (runtime/mouse-move-in! app title-bar 10 10)
-      (runtime/frame! app)
+      (px/mouse-move-in! app title-bar 10 10)
+      (px/frame! app)
       (let [after-hover (window-chrome-snapshot app)]
-        (runtime/frame! app)
+        (px/frame! app)
         (let [after-second-frame (window-chrome-snapshot app)]
-          (runtime/frame! app)
+          (px/frame! app)
           {:initial initial
            :after-hover after-hover
            :after-second-frame after-second-frame
@@ -130,31 +130,31 @@
 (deftest make/drags-from-the-current-window-position
   (s/given
     (let [app (fixture/start! {:theme 'pixils/windows-3})]
-      (runtime/frame! app)
-      (let [window (runtime/find-view app "ui/window")
-            title-bar (runtime/find-view app "ui/window-title-bar")
+      (px/frame! app)
+      (let [window (px/find-view app "ui/window")
+            title-bar (px/find-view app "ui/window-title-bar")
             press-x 120
             press-y 9]
-        (runtime/mouse-down-in! app title-bar press-x press-y)
-        (runtime/frame! app)
+        (px/mouse-down-in! app title-bar press-x press-y)
+        (px/frame! app)
         {:app app
          :start (:bounds window)
-         :after-down (:bounds (runtime/find-view app "ui/window"))
+         :after-down (:bounds (px/find-view app "ui/window"))
          :press-x press-x
          :press-y press-y
          :drag-dx 24
          :drag-dy 14})))
 
   (s/when [{:keys [app start after-down press-x press-y drag-dx drag-dy]}]
-    (let [title-bar (runtime/find-view app "ui/window-title-bar")]
-      (runtime/mouse-move-at!
+    (let [title-bar (px/find-view app "ui/window-title-bar")]
+      (px/mouse-move-at!
        app
        (+ (-> title-bar :bounds :x) press-x drag-dx)
        (+ (-> title-bar :bounds :y) press-y drag-dy))
-      (runtime/frame! app)
+      (px/frame! app)
       {:start start
        :after-down after-down
-       :after-drag (:bounds (runtime/find-view app "ui/window"))
+       :after-drag (:bounds (px/find-view app "ui/window"))
        :expected-after-drag (assoc start
                                    :x (+ (:x start) drag-dx)
                                    :y (+ (:y start) drag-dy))}))

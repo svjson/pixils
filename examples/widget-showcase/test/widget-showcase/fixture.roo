@@ -1,30 +1,30 @@
 (ns widget-showcase.fixture
-  (:require [pixils.test.runtime :as runtime]
+  (:require [pixils.test :as px]
             widget-showcase.root))
 
 (defun start!
   "Starts and settles the widget showcase with the supplied runtime options."
   [opts]
-  (let [app (runtime/make-app (merge {:package-root "."
+  (let [app (px/make-app (merge {:package-root "."
                                       :buffer-width 800
                                       :buffer-height 600
                                       :render-backend false}
                                      opts))]
     (if-let [theme (:theme opts)]
-      (runtime/push-mode-with-overrides! app
+      (px/push-mode-with-overrides! app
                                          'main-mode
                                          nil
                                          {:theme theme})
-      (runtime/push-mode! app 'main-mode))
-    (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode))
+    (px/settle-layout! app)
     app))
 
 (defun open-tab!
   "Selects `tab-id`, settles the resulting layout, and returns `app`."
   [app tab-id]
-  (runtime/click! app
-                  (runtime/find-view-containing app
+  (px/click! app
+                  (px/find-view-containing app
                                                 "ui/tab"
                                                 (str ":tab-id " tab-id)))
-  (runtime/settle-layout! app)
+  (px/settle-layout! app)
   app)
