@@ -2,7 +2,7 @@
   (:require proof.core
             form-playground.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 
 
@@ -10,25 +10,25 @@
 
 (deftest program-list/presents-the-first-conference-on-tab-open
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app "ui/tab" ":tab-id :program"))
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app "ui/tab" ":tab-id :program"))
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
     (let [conference-control
-          (find-first (runtime/find-views app "pixils/form-array-control")
+          (find-first (px/find-views app "pixils/form-array-control")
                       (fn [view] (= :conferences (-> view :state :field-id))))]
       {:selection (select-keys (:state conference-control) [:selected-index :value])
-       :name-input? (any? (runtime/find-views app "ui/text-input")
+       :name-input? (any? (px/find-views app "ui/text-input")
                           (fn [view]
                             (= "Summer Conference" (-> view :ui-state :value))))
-       :agenda-label? (some? (runtime/find-view-containing app
+       :agenda-label? (some? (px/find-view-containing app
                                                            "ui/text"
                                                            "Agenda entries"))}))
 
@@ -43,27 +43,27 @@
 
 (deftest program-list/selects-a-conference-through-component-state
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app "ui/tab" ":tab-id :program"))
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app "ui/tab" ":tab-id :program"))
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app
-                    (runtime/find-view-containing app
+    (px/click! app
+                    (px/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Autumn Workshop"))
-    (runtime/settle-layout! app)
+    (px/settle-layout! app)
     (let [conference-control
-          (find-first (runtime/find-views app "pixils/form-array-control")
+          (find-first (px/find-views app "pixils/form-array-control")
                       (fn [view] (= :conferences (-> view :state :field-id))))]
       {:selection (select-keys (:state conference-control) [:selected-index :value])
-       :name-input? (any? (runtime/find-views app "ui/text-input")
+       :name-input? (any? (px/find-views app "ui/text-input")
                           (fn [view]
                             (= "Autumn Workshop" (-> view :ui-state :value))))}))
 
@@ -80,36 +80,36 @@
 
 (deftest program-list/keeps-an-entry-visible-after-dialog-editing
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app "ui/tab" ":tab-id :program"))
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app "ui/tab" ":tab-id :program"))
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app
                                                     "ui/list-box-item"
                                                     "Autumn Workshop"))
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app
-                    (runtime/find-view-containing app
+    (px/click! app
+                    (px/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Untitled entry"))
-    (runtime/settle-layout! app)
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "Edit"))
-    (runtime/settle-layout! app)
-    (let [dialog-open? (= "ui/dialog-frame" (runtime/active-mode-name app))]
-      (runtime/click! app (runtime/find-view-containing app "ui/button" "OK"))
-      (runtime/settle-layout! app)
+    (px/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "Edit"))
+    (px/settle-layout! app)
+    (let [dialog-open? (= "ui/dialog-frame" (px/active-mode-name app))]
+      (px/click! app (px/find-view-containing app "ui/button" "OK"))
+      (px/settle-layout! app)
       {:dialog-open? dialog-open?
-       :active-mode (runtime/active-mode-name app)
-       :entries (-> (runtime/active-state app) :conferences (nth 1) :program/entries)
-       :entry-visible? (some? (runtime/find-view-containing app
+       :active-mode (px/active-mode-name app)
+       :entries (-> (px/active-state app) :conferences (nth 1) :program/entries)
+       :entry-visible? (some? (px/find-view-containing app
                                                             "ui/list-box-item"
                                                             "Untitled entry"))}))
 
@@ -125,46 +125,46 @@
 
 (deftest program-list/adds-an-entry-using-people-as-form-context
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app "ui/tab" ":tab-id :program"))
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app "ui/tab" ":tab-id :program"))
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "Add"))
-    (runtime/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "Add"))
+    (px/settle-layout! app)
     (let [title-input
-          (find-first (runtime/find-views app "ui/text-input")
+          (find-first (px/find-views app "ui/text-input")
                       (fn [view] (= "" (-> view :ui-state :value))))]
-      (runtime/click! app title-input)
-      (runtime/press-key! app :k)
-      (runtime/press-key! app :e)
-      (runtime/press-key! app :y)
-      (runtime/press-key! app :n)
-      (runtime/press-key! app :o)
-      (runtime/press-key! app :t)
-      (runtime/press-key! app :e)
-      (runtime/settle-layout! app))
+      (px/click! app title-input)
+      (px/press-key! app :k)
+      (px/press-key! app :e)
+      (px/press-key! app :y)
+      (px/press-key! app :n)
+      (px/press-key! app :o)
+      (px/press-key! app :t)
+      (px/press-key! app :e)
+      (px/settle-layout! app))
     (let [speaker-combo
-          (find-first (runtime/find-views app "ui/combo-box")
+          (find-first (px/find-views app "ui/combo-box")
                       (fn [view]
-                        (= "Lovelace" (:selected-label (runtime/view-state view)))))]
-      (runtime/click! app speaker-combo)
-      (runtime/settle-layout! app))
-    (runtime/click! app
-                    (runtime/find-view-containing app "ui/combo-box-item" "Hopper"))
-    (runtime/settle-layout! app)
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "OK"))
-    (runtime/settle-layout! app)
-    {:entry (select-keys (-> (runtime/active-state app)
+                        (= "Lovelace" (:selected-label (px/view-state view)))))]
+      (px/click! app speaker-combo)
+      (px/settle-layout! app))
+    (px/click! app
+                    (px/find-view-containing app "ui/combo-box-item" "Hopper"))
+    (px/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "OK"))
+    (px/settle-layout! app)
+    {:entry (select-keys (-> (px/active-state app)
                              :conferences head :program/entries head)
                          [:kind :color :title :speaker :duration])
-     :entry-visible? (some? (runtime/find-view-containing app
+     :entry-visible? (some? (px/find-view-containing app
                                                           "ui/list-box-item"
                                                           "keynote"))})
 
@@ -179,39 +179,39 @@
 
 (deftest program-list/creates-a-conference-through-the-inline-editor
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
-      (runtime/click! app
-                      (runtime/find-view-containing app "ui/tab" ":tab-id :program"))
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
+      (px/click! app
+                      (px/find-view-containing app "ui/tab" ":tab-id :program"))
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "New"))
-    (runtime/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "New"))
+    (px/settle-layout! app)
     (let [name-input
-          (find-first (runtime/find-views app "ui/text-input")
+          (find-first (px/find-views app "ui/text-input")
                       (fn [view]
                         (= "New Conference" (-> view :ui-state :value))))]
-      (runtime/click! app name-input)
-      (runtime/press-key! app :end)
-      (runtime/press-key! app :space)
-      (runtime/press-key! app "2")
-      (runtime/press-key! app "0")
-      (runtime/press-key! app "2")
-      (runtime/press-key! app "7")
-      (runtime/settle-layout! app))
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "Save"))
-    (runtime/settle-layout! app)
+      (px/click! app name-input)
+      (px/press-key! app :end)
+      (px/press-key! app :space)
+      (px/press-key! app "2")
+      (px/press-key! app "0")
+      (px/press-key! app "2")
+      (px/press-key! app "7")
+      (px/settle-layout! app))
+    (px/click! app (px/find-view-containing app "ui/button" "Save"))
+    (px/settle-layout! app)
     (let [conference-control
-          (find-first (runtime/find-views app "pixils/form-array-control")
+          (find-first (px/find-views app "pixils/form-array-control")
                       (fn [view] (= :conferences (-> view :state :field-id))))]
-      {:conferences (:conferences (runtime/active-state app))
+      {:conferences (:conferences (px/active-state app))
        :selection (select-keys (:state conference-control) [:selected-index :value])
-       :item-visible? (some? (runtime/find-view-containing app
+       :item-visible? (some? (px/find-view-containing app
                                                            "ui/list-box-item"
                                                            "New Conference 2027"))}))
 

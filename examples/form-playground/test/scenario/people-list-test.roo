@@ -2,28 +2,28 @@
   (:require proof.core
             form-playground.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [pixils.ui :as ui]))
 
 (deftest people-list/renders-and-selects-the-people-array
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (let [list-box (runtime/find-view app "ui/list-box")]
+    (let [list-box (px/find-view app "ui/list-box")]
       (ui/set-ui-state! list-box (assoc (:ui-state list-box) :sentinel :retained))
-      (runtime/click! app
-                      (runtime/find-view-containing app
+      (px/click! app
+                      (px/find-view-containing app
                                                     "ui/list-box-item"
                                                     "Grace Hopper"))
-      (runtime/settle-layout! app)
-      {:list-box-sentinel (:sentinel (:ui-state (runtime/find-view app "ui/list-box")))
-       :selection (select-keys (:state (runtime/find-view app
+      (px/settle-layout! app)
+      {:list-box-sentinel (:sentinel (:ui-state (px/find-view app "ui/list-box")))
+       :selection (select-keys (:state (px/find-view app
                                                           "pixils/form-array-control"))
                                [:selected-index :value])}))
 
@@ -40,20 +40,20 @@
 
 (deftest people-list/uses-the-person-layout-at-the-referenced-editor-location
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (let [fields (runtime/find-views app "pixils/form-field")
+    (let [fields (px/find-views app "pixils/form-field")
           first-name-field
           (find-first fields
                       (fn [field]
                         (= :field/first-name (-> field :state :field-id))))]
-      {:editor-present? (some? (runtime/find-view app
+      {:editor-present? (some? (px/find-view app
                                                   "pixils/form-layout-item-editor"))
        :first-name (-> (nth (ui/children first-name-field) 1) :ui-state :value)
        :field-ids (for [field fields]
@@ -72,27 +72,27 @@
 
 (deftest people-list/disables-the-item-form-when-the-array-has-no-selection
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/set-active-state! app (assoc (runtime/active-state app) :people []))
-    (runtime/settle-layout! app)
+    (px/set-active-state! app (assoc (px/active-state app) :people []))
+    (px/settle-layout! app)
     (let [first-name-field
-          (find-first (runtime/find-views app "pixils/form-field")
+          (find-first (px/find-views app "pixils/form-field")
                       (fn [field]
                         (= :field/first-name (-> field :state :field-id))))]
-      (runtime/click! app (nth (ui/children first-name-field) 1))
-      (runtime/press-key! app :x)
-      (runtime/settle-layout! app)
-      {:editor-disabled? (-> (runtime/find-view app "pixils/form-layout-item-editor")
+      (px/click! app (nth (ui/children first-name-field) 1))
+      (px/press-key! app :x)
+      (px/settle-layout! app)
+      {:editor-disabled? (-> (px/find-view app "pixils/form-layout-item-editor")
                              :state :disabled?)
        :field-disabled? (-> first-name-field :state :disabled?)
-       :people (:people (runtime/active-state app))}))
+       :people (:people (px/active-state app))}))
 
   (s/then [result]
     (is (= {:editor-disabled? true
@@ -102,26 +102,26 @@
 
 (deftest people-list/preserves-and-reorders-people-after-a-drag
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (let [items (runtime/find-views app "ui/list-box-item")
+    (let [items (px/find-views app "ui/list-box-item")
           first-item (head items)
           last-item (nth items 2)]
-      (runtime/mouse-down-in! app first-item 5 5)
-      (runtime/update! app)
-      (runtime/mouse-move-in! app last-item 5 (dec (-> last-item :bounds :h)))
-      (runtime/update! app)
-      (runtime/mouse-up-in! app last-item 5 (dec (-> last-item :bounds :h)))
-      (runtime/settle-layout! app)
-      {:people (for [person (:people (runtime/active-state app))]
+      (px/mouse-down-in! app first-item 5 5)
+      (px/update! app)
+      (px/mouse-move-in! app last-item 5 (dec (-> last-item :bounds :h)))
+      (px/update! app)
+      (px/mouse-up-in! app last-item 5 (dec (-> last-item :bounds :h)))
+      (px/settle-layout! app)
+      {:people (for [person (:people (px/active-state app))]
                  (:person/id person))
-       :rendered-items (count (runtime/find-views app "ui/list-box-item"))}))
+       :rendered-items (count (px/find-views app "ui/list-box-item"))}))
 
   (s/then [result]
     (is (= {:people [:person/grace :person/katherine :person/ada]
@@ -130,34 +130,34 @@
 
 (deftest people-list/edits-the-selected-person-at-the-referenced-location
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app
-                    (runtime/find-view-containing app
+    (px/click! app
+                    (px/find-view-containing app
                                                   "ui/list-box-item"
                                                   "Grace Hopper"))
-    (runtime/settle-layout! app)
+    (px/settle-layout! app)
     (let [first-name-input
-          (find-first (runtime/find-views app "ui/text-input")
+          (find-first (px/find-views app "ui/text-input")
                       (fn [view] (= "Grace" (:value (:ui-state view)))))]
-      (runtime/click! app first-name-input)
-      (runtime/press-key! app :end)
-      (runtime/press-key! app :x)
-      (runtime/settle-layout! app))
-    (runtime/click! app
-                    (runtime/find-view-containing app
+      (px/click! app first-name-input)
+      (px/press-key! app :end)
+      (px/press-key! app :x)
+      (px/settle-layout! app))
+    (px/click! app
+                    (px/find-view-containing app
                                                   "ui/text"
                                                   "Pixils Form Playground"))
-    (runtime/settle-layout! app)
-    {:people (for [person (:people (runtime/active-state app))]
+    (px/settle-layout! app)
+    {:people (for [person (:people (px/active-state app))]
                (:field/first-name person))
-     :rendered-items (count (runtime/find-views app "ui/list-box-item"))})
+     :rendered-items (count (px/find-views app "ui/list-box-item"))})
 
   (s/then [result]
     (is (= {:people ["Ada" "Gracex" "Katherine"]
@@ -166,25 +166,25 @@
 
 (deftest people-list/starts-and-cancels-a-new-item-at-the-referenced-location
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "New"))
-    (runtime/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "New"))
+    (px/settle-layout! app)
     (let [new-state
-          (select-keys (:state (runtime/find-view app "pixils/form-array-control"))
+          (select-keys (:state (px/find-view app "pixils/form-array-control"))
                        [:new? :value])]
-      (runtime/click! app (runtime/find-view-containing app "ui/button" "Cancel"))
-      (runtime/settle-layout! app)
+      (px/click! app (px/find-view-containing app "ui/button" "Cancel"))
+      (px/settle-layout! app)
       {:new-state new-state
-       :cancelled-state (select-keys (:state (runtime/find-view app "pixils/form-array-control"))
+       :cancelled-state (select-keys (:state (px/find-view app "pixils/form-array-control"))
                                      [:new? :selected-index :value])
-       :people-count (count (:people (runtime/active-state app)))}))
+       :people-count (count (:people (px/active-state app)))}))
 
   (s/then [result]
     (is (= {:new-state {:new? true
@@ -208,46 +208,46 @@
 
 (deftest people-list/saves-a-new-item-from-the-referenced-location
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 800 :buffer-height 600
                                  :render-backend false})]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/settle-layout! app)
+      (px/push-mode! app 'main-mode)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "New"))
-    (runtime/settle-layout! app)
+    (px/click! app (px/find-view-containing app "ui/button" "New"))
+    (px/settle-layout! app)
     (let [first-name-field
-          (find-first (runtime/find-views app "pixils/form-field")
+          (find-first (px/find-views app "pixils/form-field")
                       (fn [field]
                         (= :field/first-name (-> field :state :field-id))))
           last-name-field
-          (find-first (runtime/find-views app "pixils/form-field")
+          (find-first (px/find-views app "pixils/form-field")
                       (fn [field]
                         (= :field/last-name (-> field :state :field-id))))]
-      (runtime/click! app (nth (ui/children first-name-field) 1))
-      (runtime/press-key! app :n)
-      (runtime/press-key! app :e)
-      (runtime/press-key! app :w)
-      (runtime/click! app (nth (ui/children last-name-field) 1))
-      (runtime/press-key! app :p)
-      (runtime/press-key! app :e)
-      (runtime/press-key! app :r)
-      (runtime/press-key! app :s)
-      (runtime/press-key! app :o)
-      (runtime/press-key! app :n)
-      (runtime/click! app
-                      (runtime/find-view-containing app
+      (px/click! app (nth (ui/children first-name-field) 1))
+      (px/press-key! app :n)
+      (px/press-key! app :e)
+      (px/press-key! app :w)
+      (px/click! app (nth (ui/children last-name-field) 1))
+      (px/press-key! app :p)
+      (px/press-key! app :e)
+      (px/press-key! app :r)
+      (px/press-key! app :s)
+      (px/press-key! app :o)
+      (px/press-key! app :n)
+      (px/click! app
+                      (px/find-view-containing app
                                                     "ui/text"
                                                     "Pixils Form Playground"))
-      (runtime/settle-layout! app))
-    (runtime/click! app (runtime/find-view-containing app "ui/button" "Save"))
-    (runtime/settle-layout! app)
-    {:people (for [person (:people (runtime/active-state app))]
+      (px/settle-layout! app))
+    (px/click! app (px/find-view-containing app "ui/button" "Save"))
+    (px/settle-layout! app)
+    {:people (for [person (:people (px/active-state app))]
                (select-keys person
                             [:person/id :field/first-name :field/last-name]))
-     :rendered-items (count (runtime/find-views app "ui/list-box-item"))})
+     :rendered-items (count (px/find-views app "ui/list-box-item"))})
 
   (s/then [result]
     (is (= {:people [{:person/id :person/ada
