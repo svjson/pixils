@@ -2,7 +2,7 @@
   (:require proof.core
             [proof.syntax :as s]
             [pixils.tilemap.project.model :as data]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.model.workbook :as editor-workbook]
             tilemap-editor.root))
 
@@ -52,29 +52,29 @@
   (is (not (nil? (get pixils/modes 'main-mode)))))
 
 (deftest property-sets-tab-is-last-workspace-tab
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 800
                                :buffer-height 600})]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [tabs (runtime/find-views app "ui/tab")]
-      (is (= :map (:tab-id (runtime/view-state (nth tabs 0)))))
-      (is (= :tilesets (:tab-id (runtime/view-state (nth tabs 1)))))
-      (is (= :brushes (:tab-id (runtime/view-state (nth tabs 2)))))
-      (is (= :resources (:tab-id (runtime/view-state (nth tabs 3)))))
-      (is (= :masks (:tab-id (runtime/view-state (nth tabs 4)))))
-      (is (= :terrains (:tab-id (runtime/view-state (nth tabs 5)))))
-      (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 6))))))))
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/render! app)
+    (let [tabs (px/find-views app "ui/tab")]
+      (is (= :map (:tab-id (px/view-state (nth tabs 0)))))
+      (is (= :tilesets (:tab-id (px/view-state (nth tabs 1)))))
+      (is (= :brushes (:tab-id (px/view-state (nth tabs 2)))))
+      (is (= :resources (:tab-id (px/view-state (nth tabs 3)))))
+      (is (= :masks (:tab-id (px/view-state (nth tabs 4)))))
+      (is (= :terrains (:tab-id (px/view-state (nth tabs 5)))))
+      (is (= :property-sets (:tab-id (px/view-state (nth tabs 6))))))))
 
 (deftest status-bar-renders-at-root
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 800
                                :buffer-height 600})]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (not (nil? (runtime/find-view app "status-bar"))))))
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/render! app)
+    (is (not (nil? (px/find-view app "status-bar"))))))
 
 (deftest map-coordinate-status-formats-hover-cell
   (is (= "Cell -" (tilemap-editor.root/map-coordinate-status nil)))

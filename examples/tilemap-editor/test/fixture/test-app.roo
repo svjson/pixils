@@ -1,5 +1,5 @@
 (ns tilemap-editor.fixture.test-app
-  (:require [pixils.test.runtime :as runtime]
+  (:require [pixils.test :as px]
             [tilemap-editor.model.project :as project]))
 
 (defun make
@@ -12,16 +12,16 @@
   Returns:
   A rendered test application with the project fixture active."
   [opts]
-  (let [app (runtime/make-app
+  (let [app (px/make-app
              {:package-root "."
               :buffer-width (or (:buffer-width opts) 800)
               :buffer-height (or (:buffer-height opts) 600)})]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (project/activate (runtime/active-state app)
+     (project/activate (px/active-state app)
                        (:project opts)))
-    (runtime/settle-layout! app)
-    (runtime/render! app)
+    (px/settle-layout! app)
+    (px/render! app)
     app))

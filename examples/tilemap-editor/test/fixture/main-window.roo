@@ -1,11 +1,11 @@
 (ns tilemap-editor.fixture.main-window
   (:require proof.core
-            [pixils.test.runtime :as runtime]
-            [pixils.test.ui.tab-panel :as tab-panel]
+            [pixils.test :as px]
+            [pixils.test.tab-panel :as tab-panel]
             [tilemap-editor.fixture.io.project :as project]))
 
 (defun make-app-with-buffer [buffer-width buffer-height]
-  (runtime/make-app {:package-root "."
+  (px/make-app {:package-root "."
                      :buffer-width buffer-width
                      :buffer-height buffer-height}))
 
@@ -13,23 +13,23 @@
   (make-app-with-buffer 800 600))
 
 (defun open-project-app! [app project-id]
-  (runtime/push-mode! app 'main-mode)
-  (runtime/update! app)
-  (runtime/set-active-state! app
-                             (assoc (runtime/active-state app)
+  (px/push-mode! app 'main-mode)
+  (px/update! app)
+  (px/set-active-state! app
+                             (assoc (px/active-state app)
                                     :project-history-path (project/history-path project-id)
                                     :recent-projects []))
-  (runtime/push-mode-with-overrides!
+  (px/push-mode-with-overrides!
    app
    'ui/tab-panel-empty
    nil
-   {:origin {:view (runtime/active-mode app)
+   {:origin {:view (px/active-mode app)
              :event :project/file-dialog-result}})
-  (runtime/pop-mode! app (project/file-dialog-payload project-id
+  (px/pop-mode! app (project/file-dialog-payload project-id
                                                       :file-dialog/open))
-  (runtime/update! app)
-  (runtime/update! app)
-  (runtime/render! app)
+  (px/update! app)
+  (px/update! app)
+  (px/render! app)
   app)
 
 (defun open-project! [project-id]
@@ -40,7 +40,7 @@
                      project-id))
 
 (defun is-open? [app]
-  (let [open? (= "main-mode" (runtime/active-mode-name app))]
+  (let [open? (= "main-mode" (px/active-mode-name app))]
     (is (= true open?))
     open?))
 
@@ -60,7 +60,7 @@
   (let [id (tab-id target)]
     (tab-panel/switch-to! app id opts)
     (when (not= false (:verify-result opts))
-      (is (= id (:workspace-tab (runtime/active-state app)))))
+      (is (= id (:workspace-tab (px/active-state app)))))
     app))
 
 (defun menu-command [item]
@@ -73,22 +73,22 @@
 
 (defun choose-menu-item! [app item opts]
   (let [command (menu-command item)
-        menu-item (or (runtime/find-view-containing app
+        menu-item (or (px/find-view-containing app
                                                     "ui/popup-menu-item"
                                                     (str ":action " command))
-                      (runtime/find-view-containing app
+                      (px/find-view-containing app
                                                     "ui/popup-menu-item"
                                                     (str ":command " command)))]
     (is (some? menu-item))
     (case (:by opts)
-      :mouse/click (runtime/click! app menu-item)
-      :default (runtime/click! app menu-item))
-    (runtime/update! app)
-    (runtime/render! app)
+      :mouse/click (px/click! app menu-item)
+      :default (px/click! app menu-item))
+    (px/update! app)
+    (px/render! app)
     app))
 
 (defun cancel-dialog! [app]
-  (runtime/pop-mode! app {:choice :dialog/cancel})
-  (runtime/update! app)
-  (runtime/render! app)
+  (px/pop-mode! app {:choice :dialog/cancel})
+  (px/update! app)
+  (px/render! app)
   app)

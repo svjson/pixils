@@ -1,16 +1,16 @@
 (ns tilemap-editor.view.tileset.panels-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.view.tileset.panels :as panels]
             [tilemap-editor.view.tileset.sprite-source-editor :as sse]))
 
 (defun settle-layout! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
-  (runtime/update! app)
-  (runtime/layout! app)
+  (px/update! app)
+  (px/layout! app)
+  (px/update! app)
+  (px/layout! app)
+  (px/update! app)
+  (px/layout! app)
   app)
 
 (defun variants-tab-probe-source []
@@ -286,38 +286,38 @@
     (is (= 1 (-> children (nth 2) :state :choice-index)))))
 
 (deftest tile-definition-variants-tab-renders-choice-editor
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 400
                                :buffer-height 300
                                :render-backend false})]
-    (runtime/eval! app (variants-tab-probe-source))
-    (runtime/push-mode! app 'root-mode)
+    (px/eval! app (variants-tab-probe-source))
+    (px/push-mode! app 'root-mode)
     (settle-layout! app)
-    (is (some? (runtime/find-view app
+    (is (some? (px/find-view app
                                   "tile-substitution-choice-grid")))
-    (is (some? (runtime/find-view app
+    (is (some? (px/find-view app
                                   "tile-substitution-choices-editor")))
-    (is (some? (runtime/find-view app
+    (is (some? (px/find-view app
                                   "tile-substitution-choice-row")))))
 
 (deftest tile-substitution-choice-grid-click-adds-weight-row
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 400
                                :buffer-height 300
                                :render-backend false})]
-    (runtime/eval! app (variants-tab-probe-source))
-    (runtime/push-mode! app 'root-mode)
+    (px/eval! app (variants-tab-probe-source))
+    (px/push-mode! app 'root-mode)
     (settle-layout! app)
-    (let [grid (runtime/find-view app "tile-substitution-choice-grid")]
-      (runtime/mouse-click-in! app grid 20 8)
+    (let [grid (px/find-view app "tile-substitution-choice-grid")]
+      (px/mouse-click-in! app grid 20 8)
       (settle-layout! app)
       (is (= [{:tile :grass
                :weight 1}
               {:tile :water
                :weight 1}]
-             (-> (runtime/active-state app) :tile :substitution :choices)))
+             (-> (px/active-state app) :tile :substitution :choices)))
       (is (= 2
-             (count (runtime/find-views app
+             (count (px/find-views app
                                         "tile-substitution-choice-row")))))))
 
 (deftest tile-definition-panel-scroll-content-wraps-detail-panel

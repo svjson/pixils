@@ -1,52 +1,52 @@
 (ns tilemap-editor.fixture.view.terrains.terrains-tab
   (:require proof.core
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (defun switch-detail-to! [app target opts]
   (let [label (case target
                 :detail/terrain "Terrain"
                 :default target)
-        tab (runtime/find-view-containing app "ui/tab" (str ":label \"" label "\""))]
+        tab (px/find-view-containing app "ui/tab" (str ":label \"" label "\""))]
     (is (some? tab))
     (case (:by opts)
-      :mouse/click (runtime/click! app tab)
-      :default (runtime/click! app tab))
-    (runtime/update! app)
-    (runtime/render! app)
+      :mouse/click (px/click! app tab)
+      :default (px/click! app tab))
+    (px/update! app)
+    (px/render! app)
     app))
 
 (defun switch-rule-editor-to! [app tab-id opts]
-  (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
+  (let [tab (px/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
     (is (some? tab))
     (case (:by opts)
-      :mouse/click (runtime/click! app tab)
-      :default (runtime/click! app tab))
-    (runtime/update! app)
-    (runtime/render! app)
+      :mouse/click (px/click! app tab)
+      :default (px/click! app tab))
+    (px/update! app)
+    (px/render! app)
     app))
 
 (defun switch-standard-output-picker-to! [app tab-id opts]
-  (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
+  (let [tab (px/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
     (is (some? tab))
     (case (:by opts)
-      :mouse/click (runtime/click! app tab)
-      :default (runtime/click! app tab))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [selected-tab (runtime/find-view-containing app
+      :mouse/click (px/click! app tab)
+      :default (px/click! app tab))
+    (px/update! app)
+    (px/render! app)
+    (let [selected-tab (px/find-view-containing app
                                                      "ui/tab"
                                                      (str ":tab-id " tab-id))]
-      (is (= true (:selected? (runtime/view-state selected-tab)))))
+      (is (= true (:selected? (px/view-state selected-tab)))))
     app))
 
 (defun add-rule! [app opts]
-  (let [button (runtime/find-view-containing app "ui/button" "Add rule")]
+  (let [button (px/find-view-containing app "ui/button" "Add rule")]
     (is (some? button))
     (case (:by opts)
-      :mouse/click (runtime/click! app button)
-      :default (runtime/click! app button))
-    (runtime/update! app)
-    (runtime/render! app)
+      :mouse/click (px/click! app button)
+      :default (px/click! app button))
+    (px/update! app)
+    (px/render! app)
     app))
 
 (defun change-base-tile!
@@ -60,22 +60,22 @@
   Returns:
   The running test application."
   [app tile opts]
-  (let [preview (runtime/find-view app "terrain-preview")]
+  (let [preview (px/find-view app "terrain-preview")]
     (is (some? preview))
     (case (:by opts)
-      :mouse/click (runtime/click! app preview)
-      :default (runtime/click! app preview))
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (= "terrain-base-tile-popup" (runtime/active-mode-name app)))
-    (let [picker (runtime/find-view app "terrain-base-tile-picker")
+      :mouse/click (px/click! app preview)
+      :default (px/click! app preview))
+    (px/update! app)
+    (px/render! app)
+    (is (= "terrain-base-tile-popup" (px/active-mode-name app)))
+    (let [picker (px/find-view app "terrain-base-tile-picker")
           x (case tile
               :water-fill 50
               :default 16)]
       (is (some? picker))
-      (runtime/mouse-click-in! app picker x 16)
-      (runtime/update! app)
-      (runtime/render! app)
+      (px/mouse-click-in! app picker x 16)
+      (px/update! app)
+      (px/render! app)
       app)))
 
 (defun select-enum-property-value!
@@ -90,25 +90,25 @@
   Returns:
   The running test application."
   [app property-id value opts]
-  (let [control (runtime/find-view-containing
+  (let [control (px/find-view-containing
                  app
                  "property-value-enum-control"
                  (str ":property-id " property-id))
         option-index (when control
-                       (find-index (:options (runtime/view-state control))
+                       (find-index (:options (px/view-state control))
                                    (fn [option]
                                      (= (:value option) value))))]
     (is (some? control))
     (is (some? option-index))
     (case (:by opts)
-      :mouse/click (runtime/click! app control)
-      :default (runtime/click! app control))
-    (runtime/update! app)
-    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
-    (runtime/pop-mode! app {:selected-indices [option-index]})
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
+      :mouse/click (px/click! app control)
+      :default (px/click! app control))
+    (px/update! app)
+    (is (= "ui/combo-box-popup" (px/active-mode-name app)))
+    (px/pop-mode! app {:selected-indices [option-index]})
+    (px/update! app)
+    (px/update! app)
+    (px/render! app)
     app))
 
 (defun terrain-by-id
@@ -122,7 +122,7 @@
   Returns:
   The matching terrain, or nil when it does not exist."
   [app terrain-set-id terrain-id]
-  (let [terrain-set (find-first (:terrain-sets (runtime/active-state app))
+  (let [terrain-set (find-first (:terrain-sets (px/active-state app))
                                 (fn [candidate]
                                   (= (:id candidate) terrain-set-id)))]
     (find-first (:terrains terrain-set)
@@ -147,21 +147,21 @@
     actual))
 
 (defun selected-rule-is? [app rule-id]
-  (let [state (runtime/active-state app)]
+  (let [state (px/active-state app)]
     (is (= rule-id (:selected-terrain-rule-id state)))
-    (is (some? (runtime/find-view-containing app
+    (is (some? (px/find-view-containing app
                                              "terrain-rule-list"
                                              (str rule-id))))
-    (is (some? (runtime/find-view-containing app
+    (is (some? (px/find-view-containing app
                                              "terrain-rule-visual-editor"
                                              (str rule-id))))
-    (is (some? (runtime/find-view-containing app
+    (is (some? (px/find-view-containing app
                                              "ui/list-box-item"
                                              (str rule-id))))
     true))
 
 (defun selected-rule [app]
-  (let [state (runtime/active-state app)
+  (let [state (px/active-state app)
         ruleset (head (:rulesets state))]
     (head (:rules ruleset))))
 
@@ -175,30 +175,30 @@
   (get-in (selected-rule app) [:output :layers 0 :transition-overlays]))
 
 (defun set-selected-rule-exclusive! [app exclusive? opts]
-  (let [checkbox (runtime/find-view-containing app
+  (let [checkbox (px/find-view-containing app
                                                "ui/checkbox"
                                                ":terrain-rule-exclusive")]
     (is (some? checkbox))
     (case (:by opts)
-      :mouse/click (runtime/click! app checkbox)
-      :default (runtime/click! app checkbox))
-    (runtime/update! app)
+      :mouse/click (px/click! app checkbox)
+      :default (px/click! app checkbox))
+    (px/update! app)
     (is (= exclusive? (:exclusive? (selected-rule app))))
     app))
 
 (defun match-cell [app direction]
-  (runtime/find-view-containing app
+  (px/find-view-containing app
                                 "terrain-match-tile-cell"
                                 (str ":direction " direction " ")))
 
 (defun match-cell-has-tile? [app target expected-tile]
   (let [cell (case target
-               :match/center (runtime/find-view-containing app
+               :match/center (px/find-view-containing app
                                                            "terrain-match-tile-cell"
                                                            ":center? true")
                :default (match-cell app target))]
     (is (some? cell))
-    (let [tile (:tile (runtime/view-state cell))
+    (let [tile (:tile (px/view-state cell))
           tile-id (if (map? tile)
                     (:id tile)
                     tile)]
@@ -209,10 +209,10 @@
   (let [cell (match-cell app direction)]
     (is (some? cell))
     (case (:by opts)
-      :mouse/right-click (runtime/mouse-click-in! app cell 8 8 :right)
-      :mouse/left-click (runtime/mouse-click-in! app cell 8 8)
-      :default (runtime/mouse-click-in! app cell 8 8 :right))
-    (runtime/update! app)
+      :mouse/right-click (px/mouse-click-in! app cell 8 8 :right)
+      :mouse/left-click (px/mouse-click-in! app cell 8 8)
+      :default (px/mouse-click-in! app cell 8 8 :right))
+    (px/update! app)
     app))
 
 (defun rule-match-is? [app direction expected]
@@ -222,10 +222,10 @@
 
 (defun stamp-cell [app target]
   (case target
-    :stamp/origin (runtime/find-view-containing app
+    :stamp/origin (px/find-view-containing app
                                                 "terrain-stamp-grid-cell"
                                                 ":visible? true")
-    :default (runtime/find-view-containing app
+    :default (px/find-view-containing app
                                            "terrain-stamp-grid-cell"
                                            ":visible? true")))
 
@@ -236,25 +236,25 @@
     :default {:x 16 :y 16}))
 
 (defun selected-stamp-tile-is? [app tile]
-  (let [selected (:terrain-rule-selected-tile (runtime/active-state app))]
+  (let [selected (:terrain-rule-selected-tile (px/active-state app))]
     (is (= tile selected))
     selected))
 
 (defun drag-stamp-tile! [app tile target opts]
-  (let [picker (runtime/find-view app "terrain-stamp-tile-picker")
+  (let [picker (px/find-view app "terrain-stamp-tile-picker")
         cell (stamp-cell app target)
         pos (tile-picker-position tile)]
     (is (some? picker))
     (is (some? cell))
     (case (:by opts)
-      :mouse/drag (runtime/mouse-drag-between! app
+      :mouse/drag (px/mouse-drag-between! app
                                                picker
                                                (:x pos)
                                                (:y pos)
                                                cell
                                                8
                                                8)
-      :default (runtime/mouse-drag-between! app
+      :default (px/mouse-drag-between! app
                                             picker
                                             (:x pos)
                                             (:y pos)
@@ -264,25 +264,25 @@
     app))
 
 (defun standard-role-slot [app role-id]
-  (runtime/find-view-containing app
+  (px/find-view-containing app
                                 "terrain-standard-role-slot"
                                 (str ":role-id " role-id)))
 
 (defun drag-standard-role-tile! [app tile role-id opts]
-  (let [picker (runtime/find-view app "terrain-stamp-tile-picker")
+  (let [picker (px/find-view app "terrain-stamp-tile-picker")
         cell (standard-role-slot app role-id)
         pos (tile-picker-position tile)]
     (is (some? picker))
     (is (some? cell))
     (case (:by opts)
-      :mouse/drag (runtime/mouse-drag-between! app
+      :mouse/drag (px/mouse-drag-between! app
                                                picker
                                                (:x pos)
                                                (:y pos)
                                                cell
                                                8
                                                8)
-      :default (runtime/mouse-drag-between! app
+      :default (px/mouse-drag-between! app
                                             picker
                                             (:x pos)
                                             (:y pos)

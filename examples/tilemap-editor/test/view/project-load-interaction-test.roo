@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.project-load-interaction-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.resource :as resource]
+            [pixils.test :as px]
             [tilemap-editor.fixture.io.project :as project]
             [tilemap-editor.fixture.main-window :as main-window]
             [tilemap-editor.fixture.view.tilemap.tilemap-tab :as tilemap-tab]
@@ -12,11 +12,11 @@
     (project/cleanup! :example-map1)
     (let [app (main-window/open-project! :example-map1)]
       (main-window/is-open? app)
-      (resource/image-resource-file-is? app
+      (px/image-resource-file-is? app
                                         :project-assets
                                         :simples-pimples
                                         "../assets/simples_pimples.png")
-      (resource/image-size-is? app :project-assets/simples-pimples 800 1280)
+      (px/image-size-is? app :project-assets/simples-pimples 800 1280)
       app))
 
   (s/when [app]

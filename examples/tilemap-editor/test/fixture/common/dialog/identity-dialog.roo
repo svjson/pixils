@@ -1,6 +1,6 @@
 (ns tilemap-editor.fixture.common.dialog.identity-dialog
   (:require proof.core
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (defun confirm!
   "Confirms the currently open identity dialog.
@@ -11,7 +11,7 @@
   Returns:
   The test application immediately after clicking the dialog's OK button."
   [app]
-  (let [button (runtime/find-view-containing app "ui/button" "OK")]
+  (let [button (px/find-view-containing app "ui/button" "OK")]
     (is (some? button))
-    (runtime/click! app button)
+    (px/click! app button)
     app))

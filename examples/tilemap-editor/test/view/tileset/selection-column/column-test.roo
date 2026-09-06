@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.tileset.selection-column.column-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.view.tileset.selection-column.column :as column]))
 
 (defun selection-column-probe-source
@@ -40,32 +40,32 @@
 
 (deftest make/projects-selection-through-the-stock-list-box
   (s/given
-    (let [app (runtime/make-app {:package-root "."
+    (let [app (px/make-app {:package-root "."
                                  :buffer-width 320
                                  :buffer-height 240
                                  :render-backend false})]
-      (runtime/eval! app (selection-column-probe-source))
-      (runtime/push-mode! app 'root-mode)
-      (runtime/settle-layout! app)))
+      (px/eval! app (selection-column-probe-source))
+      (px/push-mode! app 'root-mode)
+      (px/settle-layout! app)))
 
   (s/when [app]
-    (runtime/click! app
-                    (nth (runtime/find-views app
+    (px/click! app
+                    (nth (px/find-views app
                                              "tileset-definition-row")
                          1))
-    (runtime/update! app)
+    (px/update! app)
     app)
 
   (s/then [app]
     (is (= 1
            (:selected-tileset-definition-index
-            (runtime/active-state app))))
+            (px/active-state app))))
     (is (= [1]
-           (-> (runtime/find-view app "ui/list-box")
+           (-> (px/find-view app "ui/list-box")
                :ui-state
                :selected-indices)))
     (is (= true
-           (-> (nth (runtime/find-views app "tileset-definition-row") 1)
+           (-> (nth (px/find-views app "tileset-definition-row") 1)
                :ui-state
                :selected)))))
 

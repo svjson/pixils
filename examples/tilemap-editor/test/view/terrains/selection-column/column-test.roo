@@ -13,14 +13,14 @@
 
   (p/then [view]
     (let [fields (-> view :children head :children head)
-          terrain-set-panel (-> fields :children head)
-          terrain-panel (-> fields :children (nth 1))
-          terrain-set-field (-> terrain-set-panel :children (nth 1) :children head)
+          terrain-set-field (-> fields :children head)
           terrain-set-control (-> terrain-set-field :children head)
-          terrain-editor (-> terrain-panel :children (nth 1) :children head)
+          terrain-set-panel (-> terrain-set-control :children head)
+          terrain-editor (-> fields :children (nth 1))
           terrain-field (-> terrain-editor :children head :children head :children head
                             :children head)
-          terrain-control (-> terrain-field :children head)]
+          terrain-control (-> terrain-field :children head)
+          terrain-panel (-> terrain-control :children head)]
       (is (= {:form {:mode 'pixils/form
                      :class :pixils.form/form}
               :terrain-sets {:title "Terrain Sets"
@@ -39,13 +39,13 @@
               :terrain-sets
               {:title (-> terrain-set-panel :state :title)
                :button-label (-> terrain-set-panel :children head :children (nth 1)
-                                 :state :component :label)
+                                 :state :label)
                :content-class (:class terrain-set-field)
                :field-id (-> terrain-set-control :state :field-id)}
               :terrains
               {:title (-> terrain-panel :state :title)
                :button-label (-> terrain-panel :children head :children (nth 1)
-                                 :state :component :label)
+                                 :state :label)
                :editor-id (-> terrain-editor :state :item-editor-id)
                :content-class (:class terrain-editor)
                :field-id (-> terrain-control :state :field-id)}})))))

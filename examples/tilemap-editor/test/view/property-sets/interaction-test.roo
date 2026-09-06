@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.property-sets.interaction-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.interaction :as pxi]
+            [pixils.test :as px]
             [tilemap-editor.fixture.common.dialog.identity-dialog :as identity-dialog]
             tilemap-editor.fixture.project
             [tilemap-editor.fixture.test-app :as test-app]
@@ -17,9 +17,9 @@
     (test-app/make {:project project}))
 
   (s/when [app]
-    (pxi/perform! (ws/open! app))
-    (pxi/perform! (ws/request-add-set! app))
-    (pxi/perform! (identity-dialog/confirm! app)))
+    (px/settle! (ws/open! app))
+    (px/settle! (ws/request-add-set! app))
+    (px/settle! (identity-dialog/confirm! app)))
 
   (s/then [app]
     (is (= {:workspace-tab :property-sets
@@ -36,9 +36,9 @@
     (test-app/make {:project project}))
 
   (s/when [app]
-    (pxi/perform! (ws/open! app))
-    (pxi/perform! (ws/request-add-property! app))
-    (pxi/perform! (identity-dialog/confirm! app)))
+    (px/settle! (ws/open! app))
+    (px/settle! (ws/request-add-property! app))
+    (px/settle! (identity-dialog/confirm! app)))
 
   (s/then [app]
     (is (= {:workspace-tab :property-sets
@@ -58,8 +58,8 @@
     (test-app/make {:project project}))
 
   (s/when [app]
-    (pxi/perform! (ws/open! app))
-    (pxi/perform! (ws/set-property-label! app "Walkable" "passable")))
+    (px/settle! (ws/open! app))
+    (px/settle! (ws/set-property-label! app "Walkable" "passable")))
 
   (s/then [app]
     (is (= {:workspace-tab :property-sets
@@ -79,7 +79,7 @@
     (test-app/make {:project project}))
 
   (s/when [app]
-    (pxi/perform! (ws/open! app)))
+    (px/settle! (ws/open! app)))
 
   (s/then [app]
     (is (ws/enum-value-editor-visible? app))
@@ -88,9 +88,9 @@
     (is (ws/shows-list-item? app "run")))
 
   (s/when [app]
-    (pxi/perform! (ws/request-add-enum-value! app))
-    (pxi/perform! (ws/enter-enum-value! app "swim"))
-    (pxi/perform! (ws/confirm-enum-value! app)))
+    (px/settle! (ws/request-add-enum-value! app))
+    (px/settle! (ws/enter-enum-value! app "swim"))
+    (px/settle! (ws/confirm-enum-value! app)))
 
   (s/then [app]
     (is (= {:workspace-tab :property-sets

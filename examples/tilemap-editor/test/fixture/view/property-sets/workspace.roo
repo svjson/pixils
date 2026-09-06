@@ -1,10 +1,10 @@
 (ns tilemap-editor.fixture.view.property-sets.workspace
   (:require proof.core
             [pixils.ui :as ui]
-            [pixils.test.runtime :as runtime]
-            [pixils.test.ui.combo-box :as combo-box]
-            [pixils.test.ui.list-box :as list-box]
-            [pixils.test.ui.tab-panel :as tab-panel]))
+            [pixils.test :as px]
+            [pixils.test.combo-box :as combo-box]
+            [pixils.test.list-box :as list-box]
+            [pixils.test.tab-panel :as tab-panel]))
 
 (defun open!
   "Opens the Property Sets workspace through its application tab.
@@ -17,7 +17,7 @@
   [app]
   (let [tab (tab-panel/tab app :property-sets)]
     (is (some? tab))
-    (runtime/click! app tab)
+    (px/click! app tab)
     app))
 
 (defun request-add-set!
@@ -29,14 +29,14 @@
   Returns:
   The application immediately after clicking the add button."
   [app]
-  (let [panel (runtime/find-view-containing app
+  (let [panel (px/find-view-containing app
                                             "ui/header-panel"
                                             "Property Sets")
         header (when panel (head (ui/children panel)))
         button (when header (nth (ui/children header) 1))]
     (is (some? panel))
-    (is (= "ui/button" (runtime/view-mode-name button)))
-    (runtime/click! app button)
+    (is (= "ui/button" (px/view-mode-name button)))
+    (px/click! app button)
     app))
 
 (defun request-add-property!
@@ -48,12 +48,12 @@
   Returns:
   The application immediately after clicking the add button."
   [app]
-  (let [panel (runtime/find-view-containing app "ui/header-panel" "Fields")
+  (let [panel (px/find-view-containing app "ui/header-panel" "Fields")
         header (when panel (head (ui/children panel)))
         button (when header (nth (ui/children header) 1))]
     (is (some? panel))
-    (is (= "ui/button" (runtime/view-mode-name button)))
-    (runtime/click! app button)
+    (is (= "ui/button" (px/view-mode-name button)))
+    (px/click! app button)
     app))
 
 (defun shows-list-item?
@@ -77,7 +77,7 @@
   Returns:
   True when the form renders an array control for enum values."
   [app]
-  (any? (runtime/find-views app "pixils/form-array-control")
+  (any? (px/find-views app "pixils/form-array-control")
         (fn [view]
           (= :values (-> view :state :field-id)))))
 
@@ -102,9 +102,9 @@
   Returns:
   The application immediately after clicking the Add button."
   [app]
-  (let [button (runtime/find-view-containing app "ui/button" "Add")]
+  (let [button (px/find-view-containing app "ui/button" "Add")]
     (is (some? button))
-    (runtime/click! app button)
+    (px/click! app button)
     app))
 
 (defun enter-enum-value!
@@ -117,13 +117,13 @@
   Returns:
   The application immediately after entering `value`."
   [app value]
-  (let [input (find-first (runtime/find-views app "ui/text-input")
+  (let [input (find-first (px/find-views app "ui/text-input")
                           (fn [view]
                             (= "" (-> view :ui-state :value))))]
     (is (some? input))
-    (runtime/click! app input)
+    (px/click! app input)
     (for [character value]
-      (runtime/press-key! app (keyword (str character))))
+      (px/press-key! app (keyword (str character))))
     app))
 
 (defun confirm-enum-value!
@@ -135,9 +135,9 @@
   Returns:
   The application immediately after clicking the dialog's OK button."
   [app]
-  (let [button (runtime/find-view-containing app "ui/button" "OK")]
+  (let [button (px/find-view-containing app "ui/button" "OK")]
     (is (some? button))
-    (runtime/click! app button)
+    (px/click! app button)
     app))
 
 (defun set-property-label!
@@ -151,16 +151,16 @@
   Returns:
   The application immediately after entering `label`."
   [app current-label label]
-  (let [input (find-first (runtime/find-views app "ui/text-input")
+  (let [input (find-first (px/find-views app "ui/text-input")
                           (fn [view]
                             (= current-label (-> view :ui-state :value))))]
     (is (some? input))
-    (runtime/click! app input)
-    (runtime/press-modified-key! app :left-ctrl :a)
+    (px/click! app input)
+    (px/press-modified-key! app :left-ctrl :a)
     (for [character label]
-      (runtime/press-key! app (keyword (str character))))
-    (runtime/click! app
-                    (runtime/find-view-containing app "ui/text" "Fields"))
+      (px/press-key! app (keyword (str character))))
+    (px/click! app
+                    (px/find-view-containing app "ui/text" "Fields"))
     app))
 
 (defun project-state
@@ -172,7 +172,7 @@
   Returns:
   A map containing the active workspace, property sets, and their selection."
   [app]
-  (select-keys (runtime/active-state app)
+  (select-keys (px/active-state app)
                [:workspace-tab
                 :property-sets
                 :selected-property-set-index]))

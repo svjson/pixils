@@ -3,9 +3,9 @@
             [proof.syntax :as s]
             [roo.io :as io]
             [pixils.tilemap.project.model :as data]
-            [pixils.test.runtime :as runtime]
-            [pixils.test.ui.list-box :as list-box]
-            [pixils.test.ui.menu-bar :as menu-bar]
+            [pixils.test :as px]
+            [pixils.test.list-box :as list-box]
+            [pixils.test.menu-bar :as menu-bar]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.fixture.view.tilemap.tilemap-tab :as tilemap-tab]
@@ -53,7 +53,7 @@
    (file-dialog-payload :file-dialog/open path filename)))
 
 (defun make-startup-app []
-  (runtime/make-app {:package-root "."
+  (px/make-app {:package-root "."
                      :buffer-width 800
                      :buffer-height 600}))
 
@@ -280,49 +280,49 @@
 
 (deftest current-example-main-mode-renders-and-switches-to-tilesets-tab
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (= "main-mode" (runtime/active-mode-name app)))
-    (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/render! app)
+    (is (= "main-mode" (px/active-mode-name app)))
+    (let [tilesets-tab (px/find-view-containing app "ui/tab" ":tab-id :tilesets")]
       (is (some? tilesets-tab))
-      (runtime/click! app tilesets-tab))
-    (runtime/render! app)
-    (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-    (is (some? (runtime/find-view app "tileset-definition-workspace")))))
+      (px/click! app tilesets-tab))
+    (px/render! app)
+    (is (= :tilesets (:workspace-tab (px/active-state app))))
+    (is (some? (px/find-view app "tileset-definition-workspace")))))
 
 (deftest menu-shortcuts-dispatch-from-main-mode-action-map
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (is (= true (:show-grid? (runtime/active-state app))))
-    (is (= true (:show-terrain-rules? (runtime/active-state app))))
-    (is (= :preview (:terrain-rule-application (runtime/active-state app))))
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (is (= true (:show-grid? (px/active-state app))))
+    (is (= true (:show-terrain-rules? (px/active-state app))))
+    (is (= :preview (:terrain-rule-application (px/active-state app))))
 
-    (runtime/key-down! app :left-ctrl)
-    (runtime/key-down! app :g)
-    (runtime/update! app)
-    (runtime/key-up! app :g)
-    (is (= false (:show-grid? (runtime/active-state app))))
+    (px/key-down! app :left-ctrl)
+    (px/key-down! app :g)
+    (px/update! app)
+    (px/key-up! app :g)
+    (is (= false (:show-grid? (px/active-state app))))
 
-    (runtime/key-down! app :t)
-    (runtime/update! app)
-    (runtime/key-up! app :t)
-    (is (= false (:show-terrain-rules? (runtime/active-state app))))
+    (px/key-down! app :t)
+    (px/update! app)
+    (px/key-up! app :t)
+    (is (= false (:show-terrain-rules? (px/active-state app))))
 
-    (runtime/key-down! app :left-alt)
-    (runtime/key-down! app :b)
-    (runtime/update! app)
-    (runtime/key-up! app :b)
-    (is (= :paint-baked (:terrain-rule-application (runtime/active-state app))))
+    (px/key-down! app :left-alt)
+    (px/key-down! app :b)
+    (px/update! app)
+    (px/key-up! app :b)
+    (is (= :paint-baked (:terrain-rule-application (px/active-state app))))
 
-    (runtime/key-down! app :p)
-    (runtime/update! app)
-    (runtime/key-up! app :p)
-    (runtime/key-up! app :left-alt)
-    (runtime/key-up! app :left-ctrl)
-    (runtime/update! app)
-    (is (= :preview (:terrain-rule-application (runtime/active-state app))))))
+    (px/key-down! app :p)
+    (px/update! app)
+    (px/key-up! app :p)
+    (px/key-up! app :left-alt)
+    (px/key-up! app :left-ctrl)
+    (px/update! app)
+    (is (= :preview (:terrain-rule-application (px/active-state app))))))
 
 
 
@@ -331,12 +331,12 @@
 (deftest edit-menu/enables-selection-commands-when-map-selection-exists
   (s/given
     (let [app (make-startup-app)]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/update! app)
-      (runtime/render! app)
-      (runtime/set-active-state!
+      (px/push-mode! app 'main-mode)
+      (px/update! app)
+      (px/render! app)
+      (px/set-active-state!
        app
-       (assoc (runtime/active-state app)
+       (assoc (px/active-state app)
               :workspace-tab :map
               :map-tool :select
               :map-width 4
@@ -345,16 +345,16 @@
               :zoom 1
               :map-offset {:x 0 :y 0}
               :map-clipboard nil))
-      (runtime/settle-layout! app)
-      (runtime/render! app)
+      (px/settle-layout! app)
+      (px/render! app)
       app))
 
   (s/when [app]
     (tilemap-tab/select-map-region! app
                                     {:x 0 :y 0}
                                     {:x 1 :y 1})
-    (runtime/settle-layout! app)
-    (runtime/render! app)
+    (px/settle-layout! app)
+    (px/render! app)
     app)
 
   (s/then [app]
@@ -362,23 +362,23 @@
             :current {:x 1 :y 1}
             :rect {:x 0 :y 0 :w 2 :h 2}
             :active? false}
-           (:map-selection (runtime/active-state app))))
+           (:map-selection (px/active-state app))))
     (is (= [true true true]
            (for [action [:edit/cut :edit/copy :edit/paste]]
              (menu-bar/command-enabled? app "Edit" action)))))
 
   (s/when [app]
-    (runtime/set-active-state!
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :map-clipboard {:type :tilemap/map-region}))
-    (runtime/settle-layout! app)
-    (runtime/render! app)
+    (px/settle-layout! app)
+    (px/render! app)
     app)
 
   (s/then [app]
     (is (= {:type :tilemap/map-region}
-           (:map-clipboard (runtime/active-state app))))
+           (:map-clipboard (px/active-state app))))
     (is (= true
            (menu-bar/command-enabled? app "Edit" :edit/paste)))))
 
@@ -387,9 +387,9 @@
     (make-startup-app))
 
   (s/when [app]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/settle-layout! app)
-    (runtime/render! app)
+    (px/push-mode! app 'main-mode)
+    (px/settle-layout! app)
+    (px/render! app)
     app)
 
   (s/then [app]
@@ -402,19 +402,19 @@
               :enabled? (menu-bar/command-enabled? app "Edit" action)}))))
 
   (s/when [app]
-    (runtime/set-active-state!
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workbook-history {:undo [{:label "Rename layer"}]
                                :redo []}))
-    (runtime/settle-layout! app)
-    (runtime/render! app)
+    (px/settle-layout! app)
+    (px/render! app)
     app)
 
   (s/then [app]
     (is (= {:undo [{:label "Rename layer"}]
             :redo []}
-           (:workbook-history (runtime/active-state app))))
+           (:workbook-history (px/active-state app))))
     (is (= [{:text "Undo Rename layer"
              :enabled? true}
             {:text "Redo"
@@ -426,37 +426,37 @@
 (deftest direct-project-load-keeps-existing-palette-interactive
   (cleanup-application-startup-test-files!)
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/render! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/render! app)
+    (px/set-active-state!
      app
      (project-io/apply-project-file-dialog-result
-      (assoc (runtime/active-state app)
+      (assoc (px/active-state app)
              :project-history-path DIRECT-LOAD-HISTORY-PATH
              :recent-projects [])
       (example-map-open-payload)))
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [tile-select-grid (runtime/find-view-containing app
+    (px/update! app)
+    (px/update! app)
+    (px/render! app)
+    (let [tile-select-grid (px/find-view-containing app
                                                          "tile-select-grid"
                                                          "Night Sky")]
       (is (some? tile-select-grid))
-      (runtime/mouse-click-in! app tile-select-grid 21 5))
-    (is (= :cave-depth (:selected-tile (runtime/active-state app))))
-    (is (some? (runtime/find-view-containing app
+      (px/mouse-click-in! app tile-select-grid 21 5))
+    (is (= :cave-depth (:selected-tile (px/active-state app))))
+    (is (some? (px/find-view-containing app
                                              "tile-select-grid"
                                              "Cave Depth"))))
   (cleanup-application-startup-test-files!))
 
 (deftest map-canvas-right-click-clears-active-tile-layer-cell
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :map
             :selected-map-id :map/test
             :selected-map-label "Test"
@@ -504,79 +504,79 @@
                       :data-kind :tile-ref
                       :tileset :props
                       :tiles [[:crate]]}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [canvas (runtime/find-view app "map-canvas")]
+    (px/update! app)
+    (px/render! app)
+    (let [canvas (px/find-view app "map-canvas")]
       (is (some? canvas))
-      (runtime/mouse-click-in! app canvas 8 8 :right))
-    (runtime/update! app)
-    (is (nil? (get-in (runtime/active-state app)
+      (px/mouse-click-in! app canvas 8 8 :right))
+    (px/update! app)
+    (is (nil? (get-in (px/active-state app)
                       [:layers 1 :tiles 0 0])))
-    (is (nil? (get-in (runtime/active-state app)
+    (is (nil? (get-in (px/active-state app)
                       [:maps 0 :layers 1 :tiles 0 0])))))
 
 (deftest terrain-unit-combo-updates-selected-terrain-set
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :terrains
             :selected-terrain-set-index 0
             :terrain-sets [{:id :mountains
                             :label "Mountains"
                             :terrains []}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [terrain-unit-combo (runtime/find-view-containing app
+    (px/update! app)
+    (px/render! app)
+    (let [terrain-unit-combo (px/find-view-containing app
                                                            "ui/combo-box"
                                                            ":unit-2x2")]
       (is (some? terrain-unit-combo))
-      (runtime/mouse-down-in! app terrain-unit-combo 5 5))
-    (runtime/update! app)
-    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
-    (runtime/pop-mode! app {:selected-indices [1]})
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (= "main-mode" (runtime/active-mode-name app)))
+      (px/mouse-down-in! app terrain-unit-combo 5 5))
+    (px/update! app)
+    (is (= "ui/combo-box-popup" (px/active-mode-name app)))
+    (px/pop-mode! app {:selected-indices [1]})
+    (px/update! app)
+    (px/update! app)
+    (px/render! app)
+    (is (= "main-mode" (px/active-mode-name app)))
     (is (= {:w 2 :h 2}
-           (get-in (runtime/active-state app)
+           (get-in (px/active-state app)
                    [:terrain-sets 0 :terrain-unit])))
-    (let [terrain-unit-combo (runtime/find-view-containing app
+    (let [terrain-unit-combo (px/find-view-containing app
                                                            "ui/combo-box"
                                                            ":unit-2x2")]
       (is (some? terrain-unit-combo))
-      (is (= 1 (:selected-index (runtime/view-state terrain-unit-combo))))
-      (is (= "2 x 2" (:selected-label (runtime/view-state terrain-unit-combo)))))))
+      (is (= 1 (:selected-index (px/view-state terrain-unit-combo))))
+      (is (= "2 x 2" (:selected-label (px/view-state terrain-unit-combo)))))))
 
 (deftest masks-tab-renders-mask-sets-from-state
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :masks
             :mask-sets [{:id :soft-edge
                          :label "Soft Edge"}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (some? (runtime/find-view app "mask-set-workspace")))
+    (px/update! app)
+    (px/render! app)
+    (is (some? (px/find-view app "mask-set-workspace")))
     (is (= [{:id :soft-edge
              :label "Soft Edge"}]
-           (:mask-sets (runtime/view-state
-                        (runtime/find-view app "mask-set-workspace")))))
+           (:mask-sets (px/view-state
+                        (px/find-view app "mask-set-workspace")))))
     (list-box/has-visible-text? app "Soft Edge")))
 
 (deftest masks-tab-renders-selected-mask-palette-and-canvas
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :masks
             :mask-detail-tab :mask
             :selected-mask-set-index 0
@@ -592,37 +592,37 @@
                                   :source {:type :tile-composition
                                            :tileset :terrain
                                            :tiles []}}]}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [tileset-selector (runtime/find-view
+    (px/update! app)
+    (px/render! app)
+    (let [tileset-selector (px/find-view
                             app
                             "mask-workspace-source-tileset-selector")
-          tile-palette (runtime/find-view app "mask-source-tile-palette")
-          composition-canvas (runtime/find-view
+          tile-palette (px/find-view app "mask-source-tile-palette")
+          composition-canvas (px/find-view
                               app
                               "mask-composition-canvas")]
       (is (some? tileset-selector))
       (is (some? tile-palette))
       (is (some? composition-canvas))
-      (is (= false (:disabled? (runtime/view-state tileset-selector))))
-      (is (= false (:disabled? (runtime/view-state tile-palette))))
+      (is (= false (:disabled? (px/view-state tileset-selector))))
+      (is (= false (:disabled? (px/view-state tile-palette))))
       (is (= [{:value 0
                :label "Terrain"}]
-             (:tileset-options (runtime/view-state tileset-selector))))
+             (:tileset-options (px/view-state tileset-selector))))
       (is (= [{:value :edge-n
                :label nil}]
-             (:tile-options (runtime/view-state tile-palette))))
+             (:tile-options (px/view-state tile-palette))))
       (is (= []
              (:selected-mask-tile-items
-              (runtime/view-state composition-canvas)))))))
+              (px/view-state composition-canvas)))))))
 
 (deftest masks-tab-source-tileset-selection-stores-tileset-id
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :masks
             :mask-detail-tab :mask
             :selected-mask-set-index 0
@@ -640,37 +640,37 @@
                                   :source {:type :tile-composition
                                            :tileset :terrain
                                            :tiles []}}]}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [tileset-selector (runtime/find-view
+    (px/update! app)
+    (px/render! app)
+    (let [tileset-selector (px/find-view
                             app
                             "mask-workspace-source-tileset-selector")]
       (is (some? tileset-selector))
       (is (= 0 (:selected-tileset-index
-                (runtime/view-state tileset-selector))))
-      (runtime/mouse-down-in! app tileset-selector 5 5))
-    (runtime/update! app)
-    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
-    (runtime/pop-mode! app {:selected-indices [1]})
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [tileset-selector (runtime/find-view
+                (px/view-state tileset-selector))))
+      (px/mouse-down-in! app tileset-selector 5 5))
+    (px/update! app)
+    (is (= "ui/combo-box-popup" (px/active-mode-name app)))
+    (px/pop-mode! app {:selected-indices [1]})
+    (px/update! app)
+    (px/update! app)
+    (px/render! app)
+    (let [tileset-selector (px/find-view
                             app
                             "mask-workspace-source-tileset-selector")]
       (is (= :road
-             (get-in (runtime/active-state app)
+             (get-in (px/active-state app)
                      [:mask-sets 0 :masks 0 :source :tileset])))
       (is (= 1 (:selected-tileset-index
-                (runtime/view-state tileset-selector)))))))
+                (px/view-state tileset-selector)))))))
 
 (deftest masks-tab-clicking-composed-tile-selects-it
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :masks
             :mask-detail-tab :mask
             :selected-mask-set-index 0
@@ -691,24 +691,24 @@
                                            :tiles [{:tile :edge-n
                                                     :offset {:x 0
                                                              :y 0}}]}}]}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+    (px/update! app)
+    (px/render! app)
+    (let [canvas (px/find-view app "mask-composition-canvas")]
       (is (some? canvas))
-      (runtime/mouse-click-in! app canvas 10 10))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+      (px/mouse-click-in! app canvas 10 10))
+    (px/update! app)
+    (px/render! app)
+    (let [canvas (px/find-view app "mask-composition-canvas")]
       (is (= 0 (:selected-mask-tile-item-index
-                (runtime/view-state canvas)))))))
+                (px/view-state canvas)))))))
 
 (deftest masks-tab-context-menu-can-remove-composed-tile
   (let [app (make-startup-app)]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state!
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :workspace-tab :masks
             :mask-detail-tab :mask
             :selected-mask-set-index 0
@@ -728,23 +728,23 @@
                                            :tiles [{:tile :edge-n
                                                     :offset {:x 0
                                                              :y 0}}]}}]}]))
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+    (px/update! app)
+    (px/render! app)
+    (let [canvas (px/find-view app "mask-composition-canvas")]
       (is (some? canvas))
-      (runtime/mouse-click-in! app canvas 10 10 :right))
-    (runtime/update! app)
-    (is (= "ui/context-menu" (runtime/active-mode-name app)))
-    (runtime/render! app)
-    (let [remove-item (runtime/find-view-containing app
+      (px/mouse-click-in! app canvas 10 10 :right))
+    (px/update! app)
+    (is (= "ui/context-menu" (px/active-mode-name app)))
+    (px/render! app)
+    (let [remove-item (px/find-view-containing app
                                                     "ui/popup-menu-item"
                                                     ":command :remove")]
       (is (some? remove-item))
-      (runtime/click! app remove-item))
-    (runtime/update! app)
-    (runtime/render! app)
+      (px/click! app remove-item))
+    (px/update! app)
+    (px/render! app)
     (is (= []
-           (get-in (runtime/active-state app)
+           (get-in (px/active-state app)
                    [:mask-sets 0 :masks 0 :source :tiles])))))
 
 (deftest loaded-sprite-project-after-empty-tileset-tab-with-missing-image-renders-preview
@@ -773,28 +773,28 @@
         open-payload (file-dialog-payload :file-dialog/open
                                           MISSING-IMAGE-PATH
                                           "sprite-project.edn")]
-    (runtime/push-mode! app 'main-mode)
-    (runtime/update! app)
-    (runtime/set-active-state! app
-                               (assoc (runtime/active-state app)
+    (px/push-mode! app 'main-mode)
+    (px/update! app)
+    (px/set-active-state! app
+                               (assoc (px/active-state app)
                                       :project-history-path MISSING-IMAGE-HISTORY-PATH
                                       :recent-projects []))
-    (runtime/render! app)
-    (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+    (px/render! app)
+    (let [tilesets-tab (px/find-view-containing app "ui/tab" ":tab-id :tilesets")]
       (is (some? tilesets-tab))
-      (runtime/click! app tilesets-tab))
-    (runtime/render! app)
-    (runtime/push-mode-with-overrides!
+      (px/click! app tilesets-tab))
+    (px/render! app)
+    (px/push-mode-with-overrides!
      app
      'ui/tab-panel-empty
      nil
-     {:origin {:view (runtime/active-mode app)
+     {:origin {:view (px/active-mode app)
                :event :project/file-dialog-result}})
-    (runtime/pop-mode! app open-payload)
-    (runtime/update! app)
-    (runtime/update! app)
-    (runtime/render! app)
-    (is (= "main-mode" (runtime/active-mode-name app)))
-    (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-    (is (some? (runtime/find-view app "sprite-source-preview"))))
+    (px/pop-mode! app open-payload)
+    (px/update! app)
+    (px/update! app)
+    (px/render! app)
+    (is (= "main-mode" (px/active-mode-name app)))
+    (is (= :tilesets (:workspace-tab (px/active-state app))))
+    (is (some? (px/find-view app "sprite-source-preview"))))
   (cleanup-application-startup-test-files!))

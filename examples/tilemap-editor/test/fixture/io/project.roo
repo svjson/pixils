@@ -2,7 +2,7 @@
   (:require proof.core
             [roo.io :as io]
             [pixils.tilemap.project.model :as data]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (def PROJECT-PATH-PREFIX "/tmp/pixils-tilemap-editor-")
 (def EXAMPLE-MAP1 :example-map1)
@@ -76,7 +76,7 @@
 
 (defun contains-tileset? [app target]
   (let [id (tileset-id target)
-        ids (map (or (:tilesets (runtime/active-state app)) []) :id)
+        ids (map (or (:tilesets (px/active-state app)) []) :id)
         present? (contains? ids id)]
     (is (= true present?))
     present?))

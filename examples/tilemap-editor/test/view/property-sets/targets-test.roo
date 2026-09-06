@@ -1,6 +1,6 @@
 (ns tilemap-editor.view.property-sets.targets-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.view.property-sets.targets :as targets]))
 
 (defun property-value-list-probe-source []
@@ -74,20 +74,20 @@
 ;; tilemap-editor.view.property-sets.targets/property-value-list
 
 (deftest property-value-list/keeps-control-view-when-value-changes
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 320
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (property-value-list-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [control (runtime/find-view app "property-value-number-control")]
-      (is (= 4 (:value (runtime/view-state control))))
-      (runtime/set-active-state!
+    (px/eval! app (property-value-list-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [control (px/find-view app "property-value-number-control")]
+      (is (= 4 (:value (px/view-state control))))
+      (px/set-active-state!
        app
-       (assoc (runtime/active-state app)
+       (assoc (px/active-state app)
               :override-values {:cost 5}))
-      (runtime/settle-layout! app)
+      (px/settle-layout! app)
       (is (= control
-             (runtime/find-view app "property-value-number-control")))
-      (is (= 5 (:value (runtime/view-state control)))))))
+             (px/find-view app "property-value-number-control")))
+      (is (= 5 (:value (px/view-state control)))))))

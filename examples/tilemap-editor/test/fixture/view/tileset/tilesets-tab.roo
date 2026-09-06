@@ -1,37 +1,37 @@
 (ns tilemap-editor.fixture.view.tileset.tilesets-tab
   (:require proof.core
-            [pixils.test.runtime :as runtime]
-            [pixils.test.ui.combo-box :as combo-box]
-            [pixils.test.ui.list-box :as list-box]
+            [pixils.test :as px]
+            [pixils.test.combo-box :as combo-box]
+            [pixils.test.list-box :as list-box]
             [tilemap-editor.fixture.components.tile-grid :as tile-grid]
             [tilemap-editor.fixture.io.project :as project]))
 
 (defun tileset-definition [app target]
   (let [id (project/tileset-id target)]
-    (head (filter (or (:tilesets (runtime/active-state app)) [])
+    (head (filter (or (:tilesets (px/active-state app)) [])
                   (fn [tileset]
                     (= id (:id tileset)))))))
 
 (defun open-context-menu! [app target opts]
   (let [tileset (tileset-definition app target)
-        row (runtime/find-view-containing app
+        row (px/find-view-containing app
                                           "tileset-definition-row"
                                           (:label tileset))]
     (is (not (nil? tileset)))
     (is (not (nil? row)))
     (case (:by opts)
-      :mouse/right-click (runtime/mouse-click-in! app row 5 5 :right)
-      :default (runtime/mouse-click-in! app row 5 5 :right))
-    (runtime/render! app)
+      :mouse/right-click (px/mouse-click-in! app row 5 5 :right)
+      :default (px/mouse-click-in! app row 5 5 :right))
+    (px/render! app)
     app))
 
 (defun edit-dialog-is-open? [app]
-  (let [open? (= "tileset-edit-dialog-modal" (runtime/active-mode-name app))]
+  (let [open? (= "tileset-edit-dialog-modal" (px/active-mode-name app))]
     (is (= true open?))
     open?))
 
 (defun edit-dialog-matches? [app expected]
-  (let [dialog-state (runtime/active-state app)]
+  (let [dialog-state (px/active-state app)]
     (is (= (get expected :tileset/id) (:tileset-id dialog-state)))
     (is (= (get expected :tileset/label) (:tileset-label dialog-state)))
     (is (= (get expected :tileset/tile-size) (:tile-size dialog-state)))
@@ -41,7 +41,7 @@
   "tileset-tile-grid")
 
 (defun grid [app]
-  (runtime/find-view app (tile-grid)))
+  (px/find-view app (tile-grid)))
 
 (defun select-tile-range! [app from-index to-index opts]
   (let [view (grid app)]
@@ -57,12 +57,12 @@
   (tile-grid/move-selection! app direction opts))
 
 (defun selected-tile-index-is? [app index]
-  (let [selected (:selected-tileset-tile-index (runtime/active-state app))]
+  (let [selected (:selected-tileset-tile-index (px/active-state app))]
     (is (= index selected))
     selected))
 
 (defun selected-tile-indices-are? [app indices]
-  (let [selected (:selected-tileset-tile-indices (runtime/active-state app))]
+  (let [selected (:selected-tileset-tile-indices (px/active-state app))]
     (is (= indices selected))
     selected))
 
@@ -74,22 +74,22 @@
   (combo-box/has-visible-text? app text))
 
 (defun tile-definition-panel-count-is? [app expected]
-  (let [actual (count (runtime/find-views app "tile-definition-panel"))]
+  (let [actual (count (px/find-views app "tile-definition-panel"))]
     (is (= expected actual))
     actual))
 
 (defun request-delete-selection! [app opts]
   (case (:by opts)
-    :keyboard/delete (runtime/key-down! app :delete)
-    :default (runtime/key-down! app :delete))
-  (runtime/update! app)
-  (runtime/update! app)
-  (runtime/render! app)
+    :keyboard/delete (px/key-down! app :delete)
+    :default (px/key-down! app :delete))
+  (px/update! app)
+  (px/update! app)
+  (px/render! app)
   app)
 
 (defun delete-dialog-is-open? [app expected-indices]
-  (let [payload (runtime/dialog-payload app)]
-    (is (= true (runtime/dialog-open? app :delete-tiles)))
+  (let [payload (px/dialog-payload app)]
+    (is (= true (px/dialog-open? app :delete-tiles)))
     (is (= expected-indices (:tile-indices payload)))
     true))
 
@@ -98,5 +98,5 @@
         view (grid app)]
     (is (not (nil? view)))
     (tile-grid/right-click-index! app view index opts)
-    (is (= "ui/context-menu" (runtime/active-mode-name app)))
+    (is (= "ui/context-menu" (px/active-mode-name app)))
     app))

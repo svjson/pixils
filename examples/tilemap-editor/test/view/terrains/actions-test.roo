@@ -25,6 +25,82 @@
    :selected-terrain-set-index 0
    :selected-terrain-index 0})
 
+(deftest form-change-adds-terrain-set-through-workbook-history
+  (let [state (actions/apply-form-change
+               (terrain-state)
+               {:field-id :terrain-sets
+                :operation :array/add
+                :index 1
+                :old-value nil
+                :value {:id :dungeons
+                        :label "Dungeons"}})
+        undone (editor-workbook/undo state)]
+    (is (= :dungeons (get-in state [:terrain-sets 1 :id])))
+    (is (= "Dungeons" (get-in state [:terrain-sets 1 :label])))
+    (is (= "Add terrain set" (editor-workbook/undo-label state)))
+    (is (= 1 (count (:terrain-sets undone))))))
+
+(deftest form-change-renames-terrain-set-without-clearing-contents
+  (let [state (actions/apply-form-change
+               (assoc (terrain-state)
+                      :layers [{:id :scene/terrain
+                                :data-kind :terrain
+                                :terrain-set :overworld}])
+               {:field-id :terrain-sets
+                :operation :array/edit
+                :index 0
+                :old-value {:id :overworld
+                            :label "Overworld"}
+                :value {:id :surface
+                        :label "Surface"}})
+        undone (editor-workbook/undo state)]
+    (is (= :surface (get-in state [:terrain-sets 0 :id])))
+    (is (= "Surface" (get-in state [:terrain-sets 0 :label])))
+    (is (= [:movement] (get-in state [:terrain-sets 0 :property-sets])))
+    (is (= :grass (get-in state [:terrain-sets 0 :terrains 0 :id])))
+    (is (= :surface (get-in state [:layers 0 :terrain-set])))
+    (is (= "Rename terrain set" (editor-workbook/undo-label state)))
+    (is (= :overworld (get-in undone [:terrain-sets 0 :id])))))
+
+(deftest form-change-adds-terrain-through-workbook-history
+  (let [state (actions/apply-form-change
+               (terrain-state)
+               {:field-id :terrains
+                :field-path [:subject :terrain-sets 0 :terrains]
+                :operation :array/add
+                :index 1
+                :old-value nil
+                :value {:id :water
+                        :label "Water"}})
+        undone (editor-workbook/undo state)]
+    (is (= :water (get-in state [:terrain-sets 0 :terrains 1 :id])))
+    (is (= "Water" (get-in state [:terrain-sets 0 :terrains 1 :label])))
+    (is (= "Add terrain" (editor-workbook/undo-label state)))
+    (is (= 1 (count (get-in undone [:terrain-sets 0 :terrains]))))))
+
+(deftest form-change-renames-terrain-without-clearing-other-fields
+  (let [state (actions/apply-form-change
+               (assoc (terrain-state)
+                      :layers [{:id :scene/terrain
+                                :data-kind :terrain
+                                :terrain-set :overworld
+                                :tiles [[:grass]]}])
+               {:field-id :terrains
+                :field-path [:subject :terrain-sets 0 :terrains]
+                :operation :array/edit
+                :index 0
+                :old-value {:id :grass
+                            :label "Grass"}
+                :value {:id :meadow
+                        :label "Meadow"}})
+        undone (editor-workbook/undo state)]
+    (is (= :meadow (get-in state [:terrain-sets 0 :terrains 0 :id])))
+    (is (= "Meadow" (get-in state [:terrain-sets 0 :terrains 0 :label])))
+    (is (= {} (get-in state [:terrain-sets 0 :terrains 0 :properties])))
+    (is (= :meadow (get-in state [:layers 0 :tiles 0 0])))
+    (is (= "Rename terrain" (editor-workbook/undo-label state)))
+    (is (= :grass (get-in undone [:terrain-sets 0 :terrains 0 :id])))))
+
 (defun mask-state []
   {:tilesets [{:id :terrain
                :tiles [{:id :edge-n}

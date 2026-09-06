@@ -1,25 +1,25 @@
 (ns tilemap-editor.common.dialog.identity-dialog-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.common.dialog.identity-dialog :as identity-dialog]))
 
 (deftest identity-dialog-uses-pixils-form-for-identity
-  (let [app (runtime/make-app {:package-root "."
+  (let [app (px/make-app {:package-root "."
                                :buffer-width 400
                                :buffer-height 300
                                :render-backend false})]
-    (runtime/push-mode-with-state! app
+    (px/push-mode-with-state! app
                                    'identity-dialog-modal
                                    {:title "Rename"
                                     :identity {:id :demo
                                                :name "Demo"}
                                     :context {:source :test}})
-    (runtime/update! app)
-    (runtime/render! app)
-    (let [identity-form (runtime/find-view app "pixils/form")
-          buttons (runtime/find-view app "identity-dialog-buttons")
-          form-state (runtime/view-state identity-form)]
-      (is (= "identity-dialog-modal" (runtime/active-mode-name app)))
+    (px/update! app)
+    (px/render! app)
+    (let [identity-form (px/find-view app "pixils/form")
+          buttons (px/find-view app "identity-dialog-buttons")
+          form-state (px/view-state identity-form)]
+      (is (= "identity-dialog-modal" (px/active-mode-name app)))
       (is (not (nil? identity-form)))
       (is (= "Id" (get-in form-state [:form/render-opts :text :id])))
       (is (= "Name" (get-in form-state [:form/render-opts :text :name])))
@@ -28,4 +28,4 @@
       (is (not (nil? buttons)))
       (is (= {:id :demo
               :name "Demo"}
-             (:identity (runtime/view-state buttons)))))))
+             (:identity (px/view-state buttons)))))))

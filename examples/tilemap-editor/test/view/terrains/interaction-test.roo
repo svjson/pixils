@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.terrains.interaction-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [tilemap-editor.fixture.io.project :as project]
             [tilemap-editor.fixture.main-window :as main-window]
             [tilemap-editor.fixture.view.terrains.rule-list :as rule-list]
@@ -21,8 +21,8 @@
 
   (s/when [app]
     (main-window/switch-to! app :tab/terrains {:by :mouse/click})
-    (runtime/render! app)
-    (let [rows (runtime/find-views app "pixils/form-selection-list-item")
+    (px/render! app)
+    (let [rows (px/find-views app "pixils/form-selection-list-item")
           overworld (find-first rows
                                 (fn [row]
                                   (= "Overworld" (-> row :ui-state :label))))
@@ -35,37 +35,38 @@
       (is (some? overworld))
       (is (some? grass))
       (is (some? water))
-      (runtime/click! app water)
-      (runtime/update! app)
-      (is (= 1 (:selected-terrain-index (runtime/active-state app))))
+      (px/click! app water)
+      (px/update! app)
+      (is (= 1 (:selected-terrain-index (px/active-state app))))
       (is (= true
-             (-> (runtime/find-view-containing
+             (-> (px/find-view-containing
                   app
                   "pixils/form-selection-list-item"
                   "Water")
                  :ui-state
                  :selected)))
-      (runtime/mouse-click-in! app water 5 5 :right)
-      (runtime/update! app)
-      (runtime/render! app)
-      (is (= "ui/context-menu" (runtime/active-mode-name app)))
-      (let [rename-item (runtime/find-view-containing app
+      (px/mouse-click-in! app water 5 5 :right)
+      (px/update! app)
+      (px/render! app)
+      (is (= "ui/context-menu" (px/active-mode-name app)))
+      (let [rename-item (px/find-view-containing app
                                                       "ui/popup-menu-item"
                                                       "Rename Terrain")]
         (is (some? rename-item))
-        (runtime/click! app rename-item)
-        (runtime/update! app)
-        (runtime/render! app))
-      {:dialog-mode (runtime/active-mode-name app)
-       :dialog-identity (:identity (runtime/active-state app))
-       :dialog-context (:context (runtime/active-state app))}))
+        (px/click! app rename-item)
+        (px/update! app)
+        (px/render! app))
+      {:dialog-mode (px/active-mode-name app)
+       :dialog-value (:value (px/active-state app))
+       :dialog-field-ids
+       (for [field (px/find-views app "pixils/form-field")]
+         (-> field :state :field-id))}))
 
   (s/then [result]
-    (is (= {:dialog-mode "identity-dialog-modal"
-            :dialog-identity {:id "water"
-                              :name "Water"}
-            :dialog-context {:operation :rename
-                             :terrain-index 1}}
+    (is (= {:dialog-mode "ui/dialog-frame"
+            :dialog-value {:id :water
+                           :label "Water"}
+            :dialog-field-ids [:id :label]}
            result))
     (project/cleanup! :terrain-selection-lists)))
 
@@ -269,7 +270,7 @@
     (let [changed-terrain (terrains-tab/terrain-by-id app
                                                       :overworld
                                                       :grass)
-          undo-label (editor-workbook/undo-label (runtime/active-state app))
+          undo-label (editor-workbook/undo-label (px/active-state app))
           app (terrains-tab/select-enum-property-value! app
                                                         :walkable
                                                         :yes
@@ -277,7 +278,7 @@
           inherited-terrain (terrains-tab/terrain-by-id app
                                                         :overworld
                                                         :grass)
-          app (runtime/press-modified-key! app :left-ctrl :z)
+          app (px/press-modified-key! app :left-ctrl :z)
           undone-terrain (terrains-tab/terrain-by-id app
                                                      :overworld
                                                      :grass)]
