@@ -1,17 +1,17 @@
 (ns pixils.ui.menu-bar-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [pixils.ui.menu-bar :as menu-bar]))
 
 (defun app-for [mode]
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file! app "pixils/test/menu-bar-probe.roo")
-    (runtime/push-mode! app mode)
-    (runtime/settle-layout! app)
+    (px/eval-file! app "pixils/test/menu-bar-probe.roo")
+    (px/push-mode! app mode)
+    (px/settle-layout! app)
     app))
 
 
@@ -99,14 +99,14 @@
     (app-for 'menu-scaled-root))
 
   (s/when [app]
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
+    (px/mouse-down-in! app
+                            (px/find-view app "ui/menu-bar-item")
                             1
                             1)
-    (runtime/update! app)
-    (runtime/render! app)
-    {:mode (runtime/active-mode-name app)
-     :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)})
+    (px/update! app)
+    (px/render! app)
+    {:mode (px/active-mode-name app)
+     :popup-visual-scale (-> (px/active-mode app) :visual-scale)})
 
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
@@ -118,14 +118,14 @@
     (app-for 'menu-unscaled-root))
 
   (s/when [app]
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
+    (px/mouse-down-in! app
+                            (px/find-view app "ui/menu-bar-item")
                             1
                             1)
-    (runtime/update! app)
-    (runtime/render! app)
-    {:mode (runtime/active-mode-name app)
-     :popup-visual-scale (-> (runtime/active-mode app) :visual-scale)})
+    (px/update! app)
+    (px/render! app)
+    {:mode (px/active-mode-name app)
+     :popup-visual-scale (-> (px/active-mode app) :visual-scale)})
 
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
@@ -137,19 +137,19 @@
     (app-for 'menu-unscaled-root))
 
   (s/when [app]
-    (let [item (runtime/find-view app "ui/menu-bar-item")]
-      (runtime/mouse-down-in! app item 1 1)
-      (runtime/frame! app)
-      (let [opened-mode (runtime/active-mode-name app)]
-        (runtime/mouse-down-in! app item 1 1)
-        (runtime/frame! app)
-        (let [dismissed-mode (runtime/active-mode-name app)
-              reopened-item (runtime/find-view app "ui/menu-bar-item")]
-          (runtime/mouse-down-in! app reopened-item 1 1)
-          (runtime/frame! app)
+    (let [item (px/find-view app "ui/menu-bar-item")]
+      (px/mouse-down-in! app item 1 1)
+      (px/frame! app)
+      (let [opened-mode (px/active-mode-name app)]
+        (px/mouse-down-in! app item 1 1)
+        (px/frame! app)
+        (let [dismissed-mode (px/active-mode-name app)
+              reopened-item (px/find-view app "ui/menu-bar-item")]
+          (px/mouse-down-in! app reopened-item 1 1)
+          (px/frame! app)
           {:opened-mode opened-mode
            :dismissed-mode dismissed-mode
-           :reopened-mode (runtime/active-mode-name app)}))))
+           :reopened-mode (px/active-mode-name app)}))))
 
   (s/then [result]
     (is (= {:opened-mode "ui/popup-menu"
@@ -162,16 +162,16 @@
     (app-for 'menu-unscaled-root))
 
   (s/when [app]
-    (let [items (runtime/find-views app "ui/menu-bar-item")]
-      (runtime/mouse-down-in! app (head items) 1 1)
-      (runtime/update! app)
-      (runtime/render! app)
-      (runtime/mouse-down-in! app (nth items 1) 1 1)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
-      (let [inner (runtime/find-view app "ui/popup-menu-inner")]
-        {:popup-mode (runtime/active-mode-name app)
-         :popup-label (-> (runtime/find-view app "ui/text") :state :value)
+    (let [items (px/find-views app "ui/menu-bar-item")]
+      (px/mouse-down-in! app (head items) 1 1)
+      (px/update! app)
+      (px/render! app)
+      (px/mouse-down-in! app (nth items 1) 1 1)
+      (px/update! app)
+      (px/settle-layout! app)
+      (let [inner (px/find-view app "ui/popup-menu-inner")]
+        {:popup-mode (px/active-mode-name app)
+         :popup-label (-> (px/find-view app "ui/text") :state :value)
          :navigation {:input-source (-> inner :ui-state :input-source)
                       :active-index (-> inner :ui-state :active-index)}})))
 
@@ -187,36 +187,36 @@
     (app-for 'menu-windows-3-root))
 
   (s/when [app]
-    (runtime/mouse-move-at! app 170 110)
-    (runtime/update! app)
-    (runtime/settle-layout! app)
-    (let [items (runtime/find-views app "ui/menu-bar-item")
+    (px/mouse-move-at! app 170 110)
+    (px/update! app)
+    (px/settle-layout! app)
+    (let [items (px/find-views app "ui/menu-bar-item")
           normal-background (-> (head items) :effective-style :background)]
-      (runtime/mouse-down-in! app (head items) 1 1)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
+      (px/mouse-down-in! app (head items) 1 1)
+      (px/update! app)
+      (px/settle-layout! app)
       (let [selected-background (-> (head items)
                                     :effective-style
                                     :background)
             after-first (for [item items]
                           (= selected-background
                              (-> item :effective-style :background)))]
-        (runtime/mouse-move-in! app (nth items 1) 1 1)
-        (runtime/update! app)
-        (runtime/render! app)
+        (px/mouse-move-in! app (nth items 1) 1 1)
+        (px/update! app)
+        (px/render! app)
         (let [after-hovering-second
               (for [item items]
                 (= selected-background
                    (-> item :effective-style :background)))]
-          (runtime/mouse-down-in! app (nth items 1) 1 1)
-          (runtime/update! app)
-          (runtime/render! app)
+          (px/mouse-down-in! app (nth items 1) 1 1)
+          (px/update! app)
+          (px/render! app)
           (let [after-second (for [item items]
                                (= selected-background
                                   (-> item :effective-style :background)))]
-            (runtime/mouse-down-in! app (nth items 2) 1 1)
-            (runtime/update! app)
-            (runtime/render! app)
+            (px/mouse-down-in! app (nth items 2) 1 1)
+            (px/update! app)
+            (px/render! app)
             {:selected-background-differs? (not= normal-background
                                                     selected-background)
              :after-first after-first
@@ -239,18 +239,18 @@
     (app-for 'menu-unscaled-root))
 
   (s/when [app]
-    (runtime/mouse-down-in! app
-                            (head (runtime/find-views app "ui/menu-bar-item"))
+    (px/mouse-down-in! app
+                            (head (px/find-views app "ui/menu-bar-item"))
                             1
                             1)
-    (runtime/update! app)
-    (runtime/settle-layout! app)
-    (runtime/press-key! app :right)
-    (runtime/settle-layout! app)
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")
-          item (runtime/find-view app "ui/popup-menu-item")]
-      {:popup-mode (runtime/active-mode-name app)
-       :popup-label (-> (runtime/find-view app "ui/text") :state :value)
+    (px/update! app)
+    (px/settle-layout! app)
+    (px/press-key! app :right)
+    (px/settle-layout! app)
+    (let [inner (px/find-view app "ui/popup-menu-inner")
+          item (px/find-view app "ui/popup-menu-item")]
+      {:popup-mode (px/active-mode-name app)
+       :popup-label (-> (px/find-view app "ui/text") :state :value)
        :navigation (select-keys (:ui-state inner)
                                 [:active-index :input-source])
        :first-row (select-keys (:ui-state item)
@@ -272,7 +272,7 @@
 (deftest menu-bar/inherits-the-theme-font
   (s/when []
     (let [app (app-for 'menu-classic-blue-root)
-          text (runtime/find-view app "ui/text")]
+          text (px/find-view app "ui/text")]
       (-> text :effective-style :text :font)))
 
   (s/then [font]
@@ -281,8 +281,8 @@
 (deftest menu-bar/shrinks-to-its-items
   (s/when []
     (let [app (app-for 'menu-windows-3-root)
-          menu (runtime/find-view app "ui/menu-bar")
-          item (runtime/find-view app "ui/menu-bar-item")]
+          menu (px/find-view app "ui/menu-bar")
+          item (px/find-view app "ui/menu-bar-item")]
       {:height (-> menu :effective-style :height)
        :min-height (-> menu :effective-style :min-height)
        :menu-height (-> menu :bounds :h)
@@ -298,7 +298,7 @@
 (deftest menu-bar/keeps-an-empty-bar-visible
   (s/when []
     (let [app (app-for 'menu-empty-root)
-          menu (runtime/find-view app "ui/menu-bar")]
+          menu (px/find-view app "ui/menu-bar")]
       {:height (-> menu :effective-style :height)
        :min-height (-> menu :effective-style :min-height)
        :bounds-height (-> menu :bounds :h)}))

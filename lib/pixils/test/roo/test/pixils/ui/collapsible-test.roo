@@ -1,17 +1,17 @@
 (ns pixils.ui.collapsible-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [pixils.ui.collapsible :as collapsible]))
 
 (defun app-for [mode]
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file! app "pixils/test/collapsible-probe.roo")
-    (runtime/push-mode! app mode)
-    (runtime/settle-layout! app)
+    (px/eval-file! app "pixils/test/collapsible-probe.roo")
+    (px/push-mode! app mode)
+    (px/settle-layout! app)
     app))
 
 
@@ -23,9 +23,9 @@
     (app-for 'constructor-precedence-root))
 
   (s/when [app]
-    (let [collapsible (runtime/find-view app "ui/collapsible")
-          header (runtime/find-view app "ui/collapsible-header")
-          content (runtime/find-view app "ui/collapsible-content")]
+    (let [collapsible (px/find-view app "ui/collapsible")
+          header (px/find-view app "ui/collapsible-header")
+          content (px/find-view app "ui/collapsible-content")]
       {:component (select-keys (:ui-state collapsible) [:title :expanded?])
        :application (select-keys (:state collapsible) [:app-value])
        :header (select-keys (:ui-state header) [:title :expanded?])
@@ -64,7 +64,7 @@
     (app-for 'marker-overrides-root))
 
   (s/when [app]
-    (let [marker (runtime/find-view app "ui/collapsible-marker")]
+    (let [marker (px/find-view app "ui/collapsible-marker")]
       {:state (select-keys (:state marker)
                            [:collapsed-marker :expanded-marker])
        :ui-state (select-keys (:ui-state marker)
@@ -88,10 +88,10 @@
     (app-for 'disabled-root))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view app "ui/collapsible-header"))
-    (runtime/update! app)
-    {:application-expanded? (:advanced? (runtime/active-state app))
-     :ui-expanded? (-> (runtime/find-view app "ui/collapsible")
+    (px/click! app (px/find-view app "ui/collapsible-header"))
+    (px/update! app)
+    {:application-expanded? (:advanced? (px/active-state app))
+     :ui-expanded? (-> (px/find-view app "ui/collapsible")
                        :ui-state
                        :expanded?)})
 
@@ -105,16 +105,16 @@
     (app-for 'state-replacement-root))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view app "ui/collapsible-header"))
-    (runtime/update! app)
+    (px/click! app (px/find-view app "ui/collapsible-header"))
+    (px/update! app)
     {:component
-     (select-keys (:ui-state (runtime/find-view app "ui/collapsible"))
+     (select-keys (:ui-state (px/find-view app "ui/collapsible"))
                   [:expanded?])
      :content
-     (select-keys (:ui-state (runtime/find-view app "ui/collapsible-content"))
+     (select-keys (:ui-state (px/find-view app "ui/collapsible-content"))
                   [:expanded?])
      :application
-     (select-keys (:state (runtime/find-view app "ui/collapsible"))
+     (select-keys (:state (px/find-view app "ui/collapsible"))
                   [:app-value])})
 
   (s/then [result]
@@ -132,10 +132,10 @@
     (app-for 'header-root))
 
   (s/when [app]
-    (let [header (runtime/find-view app "ui/collapsible-header")]
-      (runtime/mouse-down-in! app header 5 5)
-      (runtime/update! app)
-      (let [header (runtime/find-view app "ui/collapsible-header")]
+    (let [header (px/find-view app "ui/collapsible-header")]
+      (px/mouse-down-in! app header 5 5)
+      (px/update! app)
+      (let [header (px/find-view app "ui/collapsible-header")]
         {:state (select-keys (:state header) [:pressed])
          :ui-state (select-keys (:ui-state header) [:pressed])})))
 
@@ -149,10 +149,10 @@
     (app-for 'header-state-replacement-root))
 
   (s/when [app]
-    (let [header (runtime/find-view app "ui/collapsible-header")]
-      (runtime/mouse-down-in! app header 5 5)
-      (runtime/update! app)
-      (let [header (runtime/find-view app "ui/collapsible-header")]
+    (let [header (px/find-view app "ui/collapsible-header")]
+      (px/mouse-down-in! app header 5 5)
+      (px/update! app)
+      (let [header (px/find-view app "ui/collapsible-header")]
         {:state (select-keys (:state header) [:title :disabled? :pressed])
          :ui-state (select-keys (:ui-state header)
                                 [:title :disabled? :pressed])})))
@@ -171,12 +171,12 @@
     (app-for 'keyboard-root))
 
   (s/when [app]
-    (runtime/press-key! app :enter)
-    {:application-expanded? (:advanced? (runtime/active-state app))
-     :component-expanded? (-> (runtime/find-view app "ui/collapsible")
+    (px/press-key! app :enter)
+    {:application-expanded? (:advanced? (px/active-state app))
+     :component-expanded? (-> (px/find-view app "ui/collapsible")
                               :ui-state
                               :expanded?)
-     :toggle (:last-toggle (runtime/active-state app))})
+     :toggle (:last-toggle (px/active-state app))})
 
   (s/then [result]
     (is (= {:application-expanded? true

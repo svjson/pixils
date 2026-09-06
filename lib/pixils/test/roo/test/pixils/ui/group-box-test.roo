@@ -1,10 +1,10 @@
 (ns pixils.ui.group-box-test
   (:require proof.core
             [pixils.ui.group-box :as group-box]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (defun make-app []
-  (runtime/make-app {:package-root "../.."
+  (px/make-app {:package-root "../.."
                      :buffer-width 160
                      :buffer-height 120
                      :render-backend false}))
@@ -81,7 +81,7 @@
 
 (deftest make-composes-frame-title-and-body-map
   (let [app (make-app)
-        group (runtime/eval! app (group-box-map-probe-source))
+        group (px/eval! app (group-box-map-probe-source))
         children (:children group)
         frame (nth children 0)
         title (nth children 1)
@@ -98,7 +98,7 @@
 
 (deftest body-state-can-bind-to-group-state-map
   (let [app (make-app)
-        group (runtime/eval! app (group-box-body-state-map-probe-source))
+        group (px/eval! app (group-box-body-state-map-probe-source))
         body (-> group :children (nth 0) :children (nth 0))]
     (is (not (nil? (:label (:state body)))))))
 
@@ -118,13 +118,13 @@
 
 (deftest group-box-layout-places-title-over-inset-frame
   (let [app (make-app)]
-    (runtime/eval! app (group-box-layout-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [group (runtime/find-view app "ui/group-box")
-          frame (runtime/find-view app "ui/group-box-frame")
-          title (runtime/find-view app "ui/group-box-title")
-          title-text (runtime/find-view-containing app "ui/text" "Options")]
+    (px/eval! app (group-box-layout-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [group (px/find-view app "ui/group-box")
+          frame (px/find-view app "ui/group-box-frame")
+          title (px/find-view app "ui/group-box-title")
+          title-text (px/find-view-containing app "ui/text" "Options")]
       (is (= 120 (:w (:bounds group))))
       (is (= 80 (:h (:bounds group))))
       (is (= 120 (:w (:bounds frame))))
@@ -133,15 +133,15 @@
       (is (= (:y (:bounds group))
              (:y (:bounds title))))
       (is (= "Options"
-             (:value (runtime/view-state title-text)))))))
+             (:value (px/view-state title-text)))))))
 
 (deftest windows-group-box-frame-insets-from-all-edges
   (let [app (make-app)]
-    (runtime/eval! app (windows-group-box-layout-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [group (runtime/find-view app "ui/group-box")
-          frame (runtime/find-view app "ui/group-box-frame")
+    (px/eval! app (windows-group-box-layout-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [group (px/find-view app "ui/group-box")
+          frame (px/find-view app "ui/group-box-frame")
           group-bounds (:bounds group)
           frame-bounds (:bounds frame)
           group-right (+ (:x group-bounds) (:w group-bounds))
@@ -155,9 +155,9 @@
 
 (deftest body-state-can-bind-to-group-state-at-runtime
   (let [app (make-app)]
-    (runtime/eval! app (group-box-body-state-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [text (runtime/find-view-containing app "ui/text" "Selected: Audio")]
+    (px/eval! app (group-box-body-state-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [text (px/find-view-containing app "ui/text" "Selected: Audio")]
       (is (= "Selected: Audio"
-             (:value (runtime/view-state text)))))))
+             (:value (px/view-state text)))))))

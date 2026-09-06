@@ -1,42 +1,42 @@
 (ns pixils.ui.window-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (defun layout-frame! [app]
-  (runtime/update! app)
-  (runtime/layout! app)
+  (px/update! app)
+  (px/layout! app)
   app)
 
 (defun press-shift-tab! [app]
-  (runtime/key-down! app :left-shift)
-  (runtime/update! app)
-  (runtime/key-down! app :tab)
-  (runtime/update! app)
-  (runtime/key-up! app :tab)
-  (runtime/update! app)
-  (runtime/key-up! app :left-shift)
-  (runtime/update! app)
+  (px/key-down! app :left-shift)
+  (px/update! app)
+  (px/key-down! app :tab)
+  (px/update! app)
+  (px/key-up! app :tab)
+  (px/update! app)
+  (px/key-up! app :left-shift)
+  (px/update! app)
   app)
 
 (defun focused-button [app label]
-  (-> (runtime/find-view-containing app "ui/button" label)
+  (-> (px/find-view-containing app "ui/button" label)
       :interaction
       :focused))
 
 (defun focused-consuming-button [app]
-  (-> (runtime/find-view app "tab-consuming-button")
+  (-> (px/find-view app "tab-consuming-button")
       :interaction
       :focused))
 
 (defun view-render-pixel-at [app view x y]
   (let [bounds (:bounds view)]
-    (runtime/rendered-pixel app
+    (px/rendered-pixel app
                             (+ (:x bounds) x)
                             (+ (:y bounds) y))))
 
 (defun visible-view-pixel [app view]
   (let [bounds (:bounds view)
-        background (runtime/rendered-pixel app 1 1)
+        background (px/rendered-pixel app 1 1)
         left (min 4 (max 0 (- (:w bounds) 2)))
         right (max 0 (- (:w bounds) 4))
         top (min 4 (max 0 (- (:h bounds) 2)))
@@ -52,7 +52,7 @@
                          (not (= background pixel))))))))
 
 (defun assert-view-rendered! [app view]
-  (if (not (nil? (runtime/rendered-pixel app 1 1)))
+  (if (not (nil? (px/rendered-pixel app 1 1)))
     (is (not (nil? (visible-view-pixel app view))))
     true))
 
@@ -75,12 +75,12 @@
                   (view-bottom outer)))))
 
 (defun window-chrome-snapshot [app title]
-  (let [window (runtime/find-view app "ui/window")
-        title-bar (runtime/find-view app "ui/window-title-bar")
-        body (runtime/find-view app "ui/window-body")
-        control (runtime/find-view app "ui/window-control-button")
-        minimize (runtime/find-view app "ui/window-minimize-button")
-        title-text (runtime/find-view-containing app "ui/text" title)]
+  (let [window (px/find-view app "ui/window")
+        title-bar (px/find-view app "ui/window-title-bar")
+        body (px/find-view app "ui/window-body")
+        control (px/find-view app "ui/window-control-button")
+        minimize (px/find-view app "ui/window-minimize-button")
+        title-text (px/find-view-containing app "ui/text" title)]
     {:window-bounds (:bounds window)
      :window-style-position (style-position window)
      :title-bar-bounds (:bounds title-bar)
@@ -90,10 +90,10 @@
      :title-text-bounds (:bounds title-text)}))
 
 (defun assert-window-chrome-contained! [app title]
-  (let [title-bar (runtime/find-view app "ui/window-title-bar")
-        control (runtime/find-view app "ui/window-control-button")
-        minimize (runtime/find-view app "ui/window-minimize-button")
-        title-text (runtime/find-view-containing app "ui/text" title)]
+  (let [title-bar (px/find-view app "ui/window-title-bar")
+        control (px/find-view app "ui/window-control-button")
+        minimize (px/find-view app "ui/window-minimize-button")
+        title-text (px/find-view-containing app "ui/text" title)]
     (assert-contained-y! title-bar control)
     (assert-contained-y! title-bar minimize)
     (assert-contained-y! title-bar title-text)))
@@ -490,9 +490,9 @@
                 state))})")
 
 (deftest window-make-composes-standard-chrome-by-default
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :render-backend false})
-        window (runtime/eval! app (standard-window-map-probe-source))
+        window (px/eval! app (standard-window-map-probe-source))
         children (:children window)
         title-bar (nth children 0)
         body (nth children 1)
@@ -509,9 +509,9 @@
     (is (= 'ui/window-body (:mode body)))))
 
 (deftest window-make-composes-regular-frame-without-title-bar
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :render-backend false})
-        window (runtime/eval! app (frame-window-map-probe-source))
+        window (px/eval! app (frame-window-map-probe-source))
         children (:children window)
         body (nth children 0)
         state (:state window)]
@@ -527,9 +527,9 @@
     (is (= [{:mode 'probe-body}] (:children body)))))
 
 (deftest window-make-composes-dialog-frame-without-title-bar
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :render-backend false})
-        window (runtime/eval! app (dialog-frame-window-map-probe-source))
+        window (px/eval! app (dialog-frame-window-map-probe-source))
         children (:children window)
         body (nth children 0)
         state (:state window)]
@@ -544,15 +544,15 @@
     (is (= 'ui/window-body (:mode body)))))
 
 (deftest window-without-explicit-position-centers-in-buffer
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (centered-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          state (runtime/view-state window)]
+    (px/eval! app (centered-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          state (px/view-state window)]
       (is (= false (:window/explicit-position? state)))
       (is (= (centered-axis 160 (:w (:bounds window)))
              (:x (:position state))))
@@ -562,41 +562,41 @@
       (is (= (:y (:position state)) (:y (:bounds window)))))))
 
 (deftest implicit-natural-size-window-centers-after-first-layout
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (natural-size-centered-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/update! app)
-    (runtime/layout! app)
-    (let [centered-window (runtime/find-view app "ui/window")
-          centered-state (runtime/view-state centered-window)]
+    (px/eval! app (natural-size-centered-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/update! app)
+    (px/layout! app)
+    (let [centered-window (px/find-view app "ui/window")
+          centered-state (px/view-state centered-window)]
       (is (= false (:window/explicit-position? centered-state)))
       (is (> (:x (:position centered-state)) 0))
       (is (> (:y (:position centered-state)) 0))
       (is (= (:x (:position centered-state)) (:x (:bounds centered-window))))
       (is (= (:y (:position centered-state)) (:y (:bounds centered-window))))
-      (runtime/layout! app)
-      (let [stable-window (runtime/find-view app "ui/window")]
+      (px/layout! app)
+      (let [stable-window (px/find-view app "ui/window")]
         (is (= (:bounds centered-window)
                (:bounds stable-window)))))))
 
 (deftest implicit-natural-size-window-does-not-drift-during-first-rendered-frames
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (natural-size-centered-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
+    (px/eval! app (natural-size-centered-window-probe-source))
+    (px/push-mode! app 'root-mode)
     (layout-frame! app)
-    (let [first-window (runtime/find-view app "ui/window")
-          first-title-bar (runtime/find-view app "ui/window-title-bar")
-          first-body (runtime/find-view app "ui/window-body")
+    (let [first-window (px/find-view app "ui/window")
+          first-title-bar (px/find-view app "ui/window-title-bar")
+          first-body (px/find-view app "ui/window-body")
           first-window-bounds (:bounds first-window)
           first-title-bounds (:bounds first-title-bar)
           first-body-bounds (:bounds first-body)
-          first-state (runtime/view-state first-window)
+          first-state (px/view-state first-window)
           first-chrome (window-chrome-snapshot app "Natural")]
       (is (= false (:window/explicit-position? first-state)))
       (is (= (:x (:position first-state)) (:x first-window-bounds)))
@@ -604,9 +604,9 @@
       (assert-window-chrome-contained! app "Natural")
       (assert-view-rendered! app first-title-bar)
       (layout-frame! app)
-      (let [second-window (runtime/find-view app "ui/window")
-            second-title-bar (runtime/find-view app "ui/window-title-bar")
-            second-body (runtime/find-view app "ui/window-body")
+      (let [second-window (px/find-view app "ui/window")
+            second-title-bar (px/find-view app "ui/window-title-bar")
+            second-body (px/find-view app "ui/window-body")
             second-chrome (window-chrome-snapshot app "Natural")]
         (is (= first-window-bounds (:bounds second-window)))
         (is (= first-title-bounds (:bounds second-title-bar)))
@@ -615,9 +615,9 @@
         (assert-window-chrome-contained! app "Natural")
         (assert-view-rendered! app second-title-bar))
       (layout-frame! app)
-      (let [third-window (runtime/find-view app "ui/window")
-            third-title-bar (runtime/find-view app "ui/window-title-bar")
-            third-body (runtime/find-view app "ui/window-body")
+      (let [third-window (px/find-view app "ui/window")
+            third-title-bar (px/find-view app "ui/window-title-bar")
+            third-body (px/find-view app "ui/window-body")
             third-chrome (window-chrome-snapshot app "Natural")]
         (is (= first-window-bounds (:bounds third-window)))
         (is (= first-title-bounds (:bounds third-title-bar)))
@@ -627,21 +627,21 @@
         (assert-view-rendered! app third-title-bar)))))
 
 (deftest implicit-natural-size-window-recenters-when-content-size-changes
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 140
                                :render-backend false})]
-    (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [before-window (runtime/find-view app "ui/window")
+    (px/eval! app (dynamic-natural-size-centered-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [before-window (px/find-view app "ui/window")
           before-bounds (:bounds before-window)
-          body (runtime/find-view app "dynamic-body")]
-      (runtime/mouse-down-in! app body 4 4)
-      (runtime/update! app)
-      (runtime/layout! app)
-      (let [after-window (runtime/find-view app "ui/window")
-            after-state (runtime/view-state after-window)
+          body (px/find-view app "dynamic-body")]
+      (px/mouse-down-in! app body 4 4)
+      (px/update! app)
+      (px/layout! app)
+      (let [after-window (px/find-view app "ui/window")
+            after-state (px/view-state after-window)
             after-bounds (:bounds after-window)]
         (is (= true (> (:h after-bounds) (:h before-bounds))))
         (is (= true (< (:y after-bounds) (:y before-bounds))))
@@ -649,29 +649,29 @@
         (is (= (:y (:position after-state)) (:y after-bounds)))))))
 
 (deftest implicit-natural-size-window-resizes-and-recenters-in-one-rendered-frame
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 140
                                :render-backend false})]
-    (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
+    (px/eval! app (dynamic-natural-size-centered-window-probe-source))
+    (px/push-mode! app 'root-mode)
     (layout-frame! app)
     (layout-frame! app)
-    (let [before-window (runtime/find-view app "ui/window")
-          before-title-bar (runtime/find-view app "ui/window-title-bar")
-          before-body (runtime/find-view app "dynamic-body")
+    (let [before-window (px/find-view app "ui/window")
+          before-title-bar (px/find-view app "ui/window-title-bar")
+          before-body (px/find-view app "dynamic-body")
           before-window-bounds (:bounds before-window)
           before-title-bounds (:bounds before-title-bar)
           before-body-bounds (:bounds before-body)
           before-chrome (window-chrome-snapshot app "Dynamic")]
       (assert-window-chrome-contained! app "Dynamic")
       (assert-view-rendered! app before-title-bar)
-      (runtime/mouse-down-in! app before-body 4 4)
+      (px/mouse-down-in! app before-body 4 4)
       (layout-frame! app)
-      (let [after-window (runtime/find-view app "ui/window")
-            after-title-bar (runtime/find-view app "ui/window-title-bar")
-            after-body (runtime/find-view app "dynamic-body")
-            after-state (runtime/view-state after-window)
+      (let [after-window (px/find-view app "ui/window")
+            after-title-bar (px/find-view app "ui/window-title-bar")
+            after-body (px/find-view app "dynamic-body")
+            after-state (px/view-state after-window)
             after-window-bounds (:bounds after-window)
             after-title-bounds (:bounds after-title-bar)
             after-body-bounds (:bounds after-body)
@@ -690,9 +690,9 @@
         (assert-window-chrome-contained! app "Dynamic")
         (assert-view-rendered! app after-title-bar)
         (layout-frame! app)
-        (let [stable-window (runtime/find-view app "ui/window")
-              stable-title-bar (runtime/find-view app "ui/window-title-bar")
-              stable-body (runtime/find-view app "dynamic-body")
+        (let [stable-window (px/find-view app "ui/window")
+              stable-title-bar (px/find-view app "ui/window-title-bar")
+              stable-body (px/find-view app "dynamic-body")
               stable-chrome (window-chrome-snapshot app "Dynamic")]
           (is (= after-window-bounds (:bounds stable-window)))
           (is (= after-title-bounds (:bounds stable-title-bar)))
@@ -702,15 +702,15 @@
           (assert-view-rendered! app stable-title-bar))))))
 
 (deftest scaled-window-without-explicit-position-centers-visual-bounds
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 120
                                :buffer-height 90
                                :render-backend false})]
-    (runtime/eval! app (centered-scaled-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          state (runtime/view-state window)]
+    (px/eval! app (centered-scaled-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          state (px/view-state window)]
       (is (= false (:window/explicit-position? state)))
       (is (= (centered-axis 120 (:w (:external-bounds window)))
              (:x (:position state))))
@@ -724,97 +724,97 @@
              (:h (:external-bounds window)))))))
 
 (deftest window-make-applies-body-style
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (body-style-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [body (runtime/find-view app "ui/window-body")]
+    (px/eval! app (body-style-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [body (px/find-view app "ui/window-body")]
       (is (= 40 (:h (:bounds body)))))))
 
 (deftest window-autofocuses-by-default
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (autofocus-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")]
+    (px/eval! app (autofocus-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")]
       (is (= true (-> window :interaction :focused)))
       (is (= true (-> window :interaction :focus-within))))))
 
 (deftest child-autofocus-wins-over-window-autofocus
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (child-autofocus-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          input (runtime/find-view app "ui/text-input-inner")]
+    (px/eval! app (child-autofocus-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          input (px/find-view app "ui/text-input-inner")]
       (is (= false (-> window :interaction :focused)))
       (is (= true (-> window :interaction :focus-within)))
       (is (= true (-> input :interaction :focused))))))
 
 (deftest window-can-autofocus-first-focusable-body-descendant
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (first-body-autofocus-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          button (runtime/find-view app "ui/button")]
+    (px/eval! app (first-body-autofocus-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          button (px/find-view app "ui/button")]
       (is (= false (-> window :interaction :focused)))
       (is (= true (-> window :interaction :focus-within)))
       (is (= true (-> button :interaction :focused))))))
 
 (deftest window-first-body-autofocus-skips-disabled-descendants
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (first-body-autofocus-skips-disabled-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [buttons (runtime/find-views app "ui/button")
+    (px/eval! app (first-body-autofocus-skips-disabled-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [buttons (px/find-views app "ui/button")
           disabled (head buttons)
           enabled (nth buttons 1)]
       (is (= false (-> disabled :interaction :focused)))
       (is (= true (-> enabled :interaction :focused))))))
 
-(deftest tab-key-focuses_next_focusable_view_and_wraps
-  (let [app (runtime/make-app {:package-root "../.."
+(deftest tab-key-focuses-next-focusable-view-and-wraps
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tab-focus-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
+    (px/eval! app (tab-focus-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
     (do
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-button app "First")))
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= false (focused-button app "Disabled")))
       (is (= true (focused-button app "Second")))
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-button app "Third")))
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-button app "First"))))))
 
-(deftest shift-tab-focuses_previous_focusable_view_and_wraps
-  (let [app (runtime/make-app {:package-root "../.."
+(deftest shift-tab-focuses-previous-focusable-view-and-wraps
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tab-focus-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
+    (px/eval! app (tab-focus-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
     (do
       (press-shift-tab! app)
       (is (= true (focused-button app "Third")))
@@ -824,48 +824,48 @@
       (is (= false (focused-button app "Disabled")))
       (is (= true (focused-button app "First"))))))
 
-(deftest focused_view_can_consume_tab_key
-  (let [app (runtime/make-app {:package-root "../.."
+(deftest focused-view-can-consume-tab-key
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tab-consuming-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
+    (px/eval! app (tab-consuming-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
     (do
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-button app "First")))
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-consuming-button app)))
-      (runtime/press-key! app :tab)
+      (px/press-key! app :tab)
       (is (= true (focused-consuming-button app)))
       (is (= true (:tab-consumed?
-                   (runtime/view-state
-                    (runtime/find-view app "tab-consuming-button"))))))))
+                   (px/view-state
+                    (px/find-view app "tab-consuming-button"))))))))
 
 (deftest window-autofocus-can-be-disabled
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (autofocus-disabled-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")]
+    (px/eval! app (autofocus-disabled-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")]
       (is (= false (-> window :interaction :focused)))
       (is (= false (-> window :interaction :focus-within))))))
 
 (deftest oversized-window-without-explicit-position-keeps-chrome-on-screen
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 100
                                :buffer-height 80
                                :render-backend false})]
-    (runtime/eval! app (oversized-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          title-bar (runtime/find-view app "ui/window-title-bar")
-          state (runtime/view-state window)]
+    (px/eval! app (oversized-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          title-bar (px/find-view app "ui/window-title-bar")
+          state (px/view-state window)]
       (is (= false (:window/explicit-position? state)))
       (is (= 0 (:x (:position state))))
       (is (= 0 (:y (:position state))))
@@ -877,15 +877,15 @@
       (is (= true (< (:y (:bounds title-bar)) 80))))))
 
 (deftest explicit-offscreen-window-position-is-preserved
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (explicit-offscreen-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          state (runtime/view-state window)]
+    (px/eval! app (explicit-offscreen-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          state (px/view-state window)]
       (is (= true (:window/explicit-position? state)))
       (is (= -30 (:x (:position state))))
       (is (= -20 (:y (:position state))))
@@ -893,37 +893,37 @@
       (is (= -20 (:y (:bounds window)))))))
 
 (deftest modal-overlay-mouse-down-preserves-dialog-focus
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (modal-overlay-focus-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          input (runtime/find-view app "ui/text-input-inner")]
+    (px/eval! app (modal-overlay-focus-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          input (px/find-view app "ui/text-input-inner")]
       (is (= true (-> input :interaction :focused)))
       (is (= true (-> window :interaction :focus-within)))
-      (runtime/mouse-down-at! app 2 2)
-      (runtime/update! app)
-      (runtime/layout! app)
-      (let [window-after-overlay-click (runtime/find-view app "ui/window")
-            input-after-overlay-click (runtime/find-view app "ui/text-input-inner")]
+      (px/mouse-down-at! app 2 2)
+      (px/update! app)
+      (px/layout! app)
+      (let [window-after-overlay-click (px/find-view app "ui/window")
+            input-after-overlay-click (px/find-view app "ui/text-input-inner")]
         (is (= true (-> input-after-overlay-click :interaction :focused)))
         (is (= true (-> window-after-overlay-click
                         :interaction
                         :focus-within)))))))
 
 (deftest dialog-window-without-explicit-position-centers-in-buffer
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (centered-dialog-window-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          state (runtime/view-state window)]
+    (px/eval! app (centered-dialog-window-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          state (px/view-state window)]
       (is (= false (:window/explicit-position? state)))
       (is (= (centered-axis 160 (:w (:bounds window)))
              (:x (:position state))))
@@ -933,58 +933,58 @@
       (is (= (:y (:position state)) (:y (:bounds window)))))))
 
 (deftest dragged-window-keeps-latest-position-after-follow-up-interaction
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (window-move-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          title-bar (runtime/find-view app "ui/window-title-bar")]
+    (px/eval! app (window-move-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          title-bar (px/find-view app "ui/window-title-bar")]
       (is (= 24 (:x (:bounds window))))
       (is (= 20 (:y (:bounds window))))
-      (runtime/mouse-down-in! app title-bar 40 9)
-      (runtime/update! app)
-      (runtime/mouse-move-in! app title-bar 71 26)
-      (runtime/update! app)
-      (runtime/layout! app)
-      (let [position (:position (runtime/view-state (runtime/find-view app "ui/window")))]
+      (px/mouse-down-in! app title-bar 40 9)
+      (px/update! app)
+      (px/mouse-move-in! app title-bar 71 26)
+      (px/update! app)
+      (px/layout! app)
+      (let [position (:position (px/view-state (px/find-view app "ui/window")))]
         (is (= 55 (:x position)))
         (is (= 37 (:y position))))
-      (runtime/mouse-up-in! app title-bar 71 26)
-      (runtime/update! app)
-      (runtime/layout! app)
-      (let [window-after-drag (runtime/find-view app "ui/window")
-            probe-body (runtime/find-view app "probe-body")]
+      (px/mouse-up-in! app title-bar 71 26)
+      (px/update! app)
+      (px/layout! app)
+      (let [window-after-drag (px/find-view app "ui/window")
+            probe-body (px/find-view app "probe-body")]
         (is (= 55 (:x (:bounds window-after-drag))))
         (is (= 37 (:y (:bounds window-after-drag))))
-        (runtime/mouse-down-in! app probe-body 4 4)
-        (runtime/update! app)
-        (runtime/layout! app)
-        (let [window-after-body-press (runtime/find-view app "ui/window")
-              probe-body-after-press (runtime/find-view app "probe-body")]
+        (px/mouse-down-in! app probe-body 4 4)
+        (px/update! app)
+        (px/layout! app)
+        (let [window-after-body-press (px/find-view app "ui/window")
+              probe-body-after-press (px/find-view app "probe-body")]
           (is (= 55 (:x (:bounds window-after-body-press))))
           (is (= 37 (:y (:bounds window-after-body-press))))
-          (is (= 1 (:presses (runtime/view-state probe-body-after-press)))))))))
+          (is (= 1 (:presses (px/view-state probe-body-after-press)))))))))
 
 (deftest fixed-frame-chrome-ignores-window-move-events
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (fixed-frame-move-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [window (runtime/find-view app "ui/window")
-          body (runtime/find-view app "move-emitter-body")]
+    (px/eval! app (fixed-frame-move-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [window (px/find-view app "ui/window")
+          body (px/find-view app "move-emitter-body")]
       (is (= 24 (:x (:bounds window))))
       (is (= 20 (:y (:bounds window))))
-      (runtime/mouse-down-in! app body 4 4)
-      (runtime/update! app)
-      (runtime/layout! app)
-      (let [window-after-move-event (runtime/find-view app "ui/window")
-            state (runtime/view-state window-after-move-event)]
+      (px/mouse-down-in! app body 4 4)
+      (px/update! app)
+      (px/layout! app)
+      (let [window-after-move-event (px/find-view app "ui/window")
+            state (px/view-state window-after-move-event)]
         (is (= 24 (:x (:bounds window-after-move-event))))
         (is (= 20 (:y (:bounds window-after-move-event))))
         (is (= 24 (:x (:position state))))

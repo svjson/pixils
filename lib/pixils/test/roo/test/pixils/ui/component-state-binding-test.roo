@@ -1,180 +1,180 @@
 (ns pixils.ui.component-state-binding-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (deftest isolated-parent-preserves-default-child-state-policy
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'root-mode)
+    (px/push-mode! app 'root-mode)
     (is (= 1
            (:value
             (:ui-state
-             (runtime/find-view app "component-state-child")))))
-    (runtime/update! app)
+             (px/find-view app "component-state-child")))))
+    (px/update! app)
     (is (= 99
            (:value
             (:ui-state
-             (runtime/find-view app "component-state-parent")))))
+             (px/find-view app "component-state-parent")))))
     (is (= 99
            (:value
             (:state
-             (runtime/find-view app "component-state-child")))))
-    (is (nil? (:value (runtime/active-state app))))))
+             (px/find-view app "component-state-child")))))
+    (is (nil? (:value (px/active-state app))))))
 
 (deftest parent-ui-state-changes-propagate-to-existing-child
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'parent-driven-state-root-mode)
+    (px/push-mode! app 'parent-driven-state-root-mode)
     (is (= 1
            (:value
             (:ui-state
-             (runtime/find-view app "parent-driven-state-child")))))
-    (runtime/set-active-state! app {:advance? true})
-    (runtime/update! app)
+             (px/find-view app "parent-driven-state-child")))))
+    (px/set-active-state! app {:advance? true})
+    (px/update! app)
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "parent-driven-state-parent")))))
+             (px/find-view app "parent-driven-state-parent")))))
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "parent-driven-state-child")))))))
+             (px/find-view app "parent-driven-state-child")))))))
 
 (deftest replaced-child-initializes-ui-state-from-current-parent
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'replacement-state-root-mode)
+    (px/push-mode! app 'replacement-state-root-mode)
     (is (= 1
            (:value
             (:ui-state
-             (runtime/find-view app "replacement-state-child")))))
-    (runtime/set-active-state! app {:advance? true})
-    (runtime/update! app)
+             (px/find-view app "replacement-state-child")))))
+    (px/set-active-state! app {:advance? true})
+    (px/update! app)
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "replacement-state-parent")))))
+             (px/find-view app "replacement-state-parent")))))
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "replacement-state-child")))))))
+             (px/find-view app "replacement-state-child")))))))
 
 (deftest consume-state-propagates-child-state-to-parent-only
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'consuming-state-root-mode)
+    (px/push-mode! app 'consuming-state-root-mode)
     (is (= :child
            (:produced
             (:state
-             (runtime/find-view app "consuming-state-child")))))
+             (px/find-view app "consuming-state-child")))))
     (is (= :child
-           (:received (runtime/active-state app))))
+           (:received (px/active-state app))))
     (is (= :parent
-           (:untouched (runtime/active-state app))))
-    (is (nil? (:cleared (runtime/active-state app))))))
+           (:untouched (px/active-state app))))
+    (is (nil? (:cleared (px/active-state app))))))
 
 (deftest consume-state-propagates-child-ui-state-to-parent-only
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'consuming-ui-state-root-mode)
+    (px/push-mode! app 'consuming-ui-state-root-mode)
     (is (= :child
            (:produced
             (:ui-state
-             (runtime/find-view app "consuming-ui-state-child")))))
+             (px/find-view app "consuming-ui-state-child")))))
     (is (= :child
            (:received
             (:ui-state
-             (runtime/find-view app "consuming-ui-state-parent")))))
+             (px/find-view app "consuming-ui-state-parent")))))
     (is (= :parent
            (:untouched
             (:ui-state
-             (runtime/find-view app "consuming-ui-state-parent")))))
+             (px/find-view app "consuming-ui-state-parent")))))
     (is (nil?
          (:cleared
           (:ui-state
-           (runtime/find-view app "consuming-ui-state-parent")))))))
+           (px/find-view app "consuming-ui-state-parent")))))))
 
 (deftest parent-ui-state-projection-propagates-through-existing-descendants
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'projected-state-root-mode)
+    (px/push-mode! app 'projected-state-root-mode)
     (is (= {:parent 1
             :middle 1
             :leaf 1
             :leaf-initialized-value 1}
-           {:parent (-> (runtime/find-view app "projected-state-parent")
+           {:parent (-> (px/find-view app "projected-state-parent")
                         :ui-state :value)
-            :middle (-> (runtime/find-view app "projected-state-middle")
+            :middle (-> (px/find-view app "projected-state-middle")
                         :ui-state :value)
-            :leaf (-> (runtime/find-view app "projected-state-leaf")
+            :leaf (-> (px/find-view app "projected-state-leaf")
                       :ui-state :value)
-            :leaf-initialized-value (-> (runtime/find-view app "projected-state-leaf")
+            :leaf-initialized-value (-> (px/find-view app "projected-state-leaf")
                                         :ui-state :initialized-value)}))
-    (runtime/set-active-state! app {:advance? true})
-    (runtime/update! app)
+    (px/set-active-state! app {:advance? true})
+    (px/update! app)
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "projected-state-parent")))))
+             (px/find-view app "projected-state-parent")))))
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "projected-state-middle")))))
+             (px/find-view app "projected-state-middle")))))
     (is (= 2
            (:value
             (:ui-state
-             (runtime/find-view app "projected-state-leaf")))))))
+             (px/find-view app "projected-state-leaf")))))))
 
 (deftest parent-component-state-projection-is-visible-during-descendant-init
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/component-state-binding-probe.roo")
-    (runtime/push-mode! app 'projected-component-state-root-mode)
+    (px/push-mode! app 'projected-component-state-root-mode)
     (is (= {:parent 1
             :middle 1
             :leaf 1
             :leaf-initialized-value 1}
-           {:parent (-> (runtime/find-view app "projected-component-state-parent")
+           {:parent (-> (px/find-view app "projected-component-state-parent")
                         :state :value)
-            :middle (-> (runtime/find-view app "projected-component-state-middle")
+            :middle (-> (px/find-view app "projected-component-state-middle")
                         :state :value)
-            :leaf (-> (runtime/find-view app "projected-component-state-leaf")
+            :leaf (-> (px/find-view app "projected-component-state-leaf")
                       :state :value)
-            :leaf-initialized-value (-> (runtime/find-view
+            :leaf-initialized-value (-> (px/find-view
                                          app
                                          "projected-component-state-leaf")
                                         :state :initialized-value)}))))

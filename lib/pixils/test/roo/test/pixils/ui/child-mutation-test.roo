@@ -1,44 +1,44 @@
 (ns pixils.ui.child-mutation-test
   (:require proof.core
             [pixils.ui :as ui]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (deftest remove-child-removes-only-the-addressed-child
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/child-mutation-probe.roo")
-    (runtime/push-mode! app 'child-removal-root)
-    (is (some? (runtime/find-view app "removable-child")))
-    (is (some? (runtime/find-view app "retained-child")))
-    (runtime/set-active-state!
+    (px/push-mode! app 'child-removal-root)
+    (is (some? (px/find-view app "removable-child")))
+    (is (some? (px/find-view app "retained-child")))
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app) :remove? true))
-    (runtime/update! app)
-    (is (nil? (runtime/find-view app "removable-child")))
-    (is (some? (runtime/find-view app "retained-child")))
+     (assoc (px/active-state app) :remove? true))
+    (px/update! app)
+    (is (nil? (px/find-view app "removable-child")))
+    (is (some? (px/find-view app "retained-child")))
     (is (= :retained
-           (:application-value (runtime/active-state app))))))
+           (:application-value (px/active-state app))))))
 
 (deftest reconcile-children-preserves-reorders-removes-and-creates
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/child-mutation-probe.roo")
-    (runtime/push-mode! app 'child-reconciliation-root)
-    (ui/set-ui-state! (head (ui/children (runtime/active-mode app)))
+    (px/push-mode! app 'child-reconciliation-root)
+    (ui/set-ui-state! (head (ui/children (px/active-mode app)))
                       {:value 42})
-    (runtime/set-active-state!
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app) :reconcile? true))
-    (runtime/update! app)
-    (let [children (ui/children (runtime/active-mode app))]
+     (assoc (px/active-state app) :reconcile? true))
+    (px/update! app)
+    (let [children (ui/children (px/active-mode app))]
       (is (= ["second" "first" "third"]
              [(:id (head children))
               (:id (nth children 1))
@@ -48,15 +48,15 @@
       (is (= 3 (-> (nth children 2) :ui-state :value))))))
 
 (deftest reconcile-children-refreshes-retained-ui-state-bindings
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/child-mutation-probe.roo")
-    (runtime/push-mode! app 'child-binding-reconciliation-root)
-    (let [owner (runtime/find-view app "child-binding-reconciliation-owner")
+    (px/push-mode! app 'child-binding-reconciliation-root)
+    (let [owner (px/find-view app "child-binding-reconciliation-owner")
           first-child (head (ui/children owner))]
       (ui/set-ui-state! first-child
                         (assoc (:ui-state first-child) :sentinel :retained))
@@ -65,9 +65,9 @@
                                :items [{:value :second-updated}
                                        {:value :first-updated}]
                                :reconcile? true)))
-    (runtime/update! app)
+    (px/update! app)
     (let [children (ui/children
-                    (runtime/find-view app "child-binding-reconciliation-owner"))]
+                    (px/find-view app "child-binding-reconciliation-owner"))]
       (is (= ["second" "first"]
              [(:id (head children))
               (:id (nth children 1))]))

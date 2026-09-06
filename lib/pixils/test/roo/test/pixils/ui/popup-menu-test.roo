@@ -1,26 +1,26 @@
 (ns pixils.ui.popup-menu-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [pixils.ui.popup-menu :as popup-menu]))
 
 (defun app-for [mode]
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
                                :render-backend false})]
-    (runtime/eval-file! app "pixils/test/popup-menu-probe.roo")
-    (runtime/push-mode! app mode)
-    (runtime/settle-layout! app)
+    (px/eval-file! app "pixils/test/popup-menu-probe.roo")
+    (px/push-mode! app mode)
+    (px/settle-layout! app)
     app))
 
 (defun open-popup-app [mode]
   (let [app (app-for mode)]
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
+    (px/mouse-down-in! app
+                            (px/find-view app "ui/menu-bar-item")
                             1
                             1)
-    (runtime/frame! app)
+    (px/frame! app)
     app))
 
 (defun popup-app []
@@ -28,9 +28,9 @@
 
 (defun keyboard-submenu-app []
   (let [app (open-popup-app 'popup-submenu-indicator-root)]
-    (runtime/press-key! app :down)
-    (runtime/press-key! app :right)
-    (runtime/settle-layout! app)
+    (px/press-key! app :down)
+    (px/press-key! app :right)
+    (px/settle-layout! app)
     app))
 
 
@@ -61,8 +61,8 @@
     (popup-app))
 
   (s/when [app]
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")
-          items (runtime/find-views app "ui/popup-menu-item")]
+    (let [inner (px/find-view app "ui/popup-menu-inner")
+          items (px/find-views app "ui/popup-menu-item")]
       {:navigation {:input-source (-> inner :ui-state :input-source)
                     :active-index (-> inner :ui-state :active-index)}
        :row-highlights (for [item items]
@@ -86,10 +86,10 @@
     (popup-app))
 
   (s/when [app]
-    (runtime/press-key! app :down)
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")
-          items (runtime/find-views app "ui/popup-menu-item")]
-      {:mode (runtime/active-mode-name app)
+    (px/press-key! app :down)
+    (let [inner (px/find-view app "ui/popup-menu-inner")
+          items (px/find-views app "ui/popup-menu-item")]
+      {:mode (px/active-mode-name app)
        :navigation (select-keys (:ui-state inner)
                                 [:input-source :active-index])
        :row-highlights (for [item items]
@@ -114,10 +114,10 @@
     (popup-app))
 
   (s/when [app]
-    (runtime/press-key! app :down)
-    (runtime/press-key! app :down)
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")
-          items (runtime/find-views app "ui/popup-menu-item")]
+    (px/press-key! app :down)
+    (px/press-key! app :down)
+    (let [inner (px/find-view app "ui/popup-menu-inner")
+          items (px/find-views app "ui/popup-menu-item")]
       {:navigation (select-keys (:ui-state inner)
                                 [:input-source :active-index])
        :row-highlights (for [item items]
@@ -141,26 +141,26 @@
     (popup-app))
 
   (s/when [app]
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")
-          items (runtime/find-views app "ui/popup-menu-item")
+    (let [inner (px/find-view app "ui/popup-menu-inner")
+          items (px/find-views app "ui/popup-menu-item")
           first-item (head items)]
-      (runtime/mouse-move-in! app first-item 2 2)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
+      (px/mouse-move-in! app first-item 2 2)
+      (px/update! app)
+      (px/settle-layout! app)
       (let [after-mouse
             {:navigation (select-keys (:ui-state inner)
                                       [:input-source :active-index])
              :highlights (for [item items]
                            (-> item :ui-state :highlighted))}]
-        (runtime/press-key! app :down)
+        (px/press-key! app :down)
         (let [after-keyboard
               {:navigation (select-keys (:ui-state inner)
                                         [:input-source :active-index])
                :highlights (for [item items]
                              (-> item :ui-state :highlighted))}]
-          (runtime/mouse-move-in! app first-item 3 2)
-          (runtime/update! app)
-          (runtime/settle-layout! app)
+          (px/mouse-move-in! app first-item 3 2)
+          (px/update! app)
+          (px/settle-layout! app)
           {:after-mouse after-mouse
            :after-keyboard after-keyboard
            :after-mouse-return
@@ -189,11 +189,11 @@
     (popup-app))
 
   (s/when [app]
-    (runtime/press-key! app :down)
-    (runtime/press-key! app :down)
-    (runtime/press-key! app :enter)
-    {:mode (runtime/active-mode-name app)
-     :last-action (:last-action (runtime/active-state app))})
+    (px/press-key! app :down)
+    (px/press-key! app :down)
+    (px/press-key! app :enter)
+    {:mode (px/active-mode-name app)
+     :last-action (:last-action (px/active-state app))})
 
   (s/then [result]
     (is (= {:mode "popup-keyboard-root"
@@ -206,16 +206,16 @@
     (keyboard-submenu-app))
 
   (s/when [app]
-    (let [nested-labels (keep (runtime/find-views app "ui/text")
+    (let [nested-labels (keep (px/find-views app "ui/text")
                               (fn [text]
                                 (let [value (-> text :state :value)]
                                   (unless (empty? value)
                                     value))))]
-      (runtime/press-key! app :left)
-      (runtime/settle-layout! app)
+      (px/press-key! app :left)
+      (px/settle-layout! app)
       {:nested-labels nested-labels
-       :mode (runtime/active-mode-name app)
-       :parent-labels (keep (runtime/find-views app "ui/text")
+       :mode (px/active-mode-name app)
+       :parent-labels (keep (px/find-views app "ui/text")
                             (fn [text]
                               (let [value (-> text :state :value)]
                                 (unless (empty? value)
@@ -232,9 +232,9 @@
     (keyboard-submenu-app))
 
   (s/when [app]
-    (runtime/press-key! app :enter)
-    {:mode (runtime/active-mode-name app)
-     :last-action (:last-action (runtime/active-state app))})
+    (px/press-key! app :enter)
+    {:mode (px/active-mode-name app)
+     :last-action (:last-action (px/active-state app))})
 
   (s/then [result]
     (is (= {:mode "popup-submenu-indicator-root"
@@ -247,9 +247,9 @@
     (keyboard-submenu-app))
 
   (s/when [app]
-    (runtime/press-key! app :escape)
-    {:mode (runtime/active-mode-name app)
-     :menu-bar-label (-> (runtime/find-view app "ui/text")
+    (px/press-key! app :escape)
+    {:mode (px/active-mode-name app)
+     :menu-bar-label (-> (px/find-view app "ui/text")
                          :state
                          :value)})
 
@@ -263,13 +263,13 @@
     (open-popup-app 'popup-scaled-submenu-root))
 
   (s/when [app]
-    (let [parent-scale (-> (runtime/active-mode app) :visual-scale)]
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :right)
-      (runtime/settle-layout! app)
-      {:mode (runtime/active-mode-name app)
+    (let [parent-scale (-> (px/active-mode app) :visual-scale)]
+      (px/press-key! app :down)
+      (px/press-key! app :right)
+      (px/settle-layout! app)
+      {:mode (px/active-mode-name app)
        :parent-scale parent-scale
-       :nested-scale (-> (runtime/active-mode app) :visual-scale)}))
+       :nested-scale (-> (px/active-mode app) :visual-scale)}))
 
   (s/then [result]
     (is (= {:mode "ui/popup-menu"
@@ -280,8 +280,8 @@
 (deftest popup-menu-inner/inherits-the-theme-font
   (s/when []
     (let [app (open-popup-app 'popup-classic-blue-root)
-          text (runtime/find-view app "ui/text")]
-      {:mode (runtime/active-mode-name app)
+          text (px/find-view app "ui/text")]
+      {:mode (px/active-mode-name app)
        :font (-> text :effective-style :text :font)}))
 
   (s/then [result]
@@ -298,10 +298,10 @@
     (open-popup-app 'popup-checkable-root))
 
   (s/when [app]
-    (let [item (runtime/find-view app "ui/popup-menu-option-item")
+    (let [item (px/find-view app "ui/popup-menu-option-item")
           before (select-keys (:ui-state item)
                               [:checked? :selected :active? :highlighted])]
-      (runtime/press-key! app :down)
+      (px/press-key! app :down)
       {:before before
        :after (select-keys (:ui-state item)
                            [:checked? :selected :active? :highlighted])}))
@@ -322,9 +322,9 @@
     (popup-app))
 
   (s/when [app]
-    (runtime/click! app (head (runtime/find-views app "ui/popup-menu-item")))
-    {:mode (runtime/active-mode-name app)
-     :last-action (:last-action (runtime/active-state app))})
+    (px/click! app (head (px/find-views app "ui/popup-menu-item")))
+    {:mode (px/active-mode-name app)
+     :last-action (:last-action (px/active-state app))})
 
   (s/then [result]
     (is (= {:mode "popup-keyboard-root"
@@ -337,17 +337,17 @@
     (open-popup-app 'popup-submenu-indicator-root))
 
   (s/when [app]
-    (runtime/press-key! app :down)
-    (runtime/mouse-down-in! app
-                            (head (runtime/find-views
+    (px/press-key! app :down)
+    (px/mouse-down-in! app
+                            (head (px/find-views
                                    app
                                    "ui/popup-menu-item"))
                             2
                             2)
-    (runtime/update! app)
-    (runtime/settle-layout! app)
-    (let [inner (runtime/find-view app "ui/popup-menu-inner")]
-      {:mode (runtime/active-mode-name app)
+    (px/update! app)
+    (px/settle-layout! app)
+    (let [inner (px/find-view app "ui/popup-menu-inner")]
+      {:mode (px/active-mode-name app)
        :navigation {:input-source (-> inner :ui-state :input-source)
                     :active-index (-> inner :ui-state :active-index)}}))
 
@@ -362,13 +362,13 @@
     (open-popup-app 'popup-windows-3-root))
 
   (s/when [app]
-    (let [item (head (runtime/find-views app "ui/popup-menu-item"))
+    (let [item (head (px/find-views app "ui/popup-menu-item"))
           background-before (-> item :effective-style :background)]
-      (runtime/mouse-move-in! app item 2 2)
-      (runtime/update! app)
-      (runtime/render! app)
+      (px/mouse-move-in! app item 2 2)
+      (px/update! app)
+      (px/render! app)
       (let [updated-item
-            (head (runtime/find-views app "ui/popup-menu-item"))]
+            (head (px/find-views app "ui/popup-menu-item"))]
         {:hovered (-> updated-item :interaction :hovered)
          :highlighted (-> updated-item :ui-state :highlighted)
          :background-before background-before
@@ -387,9 +387,9 @@
 (deftest menu-submenu-indicator/represents-submenu-and-leaf-rows
   (s/when []
     (let [app (open-popup-app 'popup-submenu-indicator-root)
-          trailing (runtime/find-views app "ui/menu-item-trailing")
-          indicators (runtime/find-views app "ui/menu-submenu-indicator")]
-      {:mode (runtime/active-mode-name app)
+          trailing (px/find-views app "ui/menu-item-trailing")
+          indicators (px/find-views app "ui/menu-submenu-indicator")]
+      {:mode (px/active-mode-name app)
        :trailing-count (count trailing)
        :indicator-count (count indicators)
        :has-submenu (for [indicator indicators]
@@ -411,15 +411,15 @@
     (app-for 'popup-context-target))
 
   (s/when [app]
-    (runtime/mouse-down-at! app 42 17 :right)
-    (runtime/update! app)
-    (runtime/mouse-up-at! app 42 17 :right)
-    (runtime/update! app)
-    (runtime/render! app)
-    {:mode (runtime/active-mode-name app)
+    (px/mouse-down-at! app 42 17 :right)
+    (px/update! app)
+    (px/mouse-up-at! app 42 17 :right)
+    (px/update! app)
+    (px/render! app)
+    {:mode (px/active-mode-name app)
      :position (select-keys
                 (:visual-bounds
-                 (runtime/find-view app "ui/popup-menu-outer"))
+                 (px/find-view app "ui/popup-menu-outer"))
                 [:x :y])})
 
   (s/then [result]

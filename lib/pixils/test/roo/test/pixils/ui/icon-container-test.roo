@@ -1,32 +1,32 @@
 (ns pixils.ui.icon-container-test
   (:require proof.core
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (deftest icon-grid-can-bind-scroll-content-state-from-owner
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/icon-grid-binding-probe.roo")
-    (runtime/push-mode! app 'root-mode)
+    (px/push-mode! app 'root-mode)
     (is (= [{:id :one} {:id :two} {:id :three}]
            (:items
             (:state
-             (runtime/find-view app "bound-grid-owner")))))
-    (runtime/settle-layout! app)
+             (px/find-view app "bound-grid-owner")))))
+    (px/settle-layout! app)
     (is (= [{:id :one} {:id :two} {:id :three}]
            (:items
             (:state
-             (runtime/find-view app "bound-grid-owner")))))
+             (px/find-view app "bound-grid-owner")))))
     (is (= [{:id :one} {:id :two} {:id :three}]
-           (get-in (-> (runtime/find-view app "ui/scroll-pane") :state)
+           (get-in (-> (px/find-view app "ui/scroll-pane") :state)
                    [:content-state :items])))
     (is (= 48
-           (get-in (-> (runtime/find-view app "ui/scroll-pane") :ui-state)
+           (get-in (-> (px/find-view app "ui/scroll-pane") :ui-state)
                    [:content-size :h])))
     (is (= {:id :one}
            (:item
             (:state
-             (head (runtime/find-views app "ui/icon"))))))))
+             (head (px/find-views app "ui/icon"))))))))

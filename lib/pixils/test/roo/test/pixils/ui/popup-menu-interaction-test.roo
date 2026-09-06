@@ -2,7 +2,7 @@
   "Exercises popup-menu behavior across complete interaction frames."
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (def SCENARIOS
   "Windows 95 theme variants and their hover probe modes."
@@ -14,20 +14,20 @@
 (defun app-for
   "Open a popup and highlight its first row using public input."
   [mode]
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
                                :render-backend true})]
-    (runtime/eval-file! app "pixils/test/popup-menu-hover-probe.roo")
-    (runtime/push-mode! app mode)
-    (runtime/settle-layout! app)
-    (runtime/mouse-down-in! app
-                            (runtime/find-view app "ui/menu-bar-item")
+    (px/eval-file! app "pixils/test/popup-menu-hover-probe.roo")
+    (px/push-mode! app mode)
+    (px/settle-layout! app)
+    (px/mouse-down-in! app
+                            (px/find-view app "ui/menu-bar-item")
                             1
                             1)
-    (runtime/settle-layout! app)
-    (runtime/press-key! app :down)
-    (runtime/render! app)
+    (px/settle-layout! app)
+    (px/press-key! app :down)
+    (px/render! app)
     app))
 
 (defun rendered-pixels
@@ -36,7 +36,7 @@
   (apply concat
          (for [py (range y (+ y h))]
            (for [px (range x (+ x w))]
-             (runtime/rendered-pixel app px py)))))
+             (px/rendered-pixel app px py)))))
 
 
 
@@ -50,24 +50,24 @@
 
   (s/when [scenarios]
     (for [{:keys [variant app]} scenarios]
-      (let [items (runtime/find-views app "ui/popup-menu-item")]
-        (runtime/mouse-move-in! app (nth items 1) 2 2)
-        (runtime/frame! app)
-        (let [inner (runtime/find-view app "ui/popup-menu-inner")
-              popup (runtime/find-view app "ui/popup-menu-outer")
+      (let [items (px/find-views app "ui/popup-menu-item")]
+        (px/mouse-move-in! app (nth items 1) 2 2)
+        (px/frame! app)
+        (let [inner (px/find-view app "ui/popup-menu-inner")
+              popup (px/find-view app "ui/popup-menu-outer")
               first-render (rendered-pixels app (:visual-bounds popup))
               navigation
               {:active-index (-> inner :ui-state :active-index)
                :highlighted (for [item items]
                               (-> item :ui-state :highlighted))}]
-          (runtime/frame! app)
+          (px/frame! app)
           {:variant variant
            :navigation navigation
            :first-render-stable?
            (= first-render
               (rendered-pixels app
                                (:visual-bounds
-                                (runtime/find-view app
+                                (px/find-view app
                                                    "ui/popup-menu-outer"))))}))))
 
   (s/then [result]

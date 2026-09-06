@@ -1,32 +1,32 @@
 (ns pixils.ui.option-list-reconciliation-test
   (:require proof.core
             [pixils.ui :as ui]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (deftest option-list-reconciles-rows-without-replacing-retained-views
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval-file!
+    (px/eval-file!
      app
      "pixils/test/option-list-reconciliation-probe.roo")
-    (runtime/push-mode! app 'option-list-reconciliation-root)
-    (runtime/settle-layout! app)
-    (let [scroll-pane (runtime/find-view app "ui/scroll-pane")
-          first-row (head (runtime/find-views app "preserved-option-row"))]
+    (px/push-mode! app 'option-list-reconciliation-root)
+    (px/settle-layout! app)
+    (let [scroll-pane (px/find-view app "ui/scroll-pane")
+          first-row (head (px/find-views app "preserved-option-row"))]
       (ui/set-ui-state! scroll-pane
                         (assoc (:ui-state scroll-pane) :sentinel :scroll-pane))
       (ui/set-ui-state! first-row
                         (assoc (:ui-state first-row) :sentinel :first-row)))
-    (runtime/set-active-state!
+    (px/set-active-state!
      app
-     (assoc (runtime/active-state app)
+     (assoc (px/active-state app)
             :expanded? true
             :selected [1]))
-    (runtime/settle-layout! app)
-    (let [scroll-pane (runtime/find-view app "ui/scroll-pane")
-          rows (runtime/find-views app "preserved-option-row")]
+    (px/settle-layout! app)
+    (let [scroll-pane (px/find-view app "ui/scroll-pane")
+          rows (px/find-views app "preserved-option-row")]
       (is (= 3 (count rows)))
       (is (= :scroll-pane (-> scroll-pane :ui-state :sentinel)))
       (is (= :first-row (-> (nth rows 1) :ui-state :sentinel)))

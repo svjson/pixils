@@ -2,7 +2,7 @@
   "Exercises public menu rendering contracts across the standard themes."
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (def THEME-MODES
   "Standard themes and their rendered-menu scenario modes."
@@ -24,13 +24,13 @@
   Returns:
   A settled test application with a real render target."
   [mode]
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 240
                                :buffer-height 180
                                :render-backend true})]
-    (runtime/eval-file! app "pixils/test/menu-rendering-probe.roo")
-    (runtime/push-mode! app mode)
-    (runtime/settle-layout! app)
+    (px/eval-file! app "pixils/test/menu-rendering-probe.roo")
+    (px/push-mode! app mode)
+    (px/settle-layout! app)
     app))
 
 (defun rendered-signature
@@ -50,11 +50,11 @@
         bottom (+ y (max 0 (- h 4)))
         middle-x (+ x (int (/ w 2)))
         middle-y (+ y (int (/ h 2)))]
-    [(runtime/rendered-pixel app left top)
-     (runtime/rendered-pixel app right top)
-     (runtime/rendered-pixel app left bottom)
-     (runtime/rendered-pixel app right bottom)
-     (runtime/rendered-pixel app middle-x middle-y)]))
+    [(px/rendered-pixel app left top)
+     (px/rendered-pixel app right top)
+     (px/rendered-pixel app left bottom)
+     (px/rendered-pixel app right bottom)
+     (px/rendered-pixel app middle-x middle-y)]))
 
 (defun rendered-background
   "Sample a row background away from its marker and label.
@@ -67,7 +67,7 @@
   The rendered color near the row's right edge."
   [app {:keys [visual-bounds]}]
   (let [{:keys [x y w]} visual-bounds]
-    (runtime/rendered-pixel app (+ x (- w 3)) (+ y 2))))
+    (px/rendered-pixel app (+ x (- w 3)) (+ y 2))))
 
 (defun rendered-region-varies?
   "Report whether a visual region contains more than one rendered color.
@@ -84,7 +84,7 @@
         (apply concat
                (for [py (range y (+ y (dec h)))]
                  (for [px (range x (+ x (dec w)))]
-                   (runtime/rendered-pixel app px py))))
+                   (px/rendered-pixel app px py))))
         first-pixel (head pixels)]
     (not-empty?
      (filter pixels
@@ -100,11 +100,11 @@
   Returns:
   The updated application."
   [app]
-  (runtime/mouse-down-in! app
-                          (head (runtime/find-views app "ui/menu-bar-item"))
+  (px/mouse-down-in! app
+                          (head (px/find-views app "ui/menu-bar-item"))
                           1
                           1)
-  (runtime/frame! app)
+  (px/frame! app)
   app)
 
 
@@ -115,14 +115,14 @@
   (s/when []
     (for [{:keys [theme mode]} THEME-MODES]
       (let [app (app-for mode)
-            item (head (runtime/find-views app "ui/menu-bar-item"))]
-        (runtime/mouse-move-at! app 220 160)
-        (runtime/update! app)
-        (runtime/render! app)
+            item (head (px/find-views app "ui/menu-bar-item"))]
+        (px/mouse-move-at! app 220 160)
+        (px/update! app)
+        (px/render! app)
         (let [before (rendered-signature app item)]
-          (runtime/mouse-move-in! app item 1 1)
-          (runtime/update! app)
-          (runtime/render! app)
+          (px/mouse-move-in! app item 1 1)
+          (px/update! app)
+          (px/render! app)
           {:theme theme
            :rendering-changed? (not= before
                                      (rendered-signature app item))}))))
@@ -142,21 +142,21 @@
   (s/when []
     (for [{:keys [theme mode]} THEME-MODES]
       (let [app (app-for mode)
-            items (runtime/find-views app "ui/menu-bar-item")]
-        (runtime/mouse-move-at! app 220 160)
-        (runtime/update! app)
-        (runtime/render! app)
+            items (px/find-views app "ui/menu-bar-item")]
+        (px/mouse-move-at! app 220 160)
+        (px/update! app)
+        (px/render! app)
         (let [normal (for [item items]
                        (rendered-signature app item))]
-          (runtime/mouse-down-in! app (head items) 1 1)
-          (runtime/settle-layout! app)
-          (runtime/render! app)
+          (px/mouse-down-in! app (head items) 1 1)
+          (px/settle-layout! app)
+          (px/render! app)
           (let [after-first (for-indexed [index item items]
                               (not= (nth normal index)
                                     (rendered-signature app item)))]
-            (runtime/mouse-down-in! app (nth items 1) 1 1)
-            (runtime/settle-layout! app)
-            (runtime/render! app)
+            (px/mouse-down-in! app (nth items 1) 1 1)
+            (px/settle-layout! app)
+            (px/render! app)
             {:theme theme
              :after-first after-first
              :after-second
@@ -182,23 +182,23 @@
 (deftest make/switches-an-open-top-level-popup-by-hovering-its-menu-bar-owner
   (s/when []
     (let [app (app-for 'menu-rendering-windows-3-root)
-          items (runtime/find-views app "ui/menu-bar-item")
+          items (px/find-views app "ui/menu-bar-item")
           _settled
           (do
-            (runtime/mouse-move-at! app 220 160)
-            (runtime/update! app)
-            (runtime/render! app))
+            (px/mouse-move-at! app 220 160)
+            (px/update! app)
+            (px/render! app))
           normal (for [item items]
                    (rendered-signature app item))]
       (open-first-popup! app)
-      (runtime/mouse-move-in! app (nth items 1) 1 1)
-      (runtime/frame! app)
+      (px/mouse-move-in! app (nth items 1) 1 1)
+      (px/frame! app)
       {:active-items
        (for-indexed [index item items]
          (not= (nth normal index)
                (rendered-signature app item)))
        :popup-aligned-with-second?
-       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+       (= (-> (px/find-view app "ui/popup-menu-outer")
               :visual-bounds
               :x)
           (-> (nth items 1) :visual-bounds :x))}))
@@ -213,21 +213,21 @@
     (let [app (open-first-popup!
                (app-for 'menu-rendering-windows-3-root))
           parent-popup
-          (runtime/find-view app "ui/popup-menu-outer")
+          (px/find-view app "ui/popup-menu-outer")
           parent-bounds (:visual-bounds parent-popup)
-          rows (runtime/find-views app "ui/popup-menu-item")
+          rows (px/find-views app "ui/popup-menu-item")
           open-row (head rows)
           recent-row (nth rows 1)
           open-normal (rendered-background app open-row)
           recent-normal (rendered-background app recent-row)]
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :right)
-      (runtime/mouse-move-in! app open-row 1 1)
-      (runtime/frame! app)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :right)
+      (px/mouse-move-in! app open-row 1 1)
+      (px/frame! app)
       {:parent-popup-restored?
-       (= (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))
+       (= (:visual-bounds (px/find-view app "ui/popup-menu-outer"))
           parent-bounds)
        :open-row-active?
        (not= open-normal (rendered-background app open-row))
@@ -243,27 +243,27 @@
 (deftest make/switches-from-a-nested-popup-to-a-menu-bar-owner-by-hover
   (s/when []
     (let [app (app-for 'menu-rendering-windows-3-root)
-          items (runtime/find-views app "ui/menu-bar-item")
+          items (px/find-views app "ui/menu-bar-item")
           _settled
           (do
-            (runtime/mouse-move-at! app 220 160)
-            (runtime/update! app)
-            (runtime/render! app))
+            (px/mouse-move-at! app 220 160)
+            (px/update! app)
+            (px/render! app))
           normal (for [item items]
                    (rendered-signature app item))]
       (open-first-popup! app)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :right)
-      (runtime/mouse-move-in! app (nth items 1) 1 1)
-      (runtime/frame! app)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :right)
+      (px/mouse-move-in! app (nth items 1) 1 1)
+      (px/frame! app)
       {:active-items
        (for-indexed [index item items]
          (not= (nth normal index)
                (rendered-signature app item)))
        :popup-aligned-with-second?
-       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+       (= (-> (px/find-view app "ui/popup-menu-outer")
               :visual-bounds
               :x)
           (-> (nth items 1) :visual-bounds :x))}))
@@ -277,10 +277,10 @@
   (s/when []
     (for [{:keys [theme mode]} THEME-MODES]
       (let [app (open-first-popup! (app-for mode))
-            item (head (runtime/find-views app "ui/popup-menu-item"))
+            item (head (px/find-views app "ui/popup-menu-item"))
             before (rendered-signature app item)]
-        (runtime/mouse-move-in! app item 1 1)
-        (runtime/frame! app)
+        (px/mouse-move-in! app item 1 1)
+        (px/frame! app)
         {:theme theme
          :rendering-changed? (not= before
                                    (rendered-signature app item))})))
@@ -301,22 +301,22 @@
     (for [{:keys [theme mode]} THEME-MODES]
       (let [app (open-first-popup! (app-for mode))
             checked-item
-            (runtime/find-view app "ui/popup-menu-option-item")
+            (px/find-view app "ui/popup-menu-option-item")
             unchecked-item
-            (head (runtime/find-views app "ui/popup-menu-item"))
+            (head (px/find-views app "ui/popup-menu-item"))
             checked-normal (rendered-background app checked-item)
             unchecked-normal (rendered-background app unchecked-item)
             checked-active
             (do
-              (runtime/mouse-move-in! app checked-item 1 1)
-              (runtime/frame! app)
+              (px/mouse-move-in! app checked-item 1 1)
+              (px/frame! app)
               (rendered-background app checked-item))
             unchecked-while-checked-active
             (rendered-background app unchecked-item)
             unchecked-active
             (do
-              (runtime/mouse-move-in! app unchecked-item 1 1)
-              (runtime/frame! app)
+              (px/mouse-move-in! app unchecked-item 1 1)
+              (px/frame! app)
               (rendered-background app unchecked-item))]
         {:theme theme
          :normal-rows-match? (= checked-normal unchecked-normal)
@@ -357,25 +357,25 @@
 (deftest make/places-popups-relative-to-their-public-anchors
   (s/when []
     (let [app (app-for 'menu-rendering-windows-3-root)
-          menu-item (head (runtime/find-views app "ui/menu-bar-item"))
+          menu-item (head (px/find-views app "ui/menu-bar-item"))
           menu-bounds (:visual-bounds menu-item)
           app (open-first-popup! app)
-          popup (runtime/find-view app "ui/popup-menu-outer")
-          parent-row (nth (runtime/find-views app "ui/popup-menu-item") 1)
+          popup (px/find-view app "ui/popup-menu-outer")
+          parent-row (nth (px/find-views app "ui/popup-menu-item") 1)
           popup-bounds (:visual-bounds popup)
           parent-bounds (:visual-bounds parent-row)]
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :down)
-      (runtime/press-key! app :right)
-      (runtime/render! app)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :down)
+      (px/press-key! app :right)
+      (px/render! app)
       {:popup-below-anchor?
        (= (:y popup-bounds)
           (+ (:y menu-bounds) (:h menu-bounds)))
        :popup-aligned-with-anchor?
        (= (:x popup-bounds) (:x menu-bounds))
        :nested-popup-right-of-parent?
-       (= (-> (runtime/find-view app "ui/popup-menu-outer")
+       (= (-> (px/find-view app "ui/popup-menu-outer")
               :visual-bounds
               :x)
           (+ (:x parent-bounds) (:w parent-bounds)))}))
@@ -389,11 +389,11 @@
 (deftest make/opens-a-menu-bar-popup-above-the-bottom-viewport-edge
   (s/when []
     (let [app (app-for 'menu-rendering-bottom-edge-root)
-          anchor (runtime/find-view app "ui/menu-bar-item")]
-      (runtime/mouse-down-in! app anchor 1 1)
-      (runtime/frame! app)
+          anchor (px/find-view app "ui/menu-bar-item")]
+      (px/mouse-down-in! app anchor 1 1)
+      (px/frame! app)
       (let [popup-bounds
-            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+            (:visual-bounds (px/find-view app "ui/popup-menu-outer"))]
         {:above-anchor?
          (= (+ (:y popup-bounds) (:h popup-bounds))
             (-> anchor :visual-bounds :y))
@@ -411,15 +411,15 @@
 (deftest make/opens-a-submenu-left-of-the-right-viewport-edge
   (s/when []
     (let [app (app-for 'menu-rendering-right-edge-root)
-          anchor (runtime/find-view app "ui/menu-bar-item")]
-      (runtime/mouse-down-in! app anchor 1 1)
-      (runtime/frame! app)
-      (runtime/press-key! app :down)
-      (let [parent-row (runtime/find-view app "ui/popup-menu-item")]
-        (runtime/press-key! app :right)
-        (runtime/render! app)
+          anchor (px/find-view app "ui/menu-bar-item")]
+      (px/mouse-down-in! app anchor 1 1)
+      (px/frame! app)
+      (px/press-key! app :down)
+      (let [parent-row (px/find-view app "ui/popup-menu-item")]
+        (px/press-key! app :right)
+        (px/render! app)
         (let [popup-bounds
-              (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+              (:visual-bounds (px/find-view app "ui/popup-menu-outer"))]
           {:left-of-parent?
            (= (+ (:x popup-bounds) (:w popup-bounds))
               (-> parent-row :visual-bounds :x))
@@ -438,22 +438,22 @@
   (s/when []
     (let [app (open-first-popup! (app-for 'menu-rendering-windows-3-root))
           parent-bounds
-          (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))
+          (:visual-bounds (px/find-view app "ui/popup-menu-outer"))
           submenu-row-bounds
-          (:visual-bounds (nth (runtime/find-views app "ui/popup-menu-item") 1))
+          (:visual-bounds (nth (px/find-views app "ui/popup-menu-item") 1))
           nested-bounds
           (do
-            (runtime/press-key! app :down)
-            (runtime/press-key! app :down)
-            (runtime/press-key! app :down)
-            (runtime/press-key! app :right)
-            (runtime/render! app)
-            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer")))
+            (px/press-key! app :down)
+            (px/press-key! app :down)
+            (px/press-key! app :down)
+            (px/press-key! app :right)
+            (px/render! app)
+            (:visual-bounds (px/find-view app "ui/popup-menu-outer")))
           remaining-popup
           (do
-            (runtime/press-key! app :left)
-            (runtime/render! app)
-            (runtime/find-view app "ui/popup-menu-outer"))
+            (px/press-key! app :left)
+            (px/render! app)
+            (px/find-view app "ui/popup-menu-outer"))
           remaining-bounds (:visual-bounds remaining-popup)]
       {:nested-popup-opened?
        (= (:x nested-bounds)
@@ -482,9 +482,9 @@
     (for [{:keys [theme mode]} THEME-MODES]
       (let [app (open-first-popup! (app-for mode))
             option-indicators
-            (runtime/find-views app "ui/menu-option-indicator")
+            (px/find-views app "ui/menu-option-indicator")
             submenu-indicators
-            (runtime/find-views app "ui/menu-submenu-indicator")]
+            (px/find-views app "ui/menu-submenu-indicator")]
         {:theme theme
          :option-marker-visible?
          (not-empty?
@@ -521,11 +521,11 @@
 (deftest open-context!/keeps-a-bottom-right-context-menu-inside-the-viewport
   (s/when []
     (let [app (app-for 'menu-rendering-context-edge-root)]
-      (runtime/mouse-click-at! app 235 175 :right)
-      (runtime/settle-layout! app)
-      (runtime/render! app)
+      (px/mouse-click-at! app 235 175 :right)
+      (px/settle-layout! app)
+      (px/render! app)
       (let [popup-bounds
-            (:visual-bounds (runtime/find-view app "ui/popup-menu-outer"))]
+            (:visual-bounds (px/find-view app "ui/popup-menu-outer"))]
         {:above-pointer?
          (= (+ (:y popup-bounds) (:h popup-bounds)) 175)
          :right-edge-clamped?

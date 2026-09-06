@@ -1,7 +1,7 @@
 (ns pixils.ui.combo-box-test
   (:require proof.core
             [proof.syntax :as s]
-            [pixils.test.runtime :as runtime]
+            [pixils.test :as px]
             [pixils.ui.combo-box :as combo-box]))
 
 
@@ -22,22 +22,22 @@
 
 (deftest open-popup!/shrinks-to-fewer-options-than-the-default-maximum
   (s/given
-    (let [app (runtime/make-app {:package-root "../.."
+    (let [app (px/make-app {:package-root "../.."
                                  :buffer-width 320
                                  :buffer-height 240
                                  :render-backend false})]
-      (runtime/eval-file! app "pixils/test/combo-box-probe.roo")
-      (runtime/push-mode! app 'combo-box-short-options-root)
-      (runtime/settle-layout! app)
+      (px/eval-file! app "pixils/test/combo-box-probe.roo")
+      (px/push-mode! app 'combo-box-short-options-root)
+      (px/settle-layout! app)
       app))
 
   (s/when [app]
-    (runtime/click! app (runtime/find-view app "ui/combo-box"))
-    (runtime/settle-layout! app)
-    (let [panel (runtime/find-view app "ui/combo-box-popup-panel")
-          option-list (runtime/find-view app "ui/option-list")
-          rows (runtime/find-views app "ui/combo-box-item")]
-      {:mode (runtime/active-mode-name app)
+    (px/click! app (px/find-view app "ui/combo-box"))
+    (px/settle-layout! app)
+    (let [panel (px/find-view app "ui/combo-box-popup-panel")
+          option-list (px/find-view app "ui/option-list")
+          rows (px/find-views app "ui/combo-box-item")]
+      {:mode (px/active-mode-name app)
        :panel-height (-> panel :bounds :h)
        :option-list-height (-> option-list :bounds :h)
        :visible-rows (-> option-list :effective-style :visible-rows)

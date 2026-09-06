@@ -1,7 +1,7 @@
 (ns pixils.ui.tree-view-test
   (:require proof.core
             [pixils.ui.tree-view :as tree-view]
-            [pixils.test.runtime :as runtime]))
+            [pixils.test :as px]))
 
 (def sample-tree
   [{:id :project
@@ -287,24 +287,24 @@
                    :state {:offset {:x 0 :y 12}}})]})")
 
 (deftest tree-view-keyboard-expands-and-selects-visible-rows
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tree-view-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (runtime/key-down! app :down)
-    (runtime/update! app)
-    (runtime/key-up! app :down)
-    (runtime/update! app)
-    (runtime/key-down! app :right)
-    (runtime/update! app)
-    (runtime/key-up! app :right)
-    (runtime/update! app)
-    (runtime/settle-layout! app)
-    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          root-state (runtime/active-state app)]
+    (px/eval! app (tree-view-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (px/key-down! app :down)
+    (px/update! app)
+    (px/key-up! app :down)
+    (px/update! app)
+    (px/key-down! app :right)
+    (px/update! app)
+    (px/key-up! app :right)
+    (px/update! app)
+    (px/settle-layout! app)
+    (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+          root-state (px/active-state app)]
       (is (= :project (:selected root-state)))
       (is (= :project (-> root-state :last-change :id)))
       (is (= :project (-> root-state :last-expand :id)))
@@ -312,98 +312,98 @@
       (is (= 3 (count (:rows tree-state)))))))
 
 (deftest tree-view-mouse-disclosure-expands-bound-tree
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tree-view-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [item (runtime/find-view app "ui/tree-view-item")]
-      (runtime/mouse-down-in! app item 2 (view-center-y item))
-      (runtime/update! app)
-      (runtime/mouse-up-in! app item 2 (view-center-y item))
-      (runtime/update! app)
-      (runtime/settle-layout! app)
-      (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-            root-state (runtime/active-state app)]
+    (px/eval! app (tree-view-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [item (px/find-view app "ui/tree-view-item")]
+      (px/mouse-down-in! app item 2 (view-center-y item))
+      (px/update! app)
+      (px/mouse-up-in! app item 2 (view-center-y item))
+      (px/update! app)
+      (px/settle-layout! app)
+      (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+            root-state (px/active-state app)]
         (is (= :project (-> root-state :last-expand :id)))
         (is (= [:project] (:expanded-ids tree-state)))
         (is (= 3 (count (:rows tree-state))))))))
 
 (deftest tree-view-expansion-preserves-scroll-pane-offset
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tree-view-scroll-offset-probe-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [before-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          before-scroll-ui-state (-> (runtime/find-view app "ui/scroll-pane")
+    (px/eval! app (tree-view-scroll-offset-probe-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [before-state (px/view-state (px/find-view app "ui/tree-view"))
+          before-scroll-ui-state (-> (px/find-view app "ui/scroll-pane")
                                      :ui-state)]
       (is (= {:x 0 :y 12} (:offset before-scroll-ui-state)))
       (is (= [:project :src] (:expanded-ids before-state)))
       (is (= 5 (count (:rows before-state))))
-      (runtime/key-down! app :right)
-      (runtime/update! app)
-      (runtime/key-up! app :right)
-      (runtime/update! app)
-      (runtime/settle-layout! app)
-      (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-            scroll-ui-state (-> (runtime/find-view app "ui/scroll-pane")
+      (px/key-down! app :right)
+      (px/update! app)
+      (px/key-up! app :right)
+      (px/update! app)
+      (px/settle-layout! app)
+      (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+            scroll-ui-state (-> (px/find-view app "ui/scroll-pane")
                                 :ui-state)]
         (is (= [:project :src :assets] (:expanded-ids tree-state)))
         (is (= 6 (count (:rows tree-state))))
         (is (= {:x 0 :y 12} (:offset scroll-ui-state)))))))
 
 (deftest tree-view-disclosure-glyphs-follow-theme-and-expanded-state
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tree-view-themed-disclosure-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [items (runtime/find-views app "ui/tree-view-item")
-          disclosures (runtime/find-views app "ui/tree-view-disclosure")]
+    (px/eval! app (tree-view-themed-disclosure-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [items (px/find-views app "ui/tree-view-item")
+          disclosures (px/find-views app "ui/tree-view-disclosure")]
       (is (= ["-" "+" "" "+"]
              (map items
                   (fn [view]
-                    (-> (runtime/view-state view) :row :disclosure-glyph)))))
+                    (-> (px/view-state view) :row :disclosure-glyph)))))
       (is (= ["-" "+" "" "+"]
              (map items
                   (fn [view]
-                    (:disclosure-glyph (runtime/view-state view))))))
+                    (:disclosure-glyph (px/view-state view))))))
       (is (= [true false false false]
              (map disclosures
                   (fn [view]
-                    (-> (runtime/view-state view) :row :expanded?)))))
+                    (-> (px/view-state view) :row :expanded?)))))
       (is (= [true true false true]
              (map disclosures
                   (fn [view]
-                    (:expandable? (runtime/view-state view))))))
+                    (:expandable? (px/view-state view))))))
       (is (= ["-" "+" "" "+"]
              (map disclosures
                   (fn [view]
-                    (-> (runtime/view-state view) :row :disclosure-glyph))))))))
+                    (-> (px/view-state view) :row :disclosure-glyph))))))))
 
 (deftest tree-view-renders-expanded-rows-without-empty-visual-space
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
                                :render-backend false})]
-    (runtime/eval! app (tree-view-nested-expansion-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (runtime/settle-layout! app)
-    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          item-ids (map (runtime/find-views app "ui/tree-view-item")
+    (px/eval! app (tree-view-nested-expansion-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (px/settle-layout! app)
+    (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+          item-ids (map (px/find-views app "ui/tree-view-item")
                         (fn [view]
-                          (-> (runtime/view-state view) :row :id)))
-          item-expanded (map (runtime/find-views app "ui/tree-view-item")
+                          (-> (px/view-state view) :row :id)))
+          item-expanded (map (px/find-views app "ui/tree-view-item")
                              (fn [view]
-                               (-> (runtime/view-state view) :row :expanded?)))]
+                               (-> (px/view-state view) :row :expanded?)))]
       (is (= [:project :src] (:expanded-ids tree-state)))
       (is (= [:project :src :main :readme :assets]
              (map (:rows tree-state) (fn [row] (:id row)))))
@@ -412,21 +412,21 @@
              item-ids)))))
 
 (deftest tree-view-renders-bound-initial-expanded-state
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 140
                                :render-backend false})]
-    (runtime/eval! app (tree-view-bound-initial-expansion-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (runtime/settle-layout! app)
-    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          item-ids (map (runtime/find-views app "ui/tree-view-item")
+    (px/eval! app (tree-view-bound-initial-expansion-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (px/settle-layout! app)
+    (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+          item-ids (map (px/find-views app "ui/tree-view-item")
                         (fn [view]
-                          (-> (runtime/view-state view) :row :id)))
-          item-glyphs (map (runtime/find-views app "ui/tree-view-item")
+                          (-> (px/view-state view) :row :id)))
+          item-glyphs (map (px/find-views app "ui/tree-view-item")
                            (fn [view]
-                             (-> (runtime/view-state view) :row :disclosure-glyph)))]
+                             (-> (px/view-state view) :row :disclosure-glyph)))]
       (is (= [:project :src] (:expanded-ids tree-state)))
       (is (= [:project :src :main :readme :assets]
              (map (:rows tree-state) (fn [row] (:id row)))))
@@ -436,17 +436,17 @@
              item-glyphs)))))
 
 (deftest tree-view-renders-children-from-lazy-adapter
-  (let [app (runtime/make-app {:package-root "../.."
+  (let [app (px/make-app {:package-root "../.."
                                :buffer-width 180
                                :buffer-height 120
                                :render-backend false})]
-    (runtime/eval! app (tree-view-lazy-adapter-source))
-    (runtime/push-mode! app 'root-mode)
-    (runtime/settle-layout! app)
-    (let [tree-state (runtime/view-state (runtime/find-view app "ui/tree-view"))
-          item-ids (map (runtime/find-views app "ui/tree-view-item")
+    (px/eval! app (tree-view-lazy-adapter-source))
+    (px/push-mode! app 'root-mode)
+    (px/settle-layout! app)
+    (let [tree-state (px/view-state (px/find-view app "ui/tree-view"))
+          item-ids (map (px/find-views app "ui/tree-view-item")
                         (fn [view]
-                          (-> (runtime/view-state view) :row :id)))]
+                          (-> (px/view-state view) :row :id)))]
       (is (= [:project] (:expanded-ids tree-state)))
       (is (= [:project :src :readme]
              (map (:rows tree-state) (fn [row] (:id row)))))
