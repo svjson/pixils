@@ -1694,31 +1694,4 @@
         (roo-materialize-render-map tilemap opts))))
 
 (defun materialize-render-rect [tilemap rect & opts]
-  (let [opts (or (head opts) {})
-        rect (materialization-rect tilemap rect)
-        source-tilemap (materialization-source-tilemap tilemap opts)
-        layers-result (reduce (or (:layers opts)
-                                  (:layers tilemap))
-                              {:layers []
-                               :transition-tiles []}
-                              (fn [state layer]
-                                (let [result (materialize-layer-with-rules-rect
-                                              source-tilemap
-                                              (:terrain-sets source-tilemap)
-                                              (:rulesets source-tilemap)
-                                              (materialize-show-terrain-rules?
-                                               tilemap
-                                               opts)
-                                              layer
-                                              rect)]
-                                  {:layers (concat (:layers state)
-                                                   (:layers result))
-                                   :transition-tiles
-                                   (concat (:transition-tiles state)
-                                           (:transition-tiles result))})))]
-    (materialized-map-with-layers (materialized-tilemap-rect-base tilemap rect)
-                                  source-tilemap
-                                  layers-result
-                                  (:layers layers-result)
-                                  {:x (:x rect) :y (:y rect)}
-                                  opts)))
+  (materialize-impl/render-rect tilemap rect (or (head opts) {})))

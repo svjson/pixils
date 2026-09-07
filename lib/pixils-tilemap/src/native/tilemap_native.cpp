@@ -1837,6 +1837,49 @@ namespace
     std::vector<Roo::sptr_val> transition_tiles;
   };
 
+  Pixils::Rect full_materialization_rect(int width, int height)
+  {
+    return Pixils::Rect{0, 0, width, height};
+  }
+
+  Pixils::Rect clamped_materialization_rect(int width,
+                                           int height,
+                                           const Roo::sptr_val& rect)
+  {
+    int x = std::max(0, std::min(width, int_prop(rect, "x", 0)));
+    int y = std::max(0, std::min(height, int_prop(rect, "y", 0)));
+    int w = std::max(0, std::min(width - x, int_prop(rect, "w", width)));
+    int h = std::max(0, std::min(height - y, int_prop(rect, "h", height)));
+    return Pixils::Rect{x, y, w, h};
+  }
+
+  Roo::sptr_val materialization_rect_value(const Pixils::Rect& rect)
+  {
+    return map_value({keyword_value("x"),
+                      Roo::Value::number(rect.x),
+                      keyword_value("y"),
+                      Roo::Value::number(rect.y),
+                      keyword_value("w"),
+                      Roo::Value::number(rect.w),
+                      keyword_value("h"),
+                      Roo::Value::number(rect.h)});
+  }
+
+  std::vector<std::vector<Roo::sptr_val>> rows_in_region(
+    const std::vector<std::vector<Roo::sptr_val>>& rows,
+    const Pixils::Rect& rect)
+  {
+    auto out = empty_rows(rect.w, rect.h);
+    for (int y = 0; y < rect.h; y++)
+    {
+      for (int x = 0; x < rect.w; x++)
+      {
+        out[y][x] = tile_at(rows, rect.x + x, rect.y + y);
+      }
+    }
+    return out;
+  }
+
   int positive_int_prop(const Roo::sptr_val& map,
                         const std::string& key,
                         int fallback)
@@ -2661,8 +2704,7 @@ namespace
   }
 
   void apply_output_entry(TerrainRuleMaterialization& result,
-                          int width,
-                          int height,
+                          const Pixils::Rect& rect,
                           bool known_tilesets,
                           const std::unordered_map<std::string, std::unordered_set<std::string>>&
                             tile_ids,
@@ -2681,7 +2723,12 @@ namespace
   {
     int x = source_x + entry.x - rule.anchor_x;
     int y = source_y + entry.y - rule.anchor_y;
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (x < rect.x || x >= rect.x + rect.w || y < rect.y || y >= rect.y + rect.h)
+    {
+      return;
+    }
+    int local_x = x - rect.x;
+    int local_y = y - rect.y;
 
     if (!nil_value(entry.mask_ref))
     {
@@ -2697,7 +2744,10 @@ namespace
                                              source_y);
       add_unique_transition_tile(result, tile);
       set_transition_replacement(
-        result, x, y, nil_value(tile) ? entry.tile : transition_tile_ref(tile));
+        result,
+        local_x,
+        local_y,
+        nil_value(tile) ? entry.tile : transition_tile_ref(tile));
       return;
     }
 
@@ -2718,7 +2768,10 @@ namespace
                            ? transition_overlay_ref(ruleset, output_layer, entry.overlay_ref)
                            : transition_tile_ref(tile);
       set_transition_replacement(
-        result, x, y, nil_value(replacement) ? entry.tile : replacement);
+        result,
+        local_x,
+        local_y,
+        nil_value(replacement) ? entry.tile : replacement);
       return;
     }
 
@@ -2726,14 +2779,13 @@ namespace
     int index = generated_layer_index(result.generated_layers, layer_id);
     if (index < 0) return;
     auto& layer = result.generated_layers[index];
-    layer.tiles[y][x] = entry.tile;
-    layer.source_mask[y][x] =
+    layer.tiles[local_y][local_x] = entry.tile;
+    layer.source_mask[local_y][local_x] =
       output_entry_occupies_source(known_tilesets, tile_ids, ruleset, output_layer, entry.tile);
   }
 
   void apply_output_layer(TerrainRuleMaterialization& result,
-                          int width,
-                          int height,
+                          const Pixils::Rect& rect,
                           bool known_tilesets,
                           const std::unordered_map<std::string, std::unordered_set<std::string>>&
                             tile_ids,
@@ -2751,15 +2803,18 @@ namespace
   {
     if (output_layer_generates_layer(ruleset, rule, output_layer))
     {
-      ensure_generated_layer(
-        result.generated_layers, width, height, source_layer, ruleset, output_layer);
+      ensure_generated_layer(result.generated_layers,
+                             rect.w,
+                             rect.h,
+                             source_layer,
+                             ruleset,
+                             output_layer);
     }
 
     for (const auto& entry : output_entries(ruleset, rule, output_layer))
     {
       apply_output_entry(result,
-                         width,
-                         height,
+                         rect,
                          known_tilesets,
                          tile_ids,
                          tilemap,
@@ -2778,8 +2833,8 @@ namespace
   }
 
   TerrainRuleMaterialization materialize_terrain_stamp_layers(
-    int width,
-    int height,
+    const Pixils::Rect& rect,
+    bool partial,
     bool known_tilesets,
     const std::unordered_map<std::string, std::unordered_set<std::string>>& tile_ids,
     const Roo::sptr_val& tilemap,
@@ -2791,16 +2846,34 @@ namespace
     const std::vector<TerrainStampRuleset>& rulesets)
   {
     TerrainRuleMaterialization result;
-    result.transition_replacements = empty_rows(width, height);
+    result.transition_replacements = empty_rows(rect.w, rect.h);
     auto terrain_set_found = terrain_sets.find(value_key(prop(source_layer, "terrain-set")));
     const TerrainSet* terrain_set =
       terrain_set_found == terrain_sets.end() ? nullptr : &terrain_set_found->second;
     for (const auto& ruleset : rulesets)
     {
       if (!ruleset_applies_to_layer(ruleset, source_layer)) continue;
-      for (int y = 0; y < height; y++)
+      if (partial)
       {
-        for (int x = 0; x < width; x++)
+        for (const auto& rule : ruleset.rules)
+        {
+          for (const auto& output_layer : rule.output_layers)
+          {
+            if (output_layer_generates_layer(ruleset, rule, output_layer))
+            {
+              ensure_generated_layer(result.generated_layers,
+                                     rect.w,
+                                     rect.h,
+                                     source_layer,
+                                     ruleset,
+                                     output_layer);
+            }
+          }
+        }
+      }
+      for (int y = rect.y; y < rect.y + rect.h; y++)
+      {
+        for (int x = rect.x; x < rect.x + rect.w; x++)
         {
           for (const auto& rule : ruleset.rules)
           {
@@ -2808,8 +2881,7 @@ namespace
             for (const auto& output_layer : rule.output_layers)
             {
               apply_output_layer(result,
-                                 width,
-                                 height,
+                                 rect,
                                  known_tilesets,
                                  tile_ids,
                                  tilemap,
@@ -3017,8 +3089,8 @@ namespace
   }
 
   LayerMaterialization materialize_layer_with_rules(
-    int width,
-    int height,
+    const Pixils::Rect& rect,
+    bool partial,
     bool show_rules,
     bool known_tilesets,
     const std::unordered_map<std::string, std::unordered_set<std::string>>& tile_ids,
@@ -3031,10 +3103,11 @@ namespace
   {
     bool terrain_layer = keyword_named(prop(layer, "data-kind"), "terrain");
     auto source_rows = tile_rows(prop(layer, "tiles"));
+    auto render_rows = partial ? rows_in_region(source_rows, rect) : source_rows;
     TerrainRuleMaterialization generated =
       (show_rules && terrain_layer)
-        ? materialize_terrain_stamp_layers(width,
-                                           height,
+        ? materialize_terrain_stamp_layers(rect,
+                                           partial,
                                            known_tilesets,
                                            tile_ids,
                                            tilemap,
@@ -3045,26 +3118,39 @@ namespace
                                            source_rows,
                                            rulesets)
         : TerrainRuleMaterialization{{},
-                                     empty_rows(width, height),
+                                     empty_rows(rect.w, rect.h),
                                      {},
                                      {}};
 
     LayerMaterialization out;
     if (terrain_layer)
     {
-      auto masked_rows = mask_terrain_layer(source_rows, generated.generated_layers);
-      auto terrain_layers = materialize_terrain_layer(layer,
+      auto masked_rows = mask_terrain_layer(render_rows, generated.generated_layers);
+      auto source_layer = layer_with_tiles(layer, masked_rows);
+      auto terrain_layers = materialize_terrain_layer(source_layer,
                                                       terrain_sets,
                                                       masked_rows,
                                                       generated.transition_replacements);
+      if (partial)
+      {
+        auto source_rect = materialization_rect_value(rect);
+        for (auto& render_layer : terrain_layers)
+        {
+          map_set(render_layer, "render-source-rect", source_rect);
+        }
+      }
       out.layers.insert(out.layers.end(), terrain_layers.begin(), terrain_layers.end());
     }
     else
     {
-      auto copied = Roo::Dict::shallow_copy(layer);
+      auto copied = layer_with_tiles(layer, render_rows);
       if (nil_value(prop(copied, "data-kind")))
       {
         map_set(copied, "data-kind", keyword_value("tile-ref"));
+      }
+      if (partial)
+      {
+        map_set(copied, "render-source-rect", materialization_rect_value(rect));
       }
       out.layers.push_back(copied);
     }
@@ -3216,7 +3302,9 @@ namespace
 
   Roo::sptr_val apply_substitution_rules_to_layer(
     const std::vector<TileSubstitutionRule>& rules,
-    const Roo::sptr_val& layer)
+    const Roo::sptr_val& layer,
+    int origin_x,
+    int origin_y)
   {
     if (!keyword_named(prop(layer, "data-kind"), "tile-ref")) return layer;
     auto rows = tile_rows(prop(layer, "tiles"));
@@ -3224,7 +3312,8 @@ namespace
     {
       for (int x = 0; x < static_cast<int>(rows[y].size()); x++)
       {
-        rows[y][x] = apply_substitution_rules_to_cell(rules, layer, rows[y][x], x, y);
+        rows[y][x] = apply_substitution_rules_to_cell(
+          rules, layer, rows[y][x], origin_x + x, origin_y + y);
       }
     }
     return layer_with_tiles(layer, rows);
@@ -3238,14 +3327,11 @@ namespace
     return Roo::is_truthy(*value);
   }
 
-  Roo::sptr_val native_materialize_render_map(const Roo::sptr_val& tilemap,
-                                              const Roo::sptr_val& opts)
+  Roo::sptr_val native_materialize_region(const Roo::sptr_val& tilemap,
+                                          const Roo::sptr_val& opts,
+                                          const Pixils::Rect& rect,
+                                          bool partial)
   {
-    if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
-    int width = int_prop(tilemap, "width", 0);
-    int height = int_prop(tilemap, "height", 0);
-    if (width < 0 || height < 0) return Roo::Constant::NIL;
-
     auto source_layers_value = prop(opts, "layers");
     if (nil_value(source_layers_value)) source_layers_value = prop(tilemap, "layers");
     auto terrain_sets_value = prop(opts, "terrain-sets");
@@ -3267,8 +3353,8 @@ namespace
     std::unordered_set<std::string> transition_tile_ids;
     for (const auto& layer : seq_children(source_layers_value))
     {
-      auto result = materialize_layer_with_rules(width,
-                                                 height,
+      auto result = materialize_layer_with_rules(rect,
+                                                 partial,
                                                  show_terrain_rules(tilemap, opts),
                                                  known_tilesets,
                                                  tile_ids,
@@ -3295,18 +3381,29 @@ namespace
     {
       for (auto& layer : render_layers)
       {
-        layer = apply_substitution_rules_to_layer(substitution_rules, layer);
+        layer = apply_substitution_rules_to_layer(
+          substitution_rules, layer, rect.x, rect.y);
       }
     }
 
     auto result = map_value({keyword_value("width"),
-                             Roo::Value::number(width),
+                             Roo::Value::number(rect.w),
                              keyword_value("height"),
-                             Roo::Value::number(height),
+                             Roo::Value::number(rect.h),
                              keyword_value("tile-size"),
                              prop(tilemap, "tile-size"),
                              keyword_value("layers"),
                              Roo::Value::vector(render_layers)});
+    if (partial)
+    {
+      map_set(result,
+              "origin",
+              map_value({keyword_value("x"),
+                         Roo::Value::number(rect.x),
+                         keyword_value("y"),
+                         Roo::Value::number(rect.y)}));
+      map_set(result, "source-rect", materialization_rect_value(rect));
+    }
     auto transition_tilesets = generated_transition_tilesets_value(transition_tiles);
     if (!nil_value(transition_tilesets))
     {
@@ -3315,10 +3412,38 @@ namespace
     return result;
   }
 
+  Roo::sptr_val native_materialize_render_map(const Roo::sptr_val& tilemap,
+                                              const Roo::sptr_val& opts)
+  {
+    if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+    int width = int_prop(tilemap, "width", 0);
+    int height = int_prop(tilemap, "height", 0);
+    if (width < 0 || height < 0) return Roo::Constant::NIL;
+    return native_materialize_region(tilemap,
+                                     opts,
+                                     full_materialization_rect(width, height),
+                                     false);
+  }
+
+  Roo::sptr_val native_render_rect(const Roo::sptr_val& tilemap,
+                                   const Roo::sptr_val& rect,
+                                   const Roo::sptr_val& opts)
+  {
+    if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+    int width = int_prop(tilemap, "width", 0);
+    int height = int_prop(tilemap, "height", 0);
+    if (width < 0 || height < 0) return Roo::Constant::NIL;
+    return native_materialize_region(tilemap,
+                                     opts,
+                                     clamped_materialization_rect(width, height, rect),
+                                     true);
+  }
+
   namespace Function
   {
     FUNC(RenderLayersBang, render_layers);
     FUNC(MaterializeRenderMap, native_materialize_render_map);
+    FUNC(RenderRect, native_render_rect);
     FUNC(FindLayerCells, find_layer_cells);
     FUNC(LiveBaseTilemap, live_base_tilemap);
 
@@ -3329,6 +3454,12 @@ namespace
     FUNC_IMPL(MaterializeRenderMap,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&MaterializeRenderMap::exec_native_materialize_render_map))));
+
+    FUNC_IMPL(RenderRect,
+              SIG((FN_ARGS((&Roo::Type::MAP),
+                           (&Roo::Type::MAP),
+                           (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&RenderRect::exec_native_render_rect))));
 
     FUNC_IMPL(FindLayerCells,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
@@ -3348,6 +3479,11 @@ namespace
     EXEC_BODY(MaterializeRenderMap, exec_native_materialize_render_map)
     {
       return native_materialize_render_map(args[0], args[1]);
+    }
+
+    EXEC_BODY(RenderRect, exec_native_render_rect)
+    {
+      return native_render_rect(args[0], args[1], args[2]);
     }
 
     EXEC_BODY(FindLayerCells, exec_find_layer_cells)
@@ -3378,6 +3514,7 @@ namespace
       : Roo::Namespace("pixils.tilemap.materialize-impl")
     {
       values.emplace("materialize-render-map", Function::MaterializeRenderMap::make());
+      values.emplace("render-rect", Function::RenderRect::make());
     }
   };
 
