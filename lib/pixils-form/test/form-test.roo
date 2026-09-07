@@ -559,6 +559,27 @@
                    :weight "0.5"
                    :parts [{:offset "1.25"}]}}))))
 
+(deftest form-state-change-payload/preserves-completed-array-operation
+  (let [payload
+        (form/form-state-change-payload-with-change
+         {:schema {:people {:type :array
+                            :items {:type :object
+                                    :fields {:id {:type :keyword}}}}}
+          :value {:people [{:id :grace}]}}
+         {:field-id :people
+          :field-path [:people]
+          :change {:operation :array/edit
+                   :index 0
+                   :old-value {:id :ada}
+                   :value {:id :grace}}})]
+    (is (= {:people [{:id :grace}]} (:form-value payload)))
+    (is (= :array/edit (-> payload :change :operation)))
+    (is (= :people (-> payload :change :field-id)))
+    (is (= [:people] (-> payload :change :field-path)))
+    (is (= 0 (-> payload :change :index)))
+    (is (= {:id :ada} (-> payload :change :old-value)))
+    (is (= {:id :grace} (-> payload :change :value)))))
+
 
 
 ;; pixils.form/form-state-draft-change-payload

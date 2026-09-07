@@ -113,8 +113,17 @@
     :any ""
     :default nil))
 
-(defun new-form-value [{:keys [new-value-fn items new-template schema]}]
+(defun new-form-value
+  [{:keys [new-value-fn new-value-from-fn items new-template schema
+           form-value context]}]
   (cond
+    new-value-from-fn
+    (apply new-value-from-fn
+           [{:index (count items)
+             :items items
+             :form-value form-value
+             :context context}])
+
     new-value-fn
     (apply new-value-fn [(count items)])
 

@@ -1,0 +1,44 @@
+(ns pixils.form.fixture.hybrid-array-dialog
+  (:require pixils
+            [pixils.form :as form]
+            [pixils.ui :as ui]))
+
+(def schema
+  {:people {:type :array
+            :items {:type :object
+                    :fields {:id {:type :keyword
+                                  :required true}
+                             :name {:type :text
+                                    :required true}}}}})
+
+(defun array-layout=> [{:keys [content actions]}]
+  {:class :hybrid-array-layout
+   :children (concat actions [content])})
+
+(defun new-person [{:keys [index context]}]
+  {:id (:next-id context)
+   :name (str "Person " (inc index))
+   :metadata {:preserved true}})
+
+(defmode hybrid-array-dialog-probe
+  {:init (fn [_state _ctx]
+           {:people []})
+   :children
+   [(form/make
+     {:schema schema
+      :value (ui/bind-state)
+      :context {:next-id :grace}
+      :mode :live
+      :layout [[:field :people
+                {:actions [{:key :add :label "+"}
+                           {:key :edit :label "Rename"}]
+                 :array-layout=> array-layout=>
+                 :new-value-from=> new-person
+                 :item-editor {:layout-ref :selected-person
+                               :dialog {:layout [:id :name]}}}]
+               {:id :selected-person}]})]
+   :on {:form/change
+        (fn [state event _ctx]
+          (ui/stop-propagation! event)
+          (assoc (-> event :payload :form-value)
+                 :last-change (-> event :payload :change)))}})

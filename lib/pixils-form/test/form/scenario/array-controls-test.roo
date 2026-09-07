@@ -75,6 +75,67 @@
             :summary {:mode (:mode summary-view) :specs (-> summary-view :state :specs)}
             :action-count (count (:children action-row))}))))
 
+(deftest make/can-place-array-actions-with-a-custom-layout
+  (let [view (form/make
+              {:schema {:people {:type :array
+                                 :items {:type :object
+                                         :fields {:name {:type :text}}}}}
+               :value {:people [{:name "Ada"}]}
+               :layout [[:field :people
+                         {:actions [{:key :add
+                                     :label "+"
+                                     :button-class :ui/toolbar-button}]
+                          :array-layout=>
+                          (fn [{:keys [content actions]}]
+                            {:class :people-layout
+                             :children (concat actions [content])})}] ]})
+        array-control (-> view :children head :children head :children head
+                          :children (nth 1))
+        custom-layout (-> array-control :children head)]
+    (is (= {:class :people-layout
+            :action-event :form/add-item
+            :action-label "+"
+            :action-button-class [:pixils.form/action-button
+                                  :ui/toolbar-button]
+            :content-class :pixils.form/array-content}
+           {:class (:class custom-layout)
+            :action-event (-> custom-layout :children head :state :event)
+            :action-label (-> custom-layout :children head :state :label)
+            :action-button-class (-> custom-layout :children head
+                                     :children head :class)
+            :content-class (-> custom-layout :children (nth 1) :class)}))))
+
+(deftest make/referenced-item-editor-can-use-dialog-actions
+  (let [view (form/make
+              {:schema {:people {:type :array
+                                 :items {:type :object
+                                         :fields {:id {:type :keyword}
+                                                  :name {:type :text}}}}}
+               :value {:people [{:id :ada :name "Ada"}]}
+               :layout [[:field :people
+                         {:item-editor {:layout-ref :selected-person
+                                        :dialog {:layout [:id :name]}}
+                          :actions [{:key :add}
+                                    {:key :edit :presentation :context-menu}]}]
+                        {:id :selected-person}]})
+        fields (-> view :children head :children head)
+        array-control (-> fields :children head :children (nth 1))
+        content (-> array-control :children head)
+        selection (-> content :children head)
+        toolbar (-> array-control :children (nth 1))
+        item=> (-> selection :children head :state :component :item=>)
+        item-view (item=> 0 {:value {:id :ada :name "Ada"}
+                             :label "Ada"})]
+    (is (= {:toolbar-actions [:form/add-item]
+            :context-actions [:form/edit-item]
+            :editor-id :selected-person}
+           {:toolbar-actions (for [action (:children toolbar)]
+                               (-> action :state :event))
+            :context-actions (map (-> item-view :state :component
+                                      :context-menu-actions)
+                                  :id)
+            :editor-id (-> array-control :state :item-editor-id)}))))
+
 (deftest make/places-an-array-item-editor-at-its-layout-reference
   (let [view (form/make
               {:schema {:type :object

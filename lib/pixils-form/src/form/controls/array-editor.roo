@@ -59,6 +59,14 @@
     (:layout-ref item-editor) :layout
     :default (array-editor-mode array-editor)))
 
+(defun item-editor-dialog [item-editor]
+  (when (map? item-editor)
+    (let [dialog (:dialog item-editor)]
+      (cond
+        (= dialog true) {}
+        (map? dialog) dialog
+        :default nil))))
+
 (defun no-selection-policy [item-editor]
   "Returns the configured behavior when a layout item editor has no selection."
   (if (map? item-editor)
@@ -66,7 +74,8 @@
     :disabled))
 
 (defun array-editor-dialog? [state]
-  (= (item-editor-presentation state) :dialog))
+  (or (= (item-editor-presentation state) :dialog)
+      (some? (item-editor-dialog (:item-editor state)))))
 
 (defun array-actions-state [state]
   (let [editor (:array-editor state)
@@ -333,15 +342,20 @@
         :dialog/button array-item-dialog-button-handler}))
 
 (defun open-array-item-dialog! [state ctx new?]
-  (let [value (if new?
+  (let [dialog (or (item-editor-dialog (:item-editor state)) {})
+        value (if new?
                 (form-state/new-form-value state)
                 (:value state))
-        item-opts (assoc (:item-opts state)
-                         :context (:context state))]
+        item-opts (cond-> (assoc (:item-opts state)
+                                 :context (:context state))
+                    (:layout dialog) (assoc :layout (:layout dialog)))]
     (dialog/open-dialog! ctx
-                         {:title (if new? "Add Item" "Edit Item")
+                         {:title (if new?
+                                  (or (:add-title dialog) "Add Item")
+                                  (or (:edit-title dialog) "Edit Item"))
                           :class :pixils.form/array-dialog
-                          :style (:array-dialog-style item-opts)
+                          :style (or (:style dialog)
+                                     (:array-dialog-style item-opts))
                           :result-event :form/array-item-dialog-result
                           :state {:value value
                                   :index (:selected-index state)
@@ -439,8 +453,12 @@
                :state (referenced-item-editor-state state)}))
   state)
 
-(defun emit-array-items-change! [state next-state ctx]
-  (let [payload (array-items-change-payload state next-state)]
+(defun emit-array-items-change! [state next-state ctx change]
+  (let [change (cond-> change
+                 change (assoc :field-id (:field-id state)
+                               :field-path (:field-path state)))
+        payload (cond-> (array-items-change-payload state next-state)
+                  change (assoc :change change))]
     (emit-referenced-item-editor-state! next-state ctx)
     (when payload
       (ui/emit! (:view ctx)
@@ -497,26 +515,51 @@
                              next-state)))
         :form/edit-item (fn [state event ctx]
                           (ui/stop-propagation! event)
-                          (when (:can-edit? state)
-                            (open-array-item-dialog! state ctx false))
+                          (let [index (or (-> event :payload :index)
+                                          (:selected-index state))
+                                state (array-control-state
+                                       (assoc state :selected-index index))]
+                            (when (:can-edit? state)
+                              (open-array-item-dialog! state ctx false)))
                           state)
         :form/array-item-dialog-result (fn [state event ctx]
                                          (ui/stop-propagation! event)
-                                         (let [next-state
+                                         (let [payload (:payload event)
+                                               next-state
                                                (array-dialog-result-state
                                                 state
-                                                (:payload event))]
+                                                payload)
+                                               index (if (:new? payload)
+                                                       (dec (count (:items next-state)))
+                                                       (:index payload))
+                                               change
+                                               (when (= (:type payload) :confirm)
+                                                 {:operation (if (:new? payload)
+                                                               :array/add
+                                                               :array/edit)
+                                                  :index index
+                                                  :old-value (unless (:new? payload)
+                                                               (nth (:items state) index))
+                                                  :value (nth (:items next-state) index)})]
                                            (emit-array-items-change!
                                             state
                                             (array-control-state next-state)
-                                            ctx)))
+                                            ctx
+                                            change)))
         :form/save-new (fn [state event ctx]
                          (ui/stop-propagation! event)
                          (let [next-state
                                (array-control-state
                                 (accept-referenced-item-editor-state
                                  (form-state/save-new-state state)))]
-                           (emit-array-items-change! state next-state ctx)))
+                           (emit-array-items-change!
+                            state
+                            next-state
+                            ctx
+                            {:operation :array/add
+                             :index (dec (count (:items next-state)))
+                             :old-value nil
+                             :value (last (:items next-state))})))
         :form/cancel-new (fn [state event ctx]
                            (ui/stop-propagation! event)
                            (let [next-state
@@ -527,11 +570,23 @@
                              next-state))
         :form/delete (fn [state event ctx]
                        (ui/stop-propagation! event)
-                       (let [next-state
+                       (let [index (or (-> event :payload :index)
+                                       (:selected-index state))
+                             state (assoc state :selected-index index)
+                             old-value (when (selected-array-index? state)
+                                         (nth (:items state) index))
+                             next-state
                              (array-control-state
                               (accept-referenced-item-editor-state
                                (form-state/delete-state state)))]
-                         (emit-array-items-change! state next-state ctx)))
+                         (emit-array-items-change!
+                          state
+                          next-state
+                          ctx
+                          {:operation :array/delete
+                           :index index
+                           :old-value old-value
+                           :value nil})))
         :form/reorder (fn [state event ctx]
                         (ui/stop-propagation! event)
                         (let [next-state
@@ -541,7 +596,13 @@
                                  state
                                  (-> event :payload :from-index)
                                  (-> event :payload :to-index))))]
-                        (emit-array-items-change! state next-state ctx)))}})
+                        (emit-array-items-change!
+                         state
+                         next-state
+                         ctx
+                         {:operation :array/move
+                          :from-index (-> event :payload :from-index)
+                          :to-index (-> event :payload :to-index)})))}})
 
 (defun array-item-fragment-path [field-id field-schema opts]
   (append (if field-id
@@ -637,7 +698,17 @@
       :default
       (if-let [payload (referenced-item-change-payload state value commit?)]
         (do
-          (ui/emit! (:view ctx) :form/edit payload)
+          (let [change (-> event :payload :change)
+                item-path (append (:field-path state)
+                                  (-> state :editor-state :selected-index))
+                change (cond-> change
+                         (:field-path change)
+                         (assoc :field-path
+                                (concat item-path (:field-path change))))]
+            (ui/emit! (:view ctx)
+                      :form/edit
+                      (cond-> payload
+                        change (assoc :change change))))
           (assoc state :value value))
         state))))
 
@@ -688,8 +759,13 @@
         item-editor-id (when (map? item-editor) (:layout-ref item-editor))
         no-selection (no-selection-policy item-editor)
         item-label (or (:item-label field-layout) (:item-label field-schema))
+        dialog? (or (= (item-editor-presentation
+                        {:item-editor item-editor
+                         :array-editor (:array-editor field-schema)})
+                       :dialog)
+                    (some? (item-editor-dialog item-editor)))
         actions (configured-array-actions
-                 (if item-editor-id
+                 (if (and item-editor-id (not dialog?))
                    referenced-array-toolbar-actions
                    array-toolbar-actions)
                  (:actions field-layout))
@@ -735,6 +811,7 @@
                 :context (:context opts)
                 :item-opts item-opts
                 :new-value-fn (:new-value=> field-layout)
+                :new-value-from-fn (:new-value-from=> field-layout)
                 :item-label item-label
                 :summary-specs summary-specs
                 :array-editor (:array-editor field-schema)
@@ -752,25 +829,33 @@
                                                           :selected-index)
                        :referenced-editor-state (ui/project-state :form/item-editor-state
                                                                    item-editor-id)))]
-    (merge {:mode 'pixils/form-array-control
-            :class [:pixils.form/control :pixils.form/array-control]
-            :state state
-            :children
-            (cond->
-             [(merge {:class :pixils.form/array-content
-                      :state {:value (ui/project-state :value)
-                              :selection-options
-                              (ui/project-state :selection-options)
-                              :selected-indices
-                              (ui/project-state :selected-indices)
-                              :summary (ui/project-state :summary)
-                              :read-only? (ui/project-state :read-only?)
-                              :reorderable? (ui/project-state :reorderable?)}
-                      :children content-children}
-                     (form-layout/style-map (:array-content-style opts)))]
-              (not-empty? toolbar-actions)
-              (append (array-toolbar opts toolbar-actions)))}
-           (form-layout/style-map (:array-style opts)))))
+    (let [content-view
+          (merge {:class :pixils.form/array-content
+                  :state {:value (ui/project-state :value)
+                          :selection-options
+                          (ui/project-state :selection-options)
+                          :selected-indices
+                          (ui/project-state :selected-indices)
+                          :summary (ui/project-state :summary)
+                          :read-only? (ui/project-state :read-only?)
+                          :reorderable? (ui/project-state :reorderable?)}
+                  :children content-children}
+                 (form-layout/style-map (:array-content-style opts)))
+          action-views (for [action toolbar-actions]
+                         (form-actions/action-view action opts))
+          custom-layout=> (:array-layout=> field-layout)
+          children (if custom-layout=>
+                     [(apply custom-layout=>
+                             [{:content content-view
+                               :actions action-views}])]
+                     (cond-> [content-view]
+                       (not-empty? toolbar-actions)
+                       (append (array-toolbar opts toolbar-actions))))]
+      (merge {:mode 'pixils/form-array-control
+              :class [:pixils.form/control :pixils.form/array-control]
+              :state state
+              :children children}
+             (form-layout/style-map (:array-style opts))))))
 
 (defun for-field
   "Builds an array editor for a resolved form-field context."

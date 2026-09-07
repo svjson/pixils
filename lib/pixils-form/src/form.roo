@@ -678,6 +678,19 @@
              :selected-index (:selected-index next-state)
              :new? (:new? next-state)))))
 
+(defun form-state-change-payload-with-change [next-state source-payload]
+  (let [change (:change source-payload)
+        change (cond-> change
+                 (and change
+                      (nil? (:field-id change)))
+                 (assoc :field-id (:field-id source-payload))
+
+                 (and change
+                      (nil? (:field-path change)))
+                 (assoc :field-path (:field-path source-payload)))]
+    (cond-> (form-state-change-payload next-state)
+      change (assoc :change change))))
+
 (defun emit-form-state-change! [state next-state ctx]
   (when (not= state next-state)
     (ui/emit! (:view ctx)
@@ -716,8 +729,9 @@
                                       (= true (-> event :payload :commit?)))
                              (ui/emit! (:view ctx)
                                        :form/change
-                                       (form-state-change-payload
-                                        next-state)))
+                                       (form-state-change-payload-with-change
+                                        next-state
+                                        (:payload event))))
                            next-state))))
         :form/select (fn [state event ctx]
                        (ui/stop-propagation! event)

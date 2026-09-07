@@ -1,0 +1,80 @@
+(ns pixils.form.scenario.hybrid-array-dialog-interaction-test
+  (:require proof.core
+            [proof.syntax :as s]
+            [pixils.test :as px]))
+
+(defun editable-inputs [app]
+  (px/find-views app "ui/text-input-inner"))
+
+(defun replace-focused-value! [app next-value]
+  (px/press-modified-key! app :left-ctrl :a)
+  (for [character next-value]
+    (px/press-key! app (keyword (str character))))
+  (px/settle-layout! app))
+
+(defun confirm-dialog! [app]
+  (px/settle-layout! app)
+  (px/click! app (px/find-view-containing app "ui/button" "OK"))
+  (px/settle-layout! app))
+
+(deftest hybrid-array-dialog/adds-and-renames-through-the-live-form
+  (s/given
+    (let [app (px/make-app {:package-root "."
+                            :buffer-width 600
+                            :buffer-height 400
+                            :render-backend false})]
+      (px/eval-file!
+       app
+       "assets/roo/pixils/form/fixture/hybrid-array-dialog.roo")
+      (px/push-mode! app 'hybrid-array-dialog-probe)
+      (px/settle-layout! app)
+      app))
+
+  (s/when [app]
+    (px/click! app (px/find-view-containing app "ui/button" "+"))
+    (px/settle-layout! app)
+    (let [add-dialog? (= "ui/dialog-frame" (px/active-mode-name app))
+          add-field-ids (for [field (px/find-views app "pixils/form-field")]
+                          (-> field :state :field-id))]
+      (is (= ["grace" "Person 1"]
+             (for [input (editable-inputs app)]
+               (-> input :ui-state :value))))
+      (replace-focused-value! app "katherine")
+      (is (= ["katherine" "Person 1"]
+             (for [input (editable-inputs app)]
+               (-> input :ui-state :value))))
+      (confirm-dialog! app)
+      (is (= "hybrid-array-dialog-probe" (px/active-mode-name app)))
+      (is (= 1 (count (:people (px/active-state app)))))
+      (let [added-people (:people (px/active-state app))
+            add-change (:last-change (px/active-state app))]
+        (is (= "Person 1" (get-in added-people [0 :name])))
+        (px/click! app (px/find-view-containing app "ui/button" "Rename"))
+        (px/settle-layout! app)
+        (px/click! app (px/find-view app "ui/text-input"))
+        (px/settle-layout! app)
+        (replace-focused-value! app "renamed")
+        (confirm-dialog! app)
+        {:add-dialog? add-dialog?
+         :add-field-ids add-field-ids
+         :added-people added-people
+         :add-change add-change
+         :renamed-people (:people (px/active-state app))
+         :edit-change (:last-change (px/active-state app))})))
+
+  (s/then [result]
+    (is (= true (:add-dialog? result)))
+    (is (= [:id :name] (:add-field-ids result)))
+    (is (= :katherine (get-in result [:add-change :value :id])))
+    (is (= "Person 1" (get-in result [:added-people 0 :name])))
+    (is (= :katherine (get-in result [:added-people 0 :id])))
+    (is (= {:preserved true}
+           (get-in result [:added-people 0 :metadata])))
+    (is (= :array/add (get-in result [:add-change :operation])))
+    (is (= 0 (get-in result [:add-change :index])))
+    (is (= :katherine (get-in result [:renamed-people 0 :id])))
+    (is (= "renamed" (get-in result [:renamed-people 0 :name])))
+    (is (= {:preserved true}
+           (get-in result [:renamed-people 0 :metadata])))
+    (is (= :array/edit (get-in result [:edit-change :operation])))
+    (is (= 0 (get-in result [:edit-change :index])))))

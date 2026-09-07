@@ -62,11 +62,14 @@
                  (ui/emit! (:view ctx)
                            (:event state)
                            (:payload state)))
-               state)
-   :children [{:mode 'ui/button
-               :class :pixils.form/action-button
-               :state {:label (ui/bind-state :label)
-                       :disabled? (ui/bind-state :disabled?)}}]})
+               state)})
+
+(defun action-button-view [action]
+  (merge {:mode 'ui/button
+          :class (form-layout/classes :pixils.form/action-button (:button-class action))
+          :state {:label (ui/bind-state :label)
+                  :disabled? (ui/bind-state :disabled?)}}
+         (form-layout/style-map (:button-style action))))
 
 (defun action-view [action opts]
   (let [event-id (action-event-id action)]
@@ -77,7 +80,8 @@
                     :enabled-when (:enabled-when action)
                     :disabled-when (:disabled-when action)
                     :disabled? (ui/project-state :form/action-disabled
-                                                 event-id)}}
+                                                 event-id)}
+            :children [(action-button-view action)]}
            (form-layout/style-map (or (:style action) (:action-style opts)))
            {:class (form-layout/classes :pixils.form/action
                                         (:class action))})))
