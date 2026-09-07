@@ -61,7 +61,11 @@
                              state)}]})
 
 (defmode identity-dialog-modal
-  {:on {:identity-dialog/cancel
+  {:on {:form/draft-change
+        (fn [state event ctx]
+          (ui/stop-propagation! event)
+          (assoc state :identity (-> event :payload :form-value)))
+        :identity-dialog/cancel
         (fn [state event ctx]
             (ui/stop-propagation! event)
             (pop-mode! {:type :cancel
