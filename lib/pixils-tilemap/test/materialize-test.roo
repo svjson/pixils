@@ -798,12 +798,24 @@
 
 (deftest transition-mask-diagnostics-report_matching_generated_entries
   (let [diagnostics (materialize/transition-mask-diagnostics
-                     (transition-mask-test-tilemap))]
+                     (transition-mask-test-tilemap))
+        entry (head (:entries diagnostics))]
     (is (= true (:has-transition-mask-rules? diagnostics)))
     (is (= 2 (:matched-transition-entries diagnostics)))
     (is (= 2 (:generated-transition-entries diagnostics)))
     (is (= 0 (:failed-transition-entries diagnostics)))
-    (is (= 0 (:warning-transition-entries diagnostics)))))
+    (is (= 0 (:warning-transition-entries diagnostics)))
+    (is (= {:source-layer :base
+            :ruleset :shore-rules
+            :rule :grass-north-water
+            :x 1
+            :y 1
+            :mask transition-mask-test-ref
+            :generated? true
+            :reasons []}
+           (dissoc entry :generated-tile)))
+    (is (= :pixils-transition-tiles
+           (-> entry :generated-tile :tileset)))))
 
 (deftest transition-mask-diagnostics-report_when_rules_do_not_match
   (let [diagnostics (materialize/transition-mask-diagnostics

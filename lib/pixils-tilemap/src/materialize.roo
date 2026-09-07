@@ -1398,25 +1398,7 @@
                     (not (empty? (:reasons entry))))))})
 
 (defun transition-mask-diagnostics [tilemap & opts]
-  (let [opts (or (head opts) {})
-        source-tilemap (materialization-source-tilemap tilemap opts)
-        layers (or (:layers opts) (:layers tilemap))
-        terrain-sets (:terrain-sets source-tilemap)
-        rulesets (:rulesets source-tilemap)
-        entries (apply concat
-                       (map (or layers [])
-                            (fn [layer]
-                              (if (= (:data-kind layer) :terrain)
-                                (transition-mask-diagnostics-for-layer
-                                 source-tilemap
-                                 terrain-sets
-                                 rulesets
-                                 layer)
-                                []))))]
-    (assoc (transition-mask-diagnostic-summary entries)
-           :has-transition-mask-rules?
-           (materialization-has-transition-masks? tilemap opts)
-           :entries entries)))
+  (materialize-impl/transition-mask-diagnostics tilemap (or (head opts) {})))
 
 (defun materialize-layers [tilemap layers terrain-sets rulesets show-rules?]
   (reduce (or layers [])
