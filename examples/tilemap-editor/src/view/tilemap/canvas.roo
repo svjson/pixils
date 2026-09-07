@@ -167,7 +167,7 @@
    :layers render-layers})
 
 (defun materialize-map-canvas-render-layers [input render-layers]
-  (materialize/materialize-render-map
+  (materialize/render-map
    (map-canvas-materialization-tilemap input render-layers)))
 
 (defun map-canvas-transition-mask-diagnostics [input render-layers]
@@ -175,7 +175,7 @@
    (map-canvas-materialization-tilemap input render-layers)))
 
 (defun materialize-map-canvas-render-layer-rect [input render-layers rect]
-  (materialize/materialize-render-rect
+  (materialize/render-rect
    (map-canvas-materialization-tilemap input render-layers)
    rect))
 
