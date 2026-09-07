@@ -3605,12 +3605,39 @@ namespace
                       Roo::Value::vector(entries)});
   }
 
+  Roo::sptr_val native_transition_tile_definition(const Roo::sptr_val& request)
+  {
+    auto tilemap = prop(request, "tilemap");
+    auto source_layer = prop(request, "source-layer");
+    auto ruleset_value = prop(request, "ruleset");
+    auto rule_value = prop(request, "rule");
+    auto mask_ref = prop(request, "mask");
+    auto source_position = prop(request, "source-position");
+    auto terrain_sets = terrain_sets_by_id(prop(tilemap, "terrain-sets"));
+    auto ruleset = terrain_stamp_ruleset_from_value(ruleset_value, terrain_sets);
+    auto rule = terrain_stamp_rule_from_value(rule_value);
+    auto terrain_set_found = terrain_sets.find(value_key(ruleset.terrain_set));
+    const TerrainSet* terrain_set =
+      terrain_set_found == terrain_sets.end() ? nullptr : &terrain_set_found->second;
+    return transition_tile_definition(tilemap,
+                                      prop(tilemap, "mask-sets"),
+                                      tile_definitions_by_tileset(prop(tilemap, "tilesets")),
+                                      terrain_set,
+                                      tile_rows(prop(source_layer, "tiles")),
+                                      ruleset,
+                                      rule,
+                                      mask_ref,
+                                      int_prop(source_position, "x", 0),
+                                      int_prop(source_position, "y", 0));
+  }
+
   namespace Function
   {
     FUNC(RenderLayersBang, render_layers);
     FUNC(RenderMap, native_render_map);
     FUNC(RenderRect, native_render_rect);
     FUNC(TransitionMaskDiagnostics, native_transition_mask_diagnostics);
+    FUNC(TransitionTileDefinition, native_transition_tile_definition);
     FUNC(FindLayerCells, find_layer_cells);
     FUNC(LiveBaseTilemap, live_base_tilemap);
 
@@ -3630,6 +3657,11 @@ namespace
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(
                      &TransitionMaskDiagnostics::exec_native_transition_mask_diagnostics))));
+
+    FUNC_IMPL(TransitionTileDefinition,
+              SIG((FN_ARGS((&Roo::Type::MAP)),
+                   EXEC_DISPATCH(
+                     &TransitionTileDefinition::exec_native_transition_tile_definition))));
 
     FUNC_IMPL(FindLayerCells,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
@@ -3659,6 +3691,11 @@ namespace
     EXEC_BODY(TransitionMaskDiagnostics, exec_native_transition_mask_diagnostics)
     {
       return native_transition_mask_diagnostics(args[0], args[1]);
+    }
+
+    EXEC_BODY(TransitionTileDefinition, exec_native_transition_tile_definition)
+    {
+      return native_transition_tile_definition(args[0]);
     }
 
     EXEC_BODY(FindLayerCells, exec_find_layer_cells)
@@ -3692,6 +3729,8 @@ namespace
       values.emplace("render-rect", Function::RenderRect::make());
       values.emplace("transition-mask-diagnostics",
                      Function::TransitionMaskDiagnostics::make());
+      values.emplace("transition-tile-definition",
+                     Function::TransitionTileDefinition::make());
     }
   };
 

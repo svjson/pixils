@@ -689,6 +689,27 @@
                 (fn [layer]
                   (= (:tileset layer) :world)))))
 
+(deftest transition-tile-definition-supports_explicit_preview_terrains
+  (let [tile (materialize/transition-tile-definition
+              (transition-mask-test-tilemap)
+              nil
+              {:terrain-set :terrain}
+              {:terrain :grass
+               :match {:n {:terrain :water}}}
+              transition-mask-test-ref
+              0
+              0)]
+    (is (= :transition-mask (:type tile)))
+    (is (= :grass-fill (get-in tile [:base :tile])))
+    (is (= :water-fill (get-in tile [:overlay :tile])))
+    (is (= :mask-north
+           (get-in tile [:mask-source :tiles 0 :tile-definition :id])))
+    (is (= {:walkable true
+            :cost 4
+            :sound :grass
+            :edge :soft}
+           (:properties tile)))))
+
 (deftest transition-mask-materialization-inserts_dynamic_tile_refs_into_terrain_product_layer
   (let [render-map (materialize/render-map
                     (transition-mask-test-tilemap))

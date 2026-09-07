@@ -503,46 +503,13 @@
                 (id-label tile-id))))
 
 (defun transition-tile-definition [tilemap source-layer ruleset rule mask-ref source-x source-y]
-  (let [terrain-set-id (:terrain-set ruleset)
-        base-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
-                                           terrain-set-id
-                                           (terrain-match-center rule))
-        overlay-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
-                                              terrain-set-id
-                                              (first-opposing-terrain-at source-layer
-                                                                        ruleset
-                                                                        rule
-                                                                        source-x
-                                                                        source-y))
-        mask-source (resolved-transition-mask-source tilemap
-                                                     (:mask-sets tilemap)
-                                                     mask-ref)]
-    (when (and base-ref overlay-ref mask-source)
-      (let [oriented (orient-transition-mask-tiles base-ref
-                                                   overlay-ref
-                                                   mask-ref)
-            properties (transition-tile-properties
-                        tilemap
-                        base-ref
-                        (transition-mask-source-properties mask-source))
-            base-ref (:base oriented)
-            overlay-ref (:overlay oriented)
-            tile-id (transition-tile-id base-ref overlay-ref mask-ref)]
-        (assoc-transition-properties
-         {:id tile-id
-          :type :transition-mask
-          :size (tm/tile-size tilemap)
-          :base (assoc base-ref
-                       :tile-definition
-                       (transition-ref-tile-definition tilemap base-ref))
-          :overlay (assoc overlay-ref
-                          :tile-definition
-                          (transition-ref-tile-definition tilemap overlay-ref))
-          :mask mask-ref
-          :mask-polarity (transition-mask-polarity mask-ref)
-          :mask-source mask-source
-          :image (transition-cache-image tile-id)}
-         properties)))))
+  (materialize-impl/transition-tile-definition
+   {:tilemap tilemap
+    :source-layer source-layer
+    :ruleset ruleset
+    :rule rule
+    :mask mask-ref
+    :source-position {:x source-x :y source-y}}))
 
 (defun transition-overlay-ref [ruleset output-layer overlay-ref]
   (cond
