@@ -683,14 +683,13 @@
 
 (deftest transition-tile-definition-supports_explicit_preview_terrains
   (let [tile (materialize/transition-tile-definition
-              (transition-mask-test-tilemap)
-              nil
-              {:terrain-set :terrain}
-              {:terrain :grass
-               :match {:n {:terrain :water}}}
-              transition-mask-test-ref
-              0
-              0)]
+              {:tilemap (transition-mask-test-tilemap)
+               :source-layer nil
+               :ruleset {:terrain-set :terrain}
+               :rule {:terrain :grass
+                      :match {:n {:terrain :water}}}
+               :mask transition-mask-test-ref
+               :source-position {:x 0 :y 0}})]
     (is (= :transition-mask (:type tile)))
     (is (= :grass-fill (get-in tile [:base :tile])))
     (is (= :water-fill (get-in tile [:overlay :tile])))

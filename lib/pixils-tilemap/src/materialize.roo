@@ -1,14 +1,8 @@
 (ns pixils.tilemap.materialize
   (:require [pixils.tilemap.materialize-impl :as materialize-impl]))
 
-(defun transition-tile-definition [tilemap source-layer ruleset rule mask-ref source-x source-y]
-  (materialize-impl/transition-tile-definition
-   {:tilemap tilemap
-    :source-layer source-layer
-    :ruleset ruleset
-    :rule rule
-    :mask mask-ref
-    :source-position {:x source-x :y source-y}}))
+(defun transition-tile-definition [request]
+  (materialize-impl/transition-tile-definition request))
 
 (defun transition-mask-diagnostics [tilemap & opts]
   (materialize-impl/transition-mask-diagnostics tilemap (or (head opts) {})))
