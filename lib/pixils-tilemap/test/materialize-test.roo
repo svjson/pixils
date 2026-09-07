@@ -1,7 +1,6 @@
 (ns pixils.tilemap.materialize-test
   (:require proof.core
-            [pixils.tilemap.materialize :as materialize]
-            [pixils.tilemap.materialize-impl :as materialize-impl]))
+            [pixils.tilemap.materialize :as materialize]))
 
 (deftest render-map-keeps-tile-ref-layers-render-ready
   (let [render-map (materialize/render-map
@@ -283,14 +282,6 @@
 (deftest render-map-terrain-stamp-rules-match_not_same_or_none
   (let [render-map (materialize/render-map
                     (not-same-or-none-test-tilemap))]
-    (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
-    (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
-    (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
-
-(deftest native-materializer-terrain-stamp-rules-match_not_same_or_none
-  (let [render-map (materialize-impl/render-map
-                    (not-same-or-none-test-tilemap)
-                    {})]
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
@@ -780,22 +771,6 @@
            transition-cell))
     (is (not= :grass-variant transition-cell))
     (is (not= :water-variant transition-cell))))
-
-(deftest native-materializer-applies_transition_mask_rules
-  (let [render-map (materialize-impl/render-map
-                    (transition-mask-test-tilemap)
-                    {})
-        generated-tileset (transition-mask-generated-tileset render-map)
-        transition-layer (transition-mask-layer render-map)]
-    (is (= :pixils-transition-tiles (:id generated-tileset)))
-    (is (= {:walkable true
-            :cost 4
-            :sound :grass
-            :edge :soft}
-           (:properties (head (:tiles generated-tileset)))))
-    (is (= {:tileset :pixils-transition-tiles
-            :tile (:id (head (:tiles generated-tileset)))}
-           (get-in transition-layer [:tiles 1 1])))))
 
 (deftest transition-mask-diagnostics-report_matching_generated_entries
   (let [diagnostics (materialize/transition-mask-diagnostics

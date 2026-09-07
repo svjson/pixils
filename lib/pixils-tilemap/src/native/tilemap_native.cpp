@@ -3646,17 +3646,25 @@ namespace
                    EXEC_DISPATCH(&RenderLayersBang::exec_render_layers))));
 
     FUNC_IMPL(RenderMap,
-              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
-                   EXEC_DISPATCH(&RenderMap::exec_native_render_map))));
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&RenderMap::exec_native_render_map)),
+                        (FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&RenderMap::exec_native_render_map))));
 
     FUNC_IMPL(RenderRect,
-              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP), (&Roo::Type::MAP)),
-                   EXEC_DISPATCH(&RenderRect::exec_native_render_rect))));
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&RenderRect::exec_native_render_rect)),
+                        (FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&RenderRect::exec_native_render_rect))));
 
-    FUNC_IMPL(TransitionMaskDiagnostics,
-              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
-                   EXEC_DISPATCH(
-                     &TransitionMaskDiagnostics::exec_native_transition_mask_diagnostics))));
+    FUNC_IMPL(
+      TransitionMaskDiagnostics,
+      MULTI_SIG(
+        (FN_ARGS((&Roo::Type::MAP)),
+         EXEC_DISPATCH(&TransitionMaskDiagnostics::exec_native_transition_mask_diagnostics)),
+        (FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+         EXEC_DISPATCH(
+           &TransitionMaskDiagnostics::exec_native_transition_mask_diagnostics))));
 
     FUNC_IMPL(TransitionTileDefinition,
               SIG((FN_ARGS((&Roo::Type::MAP)),
@@ -3680,17 +3688,18 @@ namespace
 
     EXEC_BODY(RenderMap, exec_native_render_map)
     {
-      return native_render_map(args[0], args[1]);
+      return native_render_map(args[0], args.size() > 1 ? args[1] : map_value({}));
     }
 
     EXEC_BODY(RenderRect, exec_native_render_rect)
     {
-      return native_render_rect(args[0], args[1], args[2]);
+      return native_render_rect(args[0], args[1], args.size() > 2 ? args[2] : map_value({}));
     }
 
     EXEC_BODY(TransitionMaskDiagnostics, exec_native_transition_mask_diagnostics)
     {
-      return native_transition_mask_diagnostics(args[0], args[1]);
+      return native_transition_mask_diagnostics(args[0],
+                                                args.size() > 1 ? args[1] : map_value({}));
     }
 
     EXEC_BODY(TransitionTileDefinition, exec_native_transition_tile_definition)
@@ -3719,11 +3728,11 @@ namespace
     }
   };
 
-  class MaterializeImplNamespace : public Roo::Namespace
+  class MaterializeNamespace : public Roo::Namespace
   {
    public:
-    MaterializeImplNamespace()
-      : Roo::Namespace("pixils.tilemap.materialize-impl")
+    MaterializeNamespace()
+      : Roo::Namespace("pixils.tilemap.materialize")
     {
       values.emplace("render-map", Function::RenderMap::make());
       values.emplace("render-rect", Function::RenderRect::make());
@@ -3755,7 +3764,7 @@ namespace
       {
         return 1;
       }
-      auto materialize_ns = std::make_unique<MaterializeImplNamespace>();
+      auto materialize_ns = std::make_unique<MaterializeNamespace>();
       materialize_ns->set_origin(Roo::Namespace::Origin::native());
       if (host->register_namespace(host->user, materialize_ns.release()) != 0)
       {
