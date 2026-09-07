@@ -3412,8 +3412,8 @@ namespace
     return result;
   }
 
-  Roo::sptr_val native_materialize_render_map(const Roo::sptr_val& tilemap,
-                                              const Roo::sptr_val& opts)
+  Roo::sptr_val native_render_map(const Roo::sptr_val& tilemap,
+                                  const Roo::sptr_val& opts)
   {
     if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
     int width = int_prop(tilemap, "width", 0);
@@ -3442,7 +3442,7 @@ namespace
   namespace Function
   {
     FUNC(RenderLayersBang, render_layers);
-    FUNC(MaterializeRenderMap, native_materialize_render_map);
+    FUNC(RenderMap, native_render_map);
     FUNC(RenderRect, native_render_rect);
     FUNC(FindLayerCells, find_layer_cells);
     FUNC(LiveBaseTilemap, live_base_tilemap);
@@ -3451,9 +3451,9 @@ namespace
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&RenderLayersBang::exec_render_layers))));
 
-    FUNC_IMPL(MaterializeRenderMap,
+    FUNC_IMPL(RenderMap,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
-                   EXEC_DISPATCH(&MaterializeRenderMap::exec_native_materialize_render_map))));
+                   EXEC_DISPATCH(&RenderMap::exec_native_render_map))));
 
     FUNC_IMPL(RenderRect,
               SIG((FN_ARGS((&Roo::Type::MAP),
@@ -3476,9 +3476,9 @@ namespace
       return Roo::Value::boolean(render_layers(rc, args[0], args[1]));
     }
 
-    EXEC_BODY(MaterializeRenderMap, exec_native_materialize_render_map)
+    EXEC_BODY(RenderMap, exec_native_render_map)
     {
-      return native_materialize_render_map(args[0], args[1]);
+      return native_render_map(args[0], args[1]);
     }
 
     EXEC_BODY(RenderRect, exec_native_render_rect)
@@ -3513,7 +3513,7 @@ namespace
     MaterializeImplNamespace()
       : Roo::Namespace("pixils.tilemap.materialize-impl")
     {
-      values.emplace("materialize-render-map", Function::MaterializeRenderMap::make());
+      values.emplace("render-map", Function::RenderMap::make());
       values.emplace("render-rect", Function::RenderRect::make());
     }
   };

@@ -3,8 +3,8 @@
             [pixils.tilemap.materialize :as materialize]
             [pixils.tilemap.materialize-impl :as materialize-impl]))
 
-(deftest materialize-render-map-keeps-tile-ref-layers-render-ready
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-keeps-tile-ref-layers-render-ready
+  (let [render-map (materialize/render-map
                     {:width 2
                      :height 1
                      :tile-size 16
@@ -18,8 +18,8 @@
              :data-kind :tile-ref}]
            (:layers render-map)))))
 
-(deftest materialize-render-map-converts-terrain-layers-to-preview-tiles
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-converts-terrain-layers-to-preview-tiles
+  (let [render-map (materialize/render-map
                     {:width 2
                      :height 1
                      :terrain-sets [{:id :terrain
@@ -39,8 +39,8 @@
     (is (= [[:grass-tile :water-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-preserves-empty-terrain-cells
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-preserves-empty-terrain-cells
+  (let [render-map (materialize/render-map
                     {:width 2
                      :height 1
                      :terrain-sets [{:id :terrain
@@ -54,8 +54,8 @@
     (is (= [[nil :grass-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-splits-terrain-layer-by-preview-tileset
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-splits-terrain-layer-by-preview-tileset
+  (let [render-map (materialize/render-map
                     {:width 2
                      :height 1
                      :terrain-sets [{:id :terrain
@@ -76,8 +76,8 @@
     (is (= [[nil :water-tile]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-rect-crops-tile-ref-layers
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-crops-tile-ref-layers
+  (let [render-map (materialize/render-rect
                     {:width 4
                      :height 3
                      :tile-size 16
@@ -95,8 +95,8 @@
             [:j :k]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-rect-converts-only-cropped-terrain-cells
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-converts-only-cropped-terrain-cells
+  (let [render-map (materialize/render-rect
                     {:width 4
                      :height 3
                      :terrain-sets [{:id :terrain
@@ -121,8 +121,8 @@
             [nil :water-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-rect-splits-by-preview-tileset-inside-rect
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-splits-by-preview-tileset-inside-rect
+  (let [render-map (materialize/render-rect
                     {:width 4
                      :height 2
                      :terrain-sets [{:id :terrain
@@ -147,8 +147,8 @@
             [:water-tile nil]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-rect-emits-empty-split-layers-to-clear-stale-tiles
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-emits-empty-split-layers-to-clear-stale-tiles
+  (let [render-map (materialize/render-rect
                     {:width 2
                      :height 1
                      :terrain-sets [{:id :terrain
@@ -170,8 +170,8 @@
     (is (= [[nil nil]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-map-applies-terrain-stamp-rules
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-applies-terrain-stamp-rules
+  (let [render-map (materialize/render-map
                     {:width 3
                      :height 2
                      :terrain-sets [{:id :terrain
@@ -208,8 +208,8 @@
     (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-map-terrain-stamp-rules-match_terrain_in_conditions
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-terrain-stamp-rules-match_terrain_in_conditions
+  (let [render-map (materialize/render-map
                     {:width 5
                      :height 2
                      :terrain-sets [{:id :terrain
@@ -280,15 +280,15 @@
              :tiles [[nil nil nil]
                      [nil nil nil]]}]})
 
-(deftest materialize-render-map-terrain-stamp-rules-match_not_same_or_none
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-terrain-stamp-rules-match_not_same_or_none
+  (let [render-map (materialize/render-map
                     (not-same-or-none-test-tilemap))]
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
 
 (deftest native-materializer-terrain-stamp-rules-match_not_same_or_none
-  (let [render-map (materialize-impl/materialize-render-map
+  (let [render-map (materialize-impl/render-map
                     (not-same-or-none-test-tilemap)
                     {})]
     (is (= :edge (get-in render-map [:layers 1 :tiles 1 0])))
@@ -525,9 +525,9 @@
            (get-in west-stump-tile [:overlay :tile])))
     (is (= :cart-rail-stop-n (get-in layer [:tiles 6 14])))))
 
-(deftest materialize-render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors
+(deftest render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors
   (assert-cart-rail-ring-output
-   (materialize/materialize-render-map (cart-rail-ring-test-tilemap))))
+   (materialize/render-map (cart-rail-ring-test-tilemap))))
 
 (deftest roo-materialize-render-map-applies-single-terrain-ring-rules-with-diagonal-neighbors
   (assert-cart-rail-ring-output
@@ -591,9 +591,9 @@
     (is (= nil
            (get-in source-layer [:tiles 0 1])))))
 
-(deftest materialize-render-map-uses-terrain-rule-as-for-neighbor-matching
+(deftest render-map-uses-terrain-rule-as-for-neighbor-matching
   (assert-terrain-rule-as-output
-   (materialize/materialize-render-map terrain-rule-as-test-tilemap)))
+   (materialize/render-map terrain-rule-as-test-tilemap)))
 
 (deftest roo-materialize-render-map-uses-terrain-rule-as-for-neighbor-matching
   (assert-terrain-rule-as-output
@@ -690,7 +690,7 @@
                   (= (:tileset layer) :world)))))
 
 (deftest transition-mask-materialization-inserts_dynamic_tile_refs_into_terrain_product_layer
-  (let [render-map (materialize/materialize-render-map
+  (let [render-map (materialize/render-map
                     (transition-mask-test-tilemap))
         generated-tileset (transition-mask-generated-tileset render-map)
         transition-layer (transition-mask-layer render-map)]
@@ -703,14 +703,14 @@
            (get-in transition-layer [:tiles 1 2])))))
 
 (deftest transition-mask-materialization-clears_original_terrain_cells_under_dynamic_refs
-  (let [render-map (materialize/materialize-render-map
+  (let [render-map (materialize/render-map
                     (transition-mask-test-tilemap))
         terrain-layer (transition-mask-world-layer render-map)]
     (is (nil? (get-in terrain-layer [:tiles 1 1])))
     (is (nil? (get-in terrain-layer [:tiles 1 2])))))
 
 (deftest transition-mask-materialization-builds_distinct_masked_tile_definition
-  (let [render-map (materialize/materialize-render-map
+  (let [render-map (materialize/render-map
                     (transition-mask-test-tilemap))
         generated-tile (head (:tiles (transition-mask-generated-tileset
                                       render-map)))]
@@ -746,7 +746,7 @@
   (let [mask-ref (assoc transition-mask-test-ref
                         :polarity
                         :solid-is-opposing)
-        render-map (materialize/materialize-render-map
+        render-map (materialize/render-map
                     (assoc-in (transition-mask-test-tilemap)
                               [:rulesets 0 :rules 0 :output :layers 0
                                :transition-masks 0 0]
@@ -760,7 +760,7 @@
     (is (= :solid-is-opposing (:mask-polarity generated-tile)))))
 
 (deftest transition-mask-materialization-keeps_dynamic_refs_when_tile_variants_exist
-  (let [render-map (materialize/materialize-render-map
+  (let [render-map (materialize/render-map
                     (assoc (transition-mask-test-tilemap)
                            :tile-substitution-rules
                            [{:tileset :world
@@ -781,7 +781,7 @@
     (is (not= :water-variant transition-cell))))
 
 (deftest native-materializer-applies_transition_mask_rules
-  (let [render-map (materialize-impl/materialize-render-map
+  (let [render-map (materialize-impl/render-map
                     (transition-mask-test-tilemap)
                     {})
         generated-tileset (transition-mask-generated-tileset render-map)
@@ -831,10 +831,10 @@
     (is (= [:missing-mask-definition :missing-mask-source]
            (:reasons entry)))))
 
-(deftest materialize-render-map-applies-terrain-stamp-transition-mask-rules
+(deftest render-map-applies-terrain-stamp-transition-mask-rules
   (let [mask-ref {:mask-set :soft-edge
                   :mask :north}
-        render-map (materialize/materialize-render-map
+        render-map (materialize/render-map
                     {:width 3
                      :height 2
                      :tile-size {:w 16 :h 16}
@@ -928,7 +928,7 @@
            (get-in generated-tile
                    [:mask-source :tiles 0 :tile-definition :id])))))
 
-(deftest materialize-render-map-applies-terrain-stamp-transition-overlay-rules
+(deftest render-map-applies-terrain-stamp-transition-overlay-rules
   (let [render-map (materialize/roo-materialize-render-map
                     {:width 2
                      :height 2
@@ -998,7 +998,7 @@
     (is (nil? (get-in terrain-layer [:tiles 1 0])))))
 
 (deftest native-materializer-applies-terrain-stamp-transition-overlay-rules
-  (let [render-map (materialize/materialize-render-map
+  (let [render-map (materialize/render-map
                     {:width 2
                      :height 2
                      :tile-size {:w 16 :h 16}
@@ -1058,10 +1058,10 @@
             :tile (:id generated-tile)}
            (get-in transition-layer [:tiles 1 0])))))
 
-(deftest materialize-render-rect-applies-terrain-stamp-transition-mask-rules
+(deftest render-rect-applies-terrain-stamp-transition-mask-rules
   (let [mask-ref {:mask-set :soft-edge
                   :mask :north}
-        render-map (materialize/materialize-render-rect
+        render-map (materialize/render-rect
                     {:width 3
                      :height 2
                      :tile-size {:w 16 :h 16}
@@ -1131,8 +1131,8 @@
                 (fn [tile]
                   (get-in tile [:overlay :tile])))))))
 
-(deftest materialize-render-map-keeps-source-for-unresolved-stamp-output-tile
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-keeps-source-for-unresolved-stamp-output-tile
+  (let [render-map (materialize/render-map
                     {:width 3
                      :height 3
                      :tilesets [{:id :world
@@ -1165,8 +1165,8 @@
     (is (= :cave-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :missing-cave-tile (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-map-respects-tilemap-show-terrain-rules-flag
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-respects-tilemap-show-terrain-rules-flag
+  (let [render-map (materialize/render-map
                     {:width 3
                      :height 2
                      :show-terrain-rules? false
@@ -1204,8 +1204,8 @@
     (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-applies-terrain-stamp-rules-inside-rect
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-applies-terrain-stamp-rules-inside-rect
+  (let [render-map (materialize/render-rect
                     {:width 3
                      :height 2
                      :terrain-sets [{:id :terrain
@@ -1244,8 +1244,8 @@
     (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-keeps-source-for-unresolved-stamp-output-tile
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-keeps-source-for-unresolved-stamp-output-tile
+  (let [render-map (materialize/render-rect
                     {:width 3
                      :height 3
                      :tilesets [{:id :world
@@ -1279,8 +1279,8 @@
     (is (= :cave-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :missing-cave-tile (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-respects-tilemap-show-terrain-rules-flag
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-respects-tilemap-show-terrain-rules-flag
+  (let [render-map (materialize/render-rect
                     {:width 3
                      :height 2
                      :show-terrain-rules? false
@@ -1319,8 +1319,8 @@
     (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-keeps-targetless-stamp-layer-id-stable
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-keeps-targetless-stamp-layer-id-stable
+  (let [render-map (materialize/render-rect
                     {:width 3
                      :height 2
                      :terrain-sets [{:id :terrain
@@ -1352,8 +1352,8 @@
            (map (:layers render-map) :id)))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-clamps-to-map-bounds
-  (let [render-map (materialize/materialize-render-rect
+(deftest render-rect-clamps-to-map-bounds
+  (let [render-map (materialize/render-rect
                     {:width 3
                      :height 2
                      :layers [{:id :base
@@ -1367,8 +1367,8 @@
     (is (= [[:f]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-applies-stable-weighted-tile-substitution-rules
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-applies-stable-weighted-tile-substitution-rules
+  (let [render-map (materialize/render-map
                     {:width 5
                      :height 1
                      :tile-substitution-rules [{:tileset :world
@@ -1385,8 +1385,8 @@
     (is (= [[:floor :floor :floor-crack :floor :floor-crack]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-ignores-unknown-tile-substitution-algorithms
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-ignores-unknown-tile-substitution-algorithms
+  (let [render-map (materialize/render-map
                     {:width 1
                      :height 1
                      :tile-substitution-rules [{:tileset :world
@@ -1400,8 +1400,8 @@
     (is (= [[:floor]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-mixes-equal-weight-substitutions-by-position
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-mixes-equal-weight-substitutions-by-position
+  (let [render-map (materialize/render-map
                     {:width 9
                      :height 1
                      :tile-substitution-rules [{:tileset :world
@@ -1427,8 +1427,8 @@
                 :floor-a :floor-b :floor-c]]
               (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-applies-tile-substitution-rules-after-terrain
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-applies-tile-substitution-rules-after-terrain
+  (let [render-map (materialize/render-map
                     {:width 1
                      :height 1
                      :terrain-sets [{:id :terrain
@@ -1447,8 +1447,8 @@
     (is (= :floor-crack
            (get-in render-map [:layers 0 :tiles 0 0])))))
 
-(deftest materialize-render-map-applies-tile-defined-substitutions-after-terrain
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-applies-tile-defined-substitutions-after-terrain
+  (let [render-map (materialize/render-map
                     {:width 1
                      :height 1
                      :tilesets [{:id :world
@@ -1469,8 +1469,8 @@
     (is (= :floor-crack
            (get-in render-map [:layers 0 :tiles 0 0])))))
 
-(deftest materialize-render-map-scopes-tile-substitution-rules-by-tileset
-  (let [render-map (materialize/materialize-render-map
+(deftest render-map-scopes-tile-substitution-rules-by-tileset
+  (let [render-map (materialize/render-map
                     {:width 1
                      :height 1
                      :tile-substitution-rules [{:tileset :world
@@ -1489,7 +1489,7 @@
     (is (= :floor
            (get-in render-map [:layers 1 :tiles 0 0])))))
 
-(deftest materialize-render-rect-uses-source-coordinates-for-tile-substitutions
+(deftest render-rect-uses-source-coordinates-for-tile-substitutions
   (let [tilemap {:width 4
                  :height 2
                  :tile-substitution-rules [{:tileset :world
@@ -1503,8 +1503,8 @@
                            :tileset :world
                            :tiles [[:floor :floor :floor :floor]
                                    [:floor :floor :floor :floor]]}]}
-        full (materialize/materialize-render-map tilemap)
-        rect (materialize/materialize-render-rect tilemap
+        full (materialize/render-map tilemap)
+        rect (materialize/render-rect tilemap
                                                   {:x 1 :y 1 :w 2 :h 1})]
     (is (= [[(get-in full [:layers 0 :tiles 1 1])
              (get-in full [:layers 0 :tiles 1 2])]]

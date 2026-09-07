@@ -192,9 +192,9 @@ into plain renderable tile-ref layers:
 (ns game.materialized
   (:require [pixils.tilemap.materialize :as materialize]))
 
-(materialize/materialize-render-map tilemap
-                                    {:terrain-sets terrain-sets
-                                     :rulesets rulesets})
+(materialize/render-map tilemap
+                        {:terrain-sets terrain-sets
+                         :rulesets rulesets})
 ```
 
 Materialization can also apply stable weighted tile substitutions after terrain
@@ -203,7 +203,7 @@ inside a tileset; choices are selected by a deterministic hash of `:seed`, `x`,
 and `y`, so full-map and rect materialization agree:
 
 ```clojure
-(materialize/materialize-render-map
+(materialize/render-map
  {:width 5
   :height 1
   :tile-substitution-rules [{:tileset :world
@@ -219,7 +219,7 @@ and `y`, so full-map and rect materialization agree:
 Include the original tile as one of the choices when it should remain part of
 the output distribution.
 
-`materialize-render-rect` does the same for a sub-rectangle, useful for palette
+`render-rect` does the same for a sub-rectangle, useful for palette
 previews, dirty-region updates, and tests.
 
 `pixils.tilemap.string-map` is a compact test and fixture format. It converts
