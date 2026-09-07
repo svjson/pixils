@@ -136,18 +136,16 @@
         terrain-set-id (model/selected-terrain-set-id state)
         mask-ref (terrain-standard-preview-mask-ref state mask-ref)]
     (when (and center-terrain opposing-terrain terrain-set-id mask-ref)
-      (materialize/transition-tile-definition
-       {:tile-size data/tile-size
-        :tilesets (:tilesets state)
-        :terrain-sets (:terrain-sets state)
-        :mask-sets (:mask-sets state)}
-       nil
-       {:terrain-set terrain-set-id}
-       {:terrain center-terrain
-        :match {:n {:terrain opposing-terrain}}}
-       mask-ref
-       0
-       0))))
+      (materialize/transition-tile-definition {:tilemap {:tile-size data/tile-size
+                                                         :tilesets (:tilesets state)
+                                                         :terrain-sets (:terrain-sets state)
+                                                         :mask-sets (:mask-sets state)}
+                                               :source-layer nil
+                                               :ruleset {:terrain-set terrain-set-id}
+                                               :rule {:terrain center-terrain
+                                                      :match {:n {:terrain opposing-terrain}}}
+                                               :mask mask-ref
+                                               :source-position {:x 0 :y 0}}))))
 
 (defun draw-terrain-standard-mask-fallback! [rect]
   (r/rect! {:x (+ (:x rect) 7)
