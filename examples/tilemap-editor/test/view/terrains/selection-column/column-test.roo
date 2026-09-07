@@ -1,6 +1,8 @@
 (ns tilemap-editor.view.terrains.selection-column.column-test
   (:require proof.core
             [proof.syntax :as p]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.view :as test-view]
             [tilemap-editor.view.terrains.selection-column.column :as column]))
 
 
@@ -25,11 +27,13 @@
                      :class :pixils.form/form}
               :terrain-sets {:title "Terrain Sets"
                              :button-label "+"
+                             :button-class [:pixils.form/action-button :ui/toolbar-button]
                              :content-class [:pixils.form/field
                                              :tm/list-content]
                              :field-id :terrain-sets}
               :terrains {:title "Terrains"
                          :button-label "+"
+                         :button-class [:pixils.form/action-button :ui/toolbar-button]
                          :editor-id :selected-terrain-set
                          :content-class [:pixils.form/layout-item-editor
                                          :tm/list-content]
@@ -40,12 +44,37 @@
               {:title (-> terrain-set-panel :state :title)
                :button-label (-> terrain-set-panel :children head :children (nth 1)
                                  :state :label)
+               :button-class (-> terrain-set-panel :children head :children (nth 1)
+                                 :children head :class)
                :content-class (:class terrain-set-field)
                :field-id (-> terrain-set-control :state :field-id)}
               :terrains
               {:title (-> terrain-panel :state :title)
                :button-label (-> terrain-panel :children head :children (nth 1)
                                  :state :label)
+               :button-class (-> terrain-panel :children head :children (nth 1)
+                                 :children head :class)
                :editor-id (-> terrain-editor :state :item-editor-id)
                :content-class (:class terrain-editor)
-               :field-id (-> terrain-control :state :field-id)}})))))
+              :field-id (-> terrain-control :state :field-id)}})))))
+
+(deftest make/keeps-both-array-lists-visible-inside-custom-panels
+  (p/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 500
+                                 :buffer-height 500
+                                 :render-backend false})]
+      (runtime/eval-file!
+       app
+       "test/fixture/view/terrains/selection-column.roo")
+      (runtime/push-mode! app 'terrain-selection-column-probe)
+      (runtime/settle-layout! app)
+      {:labels (for [item (test-view/find-views
+                           app "pixils/form-selection-list-item")]
+                 (-> item :ui-state :label))
+       :button-heights (for [button (test-view/find-views app "ui/button")]
+                         (-> button :effective-style :height))}))
+
+  (p/then [result]
+    (is (= ["Overworld" "Grass" "Water"] (:labels result)))
+    (is (= [18 18] (:button-heights result)))))

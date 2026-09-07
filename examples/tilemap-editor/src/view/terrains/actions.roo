@@ -1,7 +1,85 @@
 (ns tilemap-editor.view.terrains.actions
-  (:require [tilemap-editor.model.workbook :as editor-workbook]
+  (:require [tilemap-editor.model.tilemap :as tilemap]
+            [tilemap-editor.model.workbook :as editor-workbook]
             [tilemap-editor.view.property-sets.model :as property-model]
             [tilemap-editor.view.terrains.model :as model]))
+
+(defun add-terrain-set-from-form [state terrain-set]
+  (editor-workbook/change-to
+   state
+   "Add terrain set"
+   (tilemap/rebuild-terrain-stamp-preview
+    (model/add-terrain-set-with-id state
+                                   (model/keyword-label (:id terrain-set))
+                                   (:label terrain-set)))))
+
+(defun edit-terrain-set-from-form [state index terrain-set]
+  (let [selected-state (assoc state
+                              :selected-terrain-set-index index
+                              :selected-terrain-index nil)
+        next-state
+        (model/set-selected-terrain-set-label
+         (model/set-selected-terrain-set-id selected-state
+                                            (model/keyword-label
+                                             (:id terrain-set)))
+         (:label terrain-set))]
+    (editor-workbook/change-to
+     state
+     "Rename terrain set"
+     (tilemap/rebuild-terrain-stamp-preview next-state))))
+
+(defun add-terrain-from-form [state terrain-set-index terrain]
+  (editor-workbook/change-to
+   state
+   "Add terrain"
+   (tilemap/rebuild-terrain-stamp-preview
+    (model/add-terrain-with-id
+     (assoc state :selected-terrain-set-index terrain-set-index)
+     (model/keyword-label (:id terrain))
+     (:label terrain)))))
+
+(defun edit-terrain-from-form [state terrain-set-index terrain-index terrain]
+  (let [selected-state (assoc state
+                              :selected-terrain-set-index terrain-set-index
+                              :selected-terrain-index terrain-index)
+        next-state
+        (model/set-selected-terrain-label
+         (model/set-selected-terrain-id selected-state
+                                        (model/keyword-label (:id terrain)))
+         (:label terrain))]
+    (editor-workbook/change-to
+     state
+     "Rename terrain"
+     (tilemap/rebuild-terrain-stamp-preview next-state))))
+
+(defun terrain-set-index-from-change [state change]
+  (or (when (= (:field-id change) :terrains)
+        (nth (:field-path change) 2))
+      (:selected-terrain-set-index state)))
+
+(defun apply-form-change
+  "Applies one completed terrain collection form operation through workbook
+  history while retaining terrain-specific identity reference maintenance."
+  [state change]
+  (case [(:field-id change) (:operation change)]
+    [:terrain-sets :array/add]
+    (add-terrain-set-from-form state (:value change))
+
+    [:terrain-sets :array/edit]
+    (edit-terrain-set-from-form state (:index change) (:value change))
+
+    [:terrains :array/add]
+    (add-terrain-from-form state
+                           (terrain-set-index-from-change state change)
+                           (:value change))
+
+    [:terrains :array/edit]
+    (edit-terrain-from-form state
+                            (terrain-set-index-from-change state change)
+                            (:index change)
+                            (:value change))
+
+    :default state))
 
 (defun add-mask-set
   "Adds a mask set from confirmed identity fields and records the document edit in workbook history."

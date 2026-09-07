@@ -1,0 +1,14 @@
+(ns tilemap-editor.fixture.view.terrains.selection-column
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.view.terrains.selection-column.column))
+
+(defmode terrain-selection-column-probe
+  {:init (fn [_state _ctx]
+           {:subject {:terrain-sets [{:id :overworld
+                                      :label "Overworld"
+                                      :terrains [{:id :grass :label "Grass"}
+                                                 {:id :water :label "Water"}]}]}
+            :reference-data {:tilesets []}})
+   :children [{:mode 'terrain-definition-selector-column
+               :state (ui/bind-state)}]})

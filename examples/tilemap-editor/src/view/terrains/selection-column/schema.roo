@@ -1,10 +1,19 @@
 (ns tilemap-editor.view.terrains.selection-column.schema)
 
 (def schema
-  "Form-local schema for selecting terrain sets and their terrains."
+  "Form-local schema for editing terrain-set and terrain identities. Unknown
+  item fields remain part of the form value and are preserved on commit."
   {:type :object
    :fields {:terrain-sets {:type :array
                             :path [:subject :terrain-sets]
                             :items {:type :object
-                                    :fields {:terrains {:type :array
-                                                        :items {:type :any}}}}}}})
+                                    :fields {:id {:type :keyword
+                                                  :required true}
+                                             :label {:type :text
+                                                     :required true}
+                                             :terrains {:type :array
+                                                        :items {:type :object
+                                                                :fields {:id {:type :keyword
+                                                                              :required true}
+                                                                         :label {:type :text
+                                                                                 :required true}}}}}}}}})

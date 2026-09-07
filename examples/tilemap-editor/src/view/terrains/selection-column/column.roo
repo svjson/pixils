@@ -2,14 +2,17 @@
   (:require pixils
             [pixils.form :as form]
             [pixils.ui :as ui]
-            [tilemap-editor.components.header-panel :as hp]
+            [pixils.ui.header-panel :as hp]
+            [tilemap-editor.view.terrains.model :as model]
             [tilemap-editor.view.terrains.selection-column.schema :as schema]))
 
 (def terrain-set-actions
-  [{:key :rename
+  [{:key :add
+    :label "+"
+    :style {:width 18 :height 18}
+    :button-class :ui/toolbar-button}
+   {:key :edit
     :label "Rename Terrain Set"
-    :event :terrain-set/context-command
-    :payload {:command :rename}
     :presentation :context-menu}
    {:key :delete
     :label "Delete"
@@ -18,10 +21,12 @@
     :presentation :context-menu}])
 
 (def terrain-actions
-  [{:key :rename
+  [{:key :add
+    :label "+"
+    :style {:width 18 :height 18}
+    :button-class :ui/toolbar-button}
+   {:key :edit
     :label "Rename Terrain"
-    :event :terrain/context-command
-    :payload {:command :rename}
     :presentation :context-menu}
    {:key :duplicate
     :label "Duplicate"
@@ -34,36 +39,76 @@
     :payload {:command :delete}
     :presentation :context-menu}])
 
+(def array-panel-state
+  {:value (ui/project-state :value)
+   :selection-options (ui/project-state :selection-options)
+   :selected-indices (ui/project-state :selected-indices)
+   :summary (ui/project-state :summary)
+   :read-only? (ui/project-state :read-only?)
+   :reorderable? (ui/project-state :reorderable?)
+   :form/action-disabled (ui/project-state :form/action-disabled)})
+
+(def array-panel-body-state
+  {:value (ui/bind-state :value)
+   :selection-options (ui/bind-state :selection-options)
+   :selected-indices (ui/bind-state :selected-indices)
+   :summary (ui/bind-state :summary)
+   :read-only? (ui/bind-state :read-only?)
+   :reorderable? (ui/bind-state :reorderable?)})
+
+(defun array-panel [title content actions]
+  (hp/make {:title title
+            :class :tm/list-wrapper
+            :state array-panel-state
+            :body-state array-panel-body-state
+            :header-children actions
+            :children [content]}))
+
+(defun terrain-set-array-layout=> [{:keys [content actions]}]
+  (array-panel "Terrain Sets" content actions))
+
+(defun terrain-array-layout=> [{:keys [content actions]}]
+  (array-panel "Terrains" content actions))
+
+(defun new-terrain-set [{:keys [items context]}]
+  (model/make-terrain-set items (:tilesets context)))
+
+(defun new-terrain [{:keys [form-value context]}]
+  (model/make-terrain form-value (:tilesets context)))
+
 (defun make []
   (form/make
    {:schema schema/schema
     :value (ui/project-state)
+    :context (ui/project-state :reference-data)
+    :text {:id "Id"
+           :label "Name"}
+    :mode :live
     :layout
     {:root
-     [(hp/make {:title "Terrain Sets"
-                :class :tm/list-wrapper
-                :buttons [{:kind :item/add
-                           :action :terrain/add-set}]}
-               [[:field.tm/list-content :terrain-sets
-                 {:label false
-                  :summary false
-                  :actions terrain-set-actions
-                  :item-editor {:layout-ref :selected-terrain-set}}]])
-      (hp/make {:title "Terrains"
-                :class :tm/list-wrapper
-                :buttons [{:kind :item/add
-                           :action :terrain/add
-                           :disabled? (ui/project-state :value
-                                                        :derived
-                                                        :list-panel-disabled?)}]}
-               [{:id :selected-terrain-set
-                 :class :tm/list-content}])]
+     [[:field.tm/list-content :terrain-sets
+       {:label false
+        :summary false
+        :actions terrain-set-actions
+        :array-layout=> terrain-set-array-layout=>
+        :new-value-from=> new-terrain-set
+        :item-editor {:layout-ref :selected-terrain-set
+                      :dialog {:layout [:id :label]
+                               :add-title "Add Terrain Set"
+                               :edit-title "Rename Terrain Set"}}}]
+      {:id :selected-terrain-set
+       :class :tm/list-content}]
      :fragments
      {:terrain-sets
       [[:field :terrains
         {:label false
          :summary false
-         :actions terrain-actions}]]}}}))
+         :actions terrain-actions
+         :array-layout=> terrain-array-layout=>
+         :new-value-from=> new-terrain
+         :item-editor {:dialog {:layout [:id :label]
+                                :add-title "Add Terrain"
+                                :edit-title "Rename Terrain"}}}]]}}}))
 
 (defcomponent terrain-definition-selector-column
   {:class :terrain/selection-column
@@ -78,5 +123,10 @@
             (ui/emit! (:view ctx) :terrain/select (:index payload))
 
             :default nil)
+          state)
+        :form/change
+        (fn [state {:keys [payload] :as event} ctx]
+          (ui/stop-propagation! event)
+          (ui/emit! (:view ctx) :terrain/form-change payload)
           state)}
    :children [(make)]})

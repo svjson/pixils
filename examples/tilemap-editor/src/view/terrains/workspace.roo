@@ -203,355 +203,317 @@
                        (open-terrain-add-dialog! state ctx))
         :terrain/select (fn [state event ctx]
                           (assoc state :selected-terrain-index (:payload event)))
-        :terrain/mask-set-select
-        (fn [state event ctx]
-          (assoc state
-                 :selected-mask-set-index (:payload event)
-                 :selected-mask-index nil))
-        :terrain/mask-set-add
-        (fn [state event ctx]
-          (open-mask-set-add-dialog! state ctx))
-        :terrain/mask-set-edit
-        (fn [state event ctx]
-          (open-mask-set-edit-dialog! state ctx))
-        :terrain/mask-set-delete
-        (fn [state event ctx]
-          (open-mask-set-delete-confirm-dialog! state ctx))
-        :terrain/mask-select
-        (fn [state event ctx]
-          (assoc state :selected-mask-index (:payload event)))
-        :terrain/mask-add
-        (fn [state event ctx]
-          (open-mask-add-dialog! state ctx))
-        :terrain/mask-edit
-        (fn [state event ctx]
-          (open-mask-edit-dialog! state ctx))
-        :terrain/mask-delete
-        (fn [state event ctx]
-          (open-mask-delete-confirm-dialog! state ctx))
-        :terrain/mask-source-tile-select
-        (fn [state event ctx]
-          (assoc state :selected-mask-source-tile (:payload event)))
-        :terrain/mask-set-context-command
-        (fn [state {:keys [payload]} ctx]
-          (let [state (assoc state
-                             :selected-mask-set-index (:mask-set-index payload)
-                             :selected-mask-index nil)]
-            (case (:command payload)
-              :rename
-              (open-mask-set-edit-dialog! state ctx)
+        :terrain/form-change (fn [state {:keys [payload]} ctx]
+                               (actions/apply-form-change state (:change payload)))
+        :terrain/mask-set-select (fn [state event ctx]
+                                   (assoc state
+                                          :selected-mask-set-index (:payload event)
+                                          :selected-mask-index nil))
+        :terrain/mask-set-add (fn [state event ctx]
+                                (open-mask-set-add-dialog! state ctx))
+        :terrain/mask-set-edit (fn [state event ctx]
+                                 (open-mask-set-edit-dialog! state ctx))
+        :terrain/mask-set-delete (fn [state event ctx]
+                                   (open-mask-set-delete-confirm-dialog! state ctx))
+        :terrain/mask-select (fn [state event ctx]
+                               (assoc state :selected-mask-index (:payload event)))
+        :terrain/mask-add (fn [state event ctx]
+                            (open-mask-add-dialog! state ctx))
+        :terrain/mask-edit (fn [state event ctx]
+                             (open-mask-edit-dialog! state ctx))
+        :terrain/mask-delete (fn [state event ctx]
+                               (open-mask-delete-confirm-dialog! state ctx))
+        :terrain/mask-source-tile-select (fn [state event ctx]
+                                           (assoc state :selected-mask-source-tile (:payload event)))
+        :terrain/mask-set-context-command (fn [state {:keys [payload]} ctx]
+                                            (let [state (assoc state
+                                                               :selected-mask-set-index (:mask-set-index payload)
+                                                               :selected-mask-index nil)]
+                                              (case (:command payload)
+                                                :rename
+                                                (open-mask-set-edit-dialog! state ctx)
 
-              :delete
-              (open-mask-set-delete-confirm-dialog! state ctx)
+                                                :delete
+                                                (open-mask-set-delete-confirm-dialog! state ctx)
 
-              :default
-              state)))
-        :terrain/mask-context-command
-        (fn [state {:keys [payload]} ctx]
-          (let [state (assoc state
-                             :selected-mask-index
-                             (:mask-index payload))]
-            (case (:command payload)
-              :rename
-              (open-mask-edit-dialog! state ctx)
+                                                :default
+                                                state)))
+        :terrain/mask-context-command (fn [state {:keys [payload]} ctx]
+                                        (let [state (assoc state
+                                                           :selected-mask-index
+                                                           (:mask-index payload))]
+                                          (case (:command payload)
+                                            :rename
+                                            (open-mask-edit-dialog! state ctx)
 
-              :delete
-              (open-mask-delete-confirm-dialog! state ctx)
+                                            :delete
+                                            (open-mask-delete-confirm-dialog! state ctx)
 
-              :default
-              state)))
-        :terrain-set/context-command
-        (fn [state {:keys [payload]} ctx]
-          (let [terrain-set-index (or (:terrain-set-index payload)
-                                      (:index payload))
-                state (assoc state
-                             :selected-terrain-set-index terrain-set-index
-                             :selected-terrain-index nil)]
-            (case (:command payload)
-              :rename
-              (open-terrain-set-edit-dialog! state ctx)
+                                            :default
+                                            state)))
+        :terrain-set/context-command (fn [state {:keys [payload]} ctx]
+                                       (let [terrain-set-index (or (:terrain-set-index payload)
+                                                                   (:index payload))
+                                             state (assoc state
+                                                          :selected-terrain-set-index terrain-set-index
+                                                          :selected-terrain-index nil)]
+                                         (case (:command payload)
+                                           :rename
+                                           (open-terrain-set-edit-dialog! state ctx)
 
-              :delete
-              (open-terrain-set-delete-confirm-dialog!
-               state
-               ctx
-               terrain-set-index
-               (model/terrain-set-label-by-index state terrain-set-index))
+                                           :delete
+                                           (open-terrain-set-delete-confirm-dialog!
+                                            state
+                                            ctx
+                                            terrain-set-index
+                                            (model/terrain-set-label-by-index state terrain-set-index))
 
-              :default
-              state)))
-        :terrain/edit
-        (fn [{:keys [selected-terrain-index] :as state} event ctx]
-          (if-let [terrain-index selected-terrain-index]
-            (open-terrain-name-dialog! state
-                                       ctx
+                                           :default
+                                           state)))
+        :terrain/edit (fn [{:keys [selected-terrain-index] :as state} event ctx]
+                        (if-let [terrain-index selected-terrain-index]
+                          (open-terrain-name-dialog! state
+                                                     ctx
+                                                     :rename
+                                                     terrain-index
+                                                     "Rename Terrain"
+                                                     (model/terrain-label-by-index
+                                                      state
+                                                      terrain-index)
+                                                     (terrain-id-by-index
+                                                      state
+                                                      terrain-index))
+                          state))
+        :terrain/context-command (fn [state {:keys [payload]} ctx]
+                                   (let [terrain-index (or (:terrain-index payload)
+                                                           (:index payload))
+                                         state (assoc state :selected-terrain-index terrain-index)
+                                         terrain-set (model/selected-terrain-set
+                                                      (:terrain-sets state)
+                                                      (:selected-terrain-set-index state))
+                                         terrains (or (:terrains terrain-set) [])
+                                         name (model/terrain-label-by-index state terrain-index)]
+                                     (case (:command payload)
                                        :rename
-                                       terrain-index
-                                       "Rename Terrain"
-                                       (model/terrain-label-by-index
+                                       (open-terrain-name-dialog! state
+                                                                  ctx
+                                                                  :rename
+                                                                  terrain-index
+                                                                  "Rename Terrain"
+                                                                  name
+                                                                  (terrain-id-by-index
+                                                                   state
+                                                                   terrain-index))
+
+                                       :duplicate
+                                       (let [duplicate-name (model/unique-terrain-name-from
+                                                             terrains
+                                                             (str name " Copy")
+                                                             nil
+                                                             nil)]
+                                         (open-terrain-name-dialog! state
+                                                                    ctx
+                                                                    :duplicate
+                                                                    terrain-index
+                                                                    "Duplicate Terrain"
+                                                                    duplicate-name
+                                                                    (kebab-case duplicate-name)))
+
+                                       :delete
+                                       (open-terrain-delete-confirm-dialog!
                                         state
-                                        terrain-index)
-                                       (terrain-id-by-index
-                                        state
-                                        terrain-index))
-            state))
-        :terrain/context-command
-        (fn [state {:keys [payload]} ctx]
-          (let [terrain-index (or (:terrain-index payload)
-                                  (:index payload))
-                state (assoc state :selected-terrain-index terrain-index)
-                terrain-set (model/selected-terrain-set
-                             (:terrain-sets state)
-                             (:selected-terrain-set-index state))
-                terrains (or (:terrains terrain-set) [])
-                name (model/terrain-label-by-index state terrain-index)]
-            (case (:command payload)
-              :rename
-              (open-terrain-name-dialog! state
-                                         ctx
-                                         :rename
-                                         terrain-index
-                                         "Rename Terrain"
-                                         name
-                                         (terrain-id-by-index
-                                          state
-                                          terrain-index))
+                                        ctx
+                                        terrain-index
+                                        name)
 
-              :duplicate
-              (let [duplicate-name (model/unique-terrain-name-from
-                                    terrains
-                                    (str name " Copy")
-                                    nil
-                                    nil)]
-                (open-terrain-name-dialog! state
-                                           ctx
-                                           :duplicate
-                                           terrain-index
-                                           "Duplicate Terrain"
-                                           duplicate-name
-                                           (kebab-case duplicate-name)))
+                                       :default
+                                       state)))
+        :terrain/name-dialog-result (fn [state {:keys [payload]} ctx]
+                                      (let [context (:context payload)]
+                                        (case (:type payload)
+                                          :confirm
+                                          (let [state (assoc state
+                                                             :selected-terrain-index
+                                                             (:terrain-index context))]
+                                            (case (:operation context)
+                                              :add
+                                              (let [state (assoc state
+                                                                 :selected-terrain-set-index
+                                                                 (:terrain-set-index context))]
+                                                (tilemap/rebuild-terrain-stamp-preview
+                                                 (model/add-terrain-with-id state
+                                                                            (:id payload)
+                                                                            (:name payload))))
 
-              :delete
-              (open-terrain-delete-confirm-dialog!
-               state
-               ctx
-               terrain-index
-               name)
+                                              :rename
+                                              (tilemap/rebuild-terrain-stamp-preview
+                                               (model/set-selected-terrain-label
+                                                (model/set-selected-terrain-id state (:id payload))
+                                                (:name payload)))
 
-              :default
-              state)))
-        :terrain/name-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (let [context (:context payload)]
-            (case (:type payload)
-              :confirm
-              (let [state (assoc state
-                                 :selected-terrain-index
-                                 (:terrain-index context))]
-                (case (:operation context)
-                  :add
-                  (let [state (assoc state
-                                     :selected-terrain-set-index
-                                     (:terrain-set-index context))]
-                    (tilemap/rebuild-terrain-stamp-preview
-                     (model/add-terrain-with-id state
-                                                (:id payload)
-                                                (:name payload))))
+                                              :duplicate
+                                              (tilemap/rebuild-terrain-stamp-preview
+                                               (model/duplicate-selected-terrain-with-id
+                                                state
+                                                (:name payload)
+                                                (:id payload)))
 
-                  :rename
-                  (tilemap/rebuild-terrain-stamp-preview
-                   (model/set-selected-terrain-label
-                    (model/set-selected-terrain-id state (:id payload))
-                    (:name payload)))
+                                              :default
+                                              state))
 
-                  :duplicate
-                  (tilemap/rebuild-terrain-stamp-preview
-                   (model/duplicate-selected-terrain-with-id
-                    state
-                    (:name payload)
-                    (:id payload)))
-
-                  :default
-                  state))
-
-              :default state)))
-        :terrain/delete-confirm-result
-        (fn [state {:keys [payload]} ctx]
-          (if (and (= (:choice payload) :dialog/ok)
-                   (some? (-> payload :payload :terrain-index)))
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/delete-selected-terrain
-              (assoc state
-                     :selected-terrain-index
-                     (-> payload :payload :terrain-index))))
-            state))
+                                          :default state)))
+        :terrain/delete-confirm-result (fn [state {:keys [payload]} ctx]
+                                         (if (and (= (:choice payload) :dialog/ok)
+                                                  (some? (-> payload :payload :terrain-index)))
+                                           (tilemap/rebuild-terrain-stamp-preview
+                                            (model/delete-selected-terrain
+                                             (assoc state
+                                                    :selected-terrain-index
+                                                    (-> payload :payload :terrain-index))))
+                                           state))
         :terrain/set-edit (fn [state event ctx]
                             (open-terrain-set-edit-dialog! state ctx))
-        :terrain/set-add-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/add-terrain-set-with-id state
-                                            (:id payload)
-                                            (:name payload)))
+        :terrain/set-add-dialog-result (fn [state {:keys [payload]} ctx]
+                                         (case (:type payload)
+                                           :confirm
+                                           (tilemap/rebuild-terrain-stamp-preview
+                                            (model/add-terrain-set-with-id state
+                                                                           (:id payload)
+                                                                           (:name payload)))
 
-            :default state))
-        :terrain/set-edit-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/set-selected-terrain-set-label
-              (model/set-selected-terrain-set-id state (:id payload))
-              (:name payload)))
+                                           :default state))
+        :terrain/set-edit-dialog-result (fn [state {:keys [payload]} ctx]
+                                          (case (:type payload)
+                                            :confirm
+                                            (tilemap/rebuild-terrain-stamp-preview
+                                             (model/set-selected-terrain-set-label
+                                              (model/set-selected-terrain-set-id state (:id payload))
+                                              (:name payload)))
 
-            :default state))
-        :terrain/set-delete-confirm-result
-        (fn [state {:keys [payload]} ctx]
-          (if (and (= (:choice payload) :dialog/ok)
-                   (some? (-> payload :payload :terrain-set-index)))
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/delete-selected-terrain-set
-              (assoc state
-                     :selected-terrain-set-index
-                     (-> payload :payload :terrain-set-index)
-                     :selected-terrain-index
-                     nil)))
-            state))
-        :terrain/mask-set-add-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (actions/add-mask-set state (:id payload) (:name payload))
+                                            :default state))
+        :terrain/set-delete-confirm-result (fn [state {:keys [payload]} ctx]
+                                             (if (and (= (:choice payload) :dialog/ok)
+                                                      (some? (-> payload :payload :terrain-set-index)))
+                                               (tilemap/rebuild-terrain-stamp-preview
+                                                (model/delete-selected-terrain-set
+                                                 (assoc state
+                                                        :selected-terrain-set-index
+                                                        (-> payload :payload :terrain-set-index)
+                                                        :selected-terrain-index
+                                                        nil)))
+                                               state))
+        :terrain/mask-set-add-dialog-result (fn [state {:keys [payload]} ctx]
+                                              (case (:type payload)
+                                                :confirm
+                                                (actions/add-mask-set state (:id payload) (:name payload))
 
-            :default state))
-        :terrain/mask-set-edit-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (actions/edit-selected-mask-set
-             state
-             (:id payload)
-             (:name payload))
+                                                :default state))
+        :terrain/mask-set-edit-dialog-result (fn [state {:keys [payload]} ctx]
+                                               (case (:type payload)
+                                                 :confirm
+                                                 (actions/edit-selected-mask-set
+                                                  state
+                                                  (:id payload)
+                                                  (:name payload))
 
-            :default state))
-        :terrain/mask-set-delete-confirm-result
-        (fn [state {:keys [payload]} ctx]
-          (if (and (= (:choice payload) :dialog/ok)
-                   (some? (-> payload :payload :mask-set-index)))
-            (actions/delete-selected-mask-set
-             (assoc state
-                    :selected-mask-set-index
-                    (-> payload :payload :mask-set-index)))
-            state))
-        :terrain/mask-add-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (actions/add-mask state (:id payload) (:name payload))
+                                                 :default state))
+        :terrain/mask-set-delete-confirm-result (fn [state {:keys [payload]} ctx]
+                                                  (if (and (= (:choice payload) :dialog/ok)
+                                                           (some? (-> payload :payload :mask-set-index)))
+                                                    (actions/delete-selected-mask-set
+                                                     (assoc state
+                                                            :selected-mask-set-index
+                                                            (-> payload :payload :mask-set-index)))
+                                                    state))
+        :terrain/mask-add-dialog-result (fn [state {:keys [payload]} ctx]
+                                          (case (:type payload)
+                                            :confirm
+                                            (actions/add-mask state (:id payload) (:name payload))
 
-            :default state))
-        :terrain/mask-edit-dialog-result
-        (fn [state {:keys [payload]} ctx]
-          (case (:type payload)
-            :confirm
-            (actions/edit-selected-mask state (:id payload) (:name payload))
+                                            :default state))
+        :terrain/mask-edit-dialog-result (fn [state {:keys [payload]} ctx]
+                                           (case (:type payload)
+                                             :confirm
+                                             (actions/edit-selected-mask state (:id payload) (:name payload))
 
-            :default state))
-        :terrain/mask-delete-confirm-result
-        (fn [state {:keys [payload]} ctx]
-          (if (and (= (:choice payload) :dialog/ok)
-                   (some? (-> payload :payload :mask-index)))
-            (actions/delete-selected-mask
-             (assoc state
-                    :selected-mask-index
-                    (-> payload :payload :mask-index)))
-            state))
-        :property-set/assignment-change
-        (fn [state {:keys [payload]} ctx]
-          (case (:kind payload)
-            :terrain-set
-            (actions/set-selected-terrain-set-property-set-attachment
-             state
-             (:property-set-id payload)
-             (:attached? payload))
+                                             :default state))
+        :terrain/mask-delete-confirm-result (fn [state {:keys [payload]} ctx]
+                                              (if (and (= (:choice payload) :dialog/ok)
+                                                       (some? (-> payload :payload :mask-index)))
+                                                (actions/delete-selected-mask
+                                                 (assoc state
+                                                        :selected-mask-index
+                                                        (-> payload :payload :mask-index)))
+                                                state))
+        :property-set/assignment-change (fn [state {:keys [payload]} ctx]
+                                          (case (:kind payload)
+                                            :terrain-set
+                                            (actions/set-selected-terrain-set-property-set-attachment
+                                             state
+                                             (:property-set-id payload)
+                                             (:attached? payload))
 
-            :default state))
-        :property-value/change
-        (fn [state {:keys [payload]} ctx]
-          (case (:kind payload)
-            :terrain-set-default
-            (actions/change-selected-terrain-set-property-default-value
-             state
-             (:property-id payload)
-             (:value payload))
+                                            :default state))
+        :property-value/change (fn [state {:keys [payload]} ctx]
+                                 (case (:kind payload)
+                                   :terrain-set-default
+                                   (actions/change-selected-terrain-set-property-default-value
+                                    state
+                                    (:property-id payload)
+                                    (:value payload))
 
-            :default state))
-        :terrain/ruleset-select
-        (fn [state event ctx]
-          (assoc state
-                 :selected-terrain-ruleset-id (:payload event)
-                 :selected-terrain-rule-id nil))
-        :terrain/rule-select
-        (fn [state event ctx]
-          (assoc state :selected-terrain-rule-id (:payload event)))
-        :terrain/rule-match-direction-select
-        (fn [state event ctx]
-          (assoc state
-                 :selected-terrain-rule-match-direction
-                 (:payload event)))
-        :terrain/rule-output-position-select
-        (fn [state event ctx]
-          (assoc state
-                 :selected-terrain-rule-output-position
-                 (:payload event)))
-        :terrain/rule-selected-tile-change
-        (fn [state event ctx]
-          (assoc state :terrain-rule-selected-tile (:payload event)))
-        :terrain/rule-selected-mask-change
-        (fn [state event ctx]
-          (assoc state :terrain-rule-selected-mask (:payload event)))
-        :terrain/rule-stamp-tile-select
-        (fn [state {:keys [payload]} ctx]
-          (let [tile (if (map? payload)
-                       (:tile payload)
-                       payload)
-                output-tab (when (map? payload)
-                             (:output-tab payload))]
-            (assoc state
-                   :terrain-rule-selected-tile tile
-                   :terrain-rule-selected-tile-output-tab output-tab
-                   :terrain-rule-selected-mask nil)))
-        :terrain/rule-stamp-mask-select
-        (fn [state event ctx]
-          (assoc state
-                 :terrain-rule-selected-mask (:payload event)
-                 :terrain-rule-selected-tile nil
-                 :terrain-rule-selected-tile-output-tab nil))
-        :terrain/rule-stamp-mask-polarity-change
-        (fn [state event ctx]
-          (assoc state
-                 :terrain-rule-mask-polarity
-                 (model/terrain-rule-mask-polarity (:payload event))))
-        :terrain/stamp-tile-drag-start
-        (fn [state event ctx]
-          (assoc state
-                 :terrain-stamp-tile-drag-preview
-                 (terrain-stamp-tile-drag-preview-payload
-                  (:payload event)
-                  ctx)))
-        :terrain/stamp-tile-drag-move
-        (fn [state event ctx]
-          (assoc state
-                 :terrain-stamp-tile-drag-preview
-                 (terrain-stamp-tile-drag-preview-payload
-                  (:payload event)
-                  ctx)))
-        :terrain/stamp-tile-drag-end
-        (fn [state event ctx]
-          (assoc state :terrain-stamp-tile-drag-preview nil))
-        :terrain/standard-opposing-change
-        (fn [state event ctx]
-          (model/set-terrain-standard-opposing state (:payload event)))}
+                                   :default state))
+        :terrain/ruleset-select (fn [state event ctx]
+                                  (assoc state
+                                         :selected-terrain-ruleset-id (:payload event)
+                                         :selected-terrain-rule-id nil))
+        :terrain/rule-select (fn [state event ctx]
+                               (assoc state :selected-terrain-rule-id (:payload event)))
+        :terrain/rule-match-direction-select (fn [state event ctx]
+                                               (assoc state
+                                                      :selected-terrain-rule-match-direction
+                                                      (:payload event)))
+        :terrain/rule-output-position-select (fn [state event ctx]
+                                               (assoc state
+                                                      :selected-terrain-rule-output-position
+                                                      (:payload event)))
+        :terrain/rule-selected-tile-change (fn [state event ctx]
+                                             (assoc state :terrain-rule-selected-tile (:payload event)))
+        :terrain/rule-selected-mask-change (fn [state event ctx]
+                                             (assoc state :terrain-rule-selected-mask (:payload event)))
+        :terrain/rule-stamp-tile-select (fn [state {:keys [payload]} ctx]
+                                          (let [tile (if (map? payload)
+                                                       (:tile payload)
+                                                       payload)
+                                                output-tab (when (map? payload)
+                                                             (:output-tab payload))]
+                                            (assoc state
+                                                   :terrain-rule-selected-tile tile
+                                                   :terrain-rule-selected-tile-output-tab output-tab
+                                                   :terrain-rule-selected-mask nil)))
+        :terrain/rule-stamp-mask-select (fn [state event ctx]
+                                          (assoc state
+                                                 :terrain-rule-selected-mask (:payload event)
+                                                 :terrain-rule-selected-tile nil
+                                                 :terrain-rule-selected-tile-output-tab nil))
+        :terrain/rule-stamp-mask-polarity-change (fn [state event ctx]
+                                                   (assoc state
+                                                          :terrain-rule-mask-polarity
+                                                          (model/terrain-rule-mask-polarity (:payload event))))
+        :terrain/stamp-tile-drag-start (fn [state event ctx]
+                                         (assoc state
+                                                :terrain-stamp-tile-drag-preview
+                                                (terrain-stamp-tile-drag-preview-payload
+                                                 (:payload event)
+                                                 ctx)))
+        :terrain/stamp-tile-drag-move (fn [state event ctx]
+                                        (assoc state
+                                               :terrain-stamp-tile-drag-preview
+                                               (terrain-stamp-tile-drag-preview-payload
+                                                (:payload event)
+                                                ctx)))
+        :terrain/stamp-tile-drag-end (fn [state event ctx]
+                                       (assoc state :terrain-stamp-tile-drag-preview nil))
+        :terrain/standard-opposing-change (fn [state event ctx]
+                                            (model/set-terrain-standard-opposing state (:payload event)))}
    :children (layout/make)})

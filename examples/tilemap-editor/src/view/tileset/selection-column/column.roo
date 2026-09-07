@@ -39,18 +39,17 @@
                      {:tileset-index (:index payload)
                       :command (:action payload)})
            state)}
-    :children
-    [(lb/make {:options (ui/project-state :tilesets)
-               :class :tm/list-content
-               :selected-index (ui/project-state
-                                :selected-tileset-definition-index)
-               :force-selection? true
-               :item=> 'tileset-definition-row
-               :item-context-menu
-               {:settings {:mnemonics {:enabled false}}
-                :items [{:label "Edit"
-                         :action :edit}
-                        {:label "Properties"
-                         :action :properties}
-                        {:label "Duplicate"
-                         :action :duplicate}]}})]}))
+    :children [(lb/make {:options (ui/project-state :tilesets)
+                         :class :tm/list-content
+                         :selected-index (ui/project-state
+                                          :selected-tileset-definition-index)
+                         :force-selection? true
+                         :item=> 'tileset-definition-row
+                         :item-context-menu
+                         {:settings {:mnemonics {:enabled false}}
+                          :items [{:label "Edit"
+                                   :action :edit}
+                                  {:label "Properties"
+                                   :action :properties}
+                                  {:label "Duplicate"
+                                   :action :duplicate}]}})]}))
