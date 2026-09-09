@@ -46,6 +46,26 @@ target_compile_definitions(testpixils
     PIXILS_ROO_INSTALLED_PACKAGE_ROOT="${PIXILS_ROO_INSTALLED_PACKAGE_ROOT}"
 )
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(testpixils PRIVATE PIXILS_SDL_LIFECYCLE_WRAP)
+  target_link_options(testpixils PRIVATE
+    -Wl,--wrap=SDL_Init
+    -Wl,--wrap=SDL_CreateWindow
+    -Wl,--wrap=SDL_CreateRenderer
+    -Wl,--wrap=SDL_SetRenderTarget
+    -Wl,--wrap=SDL_DestroyTexture
+    -Wl,--wrap=SDL_DestroyRenderer
+    -Wl,--wrap=SDL_DestroyWindow
+    -Wl,--wrap=SDL_Quit
+    -Wl,--wrap=SDL_QuitSubSystem
+    -Wl,--wrap=MIX_Init
+    -Wl,--wrap=MIX_CreateMixerDevice
+    -Wl,--wrap=MIX_DestroyTrack
+    -Wl,--wrap=MIX_DestroyMixer
+    -Wl,--wrap=MIX_Quit
+  )
+endif()
+
 gtest_discover_tests(testpixils
   WORKING_DIRECTORY "${PIXILS_REPO_ROOT}"
   PROPERTIES

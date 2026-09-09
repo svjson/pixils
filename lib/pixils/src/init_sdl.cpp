@@ -91,7 +91,7 @@ namespace Pixils
     session->render_ctx.renderer = SDL_CreateRenderer(session->render_ctx.window, nullptr);
     if (!session->render_ctx.renderer)
     {
-      std::cerr << "Could not intialize video renderer." << std::endl;
+      std::cerr << "Could not initialize video renderer." << std::endl;
       std::cerr << SDL_GetError() << std::endl;
       return nullptr;
     }
