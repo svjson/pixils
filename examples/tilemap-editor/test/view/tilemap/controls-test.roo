@@ -1,13 +1,13 @@
 (ns tilemap-editor.view.tilemap.controls-test
   (:require proof.core
+            [proof.scenario :as p]
             [pixils.tilemap.project.model :as data]
+            [pixils.test.input :as input]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.view :as test-view]
             [tilemap-editor.view.layers.controls :as layer-controls]
-            [tilemap-editor.view.tilemap.controls :as controls]))
-
-(deftest empty-layer-list-keeps-minimum-height
-  (is (= 78 (controls/layer-list-height [])))
-  (is (= 78 (controls/layer-list-height [1 2])))
-  (is (= 104 (controls/layer-list-height [1 2 3 4]))))
+            [tilemap-editor.view.tilemap.controls :as controls]
+            [tilemap-editor.view.tilemap.palette :as palette]))
 
 
 
@@ -130,16 +130,92 @@
               :component)
           [:reorderable? :reorder-visual-strategy :force-selection?]))))
 
-(deftest shared-layer-list-render-key-changes-with-layer-identity
-  (let [first-key (layer-controls/layer-list-render-key
-                   {:layers [{:id :terrain
-                              :label "Terrain"}]
-                    :selected-layer-index 0})
-        second-key (layer-controls/layer-list-render-key
-                    {:layers [{:id :objects
-                               :label "Objects"}]
-                     :selected-layer-index 0})]
-    (is (not= first-key second-key))))
+(deftest layer-list-selects-clicked-layer
+  (p/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 500
+                                 :buffer-height 500
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/view/layers/controls.roo")
+      (runtime/push-mode! app 'layer-selection-probe)
+      (runtime/settle-layout! app)
+      (input/click! app (nth (test-view/find-views app "layer-row") 1))
+      (runtime/settle-layout! app)
+      (let [list-box (test-view/find-view app "ui/list-box")
+            rows (test-view/find-views app "layer-row")]
+        {:state (runtime/active-state app)
+         :list-focused? (-> list-box :interaction :focused)
+         :list-selection (-> list-box :ui-state :selected-indices)
+         :selected (for [row rows]
+                     (-> row :ui-state :selected))
+         :backgrounds (for [row rows]
+                        (-> row :effective-style :background))})))
+
+  (p/then [result]
+    (is (= 1 (-> result :state :selected-layer-index)))
+    (is (= true (:list-focused? result)))
+    (is (= [1] (:list-selection result)))
+    (is (= [false true] (:selected result)))
+    (is (not= (head (:backgrounds result))
+              (nth (:backgrounds result) 1)))))
+
+(deftest layer-list-scrolls-within-a-constrained-panel
+  (p/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 500
+                                 :buffer-height 500
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/view/layers/controls.roo")
+      (runtime/push-mode! app 'layer-overflow-probe)
+      (runtime/settle-layout! app)
+      (let [panel (test-view/find-view app "ui/header-panel")
+            list-box (test-view/find-view app "ui/list-box")
+            scrollbar (find-first (test-view/find-views app "ui/scrollbar")
+                                  (fn [view]
+                                    (= :y (-> view :ui-state :axis))))]
+        {:panel-height (-> panel :bounds :h)
+         :list-height (-> list-box :bounds :h)
+         :scrollbar-hidden? (-> scrollbar :effective-style :hidden)})))
+
+  (p/then [result]
+    (is (= 140 (:panel-height result)))
+    (is (< (:list-height result) (:panel-height result)))
+    (is (not (:scrollbar-hidden? result)))))
+
+(deftest map-side-panel-gives-remaining-height-to-layers
+  (is (= [:shrink :fill :shrink 176]
+         [(-> (controls/make-map-tool-controls) :style :height)
+          (-> (controls/make-layer-controls) :style :height)
+          (-> (controls/make-tileset-controls) :style :height)
+          (-> (palette/make-tile-palette) :style :height)])))
+
+(deftest map-side-panel-allocates-unused-height-to-layers
+  (p/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 500
+                                 :buffer-height 500
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/view/layers/controls.roo")
+      (runtime/push-mode! app 'side-panel-layout-probe)
+      (runtime/settle-layout! app)
+      (let [side-panel (test-view/find-view app "side-panel")
+            panels (test-view/find-views app "ui/header-panel")
+            panel-heights (for [panel panels]
+                            (-> panel :bounds :h))
+            last-panel (last panels)]
+        {:side-bottom (+ (-> side-panel :bounds :y)
+                         (-> side-panel :bounds :h))
+         :last-panel-bottom (+ (-> last-panel :bounds :y)
+                               (-> last-panel :bounds :h))
+         :panel-heights panel-heights})))
+
+  (p/then [result]
+    (let [[tools-height layers-height tileset-height palette-height]
+          (:panel-heights result)]
+      (is (= (:side-bottom result) (:last-panel-bottom result)))
+      (is (> layers-height tools-height))
+      (is (> layers-height tileset-height))
+      (is (= 176 palette-height)))))
 
 (deftest shared-layer-source-menu-item-matches-layer-kind
   (let [terrain-item (layer-controls/layer-source-menu-item

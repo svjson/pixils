@@ -419,7 +419,8 @@
 
 (defun make-map-tool-controls []
   (hp/make {:title "Tools"
-            :style {:width :fill}
+            :style {:width :fill
+                    :height :shrink}
             :body-style {:padding 8
                          :layout {:direction :column
                                   :gap 4}}
@@ -1315,7 +1316,8 @@
 
 (defun make-tileset-controls []
   (hp/make {:title "Tile Definition Set"
-            :style {:width :fill}
+            :style {:width :fill
+                    :height :shrink}
             :header-style {:layout {:direction :row
                                     :align-items :center
                                     :gap 4}}
@@ -1364,9 +1366,6 @@
 (defun layer-options [layers]
   (layer-controls/layer-options layers))
 
-(defun layer-list-height [layers]
-  (layer-controls/layer-list-height layers))
-
 (defun selected-layer-indices [state]
   (layer-controls/selected-layer-indices state))
 
@@ -1375,7 +1374,9 @@
 
 (defun make-layer-controls []
   (layer-controls/make-layer-controls
-   {:state {:map-width (ui/bind-state :map-width)
+   {:style {:width :fill
+            :height :fill}
+    :state {:map-width (ui/bind-state :map-width)
             :map-height (ui/bind-state :map-height)}
     :body-state {:map-width (ui/bind-state :map-width)
                  :map-height (ui/bind-state :map-height)}

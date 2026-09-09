@@ -112,7 +112,9 @@
                            (ui/stop-propagation! event)
                            (ui/emit! (:view ctx)
                                      :brush/select
-                                     (-> event :payload :value))
+                                     (head (-> event
+                                               :payload
+                                               :selected-indices)))
                            state)}
    :children [(merge {:id "list-box"}
                      (brush-list-child [] nil))]})

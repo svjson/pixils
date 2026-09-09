@@ -7,7 +7,6 @@
             [pixils.tilemap.project.model :as data]))
 
 (def layer-list-row-height 26)
-(def layer-list-min-visible-rows 3)
 
 (defun layer-visible? [hidden-layer-indices index]
   (not (contains? hidden-layer-indices index)))
@@ -131,72 +130,62 @@
            :layer (ui/bind-state :layers index)
            :tilesets (ui/bind-state :tilesets)
            :terrain-sets (ui/bind-state :terrain-sets)
-           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-           :selected-indices (ui/bind-state :selected-indices)}})
+           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}})
 
 (defun layer-options [layers]
   (for-indexed [index layer layers]
     {:value index
      :label (:label layer)}))
 
-(defun layer-list-height [layers]
-  (* layer-list-row-height
-     (max layer-list-min-visible-rows
-          (count layers))))
-
 (defun selected-layer-indices [state]
   (if (nil? (:selected-layer-index state))
     []
     [(:selected-layer-index state)]))
 
-(defun layer-list-render-key [state]
-  {:options (layer-options (:layers state))
-   :selected-layer-index (:selected-layer-index state)
-   :hidden-layer-indices (:hidden-layer-indices state)})
+(defun make-layer-list-box [options disabled?]
+  (lb/make {:options options
+            :style {:width :fill
+                    :height :fill
+                    :min-height 0}
+            :row-height layer-list-row-height
+            :disabled? disabled?
+            :state {:layers (ui/bind-state :layers)
+                    :tilesets (ui/bind-state :tilesets)
+                    :terrain-sets (ui/bind-state :terrain-sets)
+                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
+            :item-state-keys [:layers :tilesets :terrain-sets :hidden-layer-indices]
+            :selected-indices (ui/bind-state :selected-indices)
+            :reorderable? true
+            :reorder-visual-strategy :placeholder
+            :force-selection? true
+            :item=> layer-row-child}))
 
 (defun layer-list-box-child [layers]
   (let [layers (or layers [])]
-    (lb/make {:options (layer-options layers)
-              :style {:width :fill
-                      :height (layer-list-height layers)}
-              :row-height layer-list-row-height
-              :disabled? (empty? layers)
-              :state {:layers (ui/bind-state :layers)
-                      :tilesets (ui/bind-state :tilesets)
-                      :terrain-sets (ui/bind-state :terrain-sets)
-                      :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
-              :item-state-keys [:layers :tilesets :terrain-sets :hidden-layer-indices]
-              :selected-indices (ui/bind-state :selected-indices)
-              :reorderable? true
-              :reorder-visual-strategy :placeholder
-              :force-selection? true
-              :item=> layer-row-child})))
+    (make-layer-list-box (layer-options layers) (empty? layers))))
 
 (defcomponent layer-list
   {:style {:width :fill
-           :height :shrink}
+           :height :fill
+           :min-height 0}
    :init (fn [state ctx]
            (assoc state
-                  :render-key nil
+                  :options (layer-options (:layers state))
+                  :list-disabled? (empty? (:layers state))
                   :selected-indices (selected-layer-indices state)))
-   :update (fn [state ctx]
-             (let [layers (or (:layers state) [])
-                   render-key (layer-list-render-key state)]
-
-                 (when (not= render-key (:render-key state))
-                   (ui/replace-child! (:view ctx)
-                                      "list-box"
-                                      (merge {:id "list-box"}
-                                             (layer-list-box-child layers))))
-                 (assoc state
-                        :render-key render-key
-                        :selected-indices (selected-layer-indices state))))
+   :update (fn [{:keys [layers] :as state} ctx]
+             (assoc state
+                    :options (layer-options layers)
+                    :list-disabled? (empty? layers)
+                    :selected-indices (selected-layer-indices state)))
    :on {:list-box/selection-change (fn [state event ctx]
 
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)
                                        :layer/select
-                                       (-> event :payload :value))
+                                       (head (-> event
+                                                 :payload
+                                                 :selected-indices)))
                              state)
         :list-box/reorder (fn [state event ctx]
 
@@ -205,12 +194,15 @@
                                         :layer/reorder
                                         (:payload event))
                               state)}
-   :children [(merge {:id "list-box"}
-                     (layer-list-box-child []))]})
+   :children [(make-layer-list-box (ui/bind-state :options)
+                                   (ui/bind-state :list-disabled?))]})
 
 (defun make-layer-controls [opts]
   (hp/make {:title (or (:title opts) "Layers")
-            :style (or (:style opts) {:width :fill})
+            :style (merge {:width :fill
+                           :height :fill
+                           :min-height 0}
+                          (:style opts))
             :header-style {:layout {:direction :row
                                     :align-items :center
                                     :gap 4}}
@@ -222,7 +214,9 @@
                                              (ui/emit! (:view ctx)
                                                        :layer/add)
                                              state)}]
-            :body-style {:padding 8
+            :body-style {:height :fill
+                         :min-height 0
+                         :padding 8
                          :layout {:direction :column
                                   :gap 4}}
             :state (merge {:selected-layer-index (ui/bind-state :selected-layer-index)

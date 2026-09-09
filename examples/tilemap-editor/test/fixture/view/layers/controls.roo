@@ -1,0 +1,67 @@
+(ns tilemap-editor.fixture.view.layers.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.view.tilemap.layout
+            [tilemap-editor.view.layers.controls :as controls]))
+
+(defmode layer-selection-probe
+  {:init (fn [_state _ctx]
+           {:layers [{:id :scene/ground
+                      :label "Ground"
+                      :data-kind :tile-ref
+                      :tileset :terrain}
+                     {:id :scene/objects
+                      :label "Objects"
+                      :data-kind :tile-ref
+                      :tileset :terrain}]
+            :selected-layer-index 0
+            :hidden-layer-indices []
+            :tilesets [{:id :terrain
+                        :label "Terrain"}]
+            :terrain-sets []})
+   :on {:layer/select (fn [state event _ctx]
+                        (assoc state :selected-layer-index (:payload event)))}
+   :children [(controls/make-layer-controls {})]})
+
+(defmode layer-overflow-probe
+  {:init (fn [_state _ctx]
+           {:layers (for [index (range 10)]
+                      {:id (keyword (str "scene/layer-" index))
+                       :label (str "Layer " index)
+                       :data-kind :tile-ref
+                       :tileset :terrain})
+            :selected-layer-index 0
+            :hidden-layer-indices []
+            :tilesets [{:id :terrain :label "Terrain"}]
+            :terrain-sets []})
+   :children [{:style {:height 360}}
+              {:style {:width 220
+                       :height :fill
+                       :layout {:direction :column}}
+               :children [(controls/make-layer-controls {})]}]})
+
+(defmode side-panel-layout-probe
+  {:init (fn [_state _ctx]
+           {:layers (for [index (range 10)]
+                      {:id (keyword (str "scene/layer-" index))
+                       :label (str "Layer " index)
+                       :data-kind :tile-ref
+                       :tileset :terrain
+                       :tiles []})
+            :selected-layer-index 0
+            :selected-layer-label "Layer 0"
+            :selected-tileset-index 0
+            :selected-tile nil
+            :selected-label ""
+            :hidden-layer-indices []
+            :tilesets []
+            :terrain-sets []
+            :rulesets []
+            :layer-profiles []
+            :brushes []
+            :map-palette-tab :tiles
+            :map-tool :paint})
+   :children [{:mode 'side-panel
+               :style {:width 240
+                       :height :fill}
+               :state (ui/bind-state)}]})

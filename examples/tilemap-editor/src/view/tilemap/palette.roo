@@ -432,12 +432,16 @@
                                       :brushes
                                       (ui/emit! (:view ctx)
                                                 :palette/brush-select
-                                                (-> event :payload :value))
+                                                (head (-> event
+                                                          :payload
+                                                          :selected-values)))
 
                                       :default
                                       (ui/emit! (:view ctx)
                                                 :palette/select
-                                                (-> event :payload :value)))
+                                                (head (-> event
+                                                          :payload
+                                                          :selected-values))))
                                     state)
                   :tile-select/change (fn [state event ctx]
                                         (ui/stop-propagation! event)
