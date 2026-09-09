@@ -537,6 +537,8 @@
             :style {:width 360
                     :height :fill}
             :state {:resources (ui/bind-state :resources)
+                    :project-path (ui/bind-state :project-path)
+                    :project-directory (ui/bind-state :project-directory)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)
                     :selected-image-resources

@@ -1,6 +1,25 @@
 (ns tilemap-editor.view.resources.panels-test
   (:require proof.core
+            [proof.scenario :as p]
+            [pixils.test.runtime :as runtime]
+            [pixils.test.view :as test-view]
             [tilemap-editor.view.resources.panels :as panels]))
+
+(deftest image-resource-detail/displays-project-relative-file-path
+  (p/when []
+    (let [app (runtime/make-app {:package-root "."
+                                 :buffer-width 500
+                                 :buffer-height 500
+                                 :render-backend false})]
+      (runtime/eval-file! app "test/fixture/view/resources/panels.roo")
+      (runtime/push-mode! app 'image-resource-detail-panel-probe)
+      (runtime/settle-layout! app)
+      (-> (test-view/find-view app "image-resource-detail")
+          test-view/view-state
+          :file-label)))
+
+  (p/then [file-label]
+    (is (= "assets/tiles.png" file-label))))
 
 (deftest image-resource-row-drag-payload-identifies-source-resource
   (is (= {:kind :resource/image

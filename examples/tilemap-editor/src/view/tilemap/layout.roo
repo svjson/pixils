@@ -27,8 +27,7 @@
    :children [(controls/make-map-tool-controls)
               (controls/make-layer-controls)
               (controls/make-tileset-controls)
-              (palette/make-tile-palette)
-              (inspector/make-inspector-panel)]})
+              (palette/make-tile-palette)]})
 
 (defcomponent map-column
   {:style {:width :fill

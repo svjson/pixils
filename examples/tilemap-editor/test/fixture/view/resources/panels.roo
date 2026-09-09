@@ -1,0 +1,17 @@
+(ns tilemap-editor.fixture.view.resources.panels
+  (:require pixils
+            [tilemap-editor.view.resources.panels :as panels]))
+
+(defmode image-resource-detail-panel-probe
+  {:init (fn [_state _ctx]
+           {:project-path "/tmp/project/map.edn"
+            :project-directory "/tmp/project"
+            :resources {:bundles {:terrain-assets
+                                  {:images {:tiles
+                                            {:name "Tiles"
+                                             :file-name "/tmp/project/assets/tiles.png"}}}}}
+            :selected-resource-bundle :terrain-assets
+            :selected-image-resource :tiles
+            :selected-image-resources [:tiles]
+            :image-resource-detail-disabled? false})
+   :children [(panels/make-image-resource-detail-panel)]})
