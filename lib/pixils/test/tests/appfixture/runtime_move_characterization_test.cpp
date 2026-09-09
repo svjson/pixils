@@ -92,8 +92,8 @@ namespace
   }
 
   Roo::sptr_val invoke_test_mode_init_with_hook_context(Roo::Runtime& runtime,
-                                                           Pixils::FrameEvents& events,
-                                                           Pixils::RenderContext& render_ctx)
+                                                        Pixils::FrameEvents& events,
+                                                        Pixils::RenderContext& render_ctx)
   {
     auto modes = runtime.lookup("pixils/modes");
     auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
@@ -102,7 +102,7 @@ namespace
     Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
     Roo::Context exec_ctx(runtime);
     Roo::sptr_val_v args{Roo::Constant::NIL,
-                            Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
+                         Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
     return mode.init->exec().execute(exec_ctx, args);
   }
 } // namespace
@@ -116,13 +116,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_fn(runtime);
   auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
@@ -142,13 +142,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   auto result = invoke_test_fn(*moved_runtime);
@@ -169,13 +169,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   moved_runtime->eval("(def moved-fn (fn [state ctx] {:ticks 3}))");
@@ -199,13 +199,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_mode_init(runtime);
   auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
@@ -224,13 +224,13 @@ TEST(RuntimeMoveCharacterizationTest, moved_runtime_executes_file_defined_mode_i
   Pixils::RenderContext render_ctx{};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   auto result = invoke_test_mode_init(*moved_runtime);
@@ -252,13 +252,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::FrameEvents events;
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_mode_init_with_hook_context(runtime, events, render_ctx);
   auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
@@ -280,13 +280,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -329,13 +329,13 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -377,21 +377,26 @@ TEST(RuntimeMoveCharacterizationTest,
 
   Pixils::RenderContext render_ctx{};
   render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
-  render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
+  render_ctx.buffer_texture = SDL_CreateTexture(render_ctx.renderer,
+                                                SDL_PIXELFORMAT_RGBA8888,
+                                                SDL_TEXTUREACCESS_TARGET,
+                                                320,
+                                                200);
   render_ctx.buffer_dim.w = 320;
   render_ctx.buffer_dim.h = 200;
+  render_ctx.set_render_target(render_ctx.buffer_texture);
 
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
   Roo::Runtime runtime =
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"});
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -431,21 +436,26 @@ TEST(RuntimeMoveCharacterizationTest,
 
   Pixils::RenderContext render_ctx{};
   render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
-  render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
+  render_ctx.buffer_texture = SDL_CreateTexture(render_ctx.renderer,
+                                                SDL_PIXELFORMAT_RGBA8888,
+                                                SDL_TEXTUREACCESS_TARGET,
+                                                320,
+                                                200);
   render_ctx.buffer_dim.w = 320;
   render_ctx.buffer_dim.h = 200;
+  render_ctx.set_render_target(render_ctx.buffer_texture);
 
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
   auto runtime = std::make_unique<Roo::Runtime>(
     Pixils::init_roo_runtime(render_ctx,
-                                "pixils.test.app.main",
-                                [&app_root](Pixils::RuntimeConfiguration* cfg)
-                                {
-                                  cfg->load_path = {app_root.string()};
-                                  cfg->asset_base_path = app_root.string();
-                                },
-                                {"pixils/test/app/main.roo"}));
+                             "pixils.test.app.main",
+                             [&app_root](Pixils::RuntimeConfiguration* cfg)
+                             {
+                               cfg->load_path = {app_root.string()};
+                               cfg->asset_base_path = app_root.string();
+                             },
+                             {"pixils/test/app/main.roo"}));
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};

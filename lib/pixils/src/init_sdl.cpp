@@ -1,25 +1,64 @@
-#include <pixils/context.h>
 #include <pixils/init_sdl.h>
 
-#include <SDL3_image/SDL_image.h>
-#include <SDL3_mixer/SDL_mixer.h>
-#include <SDL3/SDL_video.h>
-#include <SDL3/SDL_render.h>
-#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL.h>
 #include <SDL3/SDL_audio.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <iostream>
-#include <optional>
 
 namespace Pixils
 {
-  std::optional<RenderContext> init_sdl(const std::string& window_name)
+  SDLSession::SDLSession(SDLLifetime lifetime)
+    : lifetime(lifetime)
   {
+  }
+
+  SDLSession::~SDLSession()
+  {
+    render_ctx.release_resources();
+
+    if (render_ctx.audio_mixer) MIX_DestroyMixer(render_ctx.audio_mixer);
+    render_ctx.audio_mixer = nullptr;
+
+    if (render_ctx.renderer) SDL_DestroyRenderer(render_ctx.renderer);
+    render_ctx.renderer = nullptr;
+
+    if (render_ctx.window) SDL_DestroyWindow(render_ctx.window);
+    render_ctx.window = nullptr;
+
+    if (mix_initialized) MIX_Quit();
+    mix_initialized = false;
+
+    if (sdl_initialized)
+    {
+      if (lifetime == SDLLifetime::PROCESS)
+      {
+        SDL_Quit();
+      }
+      else
+      {
+        SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+      }
+    }
+    sdl_initialized = false;
+  }
+
+  RenderContext& SDLSession::render_context()
+  {
+    return render_ctx;
+  }
+
+  std::unique_ptr<SDLSession> init_sdl(const std::string& window_name, SDLLifetime lifetime)
+  {
+    auto session = std::unique_ptr<SDLSession>(new SDLSession(lifetime));
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
     {
       std::cerr << "Could not initialize media." << std::endl;
       std::cerr << SDL_GetError() << std::endl;
-      return std::nullopt;
+      if (lifetime == SDLLifetime::PROCESS) SDL_Quit();
+      return nullptr;
     }
+    session->sdl_initialized = true;
 
     int display_w = 800;
     int display_h = 600;
@@ -38,43 +77,42 @@ namespace Pixils
       display_h = display_mode->h;
     }
 
-    SDL_Window* window = SDL_CreateWindow(window_name.c_str(),
-                                          display_w,
-                                          display_h,
-                                          SDL_WINDOW_FULLSCREEN);
-    if (!window)
+    session->render_ctx.window =
+      SDL_CreateWindow(window_name.c_str(), display_w, display_h, SDL_WINDOW_FULLSCREEN);
+    if (!session->render_ctx.window)
     {
       std::cerr << "Could not create window." << std::endl;
       std::cerr << SDL_GetError() << std::endl;
-      return std::nullopt;
+      return nullptr;
     }
 
     SDL_HideCursor();
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (renderer == NULL)
+    session->render_ctx.renderer = SDL_CreateRenderer(session->render_ctx.window, nullptr);
+    if (!session->render_ctx.renderer)
     {
       std::cerr << "Could not intialize video renderer." << std::endl;
       std::cerr << SDL_GetError() << std::endl;
-      return std::nullopt;
+      return nullptr;
     }
 
     if (!MIX_Init())
     {
       std::cerr << "Could not initialize audio mixer." << std::endl;
       std::cerr << SDL_GetError() << std::endl;
-      return std::nullopt;
+      return nullptr;
     }
+    session->mix_initialized = true;
 
     SDL_AudioSpec audio_spec{SDL_AUDIO_S16, 2, 44100};
-    MIX_Mixer* mixer =
+    session->render_ctx.audio_mixer =
       MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec);
-    if (!mixer)
+    if (!session->render_ctx.audio_mixer)
     {
       std::cerr << SDL_GetError() << std::endl;
-      return std::nullopt;
+      return nullptr;
     }
 
-    return RenderContext{window, renderer, mixer};
+    return session;
   }
 } // namespace Pixils

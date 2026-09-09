@@ -62,8 +62,13 @@ ComposableAppSessionFixture::ComposableAppSessionFixture()
   : input_simulator(events)
 {
   render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
-  render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
+  render_ctx.buffer_texture = SDL_CreateTexture(render_ctx.renderer,
+                                                SDL_PIXELFORMAT_RGBA8888,
+                                                SDL_TEXTUREACCESS_TARGET,
+                                                320,
+                                                200);
   render_ctx.buffer_dim = {320, 200};
+  render_ctx.set_render_target(render_ctx.buffer_texture);
   hook_ctx = std::make_unique<Pixils::HookContext>(
     Pixils::HookContext{&events, &render_ctx, nullptr});
 }
@@ -75,6 +80,9 @@ void ComposableAppSessionFixture::TearDown()
   roo_runtime.reset();
   render_ctx.asset_registry.reset();
   render_ctx.font_registry.reset();
+  render_ctx.set_render_target(nullptr);
+  SDL_DestroyTexture(render_ctx.buffer_texture);
+  render_ctx.buffer_texture = nullptr;
 
   if (!app_root.empty() && !should_keep_composed_app())
   {

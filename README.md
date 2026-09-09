@@ -2216,10 +2216,10 @@ The minimal host application looks like this:
 
 int main()
 {
-  auto opt_ctx = Pixils::init_sdl("My App");
-  if (!opt_ctx) { SDL_Quit(); return 1; }
+  auto sdl = Pixils::init_sdl("My App");
+  if (!sdl) return 1;
 
-  Pixils::RenderContext ctx = *opt_ctx;
+  Pixils::RenderContext& ctx = sdl->render_context();
 
   Roo::Runtime runtime = Pixils::init_roo_runtime(
     ctx, "main", {"main.roo"});
@@ -2227,7 +2227,6 @@ int main()
   Pixils::Client client(runtime, ctx);
   client.run();
 
-  SDL_Quit();
   return 0;
 }
 ```

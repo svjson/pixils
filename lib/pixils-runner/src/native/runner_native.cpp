@@ -3,7 +3,6 @@
 #include <pixils/init_sdl.h>
 #include <pixils/script.h>
 
-#include <SDL3/SDL.h>
 #include <algorithm>
 #include <filesystem>
 #include <memory>
@@ -211,58 +210,47 @@ namespace
 
   void run_target(const LaunchTarget& target)
   {
-    auto opt_ctx = Pixils::init_sdl("Pixils");
-    if (!opt_ctx.has_value())
+    auto sdl = Pixils::init_sdl("Pixils", Pixils::SDLLifetime::HOSTED);
+    if (!sdl)
     {
-      SDL_Quit();
       throw Roo::InvocationException("Failed to initialize SDL.");
     }
 
-    try
+    Pixils::RenderContext& ctx = sdl->render_context();
+
+    Roo::Package::LoadedNativePackages native_packages;
+    Roo::Runtime runtime =
+      Pixils::init_roo_runtime(ctx,
+                               "main",
+                               [&target](Pixils::RuntimeConfiguration* cfg)
+                               {
+                                 cfg->load_path = target.load_path;
+                                 cfg->namespace_roots = target.namespace_roots;
+                                 cfg->asset_base_path = target.asset_base_path.string();
+                               },
+                               {});
+
+    if (target.package_plan.has_value())
     {
-      Pixils::RenderContext ctx = std::move(*opt_ctx);
-
-      Roo::Package::LoadedNativePackages native_packages;
-      Roo::Runtime runtime =
-        Pixils::init_roo_runtime(ctx,
-                                 "main",
-                                 [&target](Pixils::RuntimeConfiguration* cfg)
-                                 {
-                                   cfg->load_path = target.load_path;
-                                   cfg->namespace_roots = target.namespace_roots;
-                                   cfg->asset_base_path = target.asset_base_path.string();
-                                 },
-                                 {});
-
-      if (target.package_plan.has_value())
-      {
-        Roo::Package::LoadPlan host_plan = pixils_host_load_plan(*target.package_plan);
-        native_packages = Roo::Package::load_native_libraries(runtime, host_plan);
-        register_application_worker_environment(runtime, target);
-        Roo::Package::load_autoloads(runtime, host_plan);
-      }
-
-      for (const auto& source_file : target.source_files)
-      {
-        runtime.read_file(source_file);
-      }
-
-      for (const auto& entry_point : target.entry_points)
-      {
-        runtime.eval("(ns pixils.package-entry (:require " + entry_point + "))",
-                     "<package-entry>");
-      }
-
-      Pixils::Client client(runtime, ctx);
-      client.run();
-    }
-    catch (...)
-    {
-      SDL_Quit();
-      throw;
+      Roo::Package::LoadPlan host_plan = pixils_host_load_plan(*target.package_plan);
+      native_packages = Roo::Package::load_native_libraries(runtime, host_plan);
+      register_application_worker_environment(runtime, target);
+      Roo::Package::load_autoloads(runtime, host_plan);
     }
 
-    SDL_Quit();
+    for (const auto& source_file : target.source_files)
+    {
+      runtime.read_file(source_file);
+    }
+
+    for (const auto& entry_point : target.entry_points)
+    {
+      runtime.eval("(ns pixils.package-entry (:require " + entry_point + "))",
+                   "<package-entry>");
+    }
+
+    Pixils::Client client(runtime, ctx);
+    client.run();
   }
 
   int load_native_package(const RooNativeHostV1* host);

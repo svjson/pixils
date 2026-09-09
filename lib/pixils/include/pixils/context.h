@@ -22,6 +22,7 @@ namespace Pixils
 {
   struct Display;
   class FontRegistry;
+  class SDLSession;
 
   namespace Asset
   {
@@ -34,20 +35,21 @@ namespace Pixils
   struct RenderContext
   {
     /*!
-     * @brief Pointer to the application window
+     * @brief Borrowed pointer to the application window.
      */
     SDL_Window* window = nullptr;
     /*!
-     * @brief Pointer to the SDL renderer that does all rendering
+     * @brief Borrowed pointer to the SDL renderer that does all rendering.
      */
     SDL_Renderer* renderer = nullptr;
+    /*! @brief Borrowed mixer owned by the surrounding SDLSession or host. */
     MIX_Mixer* audio_mixer = nullptr;
     std::vector<MIX_Track*> audio_tracks;
     MIX_Track* music_track = nullptr;
     MIX_Track* music_fadeout_track = nullptr;
 
     /*!
-     * @brief The buffer texture that all in-game drawing happens against
+     * @brief Owned buffer texture that all in-game drawing happens against.
      */
     SDL_Texture* buffer_texture = nullptr;
     /*!
@@ -159,6 +161,10 @@ namespace Pixils
     bool music_playing() const;
 
    private:
+    friend class SDLSession;
+
+    void release_resources();
+
     /*!
      * @brief Creates an initial in-memory buffer and sets the SDL_Renderer
      * to target it.

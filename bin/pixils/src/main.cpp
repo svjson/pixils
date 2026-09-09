@@ -4,7 +4,6 @@
 #include <pixils/init_sdl.h>
 #include <pixils/script.h>
 
-#include <SDL3/SDL.h>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -215,17 +214,16 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  auto opt_ctx = Pixils::init_sdl("Pixils");
-  if (!opt_ctx.has_value())
+  auto sdl = Pixils::init_sdl("Pixils");
+  if (!sdl)
   {
     std::cerr << "Failed to initialize SDL." << std::endl;
-    SDL_Quit();
     return 1;
   }
 
   try
   {
-    Pixils::RenderContext ctx = std::move(*opt_ctx);
+    Pixils::RenderContext& ctx = sdl->render_context();
 
     Roo::Package::LoadedNativePackages native_packages;
     Roo::Runtime runtime =
@@ -264,10 +262,8 @@ int main(int argc, char** argv)
   catch (std::exception& e)
   {
     std::cerr << "Error: " << e.what() << std::endl;
-    SDL_Quit();
     return 1;
   }
 
-  SDL_Quit();
   return 0;
 }

@@ -34,9 +34,14 @@ class RenderFixture : private SDLMockCleanup, public SessionFixture
   {
     Pixils::RenderContext ctx{};
     ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
-    ctx.buffer_texture = ctx.renderer->default_render_target;
+    ctx.buffer_texture = SDL_CreateTexture(ctx.renderer,
+                                           SDL_PIXELFORMAT_RGBA8888,
+                                           SDL_TEXTUREACCESS_TARGET,
+                                           320,
+                                           200);
     ctx.buffer_dim = {320, 200};
     ctx.enable_render_geometry = false;
+    ctx.set_render_target(ctx.buffer_texture);
     return ctx;
   }
 };

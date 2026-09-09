@@ -9,10 +9,10 @@
 #include <SDL3/SDL_blendmode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
-#include <SDL3/SDL_properties.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <algorithm>
 
@@ -25,8 +25,7 @@ namespace Pixils
       return std::clamp(volume, 0.0f, 1.0f);
     }
 
-    void destroy_audio_resources(MIX_Mixer*& mixer,
-                                 std::vector<MIX_Track*>& tracks,
+    void destroy_audio_resources(std::vector<MIX_Track*>& tracks,
                                  MIX_Track*& music_track,
                                  MIX_Track*& music_fadeout_track)
     {
@@ -39,14 +38,14 @@ namespace Pixils
       music_track = nullptr;
       if (music_fadeout_track) MIX_DestroyTrack(music_fadeout_track);
       music_fadeout_track = nullptr;
-      if (mixer) MIX_DestroyMixer(mixer);
-      mixer = nullptr;
     }
   } // namespace
 
   RenderContext::RenderContext() = default;
 
-  RenderContext::RenderContext(SDL_Window* window, SDL_Renderer* renderer, MIX_Mixer* audio_mixer)
+  RenderContext::RenderContext(SDL_Window* window,
+                               SDL_Renderer* renderer,
+                               MIX_Mixer* audio_mixer)
     : window(window)
     , renderer(renderer)
     , audio_mixer(audio_mixer)
@@ -55,7 +54,7 @@ namespace Pixils
 
   RenderContext::~RenderContext()
   {
-    destroy_audio_resources(audio_mixer, audio_tracks, music_track, music_fadeout_track);
+    release_resources();
   }
 
   RenderContext::RenderContext(RenderContext&& other) noexcept
@@ -78,17 +77,22 @@ namespace Pixils
     , pointer_registry(std::move(other.pointer_registry))
     , enable_render_geometry(other.enable_render_geometry)
   {
+    other.window = nullptr;
+    other.renderer = nullptr;
     other.audio_mixer = nullptr;
     other.audio_tracks.clear();
     other.music_track = nullptr;
     other.music_fadeout_track = nullptr;
+    other.buffer_texture = nullptr;
+    other.current_render_target = nullptr;
+    other.current_clip_rect = std::nullopt;
   }
 
   RenderContext& RenderContext::operator=(RenderContext&& other) noexcept
   {
     if (this == &other) return *this;
 
-    destroy_audio_resources(audio_mixer, audio_tracks, music_track, music_fadeout_track);
+    release_resources();
 
     window = other.window;
     renderer = other.renderer;
@@ -109,11 +113,31 @@ namespace Pixils
     pointer_registry = std::move(other.pointer_registry);
     enable_render_geometry = other.enable_render_geometry;
 
+    other.window = nullptr;
+    other.renderer = nullptr;
     other.audio_mixer = nullptr;
     other.audio_tracks.clear();
     other.music_track = nullptr;
     other.music_fadeout_track = nullptr;
+    other.buffer_texture = nullptr;
+    other.current_render_target = nullptr;
+    other.current_clip_rect = std::nullopt;
     return *this;
+  }
+
+  void RenderContext::release_resources()
+  {
+    if (renderer) SDL_SetRenderTarget(renderer, nullptr);
+    current_render_target = nullptr;
+    current_clip_rect = std::nullopt;
+
+    destroy_audio_resources(audio_tracks, music_track, music_fadeout_track);
+
+    font_registry.reset();
+    asset_registry.reset();
+
+    if (buffer_texture) SDL_DestroyTexture(buffer_texture);
+    buffer_texture = nullptr;
   }
 
   Dimension RenderContext::get_window_dimension()
@@ -178,11 +202,11 @@ namespace Pixils
     }
 
     return {static_cast<float>(application_rect.x) +
-              point.x * (static_cast<float>(application_rect.w) /
-                         static_cast<float>(buffer_dim.w)),
+              point.x *
+                (static_cast<float>(application_rect.w) / static_cast<float>(buffer_dim.w)),
             static_cast<float>(application_rect.y) +
-              point.y * (static_cast<float>(application_rect.h) /
-                         static_cast<float>(buffer_dim.h))};
+              point.y *
+                (static_cast<float>(application_rect.h) / static_cast<float>(buffer_dim.h))};
   }
 
   void RenderContext::warp_mouse_to_buffer_point(const Point& point)
@@ -225,7 +249,9 @@ namespace Pixils
     else if (target_buffer_dim != buffer_dim)
     {
       buffer_dim = target_buffer_dim;
+      set_render_target(nullptr);
       SDL_DestroyTexture(this->buffer_texture);
+      this->buffer_texture = nullptr;
       create_and_target_buffer();
     }
 
