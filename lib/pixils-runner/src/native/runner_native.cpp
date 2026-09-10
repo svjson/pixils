@@ -254,7 +254,6 @@ namespace
   }
 
   int load_native_package(const RooNativeHostV1* host);
-  void unload_native_package();
   const char* last_error();
 
   namespace Function
@@ -291,6 +290,7 @@ namespace
 
   int load_native_package(const RooNativeHostV1* host)
   {
+    package_last_error.clear();
     try
     {
       auto ns = std::make_unique<RunnerNativeNamespace>();
@@ -308,11 +308,6 @@ namespace
     }
   }
 
-  void unload_native_package()
-  {
-    package_last_error.clear();
-  }
-
   const char* last_error()
   {
     return package_last_error.c_str();
@@ -328,7 +323,6 @@ extern "C" ROO_NATIVE_EXPORT const RooNativePackageV1* roo_native_package_v1()
     "0.1.0",
     ROO_NATIVE_CXX_ABI,
     load_native_package,
-    unload_native_package,
     last_error,
   };
   return &package;
