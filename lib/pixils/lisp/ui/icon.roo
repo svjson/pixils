@@ -16,12 +16,23 @@
 (defun icon-hidden? [state]
   (nil? (icon-item state)))
 
+(defun position-style-matches? [view pos]
+  (let [style (:style view)]
+    (and (= (:position style) :absolute)
+         (= (:left style) (:x pos))
+         (= (:top style) (:y pos)))))
+
+(defun hidden-style-matches? [view hidden?]
+  (= (-> view :style :visibility)
+     (if hidden? :none :visible)))
+
 (defcomponent ui/icon
   {:focusable true
    :update (fn [state ctx]
-             (do
-               (ui/style! (:view ctx)
-                          {:hidden (icon-hidden? state)})
+             (let [view (:view ctx)
+                   hidden? (icon-hidden? state)]
+               (unless (hidden-style-matches? view hidden?)
+                 (ui/style! view {:hidden hidden?}))
                state))
    :on-mouse-down (fn [state event ctx]
                     (do
@@ -40,13 +51,15 @@
   {:style {:position :absolute
            :hit-test false}
    :update (fn [state ctx]
-             (let [pos (icon-position state)]
-               (do
-                 (when pos
-                   (ui/style! (:view ctx)
-                              {:position :absolute
-                               :left (:x pos)
-                               :top (:y pos)}))
-                 (ui/style! (:view ctx)
-                            {:hidden (icon-hidden? state)})
-                 state)))})
+             (let [view (:view ctx)
+                   pos (icon-position state)
+                   hidden? (icon-hidden? state)]
+               (when (and pos
+                          (not (position-style-matches? view pos)))
+                 (ui/style! view
+                            {:position :absolute
+                             :left (:x pos)
+                             :top (:y pos)}))
+               (unless (hidden-style-matches? view hidden?)
+                 (ui/style! view {:hidden hidden?}))
+               state))})

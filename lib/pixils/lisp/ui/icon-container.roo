@@ -206,6 +206,20 @@
     :default
     nil))
 
+(defun grid-child-style-matches? [child pos grid]
+  (let [style (:style child)]
+    (and (= (:position style) :absolute)
+         (= (:left style) (:x pos))
+         (= (:top style) (:y pos))
+         (= (:width style) (:cell-width grid))
+         (= (:height style) (:cell-height grid))
+         (= (:clip style) true)
+         (= (-> style :layout :align-items) :center)
+         (= (:visibility style) :visible))))
+
+(defun hidden-grid-child-style-matches? [child]
+  (= (-> child :style :visibility) :none))
+
 (defun apply-grid-layout! [state ctx]
   (when (grid-mode? state)
     (let [children (ui/children ctx)
@@ -214,16 +228,18 @@
       (for-indexed [index child children]
         (if (< index count)
           (let [pos (grid-cell-position state index ctx)]
-            (ui/style! child
-                       {:position :absolute
-                        :left (:x pos)
-                        :top (:y pos)
-                        :width (:cell-width grid)
-                        :height (:cell-height grid)
-                        :clip true
-                        :layout {:align-items :center}
-                        :hidden false}))
-          (ui/style! child {:hidden true}))))))
+            (unless (grid-child-style-matches? child pos grid)
+              (ui/style! child
+                         {:position :absolute
+                          :left (:x pos)
+                          :top (:y pos)
+                          :width (:cell-width grid)
+                          :height (:cell-height grid)
+                          :clip true
+                          :layout {:align-items :center}
+                          :hidden false})))
+          (unless (hidden-grid-child-style-matches? child)
+            (ui/style! child {:hidden true})))))))
 
 (defun icon-grid-state [state grid snap-to-grid? reorderable? items-key]
   (merge (or state {})

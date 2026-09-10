@@ -32,15 +32,24 @@
         next-state (assoc state
                           :label (desktop-icon-label state)
                           :image (desktop-icon-image state)
-                          :selected (desktop-icon-selected? state))]
-    (when pos
-      (ui/style! (:view ctx)
+                          :selected (desktop-icon-selected? state))
+        view (:view ctx)
+        hidden? (icon/icon-hidden? state)]
+    (when (and pos
+               (not (icon/position-style-matches? view pos)))
+      (ui/style! view
                  {:position :absolute
                   :left (:x pos)
                   :top (:y pos)}))
-    (ui/style! (:view ctx)
-               {:hidden (icon/icon-hidden? state)})
+    (unless (icon/hidden-style-matches? view hidden?)
+      (ui/style! view {:hidden hidden?}))
     next-state))
+
+(defun desktop-icon-background-matches? [view image]
+  (let [background (-> view :style :background)]
+    (and (= (:image background) image)
+         (= (:fit background) :contain)
+         (= (:align background) {:x :center :y :center}))))
 
 (defcomponent ui/desktop-icon-image
   {:class :ui/desktop-icon-image
@@ -49,18 +58,26 @@
            :background {:fit :contain
                         :align :center}}
    :update (fn [state ctx]
-             (if (keyword? (:image state))
-               (ui/style! (:view ctx)
-                          {:background {:image (:image state)
-                                        :fit :contain
-                                        :align :center}
-                           :hidden false})
-               (ui/style! (:view ctx)
-                          {:background nil
-                           :hidden true}))
-             (ui/style! (:view ctx)
-                        {:opacity (if (:dragging? state) 0.4 1.0)})
-             state)})
+             (let [view (:view ctx)
+                   image (:image state)
+                   image? (keyword? image)
+                   hidden? (not image?)
+                   opacity (if (:dragging? state) 0.4 1.0)]
+               (unless (and (icon/hidden-style-matches? view hidden?)
+                            (or (not image?)
+                                (desktop-icon-background-matches? view image)))
+                 (if image?
+                   (ui/style! view
+                              {:background {:image image
+                                            :fit :contain
+                                            :align :center}
+                               :hidden false})
+                   (ui/style! view
+                              {:background nil
+                               :hidden true})))
+               (unless (= (-> view :style :opacity) opacity)
+                 (ui/style! view {:opacity opacity}))
+               state))})
 
 (defcomponent ui/desktop-icon-label
   {:class :ui/desktop-icon-label
