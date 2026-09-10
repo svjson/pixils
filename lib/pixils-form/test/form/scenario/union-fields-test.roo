@@ -82,11 +82,11 @@
         duration-view (nth union-children 2)]
     (is (= {:control-mode 'pixils/form-object-control
             :kind-field {:field-path [:field/effect :kind] :local-field-path [:kind]
-                         :visibility :visible}
+                         :visibility nil}
             :kind-control {:mode 'pixils/form-select-control
                            :field-path [:field/effect :kind] :local-field-path [:kind]}
             :distance-field {:field-path [:field/effect :distance]
-                             :local-field-path [:distance] :visibility :visible}
+                             :local-field-path [:distance] :visibility nil}
             :distance-control-mode 'ui/number-input
             :duration-field nil}
            {:control-mode (:mode union-control)

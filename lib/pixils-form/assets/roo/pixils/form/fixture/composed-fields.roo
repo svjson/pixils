@@ -38,5 +38,5 @@
            'pixils-form/base]
    :children
    [(make-nested-label-form
-     {:nested-field-label-style {:width 72
+     {:nested-field-label-style {:width 56
                                  :height 18}})]})
