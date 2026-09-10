@@ -1,9 +1,9 @@
 #ifndef __PIXILS__SCRIPT_H_
 #define __PIXILS__SCRIPT_H_
 
+#include <memory>
 #include <roo/namespace_source.h>
 #include <roo/runtime.h>
-#include <memory>
 #include <vector>
 
 namespace Pixils
@@ -20,6 +20,8 @@ namespace Pixils
 
   std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(
     RenderContext& ctx);
+  std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(
+    std::unique_ptr<RenderContext> ctx);
 
   /**
    * @brief Create and initialize the Roo runtime, loading the provided
@@ -34,13 +36,13 @@ namespace Pixils
    * @return An initialized Roo runtime with the provided source files loaded.
    */
   Roo::Runtime init_roo_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      const std::vector<std::string>& source_files);
+                                const std::string& default_namespace,
+                                const std::vector<std::string>& source_files);
 
   Roo::Runtime init_roo_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      std::function<void(RuntimeConfiguration*)> init_fn,
-                                      const std::vector<std::string>& source_files);
+                                const std::string& default_namespace,
+                                std::function<void(RuntimeConfiguration*)> init_fn,
+                                const std::vector<std::string>& source_files);
 
   std::unique_ptr<Roo::Runtime> make_roo_runtime(
     RenderContext& ctx,

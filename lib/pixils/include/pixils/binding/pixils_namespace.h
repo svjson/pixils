@@ -10,6 +10,7 @@
 #include <pixils/program.h>
 #include <pixils/ui/theme.h>
 
+#include <memory>
 #include <roo/exec.h>
 #include <roo/host/object.h>
 #include <roo/namespace.h>
@@ -930,6 +931,10 @@ namespace Pixils::Script
   {
    public:
     PixilsNamespace(const RenderContext& render_context);
+    explicit PixilsNamespace(std::unique_ptr<RenderContext> render_context);
+
+   private:
+    explicit PixilsNamespace(Roo::sptr_val render_context);
   };
 
 } // namespace Pixils::Script

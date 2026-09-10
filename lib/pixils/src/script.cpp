@@ -66,28 +66,41 @@ namespace Pixils
       source += "))";
       runtime.eval(source, "<pixils-embedded-autoload>");
     }
+
+    std::vector<std::unique_ptr<Roo::Namespace>> make_native_namespaces(
+      std::unique_ptr<Roo::Namespace> pixils_namespace)
+    {
+      std::vector<std::unique_ptr<Roo::Namespace>> namespaces;
+      namespaces.push_back(std::move(pixils_namespace));
+      namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::ClipboardNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::ImageNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::KeyboardNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::PolygonNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::LineNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::StateTimerNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
+      namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
+      return namespaces;
+    }
   } // namespace
 
   std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(RenderContext& ctx)
   {
-    std::vector<std::unique_ptr<Roo::Namespace>> namespaces;
-    namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
-    namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::ClipboardNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::ImageNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::KeyboardNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::PolygonNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::LineNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::StateTimerNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
-    return namespaces;
+    return make_native_namespaces(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
+  }
+
+  std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(
+    std::unique_ptr<RenderContext> ctx)
+  {
+    return make_native_namespaces(
+      std::make_unique<Pixils::Script::PixilsNamespace>(std::move(ctx)));
   }
 
   Roo::Runtime init_roo_runtime(RenderContext& ctx,

@@ -1,3 +1,7 @@
+#include <pixils/binding/pixils_namespace.h>
+#include <pixils/context.h>
+#include <pixils/script.h>
+
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <roo-package/manifest.h>
@@ -23,6 +27,19 @@ namespace
                                            test_package_resolve_options());
   }
 } // namespace
+
+TEST(PixilsRooPackageTest, owned_native_namespaces_retain_the_package_render_context)
+{
+  auto namespaces =
+    Pixils::make_roo_native_namespaces(std::make_unique<Pixils::RenderContext>());
+  auto& render_context = namespaces.front()
+                           ->lookup("render-context")
+                           ->adapter<Pixils::Script::RenderContextAdapter>();
+
+  std::unique_ptr<Pixils::RenderContext> owned_context;
+  EXPECT_NO_THROW(owned_context = render_context.release_pointer());
+  EXPECT_NE(owned_context, nullptr);
+}
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)
 {
@@ -64,5 +81,5 @@ TEST(PixilsRooPackageTest, pixils_test_package_loads)
 
   runtime.eval("(ns pixils.test-package-test (:require pixils.test))");
 
-  EXPECT_EQ(runtime.eval("pixils.test/test-package-loaded?")->to_string(), "true");
+  EXPECT_EQ(runtime.eval("(nil? (resolve 'pixils.test/make-app))")->to_string(), "false");
 }

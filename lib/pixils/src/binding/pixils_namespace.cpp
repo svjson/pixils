@@ -1379,6 +1379,16 @@ namespace Pixils::Script
   NOBJ_PROP_GET_ADAPTER__FIELD(ResolutionAdapter, dimension, DimensionAdapter);
 
   PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
+    : PixilsNamespace(RenderContextAdapter::make_ref(render_context))
+  {
+  }
+
+  PixilsNamespace::PixilsNamespace(std::unique_ptr<RenderContext> render_context)
+    : PixilsNamespace(RenderContextAdapter::claim(std::move(render_context)))
+  {
+  }
+
+  PixilsNamespace::PixilsNamespace(Roo::sptr_val render_context)
     : Roo::Namespace(NS_PIXILS)
   {
     values.emplace("mode-stack", Roo::vector({}));
@@ -1400,7 +1410,7 @@ namespace Pixils::Script
     values.emplace("make-component", Function::MakeComponent::make());
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
     values.emplace("make-resolution", Function::MakeResolution::make());
-    values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
+    values.emplace("render-context", std::move(render_context));
     values.emplace("programs", Roo::map({}));
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
     values.emplace(FN__POP_TO_BANG, Function::PopToBangFunction::make());

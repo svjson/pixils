@@ -3,33 +3,31 @@
 #include <pixils/font_registry.h>
 #include <pixils/script.h>
 
-#include <roo-package/native_abi.h>
-
 #include <exception>
 #include <memory>
+#include <roo-package/native_abi.h>
 #include <string>
 
 namespace
 {
-  std::unique_ptr<Pixils::RenderContext> package_context;
   std::string package_last_error;
 
   int load_native_package(const RooNativeHostV1* host)
   {
+    package_last_error.clear();
     try
     {
-      package_context = std::make_unique<Pixils::RenderContext>();
+      auto package_context = std::make_unique<Pixils::RenderContext>();
       package_context->asset_registry =
         std::make_unique<Pixils::Asset::Registry>(*package_context);
       package_context->font_registry = std::make_unique<Pixils::FontRegistry>();
 
-      auto namespaces = Pixils::make_roo_native_namespaces(*package_context);
+      auto namespaces = Pixils::make_roo_native_namespaces(std::move(package_context));
       for (auto& ns : namespaces)
       {
         ns->set_origin(Roo::Namespace::Origin::native());
         if (host->register_namespace(host->user, ns.release()) != 0)
         {
-          package_context.reset();
           return 1;
         }
       }
@@ -38,15 +36,8 @@ namespace
     catch (const std::exception& e)
     {
       package_last_error = e.what();
-      package_context.reset();
       return 1;
     }
-  }
-
-  void unload_native_package()
-  {
-    package_context.reset();
-    package_last_error.clear();
   }
 
   const char* last_error()
@@ -55,8 +46,7 @@ namespace
   }
 } // namespace
 
-extern "C" ROO_NATIVE_EXPORT const RooNativePackageV1*
-roo_native_package_v1()
+extern "C" ROO_NATIVE_EXPORT const RooNativePackageV1* roo_native_package_v1()
 {
   static const RooNativePackageV1 package{
     ROO_NATIVE_ABI_VERSION,
@@ -65,7 +55,6 @@ roo_native_package_v1()
     "0.1.0",
     ROO_NATIVE_CXX_ABI,
     load_native_package,
-    unload_native_package,
     last_error,
   };
   return &package;
