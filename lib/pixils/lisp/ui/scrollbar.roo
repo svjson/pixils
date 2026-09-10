@@ -391,6 +391,9 @@
                                                [])
                             handle (head track-children)
                             handle-offset (-> geometry :handle :offset)
+                            style-keys (case (:axis geometry)
+                                         :x [:position :left :top :height]
+                                         :default [:position :left :top :width])
                             style (case (:axis geometry)
                                     :x {:position :absolute
                                         :left handle-offset
@@ -400,7 +403,10 @@
                                               :left 0
                                               :top handle-offset
                                               :width :fill})]
-                        (when handle
+                        (when (and handle
+                                   (not= style
+                                         (select-keys (:style handle)
+                                                      style-keys)))
                           (ui/style! handle style)))
                       ui-state)
    :init-ui update-scrollbar-ui-state
@@ -415,8 +421,8 @@
                       (cond
                         (< coord (-> geometry :start-button :size))
                         (let [value (scrollbar-step-value (-> ctx :view :ui-state)
-                                                           geometry
-                                                           -1)]
+                                                          geometry
+                                                          -1)]
                           (ui/set-ui-state! ctx
                                             (merge (-> ctx :view :ui-state)
                                                    {:active-part :start-button
@@ -427,8 +433,8 @@
 
                         (>= coord (-> geometry :end-button :pos))
                         (let [value (scrollbar-step-value (-> ctx :view :ui-state)
-                                                           geometry
-                                                           1)]
+                                                          geometry
+                                                          1)]
                           (ui/set-ui-state! ctx
                                             (merge (-> ctx :view :ui-state)
                                                    {:active-part :end-button
