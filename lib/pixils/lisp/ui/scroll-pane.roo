@@ -21,8 +21,12 @@
 (defun scroll-pane-sync-content-style [ui-state state ctx]
   (let [children (ui/children ctx)]
     (when (not-empty? children)
-      (ui/style! (head children)
-                 (scroll-pane-content-style ui-state)))
+      (let [content (head children)
+            style (scroll-pane-content-style ui-state)]
+        (unless (= style
+                   (select-keys (:style content)
+                                [:position :left :top :width :height]))
+          (ui/style! content style))))
     ui-state))
 
 
