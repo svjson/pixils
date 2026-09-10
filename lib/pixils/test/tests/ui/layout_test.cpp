@@ -9,6 +9,7 @@
 #include <pixils/ui/view_layout.h>
 
 #include <gtest/gtest.h>
+#include <string>
 
 using Pixils::Rect;
 using Pixils::Runtime::Mode;
@@ -138,6 +139,19 @@ static std::shared_ptr<View> make_shrink_height_ctx(int natural_height)
   child_style.height = natural_height;
   container->children.push_back(make_ctx(std::move(child_style)));
   return container;
+}
+
+static std::shared_ptr<View> make_width_responsive_height_ctx(Roo::Runtime& runtime,
+                                                              int threshold = 200)
+{
+  Style style;
+  style.width = Style::Size(Style::Size::Mode::FILL);
+  style.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto content = make_ctx(std::move(style));
+  content->owned_mode->content_size =
+    runtime.eval("(fn [_state ctx] {:w 0 :h (if (< (:available-width ctx) " +
+                 std::to_string(threshold) + ") 40 10)})");
+  return content;
 }
 
 TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
@@ -451,6 +465,211 @@ TEST_F(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
   EXPECT_EQ(rects[0].w, 80);
   EXPECT_EQ(rects[1].x, 80);
   EXPECT_EQ(rects[1].w, 240);
+}
+
+TEST_F(LayoutTest, layout_row_measures_fill_child_height_at_allocated_width)
+{
+  Style root_style;
+  root_style.layout = Style::Layout{};
+  root_style.layout->direction = LayoutDirection::ROW;
+  auto root = make_ctx(std::move(root_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 20;
+  root->children.push_back(make_ctx(std::move(fixed_style)));
+
+  Style fill_style;
+  fill_style.width = Style::Size(Style::Size::Mode::FILL);
+  fill_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto fill = make_ctx(std::move(fill_style));
+  auto responsive = make_width_responsive_height_ctx(runtime);
+  fill->children.push_back(responsive);
+  root->children.push_back(fill);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(fill->bounds.w, 120);
+  EXPECT_EQ(fill->bounds.h, 40);
+  EXPECT_EQ(responsive->bounds.h, 40);
+}
+
+TEST_F(LayoutTest, layout_row_reuses_parent_and_allocated_width_measurements)
+{
+  runtime.eval("(def layout-content-size-calls 0)");
+
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(200));
+
+  Style responsive_style;
+  responsive_style.width = Style::Size(Style::Size::Mode::FILL);
+  responsive_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto responsive = make_ctx(std::move(responsive_style));
+  responsive->owned_mode->content_size = runtime.eval(R"(
+    (fn [_state ctx]
+      (set! [layout-content-size-calls] (inc layout-content-size-calls))
+      {:w 0
+       :h (if (< (:available-width ctx) 200) 40 10)})
+  )");
+  children.push_back(responsive);
+
+  Rect parent = {0, 0, 320, 200};
+  auto first = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(first.size(), 2u);
+  EXPECT_EQ(first[1].w, 120);
+  EXPECT_EQ(first[1].h, 40);
+  EXPECT_EQ(runtime.eval("layout-content-size-calls")->num().get_int(), 2);
+
+  auto second = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(second.size(), 2u);
+  EXPECT_EQ(second[1].w, 120);
+  EXPECT_EQ(second[1].h, 40);
+  EXPECT_EQ(runtime.eval("layout-content-size-calls")->num().get_int(), 2);
+}
+
+TEST_F(LayoutTest, layout_shrink_height_row_uses_height_at_allocated_width)
+{
+  auto root = make_ctx();
+
+  Style row_style;
+  row_style.width = Style::Size(Style::Size::Mode::FILL);
+  row_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  row_style.layout = Style::Layout{};
+  row_style.layout->direction = LayoutDirection::ROW;
+  auto row = make_ctx(std::move(row_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 20;
+  row->children.push_back(make_ctx(std::move(fixed_style)));
+  row->children.push_back(make_width_responsive_height_ctx(runtime));
+  root->children.push_back(row);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(row->children[1]->bounds.w, 120);
+  EXPECT_EQ(row->children[1]->bounds.h, 40);
+  EXPECT_EQ(row->bounds.h, 40);
+}
+
+TEST_F(LayoutTest, layout_row_width_remeasurement_preserves_available_height)
+{
+  Style root_style;
+  root_style.layout = Style::Layout{};
+  root_style.layout->direction = LayoutDirection::ROW;
+  auto root = make_ctx(std::move(root_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 20;
+  root->children.push_back(make_ctx(std::move(fixed_style)));
+
+  Style responsive_style;
+  responsive_style.width = Style::Size(Style::Size::Mode::FILL);
+  responsive_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto responsive = make_ctx(std::move(responsive_style));
+  responsive->owned_mode->content_size = runtime.eval(R"(
+    (fn [_state ctx]
+      {:w 0
+       :h (if (and (< (:available-width ctx) 200)
+                   (= (:available-height ctx) 200))
+            40
+            10)})
+  )");
+  root->children.push_back(responsive);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(responsive->bounds.w, 120);
+  EXPECT_EQ(responsive->bounds.h, 40);
+}
+
+TEST_F(LayoutTest, layout_shrink_height_row_uses_scaled_allocated_height)
+{
+  auto root = make_ctx();
+
+  Style row_style;
+  row_style.width = Style::Size(Style::Size::Mode::FILL);
+  row_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  row_style.layout = Style::Layout{};
+  row_style.layout->direction = LayoutDirection::ROW;
+  auto row = make_ctx(std::move(row_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 20;
+  row->children.push_back(make_ctx(std::move(fixed_style)));
+
+  auto responsive = make_width_responsive_height_ctx(runtime);
+  responsive->owned_mode->style->scale = 2;
+  row->children.push_back(responsive);
+  root->children.push_back(row);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(responsive->bounds.h, 40);
+  EXPECT_EQ(row->bounds.h, 80);
+}
+
+TEST_F(LayoutTest, layout_shrink_height_row_replaces_provisional_height)
+{
+  auto root = make_ctx();
+
+  Style row_style;
+  row_style.width = Style::Size(Style::Size::Mode::FILL);
+  row_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  row_style.layout = Style::Layout{};
+  row_style.layout->direction = LayoutDirection::ROW;
+  auto row = make_ctx(std::move(row_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 5;
+  row->children.push_back(make_ctx(std::move(fixed_style)));
+
+  Style responsive_style;
+  responsive_style.width = Style::Size(Style::Size::Mode::FILL);
+  responsive_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto responsive = make_ctx(std::move(responsive_style));
+  responsive->owned_mode->content_size = runtime.eval(R"(
+    (fn [_state ctx]
+      {:w 0
+       :h (if (> (:available-width ctx) 200)
+            40
+            10)})
+  )");
+  row->children.push_back(responsive);
+  root->children.push_back(row);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(responsive->bounds.w, 120);
+  EXPECT_EQ(responsive->bounds.h, 10);
+  EXPECT_EQ(row->bounds.h, 10);
+}
+
+TEST_F(LayoutTest, layout_row_width_measurement_accounts_for_child_margin_once)
+{
+  Style root_style;
+  root_style.layout = Style::Layout{};
+  root_style.layout->direction = LayoutDirection::ROW;
+  auto root = make_ctx(std::move(root_style));
+
+  Style fixed_style;
+  fixed_style.width = 200;
+  fixed_style.height = 5;
+  root->children.push_back(make_ctx(std::move(fixed_style)));
+
+  auto responsive = make_width_responsive_height_ctx(runtime, 90);
+  responsive->owned_mode->style->margin = Style::Insets(10, 0);
+  root->children.push_back(responsive);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(responsive->bounds.w, 100);
+  EXPECT_EQ(responsive->bounds.h, 10);
 }
 
 TEST_F(LayoutTest, layout_row_child_honors_requested_height)
@@ -879,6 +1098,43 @@ TEST_F(LayoutTest, layout_row_wrap_distributes_fill_children_per_line)
   EXPECT_EQ(rects[2].x, 0);
   EXPECT_EQ(rects[2].y, 18);
   EXPECT_EQ(rects[2].w, 200);
+}
+
+TEST_F(LayoutTest, shrink_height_wrapped_row_uses_allocated_line_heights)
+{
+  auto root = make_ctx();
+
+  Style row_style;
+  row_style.width = Style::Size(Style::Size::Mode::FILL);
+  row_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  row_style.layout = Style::Layout{};
+  row_style.layout->direction = LayoutDirection::ROW;
+  row_style.layout->wrap = Style::Layout::Wrap::LINE;
+  row_style.layout->line_gap = 5;
+  auto row = make_ctx(std::move(row_style));
+
+  Style first_style;
+  first_style.width = 100;
+  first_style.height = 10;
+  row->children.push_back(make_ctx(std::move(first_style)));
+
+  auto responsive = make_width_responsive_height_ctx(runtime);
+  responsive->owned_mode->style->min_width = 80;
+  row->children.push_back(responsive);
+
+  Style second_line_style;
+  second_line_style.width = 200;
+  second_line_style.height = 30;
+  auto second_line = make_ctx(std::move(second_line_style));
+  row->children.push_back(second_line);
+  root->children.push_back(row);
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 200, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(responsive->bounds.w, 100);
+  EXPECT_EQ(responsive->bounds.h, 40);
+  EXPECT_EQ(second_line->bounds.y, 45);
+  EXPECT_EQ(row->bounds.h, 75);
 }
 
 TEST_F(LayoutTest, shrink_height_wrapped_row_includes_line_gaps)

@@ -9,6 +9,7 @@
 #include <pixils/ui/style_view.h>
 #include <pixils/ui/theme.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -91,7 +92,12 @@ namespace Pixils::Runtime
       std::size_t subtree_signature = 0;
       std::optional<Dimension> value = std::nullopt;
     };
-    NaturalContentSizeCache natural_content_size_cache;
+    /*
+     * Constraint-aware row layout normally measures at the parent width and the
+     * allocated width. Retain both results across layout passes.
+     */
+    std::array<NaturalContentSizeCache, 2> natural_content_size_caches;
+    std::size_t next_natural_content_size_cache = 0;
     struct LayoutCache
     {
       bool valid = false;

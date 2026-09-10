@@ -165,12 +165,15 @@ namespace Pixils::UI
                                        const std::optional<Dimension>& value)
     {
       PIXILS_BENCHMARK_COUNT(layout_natural_size_persistent_cache_stores);
-      view.natural_content_size_cache.valid = true;
-      view.natural_content_size_cache.available_width = available_width;
-      view.natural_content_size_cache.available_height = available_height;
-      view.natural_content_size_cache.style_generation = style_generation;
-      view.natural_content_size_cache.subtree_signature = subtree_signature;
-      view.natural_content_size_cache.value = value;
+      auto& cache = view.natural_content_size_caches[view.next_natural_content_size_cache];
+      cache.valid = true;
+      cache.available_width = available_width;
+      cache.available_height = available_height;
+      cache.style_generation = style_generation;
+      cache.subtree_signature = subtree_signature;
+      cache.value = value;
+      view.next_natural_content_size_cache =
+        (view.next_natural_content_size_cache + 1) % view.natural_content_size_caches.size();
     }
 
     bool rect_equals(const Rect& a, const Rect& b)
@@ -453,6 +456,36 @@ namespace Pixils::UI
              view->definition->content_size->type != Roo::Value::Type::NIL;
     }
 
+    bool natural_height_depends_on_width(const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      bool depends = has_content_size_hook(view);
+      if (!depends && view->effective_style.layout &&
+          view->effective_style.layout->direction == LayoutDirection::ROW &&
+          wraps_lines(*view->effective_style.layout))
+      {
+        depends = true;
+      }
+
+      if (!depends)
+      {
+        for (const auto& child : view->children)
+        {
+          const Style& child_style = child->effective_style;
+          if (removes_layout(child_style)) continue;
+          if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
+            continue;
+          if (child_style.width && child_style.width->is_fixed()) continue;
+          if (natural_height_depends_on_width(child))
+          {
+            depends = true;
+            break;
+          }
+        }
+      }
+
+      return depends;
+    }
+
     bool has_after_layout_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
     {
       return view && view->definition && view->definition->after_layout &&
@@ -590,8 +623,7 @@ namespace Pixils::UI
       if (!view) return false;
 
       bool changed = Runtime::pull_bound_view_state(*view, runtime);
-      changed =
-        invoke_after_layout_hook(view, runtime, hook_ctx, parent_content) || changed;
+      changed = invoke_after_layout_hook(view, runtime, hook_ctx, parent_content) || changed;
       changed =
         invoke_after_layout_ui_hook(view, runtime, hook_ctx, parent_content) || changed;
       Rect content = view->effective_style.content_rect(view->bounds);
@@ -628,6 +660,18 @@ namespace Pixils::UI
     {
       return std::max(fixed_outer_size(style, axis),
                       natural_outer_size(style, natural_content_size, axis));
+    }
+
+    int intrinsic_outer_size(const Style& style,
+                             const std::optional<Dimension>& natural_content_size,
+                             Axis axis)
+    {
+      int outer_size = natural_outer_size(style, natural_content_size, axis);
+      if (axis_size(style, axis) && axis_size(style, axis)->is_fixed())
+      {
+        outer_size = fixed_preferred_outer_size(style, natural_content_size, axis);
+      }
+      return apply_outer_size_constraints(style, axis, outer_size);
     }
 
     bool fills_axis(const Style& style, Axis axis, bool root_context)
@@ -934,19 +978,33 @@ namespace Pixils::UI
       const std::optional<int>& available_height,
       const std::vector<ThemeMatchContext>& selector_path);
 
-    std::vector<Rect> layout_children_with_selector_path(
+    enum class ChildLayoutPurpose
+    {
+      ARRANGE,
+      MEASURE_ROW,
+    };
+
+    struct ChildLayoutResult
+    {
+      std::vector<Rect> rects;
+      Dimension content_size{0, 0};
+    };
+
+    ChildLayoutResult calculate_child_layout(
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
       LayoutPass& pass,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
-      const std::vector<ThemeMatchContext>& parent_selector_path);
+      const std::vector<ThemeMatchContext>& parent_selector_path,
+      ChildLayoutPurpose purpose = ChildLayoutPurpose::ARRANGE,
+      const std::optional<int>& measurement_available_height = std::nullopt);
 
     /**
      * Computes the natural content size of a view, resolving its effective theme and
-     * style on the first visit. Results are cached in LayoutPass for the duration of
-     * the layout pass, so each view is resolved and sized at most once per frame.
+     * style on the first visit. Results are cached by view and available constraints
+     * for the duration of the layout pass, so repeated requests reuse the same result.
      */
     std::optional<Dimension> calculate_natural_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
@@ -989,16 +1047,18 @@ namespace Pixils::UI
       {
         style_generation = view->style_view.generation();
         subtree_signature = natural_size_dependency_signature(view, pass.font_generation);
-        if (natural_size_cache_matches(view->natural_content_size_cache,
-                                       parent_available_width,
-                                       parent_available_height,
-                                       style_generation,
-                                       subtree_signature))
+        for (const auto& cache : view->natural_content_size_caches)
         {
+          if (!natural_size_cache_matches(cache,
+                                          parent_available_width,
+                                          parent_available_height,
+                                          style_generation,
+                                          subtree_signature))
+            continue;
           PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
           PIXILS_BENCHMARK_COUNT(layout_natural_size_persistent_cache_hits);
-          pass.natural_size_cache.emplace(cache_key, view->natural_content_size_cache.value);
-          return view->natural_content_size_cache.value;
+          pass.natural_size_cache.emplace(cache_key, cache.value);
+          return cache.value;
         }
       }
 
@@ -1077,6 +1137,20 @@ namespace Pixils::UI
                                     : LayoutDirection::COLUMN;
       bool row = direction == LayoutDirection::ROW;
       bool wrap = row && style.layout && wraps_lines(*style.layout) && available_width;
+
+      if (row && available_width)
+      {
+        auto measured = calculate_child_layout(view->children,
+                                               {0, 0, *available_width, 0},
+                                               pass,
+                                               *style.layout,
+                                               &style,
+                                               &view->effective_theme,
+                                               selector_path,
+                                               ChildLayoutPurpose::MEASURE_ROW,
+                                               available_height);
+        return measured.content_size;
+      }
 
       int total_main = 0;
       int max_cross = 0;
@@ -1294,14 +1368,13 @@ namespace Pixils::UI
       }
 
       Rect content = style.content_rect(view->bounds);
-      auto child_rects =
-        layout_children_with_selector_path(view->children,
-                                           content,
-                                           pass,
-                                           style.layout.value_or(Style::Layout{}),
-                                           &style,
-                                           &view->effective_theme,
-                                           selector_path);
+      auto child_layout = calculate_child_layout(view->children,
+                                                 content,
+                                                 pass,
+                                                 style.layout.value_or(Style::Layout{}),
+                                                 &style,
+                                                 &view->effective_theme,
+                                                 selector_path);
 
       for (size_t i = 0; i < view->children.size(); i++)
       {
@@ -1336,7 +1409,7 @@ namespace Pixils::UI
         }
         else
         {
-          child_bounds = child_rects[i];
+          child_bounds = child_layout.rects[i];
         }
 
         layout_view_tree_impl(child_ptr,
@@ -1350,14 +1423,16 @@ namespace Pixils::UI
       remember_layout(*view, bounds, style_generation, pass.font_generation);
     }
 
-    std::vector<Rect> layout_children_with_selector_path(
+    ChildLayoutResult calculate_child_layout(
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
       LayoutPass& pass,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
-      const std::vector<ThemeMatchContext>& parent_selector_path)
+      const std::vector<ThemeMatchContext>& parent_selector_path,
+      ChildLayoutPurpose purpose,
+      const std::optional<int>& measurement_available_height)
     {
       PIXILS_BENCHMARK_COUNT(layout_children_calls);
       PIXILS_BENCHMARK_ADD(layout_children_items,
@@ -1365,6 +1440,9 @@ namespace Pixils::UI
 
       LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
       bool row = direction == LayoutDirection::ROW;
+      const bool measure_row = purpose == ChildLayoutPurpose::MEASURE_ROW;
+      const std::optional<int> child_available_height =
+        measure_row ? measurement_available_height : std::optional<int>(parent.h);
       std::vector<std::optional<Dimension>> natural_content_sizes;
       std::vector<int> logical_outer_sizes(children.size(), 0);
       std::vector<int> outer_sizes(children.size(), 0);
@@ -1373,14 +1451,43 @@ namespace Pixils::UI
       for (const auto& child : children)
       {
         auto child_selector_path = append_theme_match_context(parent_selector_path, child);
-        natural_content_sizes.push_back(calculate_natural_content_size(child,
-                                                                       pass,
-                                                                       parent.w,
-                                                                       parent.h,
-                                                                       inherited_style,
-                                                                       inherited_theme,
-                                                                       child_selector_path));
+        natural_content_sizes.push_back(
+          calculate_natural_content_size(child,
+                                         pass,
+                                         parent.w,
+                                         child_available_height,
+                                         inherited_style,
+                                         inherited_theme,
+                                         child_selector_path));
       }
+
+      auto remeasure_height_at_allocated_width = [&](size_t index, int allocated_outer_width)
+      {
+        const auto& child = children[index];
+        const Style& cs = child->effective_style;
+        if (cs.width && cs.width->is_fixed()) return;
+        if (!measure_row && fills_axis(cs, Axis::VERTICAL, false)) return;
+        if (!natural_height_depends_on_width(child)) return;
+
+        const int allocated_width =
+          logical_outer_size_from_scaled(cs, Axis::HORIZONTAL, allocated_outer_width);
+        if (allocated_width == parent.w) return;
+
+        auto child_selector_path = append_theme_match_context(parent_selector_path, child);
+        auto allocated_size = calculate_natural_content_size(child,
+                                                             pass,
+                                                             allocated_width,
+                                                             child_available_height,
+                                                             inherited_style,
+                                                             inherited_theme,
+                                                             child_selector_path);
+        if (allocated_size && natural_content_sizes[index])
+          natural_content_sizes[index]->h = allocated_size->h;
+        else if (allocated_size)
+          natural_content_sizes[index] = allocated_size;
+        else if (natural_content_sizes[index])
+          natural_content_sizes[index]->h = 0;
+      };
 
       if (row && wraps_lines(layout))
       {
@@ -1388,7 +1495,6 @@ namespace Pixils::UI
         {
           size_t index = 0;
           int basis_outer = 0;
-          int cross_outer = 0;
           bool fill = false;
         };
 
@@ -1396,7 +1502,6 @@ namespace Pixils::UI
         {
           std::vector<WrappedItem> items;
           int basis_total = 0;
-          int cross_outer = 0;
         };
 
         const int available = parent.w;
@@ -1427,16 +1532,6 @@ namespace Pixils::UI
           logical_main = apply_outer_size_constraints(cs, Axis::HORIZONTAL, logical_main);
 
           int basis_outer = scaled_outer_size(cs, Axis::HORIZONTAL, logical_main);
-          int cross_outer_size =
-            resolve_outer_size(cs,
-                               natural,
-                               Axis::VERTICAL,
-                               false,
-                               logical_outer_size_from_scaled(cs, Axis::VERTICAL, parent.h));
-          cross_outer_size =
-            apply_outer_size_constraints(cs, Axis::VERTICAL, cross_outer_size);
-          int cross_outer = scaled_outer_size(cs, Axis::VERTICAL, cross_outer_size);
-
           int next_total = current_line.basis_total +
                            (current_line.items.empty() ? 0 : fixed_gap_size) + basis_outer;
           if (!current_line.items.empty() && next_total > available)
@@ -1448,21 +1543,21 @@ namespace Pixils::UI
           current_line.items.push_back(
             WrappedItem{.index = i,
                         .basis_outer = basis_outer,
-                        .cross_outer = cross_outer,
                         .fill = fills_axis(cs, Axis::HORIZONTAL, false)});
           current_line.basis_total = next_total;
-          current_line.cross_outer = std::max(current_line.cross_outer, cross_outer);
         }
         finish_line();
 
-        std::vector<Rect> rects(children.size(), {0, 0, 0, 0});
+        ChildLayoutResult result;
+        result.rects.assign(children.size(), {0, 0, 0, 0});
         const Style::Layout::AlignItems align_items =
           layout.align_items.value_or(Style::Layout::AlignItems::START);
         const int line_gap = line_gap_size(layout);
         int line_y = parent.y;
 
-        for (const auto& line : lines)
+        for (size_t line_index = 0; line_index < lines.size(); line_index++)
         {
+          const auto& line = lines[line_index];
           int flow_count = static_cast<int>(line.items.size());
           int fixed_gap_total = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
           std::vector<size_t> fill_indices;
@@ -1497,6 +1592,36 @@ namespace Pixils::UI
             total_flow_size += size;
           }
 
+          std::vector<int> allocated_cross_outer;
+          allocated_cross_outer.reserve(line.items.size());
+          int line_cross_outer = 0;
+          for (size_t item_index = 0; item_index < line.items.size(); item_index++)
+          {
+            const auto& item = line.items[item_index];
+            const Style& cs = children[item.index]->effective_style;
+            remeasure_height_at_allocated_width(item.index, allocated_outer[item_index]);
+            int cross_outer_size =
+              measure_row
+                ? intrinsic_outer_size(cs, natural_content_sizes[item.index], Axis::VERTICAL)
+                : resolve_outer_size(
+                    cs,
+                    natural_content_sizes[item.index],
+                    Axis::VERTICAL,
+                    false,
+                    logical_outer_size_from_scaled(cs, Axis::VERTICAL, parent.h));
+            int cross_outer = scaled_outer_size(cs, Axis::VERTICAL, cross_outer_size);
+            allocated_cross_outer.push_back(cross_outer);
+            line_cross_outer = std::max(line_cross_outer, cross_outer);
+          }
+
+          if (measure_row)
+          {
+            result.content_size.w = std::max(result.content_size.w, line.basis_total);
+            if (line_index > 0) result.content_size.h += line_gap;
+            result.content_size.h += line_cross_outer;
+            continue;
+          }
+
           int gap_size = 0;
           if (layout.gap && layout.gap->mode && flow_count > 1)
           {
@@ -1521,25 +1646,26 @@ namespace Pixils::UI
             const Style& cs = children[item.index]->effective_style;
             const Style::Insets margin = cs.margin.value_or(Style::Insets{});
             int outer_size = allocated_outer[item_index];
+            int cross_outer = allocated_cross_outer[item_index];
             int logical_outer_size =
               logical_outer_size_from_scaled(cs, Axis::HORIZONTAL, outer_size);
             int logical_cross_outer_size =
-              logical_outer_size_from_scaled(cs, Axis::VERTICAL, item.cross_outer);
+              logical_outer_size_from_scaled(cs, Axis::VERTICAL, cross_outer);
 
             int cross_offset = 0;
             switch (align_items)
             {
             case Style::Layout::AlignItems::CENTER:
-              cross_offset = std::max(0, (line.cross_outer - item.cross_outer) / 2);
+              cross_offset = std::max(0, (line_cross_outer - cross_outer) / 2);
               break;
             case Style::Layout::AlignItems::END:
-              cross_offset = std::max(0, line.cross_outer - item.cross_outer);
+              cross_offset = std::max(0, line_cross_outer - cross_outer);
               break;
             default:
               break;
             }
 
-            rects[item.index] = {
+            result.rects[item.index] = {
               pos + margin.l,
               line_y + cross_offset + margin.t,
               std::max(0, logical_outer_size - margin.l - margin.r),
@@ -1549,13 +1675,14 @@ namespace Pixils::UI
             if (item_index + 1 < line.items.size()) pos += gap_size;
           }
 
-          line_y += line.cross_outer + line_gap;
+          line_y += line_cross_outer + line_gap;
         }
 
-        return rects;
+        return result;
       }
 
       int total_fixed = 0;
+      int natural_main = 0;
       std::vector<size_t> fill_indices;
       int flow_count = 0;
       std::vector<size_t> shrink_indices;
@@ -1568,6 +1695,13 @@ namespace Pixils::UI
         flow_count++;
 
         Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
+        if (measure_row)
+        {
+          natural_main +=
+            scaled_outer_size(cs,
+                              Axis::HORIZONTAL,
+                              intrinsic_outer_size(cs, natural, Axis::HORIZONTAL));
+        }
         if (fills_axis(cs, main_axis, false))
         {
           fill_indices.push_back(i);
@@ -1689,6 +1823,25 @@ namespace Pixils::UI
         }
       }
 
+      ChildLayoutResult result;
+      if (measure_row)
+      {
+        result.content_size.w = natural_main + total_fixed_gap;
+        for (size_t i = 0; i < children.size(); i++)
+        {
+          const Style& cs = children[i]->effective_style;
+          if (removes_layout(cs)) continue;
+          if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+          remeasure_height_at_allocated_width(i, outer_sizes[i]);
+          int cross_outer_size =
+            intrinsic_outer_size(cs, natural_content_sizes[i], Axis::VERTICAL);
+          result.content_size.h =
+            std::max(result.content_size.h,
+                     scaled_outer_size(cs, Axis::VERTICAL, cross_outer_size));
+        }
+        return result;
+      }
+
       int total_flow_size = 0;
       for (size_t i = 0; i < children.size(); i++)
       {
@@ -1715,8 +1868,7 @@ namespace Pixils::UI
         }
       }
 
-      std::vector<Rect> rects;
-      rects.reserve(children.size());
+      result.rects.reserve(children.size());
 
       const Style::Layout::AlignItems align_items =
         layout.align_items.value_or(Style::Layout::AlignItems::START);
@@ -1729,17 +1881,18 @@ namespace Pixils::UI
 
         if (removes_layout(cs))
         {
-          rects.push_back({0, 0, 0, 0});
+          result.rects.push_back({0, 0, 0, 0});
           continue;
         }
 
         if (cs.position && *cs.position == PositionMode::ABSOLUTE)
         {
-          rects.push_back({0, 0, 0, 0});
+          result.rects.push_back({0, 0, 0, 0});
           continue;
         }
 
         int outer_size = outer_sizes[i];
+        if (row) remeasure_height_at_allocated_width(i, outer_size);
         Axis cross_axis = row ? Axis::VERTICAL : Axis::HORIZONTAL;
         int cross_outer_size = resolve_outer_size(
           cs,
@@ -1782,17 +1935,17 @@ namespace Pixils::UI
 
         if (row)
         {
-          rects.push_back({pos + margin.l,
-                           parent.y + cross_offset + margin.t,
-                           std::max(0, logical_outer_size - margin.l - margin.r),
-                           std::max(0, cross_outer_size - margin.t - margin.b)});
+          result.rects.push_back({pos + margin.l,
+                                  parent.y + cross_offset + margin.t,
+                                  std::max(0, logical_outer_size - margin.l - margin.r),
+                                  std::max(0, cross_outer_size - margin.t - margin.b)});
         }
         else
         {
-          rects.push_back({parent.x + cross_offset + margin.l,
-                           pos + margin.t,
-                           std::max(0, cross_outer_size - margin.l - margin.r),
-                           std::max(0, logical_outer_size - margin.t - margin.b)});
+          result.rects.push_back({parent.x + cross_offset + margin.l,
+                                  pos + margin.t,
+                                  std::max(0, cross_outer_size - margin.l - margin.r),
+                                  std::max(0, logical_outer_size - margin.t - margin.b)});
         }
 
         pos += outer_size;
@@ -1800,7 +1953,7 @@ namespace Pixils::UI
         if (flow_index < flow_count) pos += gap_size;
       }
 
-      return rects;
+      return result;
     }
   } // namespace
 
@@ -1827,13 +1980,14 @@ namespace Pixils::UI
                     .hook_ctx = hook_ctx,
                     .font_generation = current_font_generation(hook_ctx),
                     .natural_size_cache = {}};
-    return layout_children_with_selector_path(children,
-                                              parent,
-                                              pass,
-                                              layout,
-                                              inherited_style,
-                                              inherited_theme,
-                                              {});
+    return calculate_child_layout(children,
+                                  parent,
+                                  pass,
+                                  layout,
+                                  inherited_style,
+                                  inherited_theme,
+                                  {})
+      .rects;
   }
 
   bool layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
